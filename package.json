@@ -1,16 +1,30 @@
 {
   "name": "dependency-radar",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "CLI to scan project dependencies and produce a single HTML report.",
+  "main": "dist/index.js",
+  "bin": {
+    "dependency-radar": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts scan",
+    "scan": "node dist/cli.js scan",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "depcheck": "^1.4.7",
     "license-checker": "^25.0.1",
     "madge": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.3"
   }
 }
