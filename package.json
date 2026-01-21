@@ -1,0 +1,16 @@
+{
+  "name": "dependency-radar",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "depcheck": "^1.4.7",
+    "license-checker": "^25.0.1",
+    "madge": "^8.0.0"
+  }
+}
