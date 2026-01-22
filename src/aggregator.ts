@@ -132,6 +132,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   return {
     generatedAt: new Date().toISOString(),
     projectPath: input.projectPath,
+    maintenanceEnabled: input.maintenanceEnabled,
     dependencies,
     toolErrors,
     raw

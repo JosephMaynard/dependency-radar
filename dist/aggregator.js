@@ -83,6 +83,7 @@ async function aggregateData(input) {
     return {
         generatedAt: new Date().toISOString(),
         projectPath: input.projectPath,
+        maintenanceEnabled: input.maintenanceEnabled,
         dependencies,
         toolErrors,
         raw

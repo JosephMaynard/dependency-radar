@@ -104,7 +104,8 @@ function buildHtml(data) {
   <script type="application/json" id="radar-data">${json}</script>
   <script>
     const dataEl = document.getElementById('radar-data');
-    const report = JSON.parse(dataEl.textContent || '{}');
+  const report = JSON.parse(dataEl.textContent || '{}');
+  const maintenanceEnabled = Boolean(report.maintenanceEnabled);
     const container = document.getElementById('list');
 
     const controls = {
@@ -159,16 +160,22 @@ function buildHtml(data) {
     function renderDep(dep) {
       const licenseText = dep.license.license || 'Unknown';
       const severity = highestSeverity(dep);
+      const badges = [
+        badge(dep.direct ? 'Direct' : 'Transitive', dep.direct ? 'green' : 'amber'),
+        badge(dep.runtimeClass, dep.runtimeClass === 'runtime' ? 'green' : dep.runtimeClass === 'build-time' ? 'amber' : 'gray'),
+        badge('License: ' + licenseText, dep.licenseRisk),
+        badge('Vulns: ' + severity, dep.vulnRisk),
+        badge('Usage: ' + dep.usage.status, dep.usage.status === 'unused' ? 'red' : dep.usage.status === 'used' ? 'green' : 'gray')
+      ];
+      if (maintenanceEnabled) {
+        badges.splice(4, 0, badge('Maintenance', dep.maintenanceRisk === 'unknown' ? 'gray' : dep.maintenanceRisk));
+      }
+
       const summary = [
         '<summary>',
           '<span class="name">' + dep.name + '@' + dep.version + '</span>',
           '<div class="badges">',
-            badge(dep.direct ? 'Direct' : 'Transitive', dep.direct ? 'green' : 'amber'),
-            badge(dep.runtimeClass, dep.runtimeClass === 'runtime' ? 'green' : dep.runtimeClass === 'build-time' ? 'amber' : 'gray'),
-            badge('License: ' + licenseText, dep.licenseRisk),
-            badge('Vulns: ' + severity, dep.vulnRisk),
-            badge('Maintenance', dep.maintenanceRisk === 'unknown' ? 'gray' : dep.maintenanceRisk),
-            badge('Usage: ' + dep.usage.status, dep.usage.status === 'unused' ? 'red' : dep.usage.status === 'used' ? 'green' : 'gray'),
+            badges.join(''),
           '</div>',
         '</summary>'
       ].join('');

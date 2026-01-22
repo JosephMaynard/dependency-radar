@@ -84,6 +84,7 @@ export interface ToolResult<T> {
 export interface AggregatedData {
   generatedAt: string;
   projectPath: string;
+  maintenanceEnabled: boolean;
   dependencies: DependencyRecord[];
   toolErrors: Record<string, string>;
   raw: RawOutputs;
