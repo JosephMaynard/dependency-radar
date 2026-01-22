@@ -1,7 +1,7 @@
 {
   "name": "dependency-radar",
   "version": "0.1.0",
-  "description": "CLI to scan project dependencies and produce a single HTML report.",
+  "description": "Local-first dependency analysis tool that generates a single HTML report showing risk, size, usage, and structure of your project’s dependencies.",
   "main": "dist/index.js",
   "bin": {
     "dependency-radar": "dist/cli.js"

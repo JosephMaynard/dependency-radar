@@ -1,6 +1,21 @@
 # Dependency Radar
 
-A Node.js + TypeScript CLI that scans project dependencies with npm audit, npm ls, license-checker, depcheck, and madge, then produces a single self-contained HTML report.
+Dependency Radar is a local-first CLI tool that inspects a Node.js project’s installed dependencies and generates a single, human-readable HTML report. The report highlights dependency structure, usage, size, licences, vulnerabilities, and other signals that help you understand risk and complexity hidden in your node_modules folder.
+
+## What it does
+
+- Analyses installed dependencies using only local data (no SaaS, no uploads by default)
+- Combines multiple tools (npm audit, npm ls, license-checker, depcheck, madge) into a single report
+- Shows direct vs sub-dependencies, dependency depth, and parent relationships
+- Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint
+- Produces a single self-contained HTML file you can share or archive
+
+## What it is not
+
+- Not a CI service or hosted platform
+- Not a replacement for dedicated security scanners
+- Not a bundler or build tool
+- Not a dependency updater
 
 ## Setup
 
@@ -11,10 +26,12 @@ npm run build
 
 ## Usage
 
+The simplest way to run Dependency Radar is via npx. It runs in the current directory and writes an HTML report to disk.
+
 Run a scan against the current project (writes `dependency-radar.html`):
 
 ```bash
-npx dependency-radar scan
+npx dependency-radar
 ```
 
 Specify a project and output path:
@@ -37,6 +54,13 @@ npx dependency-radar scan --keep-temp
 
 ## Notes
 
-- The tool assumes `node_modules` is available in the target project.
-- Each tool writes raw JSON into `.dependency-radar/` before aggregation.
-- Sections corresponding to failed tools are marked as unavailable in the report, but the report still generates.
+- The target project must have node_modules installed (run npm install first).
+- The scan is local-first and does not upload your code or dependencies anywhere.
+- A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
+- Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
+- If a tool fails, its section is marked as unavailable, but the report is still generated.
+
+## Output
+
+Dependency Radar writes a single HTML file (dependency-radar.html by default).  
+The file is fully self-contained and can be opened locally in a browser, shared with others, or attached to tickets and documentation.
