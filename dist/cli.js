@@ -19,7 +19,8 @@ function parseArgs(argv) {
         command: 'scan',
         project: process.cwd(),
         out: 'dependency-radar.html',
-        keepTemp: false
+        keepTemp: false,
+        maintenance: false
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith('-')) {
@@ -35,6 +36,8 @@ function parseArgs(argv) {
             opts.out = args.shift();
         else if (arg === '--keep-temp')
             opts.keepTemp = true;
+        else if (arg === '--maintenance')
+            opts.maintenance = true;
         else if (arg === '--help' || arg === '-h') {
             printHelp();
             process.exit(0);
@@ -49,6 +52,7 @@ Options:
   --project <path>   Project folder (default: cwd)
   --out <path>       Output HTML file (default: dependency-radar.html)
   --keep-temp        Keep .dependency-radar folder
+  --maintenance      Enable slow maintenance checks (npm registry calls)
 `);
 }
 async function run() {
@@ -70,9 +74,9 @@ async function run() {
         // ignore, best-effort path normalization
     }
     const tempDir = path_1.default.join(projectPath, '.dependency-radar');
+    const stopSpinner = startSpinner(`Scanning project at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
-        console.log(`Scanning project at ${projectPath}`);
         const [auditResult, npmLsResult, licenseResult, depcheckResult, madgeResult] = await Promise.all([
             (0, npmAudit_1.runNpmAudit)(projectPath, tempDir),
             (0, npmLs_1.runNpmLs)(projectPath, tempDir),
@@ -80,18 +84,34 @@ async function run() {
             (0, depcheckRunner_1.runDepcheck)(projectPath, tempDir),
             (0, madgeRunner_1.runMadge)(projectPath, tempDir)
         ]);
+        if (opts.maintenance) {
+            stopSpinner(true);
+            console.log('Running maintenance checks (slow mode)');
+            console.log('This may take several minutes depending on dependency count.');
+        }
         const aggregated = await (0, aggregator_1.aggregateData)({
             projectPath,
+            maintenanceEnabled: opts.maintenance,
+            onMaintenanceProgress: opts.maintenance
+                ? (current, total, name) => {
+                    process.stdout.write(`\r[${current}/${total}] ${name}                      `);
+                }
+                : undefined,
             auditResult,
             npmLsResult,
             licenseResult,
             depcheckResult,
             madgeResult
         });
+        if (opts.maintenance) {
+            process.stdout.write('\n');
+        }
         await (0, report_1.renderReport)(aggregated, outputPath);
+        stopSpinner(true);
         console.log(`Report written to ${outputPath}`);
     }
     catch (err) {
+        stopSpinner(false);
         console.error('Failed to generate report:', err);
         process.exit(1);
     }
@@ -105,3 +125,20 @@ async function run() {
     }
 }
 run();
+function startSpinner(text) {
+    const frames = ['|', '/', '-', '\\'];
+    let i = 0;
+    process.stdout.write(`${frames[i]} ${text}`);
+    const timer = setInterval(() => {
+        i = (i + 1) % frames.length;
+        process.stdout.write(`\r${frames[i]} ${text}`);
+    }, 120);
+    let stopped = false;
+    return (success = true) => {
+        if (stopped)
+            return;
+        stopped = true;
+        clearInterval(timer);
+        process.stdout.write(`\r${success ? '✔' : '✖'} ${text}\n`);
+    };
+}

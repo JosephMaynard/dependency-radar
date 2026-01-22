@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runCommand = runCommand;
+exports.delay = delay;
 exports.ensureDir = ensureDir;
 exports.writeJsonFile = writeJsonFile;
 exports.pathExists = pathExists;
@@ -38,6 +39,9 @@ function runCommand(command, args, options = {}) {
             });
         });
     });
+}
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 async function ensureDir(dir) {
     await promises_1.default.mkdir(dir, { recursive: true });

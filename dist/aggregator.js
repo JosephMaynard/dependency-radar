@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
-const MAINTENANCE_LOOKUP_LIMIT = 50;
 async function aggregateData(input) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     const pkg = await (0, utils_1.readPackageJson)(input.projectPath);
@@ -30,10 +29,12 @@ async function aggregateData(input) {
     const depcheckUsage = buildUsageInfo((_j = input.depcheckResult) === null || _j === void 0 ? void 0 : _j.data);
     const importInfo = buildImportInfo((_k = input.madgeResult) === null || _k === void 0 ? void 0 : _k.data);
     const maintenanceCache = new Map();
-    let maintenanceLookups = 0;
     const dependencies = [];
     const licenseFallbackCache = new Map();
-    for (const node of nodeMap.values()) {
+    const nodes = Array.from(nodeMap.values());
+    const totalDeps = nodes.length;
+    let maintenanceIndex = 0;
+    for (const node of nodes) {
         const direct = isDirectDependency(node.name, pkg);
         const license = licenseData.byKey.get(node.key) ||
             licenseData.byName.get(node.name) ||
@@ -50,13 +51,9 @@ async function aggregateData(input) {
             (((_l = input.depcheckResult) === null || _l === void 0 ? void 0 : _l.data)
                 ? { status: 'used', reason: 'Not flagged as unused by depcheck' }
                 : { status: 'unknown', reason: 'depcheck unavailable' });
-        const allowLookup = maintenanceLookups < MAINTENANCE_LOOKUP_LIMIT;
-        const maintenance = await resolveMaintenance(node.name, maintenanceCache, allowLookup);
+        const maintenance = await resolveMaintenance(node.name, maintenanceCache, input.maintenanceEnabled, ++maintenanceIndex, totalDeps, input.onMaintenanceProgress);
         if (!maintenanceCache.has(node.name)) {
             maintenanceCache.set(node.name, maintenance);
-            if (maintenance.status !== 'unknown' && allowLookup) {
-                maintenanceLookups++;
-            }
         }
         const maintenanceRiskLevel = (0, utils_1.maintenanceRisk)(maintenance.lastPublished);
         const runtimeData = classifyRuntime(node, pkg, nodeMap);
@@ -275,13 +272,15 @@ function buildImportInfo(graphData) {
 function isDirectDependency(name, pkg) {
     return Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
 }
-async function resolveMaintenance(name, cache, allowLookup) {
+async function resolveMaintenance(name, cache, maintenanceEnabled, current, total, onProgress) {
     if (cache.has(name))
         return cache.get(name);
-    if (!allowLookup) {
-        return { status: 'unknown', reason: 'lookup cap reached' };
+    if (!maintenanceEnabled) {
+        return { status: 'unknown', reason: 'maintenance checks disabled' };
     }
+    onProgress === null || onProgress === void 0 ? void 0 : onProgress(current, total, name);
     try {
+        await (0, utils_1.delay)(1000);
         const res = await (0, utils_1.runCommand)('npm', ['view', name, 'time', '--json']);
         const json = JSON.parse(res.stdout || '{}');
         const timestamps = Object.values(json || {}).filter((v) => typeof v === 'string');
@@ -294,7 +293,7 @@ async function resolveMaintenance(name, cache, allowLookup) {
         return { status: 'unknown', reason: 'npm view returned no data' };
     }
     catch (err) {
-        return { status: 'unknown', reason: `lookup failed: ${String(err)}` };
+        return { status: 'unknown', reason: 'lookup failed' };
     }
 }
 function classifyRuntime(node, pkg, map) {

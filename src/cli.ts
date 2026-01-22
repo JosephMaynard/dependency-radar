@@ -15,6 +15,7 @@ interface CliOptions {
   project: string;
   out: string;
   keepTemp: boolean;
+  maintenance: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -22,7 +23,8 @@ function parseArgs(argv: string[]): CliOptions {
     command: 'scan',
     project: process.cwd(),
     out: 'dependency-radar.html',
-    keepTemp: false
+    keepTemp: false,
+    maintenance: false
   };
 
   const args = [...argv];
@@ -36,6 +38,7 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === '--project' && args[0]) opts.project = args.shift()!;
     else if (arg === '--out' && args[0]) opts.out = args.shift()!;
     else if (arg === '--keep-temp') opts.keepTemp = true;
+    else if (arg === '--maintenance') opts.maintenance = true;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -52,6 +55,7 @@ Options:
   --project <path>   Project folder (default: cwd)
   --out <path>       Output HTML file (default: dependency-radar.html)
   --keep-temp        Keep .dependency-radar folder
+  --maintenance      Enable slow maintenance checks (npm registry calls)
 `);
 }
 
@@ -75,9 +79,9 @@ async function run(): Promise<void> {
   }
   const tempDir = path.join(projectPath, '.dependency-radar');
 
+  const stopSpinner = startSpinner(`Scanning project at ${projectPath}`);
   try {
     await ensureDir(tempDir);
-    console.log(`Scanning project at ${projectPath}`);
 
     const [auditResult, npmLsResult, licenseResult, depcheckResult, madgeResult] = await Promise.all([
       runNpmAudit(projectPath, tempDir),
@@ -87,8 +91,20 @@ async function run(): Promise<void> {
       runMadge(projectPath, tempDir)
     ]);
 
+    if (opts.maintenance) {
+      stopSpinner(true);
+      console.log('Running maintenance checks (slow mode)');
+      console.log('This may take several minutes depending on dependency count.');
+    }
+
     const aggregated = await aggregateData({
       projectPath,
+      maintenanceEnabled: opts.maintenance,
+      onMaintenanceProgress: opts.maintenance
+        ? (current, total, name) => {
+            process.stdout.write(`\r[${current}/${total}] ${name}                      `);
+          }
+        : undefined,
       auditResult,
       npmLsResult,
       licenseResult,
@@ -96,9 +112,15 @@ async function run(): Promise<void> {
       madgeResult
     });
 
+    if (opts.maintenance) {
+      process.stdout.write('\n');
+    }
+
     await renderReport(aggregated, outputPath);
+    stopSpinner(true);
     console.log(`Report written to ${outputPath}`);
   } catch (err: any) {
+    stopSpinner(false);
     console.error('Failed to generate report:', err);
     process.exit(1);
   } finally {
@@ -111,3 +133,22 @@ async function run(): Promise<void> {
 }
 
 run();
+
+function startSpinner(text: string): (success?: boolean) => void {
+  const frames = ['|', '/', '-', '\\'];
+  let i = 0;
+  process.stdout.write(`${frames[i]} ${text}`);
+  const timer = setInterval(() => {
+    i = (i + 1) % frames.length;
+    process.stdout.write(`\r${frames[i]} ${text}`);
+  }, 120);
+
+  let stopped = false;
+
+  return (success = true) => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(timer);
+    process.stdout.write(`\r${success ? '✔' : '✖'} ${text}\n`);
+  };
+}

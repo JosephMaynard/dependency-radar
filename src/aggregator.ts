@@ -15,11 +15,14 @@ import {
   readPackageJson,
   readLicenseFromPackageJson,
   runCommand,
+  delay,
   vulnRiskLevel
 } from './utils';
 
 interface AggregateInput {
   projectPath: string;
+  maintenanceEnabled: boolean;
+  onMaintenanceProgress?: (current: number, total: number, name: string) => void;
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
   licenseResult?: ToolResult<any>;
@@ -35,8 +38,6 @@ interface NodeInfo {
   parents: Set<string>;
   dev?: boolean;
 }
-
-const MAINTENANCE_LOOKUP_LIMIT = 50;
 
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
   const pkg = await readPackageJson(input.projectPath);
@@ -61,12 +62,15 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const depcheckUsage = buildUsageInfo(input.depcheckResult?.data);
   const importInfo = buildImportInfo(input.madgeResult?.data);
   const maintenanceCache = new Map<string, MaintenanceInfo>();
-  let maintenanceLookups = 0;
 
   const dependencies: DependencyRecord[] = [];
   const licenseFallbackCache = new Map<string, { license?: string; licenseFile?: string }>();
 
-  for (const node of nodeMap.values()) {
+  const nodes = Array.from(nodeMap.values());
+  const totalDeps = nodes.length;
+  let maintenanceIndex = 0;
+
+  for (const node of nodes) {
     const direct = isDirectDependency(node.name, pkg);
     const license =
       licenseData.byKey.get(node.key) ||
@@ -84,13 +88,16 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       (input.depcheckResult?.data
         ? { status: 'used', reason: 'Not flagged as unused by depcheck' }
         : { status: 'unknown', reason: 'depcheck unavailable' });
-    const allowLookup = maintenanceLookups < MAINTENANCE_LOOKUP_LIMIT;
-    const maintenance = await resolveMaintenance(node.name, maintenanceCache, allowLookup);
+    const maintenance = await resolveMaintenance(
+      node.name,
+      maintenanceCache,
+      input.maintenanceEnabled,
+      ++maintenanceIndex,
+      totalDeps,
+      input.onMaintenanceProgress
+    );
     if (!maintenanceCache.has(node.name)) {
       maintenanceCache.set(node.name, maintenance);
-      if (maintenance.status !== 'unknown' && allowLookup) {
-        maintenanceLookups++;
-      }
     }
 
     const maintenanceRiskLevel = maintenanceRisk(maintenance.lastPublished);
@@ -321,13 +328,18 @@ function isDirectDependency(name: string, pkg: any): boolean {
 async function resolveMaintenance(
   name: string,
   cache: Map<string, MaintenanceInfo>,
-  allowLookup: boolean
+  maintenanceEnabled: boolean,
+  current: number,
+  total: number,
+  onProgress?: (current: number, total: number, name: string) => void
 ): Promise<MaintenanceInfo> {
   if (cache.has(name)) return cache.get(name)!;
-  if (!allowLookup) {
-    return { status: 'unknown', reason: 'lookup cap reached' } as MaintenanceInfo;
+  if (!maintenanceEnabled) {
+    return { status: 'unknown', reason: 'maintenance checks disabled' } as MaintenanceInfo;
   }
+  onProgress?.(current, total, name);
   try {
+    await delay(1000);
     const res = await runCommand('npm', ['view', name, 'time', '--json']);
     const json = JSON.parse(res.stdout || '{}');
     const timestamps = Object.values<string>(json || {}).filter((v) => typeof v === 'string');
@@ -339,7 +351,7 @@ async function resolveMaintenance(
     }
     return { status: 'unknown', reason: 'npm view returned no data' } as MaintenanceInfo;
   } catch (err: any) {
-    return { status: 'unknown', reason: `lookup failed: ${String(err)}` } as MaintenanceInfo;
+    return { status: 'unknown', reason: 'lookup failed' } as MaintenanceInfo;
   }
 }
 
