@@ -59,15 +59,11 @@ function buildHtml(data) {
     th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 6px 4px; font-size: 13px; }
     pre { background: #f1f5f9; padding: 10px; border-radius: 6px; overflow: auto; }
     .tool-errors { margin-bottom: 16px; padding: 10px; border: 1px solid var(--red); background: #fff5f5; color: var(--red); border-radius: 6px; }
-    .meta { border-top: 1px solid var(--border); padding-top: 6px; }
     .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
-    .kv-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .kv-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin: 0; }
     .kv-label { font-weight: 600; color: var(--muted); font-size: 13px; }
     .kv-value { font-size: 13px; }
     .info { margin-left: 4px; cursor: help; color: var(--muted); font-weight: 700; }
-    details.meta summary { display: flex; align-items: center; gap: 6px; }
-    details.meta { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
-    details.meta summary::-webkit-details-marker { display: none; }
   </style>
 </head>
 <body>
@@ -154,11 +150,15 @@ function buildHtml(data) {
     }
 
     function renderRow(title, value, desc) {
-      return '<div class="kv-row"><span class="kv-label">' + title + infoIcon(desc) + '</span><span class="kv-value">' + value + '</span></div>';
+      return '<p class="kv-row"><span class="kv-label">' + title + infoIcon(desc) + '</span><span class="kv-value">' + value + '</span></p>';
     }
 
-    function renderSection(title, desc, rows) {
-      return '<details class="section meta"><summary>' + title + infoIcon(desc) + '</summary><div class="kv">' + rows.join('') + '</div></details>';
+    function renderSection(title, desc, bodyHtml) {
+      return '<div class="section"><h4>' + title + infoIcon(desc) + '</h4>' + bodyHtml + '</div>';
+    }
+
+    function renderKvSection(title, desc, rows) {
+      return renderSection(title, desc, '<div class="kv">' + rows.join('') + '</div>');
     }
 
     function applyFilters() {
@@ -222,59 +222,85 @@ function buildHtml(data) {
 
       const rawJson = JSON.stringify(dep, null, 2);
 
+      const overviewSection = renderKvSection('Overview', 'Dependency position and runtime classification.', [
+        renderRow('Depth', String(dep.depth), 'Depth of this dependency within the tree.'),
+        renderRow('Parents', dep.parents.join(', ') || 'root', 'Immediate parents in the dependency tree.'),
+        renderRow('Runtime Class', dep.runtimeClass + ' (' + dep.runtimeReason + ')', 'Runtime usage classification for this dependency.')
+      ]);
+
+      const licenseSection = renderKvSection('License', 'Declared license data for this dependency.', [
+        renderRow('License', licenseText, 'License declared by the package.'),
+        renderRow('License File', dep.license.licenseFile || 'Unavailable', 'Path to the detected license file, when present.')
+      ]);
+
+      const vulnSection = renderSection('Vulnerabilities', 'Known vulnerabilities from npm audit results.', vulnTable);
+
+      const maintenanceSection = renderSection(
+        'Maintenance',
+        'Recency of package publication based on maintenance checks.',
+        '<p>Status: ' + dep.maintenance.status + (dep.maintenance.lastPublished ? ' · Last published: ' + dep.maintenance.lastPublished : '') + ' (' + (dep.maintenance.reason || '') + ')</p>'
+      );
+
+      const usageSection = renderSection('Usage', 'Usage signals from depcheck results.', '<p>' + dep.usage.status + ' — ' + dep.usage.reason + '</p>');
+
+      const identitySection = renderKvSection('Identity & Metadata', 'Basic package metadata discovered locally.', [
+        renderRow('Deprecated', yesNo(dep.identity.deprecated), 'This package has been marked as deprecated by its author.'),
+        renderRow('Node Version Requirement', dep.identity.nodeEngine || 'None', 'Declared Node.js versions this package claims to support.'),
+        renderRow('Repository Linked', yesNo(dep.identity.hasRepository), 'Indicates whether the package declares a source repository.'),
+        renderRow('Funding Info', yesNo(dep.identity.hasFunding), 'Indicates whether the package declares funding or sponsorship information.')
+      ]);
+
+      const dependencySurfaceSection = renderKvSection('Dependency Surface Area', 'Declared dependency counts and coupling indicators.', [
+        renderRow(
+          'Dependency Surface',
+          dep.dependencySurface.dependencies + ' prod / ' +
+            dep.dependencySurface.devDependencies + ' dev / ' +
+            dep.dependencySurface.peerDependencies + ' peer / ' +
+            dep.dependencySurface.optionalDependencies + ' optional',
+          'Number of dependencies this package declares.'
+        ),
+        renderRow('Peer Dependencies', yesNo(dep.dependencySurface.hasPeerDependencies), 'Peer dependencies increase coupling and can complicate upgrades.')
+      ]);
+
+      const sizeSection = renderKvSection('Size & Footprint', 'Local install size and file count.', [
+        renderRow('Installed Size', formatBytes(dep.sizeFootprint.installedSize), 'Disk space consumed by this package and its files.'),
+        renderRow('File Count', String(dep.sizeFootprint.fileCount), 'Total number of files installed for this package.')
+      ]);
+
+      const buildSection = renderKvSection('Build & Platform Complexity', 'Signals that may require native builds or install-time scripts.', [
+        renderRow('Native Code', yesNo(dep.buildPlatform.nativeBindings), 'Package includes native code that may require compilation.'),
+        renderRow('Install Scripts', yesNo(dep.buildPlatform.installScripts), 'Package executes code during installation.')
+      ]);
+
+      const moduleSection = renderKvSection('Module System', 'Module format indicators derived from package metadata.', [
+        renderRow('Module Format', dep.moduleSystem.format, 'Indicates whether the package uses CommonJS, ES Modules, or both.'),
+        renderRow('Conditional Exports', yesNo(dep.moduleSystem.conditionalExports), 'Package defines conditional export paths for different environments.')
+      ]);
+
+      const typesSection = renderKvSection('TypeScript Support', 'Whether the package ships bundled type definitions.', [
+        renderRow('TypeScript Types', dep.typescript.types === 'bundled' ? 'Bundled' : 'None', 'Indicates whether the package ships TypeScript type definitions.')
+      ]);
+
+      const graphSection = renderKvSection('Graph Shape', 'Derived connectivity within the dependency graph.', [
+        renderRow('Depended On By', String(dep.graph.fanIn), 'Number of other dependencies that rely on this package.'),
+        renderRow('Depends On', String(dep.graph.fanOut), 'Number of dependencies this package relies on.')
+      ]);
+
       return [
         '<details>',
         summary,
-        '<div class="section"><h4>Overview</h4>',
-          '<p>Depth: ' + dep.depth + ' · Parents: ' + (dep.parents.join(', ') || 'root') + '</p>',
-          '<p>Runtime class: ' + dep.runtimeClass + ' (' + dep.runtimeReason + ')</p>',
-        '</div>',
-        '<div class="section"><h4>License</h4>',
-          '<p>' + licenseText + (dep.license.licenseFile ? ' · File: ' + dep.license.licenseFile : '') + '</p>',
-        '</div>',
-        '<div class="section"><h4>Vulnerabilities</h4>' + vulnTable + '</div>',
-        '<div class="section"><h4>Maintenance</h4>',
-          '<p>Status: ' + dep.maintenance.status + (dep.maintenance.lastPublished ? ' · Last published: ' + dep.maintenance.lastPublished : '') + ' (' + (dep.maintenance.reason || '') + ')</p>',
-        '</div>',
-        '<div class="section"><h4>Usage</h4>',
-          '<p>' + dep.usage.status + ' — ' + dep.usage.reason + '</p>',
-        '</div>',
-        renderSection('Identity & Metadata', 'Basic package metadata discovered locally.', [
-          renderRow('Deprecated', yesNo(dep.identity.deprecated), 'This package has been marked as deprecated by its author.'),
-          renderRow('Node Version Requirement', dep.identity.nodeEngine || 'None', 'Declared Node.js versions this package claims to support.'),
-          renderRow('Repository Linked', yesNo(dep.identity.hasRepository), 'Indicates whether the package declares a source repository.'),
-          renderRow('Funding Info', yesNo(dep.identity.hasFunding), 'Indicates whether the package declares funding or sponsorship information.')
-        ]),
-        renderSection('Dependency Surface Area', 'Declared dependency counts and coupling indicators.', [
-          renderRow(
-            'Dependency Surface',
-            dep.dependencySurface.dependencies + ' prod / ' +
-              dep.dependencySurface.devDependencies + ' dev / ' +
-              dep.dependencySurface.peerDependencies + ' peer / ' +
-              dep.dependencySurface.optionalDependencies + ' optional',
-            'Number of dependencies this package declares.'
-          ),
-          renderRow('Peer Dependencies', yesNo(dep.dependencySurface.hasPeerDependencies), 'Peer dependencies increase coupling and can complicate upgrades.')
-        ]),
-        renderSection('Size & Footprint', 'Local install size and file count.', [
-          renderRow('Installed Size', formatBytes(dep.sizeFootprint.installedSize), 'Disk space consumed by this package and its files.'),
-          renderRow('File Count', String(dep.sizeFootprint.fileCount), 'Total number of files installed for this package.')
-        ]),
-        renderSection('Build & Platform Complexity', 'Signals that may require native builds or install-time scripts.', [
-          renderRow('Native Code', yesNo(dep.buildPlatform.nativeBindings), 'Package includes native code that may require compilation.'),
-          renderRow('Install Scripts', yesNo(dep.buildPlatform.installScripts), 'Package executes code during installation.')
-        ]),
-        renderSection('Module System', 'Module format indicators derived from package metadata.', [
-          renderRow('Module Format', dep.moduleSystem.format, 'Indicates whether the package uses CommonJS, ES Modules, or both.'),
-          renderRow('Conditional Exports', yesNo(dep.moduleSystem.conditionalExports), 'Package defines conditional export paths for different environments.')
-        ]),
-        renderSection('TypeScript Support', 'Whether the package ships bundled type definitions.', [
-          renderRow('TypeScript Types', dep.typescript.types === 'bundled' ? 'Bundled' : 'None', 'Indicates whether the package ships TypeScript type definitions.')
-        ]),
-        renderSection('Graph Shape', 'Derived connectivity within the dependency graph.', [
-          renderRow('Depended On By', String(dep.graph.fanIn), 'Number of other dependencies that rely on this package.'),
-          renderRow('Depends On', String(dep.graph.fanOut), 'Number of dependencies this package relies on.')
-        ]),
+        overviewSection,
+        licenseSection,
+        vulnSection,
+        maintenanceSection,
+        usageSection,
+        identitySection,
+        dependencySurfaceSection,
+        sizeSection,
+        buildSection,
+        moduleSection,
+        typesSection,
+        graphSection,
         '<details class="section"><summary>Raw data</summary><pre>' + rawJson + '</pre></details>',
         '</details>'
       ].join('');
