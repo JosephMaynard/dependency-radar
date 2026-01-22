@@ -64,6 +64,8 @@ async function run() {
     }
     const projectPath = path_1.default.resolve(opts.project);
     let outputPath = path_1.default.resolve(opts.out);
+    const startTime = Date.now();
+    let dependencyCount = 0;
     try {
         const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
         if ((stat && stat.isDirectory()) || opts.out.endsWith(path_1.default.sep)) {
@@ -103,12 +105,15 @@ async function run() {
             depcheckResult,
             madgeResult
         });
+        dependencyCount = aggregated.dependencies.length;
         if (opts.maintenance) {
             process.stdout.write('\n');
         }
         await (0, report_1.renderReport)(aggregated, outputPath);
         stopSpinner(true);
         console.log(`Report written to ${outputPath}`);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
     }
     catch (err) {
         stopSpinner(false);

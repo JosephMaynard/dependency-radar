@@ -69,6 +69,8 @@ async function run(): Promise<void> {
 
   const projectPath = path.resolve(opts.project);
   let outputPath = path.resolve(opts.out);
+  const startTime = Date.now();
+  let dependencyCount = 0;
   try {
     const stat = await fs.stat(outputPath).catch(() => undefined);
     if ((stat && stat.isDirectory()) || opts.out.endsWith(path.sep)) {
@@ -111,6 +113,7 @@ async function run(): Promise<void> {
       depcheckResult,
       madgeResult
     });
+    dependencyCount = aggregated.dependencies.length;
 
     if (opts.maintenance) {
       process.stdout.write('\n');
@@ -119,6 +122,8 @@ async function run(): Promise<void> {
     await renderReport(aggregated, outputPath);
     stopSpinner(true);
     console.log(`Report written to ${outputPath}`);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
   } catch (err: any) {
     stopSpinner(false);
     console.error('Failed to generate report:', err);

@@ -59,6 +59,13 @@ export interface DependencyRecord {
   maintenance: MaintenanceInfo;
   maintenanceRisk: 'green' | 'amber' | 'red' | 'unknown';
   usage: UsageInfo;
+  identity: IdentityMetadata;
+  dependencySurface: DependencySurface;
+  sizeFootprint: SizeFootprint;
+  buildPlatform: BuildPlatformInfo;
+  moduleSystem: ModuleSystemInfo;
+  typescript: TypeSupportInfo;
+  graph: GraphShape;
   importInfo?: ImportGraphInfo;
   runtimeClass: 'runtime' | 'build-time' | 'dev-only';
   runtimeReason: string;
@@ -88,6 +95,45 @@ export interface AggregatedData {
   dependencies: DependencyRecord[];
   toolErrors: Record<string, string>;
   raw: RawOutputs;
+}
+
+export interface IdentityMetadata {
+  deprecated: boolean;
+  nodeEngine: string | null;
+  hasRepository: boolean;
+  hasFunding: boolean;
+}
+
+export interface DependencySurface {
+  dependencies: number;
+  devDependencies: number;
+  peerDependencies: number;
+  optionalDependencies: number;
+  hasPeerDependencies: boolean;
+}
+
+export interface SizeFootprint {
+  installedSize: number;
+  fileCount: number;
+}
+
+export interface BuildPlatformInfo {
+  nativeBindings: boolean;
+  installScripts: boolean;
+}
+
+export interface ModuleSystemInfo {
+  format: 'commonjs' | 'esm' | 'dual' | 'unknown';
+  conditionalExports: boolean;
+}
+
+export interface TypeSupportInfo {
+  types: 'none' | 'bundled';
+}
+
+export interface GraphShape {
+  fanIn: number;
+  fanOut: number;
 }
 
 export interface ScanOptions {

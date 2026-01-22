@@ -1,7 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
+const promises_1 = __importDefault(require("fs/promises"));
+const path_1 = __importDefault(require("path"));
 async function aggregateData(input) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     const pkg = await (0, utils_1.readPackageJson)(input.projectPath);
@@ -29,6 +34,8 @@ async function aggregateData(input) {
     const depcheckUsage = buildUsageInfo((_j = input.depcheckResult) === null || _j === void 0 ? void 0 : _j.data);
     const importInfo = buildImportInfo((_k = input.madgeResult) === null || _k === void 0 ? void 0 : _k.data);
     const maintenanceCache = new Map();
+    const packageMetaCache = new Map();
+    const packageStatCache = new Map();
     const dependencies = [];
     const licenseFallbackCache = new Map();
     const nodes = Array.from(nodeMap.values());
@@ -57,6 +64,7 @@ async function aggregateData(input) {
         }
         const maintenanceRiskLevel = (0, utils_1.maintenanceRisk)(maintenance.lastPublished);
         const runtimeData = classifyRuntime(node, pkg, nodeMap);
+        const packageInsights = await gatherPackageInsights(node.name, input.projectPath, packageMetaCache, packageStatCache, node.parents.size, node.children.size);
         dependencies.push({
             name: node.name,
             version: node.version,
@@ -72,6 +80,13 @@ async function aggregateData(input) {
             maintenance,
             maintenanceRisk: maintenanceRiskLevel,
             usage,
+            identity: packageInsights.identity,
+            dependencySurface: packageInsights.dependencySurface,
+            sizeFootprint: packageInsights.sizeFootprint,
+            buildPlatform: packageInsights.buildPlatform,
+            moduleSystem: packageInsights.moduleSystem,
+            typescript: packageInsights.typescript,
+            graph: packageInsights.graph,
             importInfo,
             runtimeClass: runtimeData.classification,
             runtimeReason: runtimeData.reason,
@@ -104,6 +119,7 @@ function buildNodeMap(lsData, pkg) {
                 key,
                 depth,
                 parents: new Set(parentKey ? [parentKey] : []),
+                children: new Set(),
                 dev: node.dev
             });
         }
@@ -114,9 +130,19 @@ function buildNodeMap(lsData, pkg) {
                 existing.parents.add(parentKey);
             if (existing.dev === undefined && node.dev !== undefined)
                 existing.dev = node.dev;
+            if (!existing.children)
+                existing.children = new Set();
         }
         if (node.dependencies && typeof node.dependencies === 'object') {
-            Object.entries(node.dependencies).forEach(([depName, child]) => traverse(child, depth + 1, key, depName));
+            Object.entries(node.dependencies).forEach(([depName, child]) => {
+                const childVersion = (child === null || child === void 0 ? void 0 : child.version) || 'unknown';
+                const childKey = `${depName}@${childVersion}`;
+                const current = map.get(key);
+                if (current) {
+                    current.children.add(childKey);
+                }
+                traverse(child, depth + 1, key, depName);
+            });
         }
     };
     if (lsData && lsData.dependencies) {
@@ -128,12 +154,12 @@ function buildNodeMap(lsData, pkg) {
         deps.forEach((name) => {
             const version = pkg.dependencies[name];
             const key = `${name}@${version}`;
-            map.set(key, { name, version, key, depth: 1, parents: new Set(), dev: false });
+            map.set(key, { name, version, key, depth: 1, parents: new Set(), children: new Set(), dev: false });
         });
         devDeps.forEach((name) => {
             const version = pkg.devDependencies[name];
             const key = `${name}@${version}`;
-            map.set(key, { name, version, key, depth: 1, parents: new Set(), dev: true });
+            map.set(key, { name, version, key, depth: 1, parents: new Set(), children: new Set(), dev: true });
         });
     }
     return map;
@@ -315,4 +341,129 @@ function classifyRuntime(node, pkg, map) {
         return { classification: 'runtime', reason: 'Transitive of runtime dependency' };
     }
     return { classification: 'build-time', reason: 'Only seen in dev dependency tree' };
+}
+async function gatherPackageInsights(name, projectPath, metaCache, statCache, fanIn, fanOut) {
+    var _a;
+    const meta = await loadPackageMeta(name, projectPath, metaCache);
+    const pkg = (meta === null || meta === void 0 ? void 0 : meta.pkg) || {};
+    const dir = meta === null || meta === void 0 ? void 0 : meta.dir;
+    const stats = dir ? await calculatePackageStats(dir, statCache) : undefined;
+    const dependencySurface = {
+        dependencies: Object.keys(pkg.dependencies || {}).length,
+        devDependencies: Object.keys(pkg.devDependencies || {}).length,
+        peerDependencies: Object.keys(pkg.peerDependencies || {}).length,
+        optionalDependencies: Object.keys(pkg.optionalDependencies || {}).length,
+        hasPeerDependencies: Object.keys(pkg.peerDependencies || {}).length > 0
+    };
+    const scripts = pkg.scripts || {};
+    const identity = {
+        deprecated: Boolean(pkg.deprecated),
+        nodeEngine: typeof ((_a = pkg.engines) === null || _a === void 0 ? void 0 : _a.node) === 'string' ? pkg.engines.node : null,
+        hasRepository: Boolean(pkg.repository),
+        hasFunding: Boolean(pkg.funding)
+    };
+    const moduleSystem = determineModuleSystem(pkg);
+    const typescript = determineTypes(pkg, (stats === null || stats === void 0 ? void 0 : stats.hasDts) || false);
+    const buildPlatform = {
+        nativeBindings: Boolean((stats === null || stats === void 0 ? void 0 : stats.hasNativeBinary) || (stats === null || stats === void 0 ? void 0 : stats.hasBindingGyp) || scriptsContainNativeBuild(scripts)),
+        installScripts: hasInstallScripts(scripts)
+    };
+    const sizeFootprint = {
+        installedSize: (stats === null || stats === void 0 ? void 0 : stats.size) || 0,
+        fileCount: (stats === null || stats === void 0 ? void 0 : stats.files) || 0
+    };
+    const graph = {
+        fanIn,
+        fanOut
+    };
+    return {
+        identity,
+        dependencySurface,
+        sizeFootprint,
+        buildPlatform,
+        moduleSystem,
+        typescript,
+        graph
+    };
+}
+async function loadPackageMeta(name, projectPath, cache) {
+    if (cache.has(name))
+        return cache.get(name);
+    try {
+        const pkgJsonPath = require.resolve(path_1.default.join(name, 'package.json'), { paths: [projectPath] });
+        const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
+        const pkg = JSON.parse(pkgRaw);
+        const meta = { pkg, dir: path_1.default.dirname(pkgJsonPath) };
+        cache.set(name, meta);
+        return meta;
+    }
+    catch (err) {
+        return undefined;
+    }
+}
+async function calculatePackageStats(dir, cache) {
+    if (cache.has(dir))
+        return cache.get(dir);
+    let size = 0;
+    let files = 0;
+    let hasDts = false;
+    let hasNativeBinary = false;
+    let hasBindingGyp = false;
+    async function walk(current) {
+        const entries = await promises_1.default.readdir(current, { withFileTypes: true });
+        for (const entry of entries) {
+            const full = path_1.default.join(current, entry.name);
+            if (entry.isSymbolicLink())
+                continue;
+            if (entry.isDirectory()) {
+                await walk(full);
+            }
+            else if (entry.isFile()) {
+                const stat = await promises_1.default.stat(full);
+                size += stat.size;
+                files += 1;
+                if (entry.name.endsWith('.d.ts'))
+                    hasDts = true;
+                if (entry.name.endsWith('.node'))
+                    hasNativeBinary = true;
+                if (entry.name === 'binding.gyp')
+                    hasBindingGyp = true;
+            }
+        }
+    }
+    try {
+        await walk(dir);
+    }
+    catch (err) {
+        // best-effort; ignore inaccessible paths
+    }
+    const result = { size, files, hasDts, hasNativeBinary, hasBindingGyp };
+    cache.set(dir, result);
+    return result;
+}
+function determineModuleSystem(pkg) {
+    const typeField = pkg.type;
+    const hasModuleField = Boolean(pkg.module);
+    const hasExports = pkg.exports !== undefined;
+    const conditionalExports = typeof pkg.exports === 'object' && pkg.exports !== null;
+    let format = 'unknown';
+    if (typeField === 'module')
+        format = 'esm';
+    else if (typeField === 'commonjs')
+        format = 'commonjs';
+    else if (hasModuleField || hasExports)
+        format = 'dual';
+    else
+        format = 'commonjs';
+    return { format, conditionalExports };
+}
+function determineTypes(pkg, hasDts) {
+    const hasBundled = Boolean(pkg.types || pkg.typings || hasDts);
+    return { types: hasBundled ? 'bundled' : 'none' };
+}
+function scriptsContainNativeBuild(scripts) {
+    return Object.values(scripts || {}).some((cmd) => typeof cmd === 'string' && /node-?gyp|node-pre-gyp/.test(cmd));
+}
+function hasInstallScripts(scripts) {
+    return ['preinstall', 'install', 'postinstall'].some((key) => typeof (scripts === null || scripts === void 0 ? void 0 : scripts[key]) === 'string' && scripts[key].trim().length > 0);
 }

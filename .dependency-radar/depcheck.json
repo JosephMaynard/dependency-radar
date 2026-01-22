@@ -14,6 +14,7 @@
     ],
     "@types/node": [
       "/Users/josephmaynard/Developer/dependency-radar/package.json",
+      "/Users/josephmaynard/Developer/dependency-radar/src/aggregator.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/cli.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/report.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/utils.ts",

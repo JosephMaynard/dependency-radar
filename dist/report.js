@@ -59,6 +59,15 @@ function buildHtml(data) {
     th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 6px 4px; font-size: 13px; }
     pre { background: #f1f5f9; padding: 10px; border-radius: 6px; overflow: auto; }
     .tool-errors { margin-bottom: 16px; padding: 10px; border: 1px solid var(--red); background: #fff5f5; color: var(--red); border-radius: 6px; }
+    .meta { border-top: 1px solid var(--border); padding-top: 6px; }
+    .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+    .kv-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .kv-label { font-weight: 600; color: var(--muted); font-size: 13px; }
+    .kv-value { font-size: 13px; }
+    .info { margin-left: 4px; cursor: help; color: var(--muted); font-weight: 700; }
+    details.meta summary { display: flex; align-items: center; gap: 6px; }
+    details.meta { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+    details.meta summary::-webkit-details-marker { display: none; }
   </style>
 </head>
 <body>
@@ -104,8 +113,8 @@ function buildHtml(data) {
   <script type="application/json" id="radar-data">${json}</script>
   <script>
     const dataEl = document.getElementById('radar-data');
-  const report = JSON.parse(dataEl.textContent || '{}');
-  const maintenanceEnabled = Boolean(report.maintenanceEnabled);
+    const report = JSON.parse(dataEl.textContent || '{}');
+    const maintenanceEnabled = Boolean(report.maintenanceEnabled);
     const container = document.getElementById('list');
 
     const controls = {
@@ -123,6 +132,34 @@ function buildHtml(data) {
     }
 
     const severityOrder = { none: 0, low: 1, moderate: 2, high: 3, critical: 4 };
+
+    function formatBytes(bytes) {
+      if (!bytes) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let val = bytes;
+      let unit = 0;
+      while (val >= 1024 && unit < units.length - 1) {
+        val /= 1024;
+        unit++;
+      }
+      return val.toFixed(val >= 10 ? 0 : 1) + ' ' + units[unit];
+    }
+
+    function yesNo(flag) {
+      return flag ? 'Yes' : 'No';
+    }
+
+    function infoIcon(text) {
+      return '<span class="info" title="' + text + '">ⓘ</span>';
+    }
+
+    function renderRow(title, value, desc) {
+      return '<div class="kv-row"><span class="kv-label">' + title + infoIcon(desc) + '</span><span class="kv-value">' + value + '</span></div>';
+    }
+
+    function renderSection(title, desc, rows) {
+      return '<details class="section meta"><summary>' + title + infoIcon(desc) + '</summary><div class="kv">' + rows.join('') + '</div></details>';
+    }
 
     function applyFilters() {
       const term = (controls.search.value || '').toLowerCase();
@@ -202,6 +239,42 @@ function buildHtml(data) {
         '<div class="section"><h4>Usage</h4>',
           '<p>' + dep.usage.status + ' — ' + dep.usage.reason + '</p>',
         '</div>',
+        renderSection('Identity & Metadata', 'Basic package metadata discovered locally.', [
+          renderRow('Deprecated', yesNo(dep.identity.deprecated), 'This package has been marked as deprecated by its author.'),
+          renderRow('Node Version Requirement', dep.identity.nodeEngine || 'None', 'Declared Node.js versions this package claims to support.'),
+          renderRow('Repository Linked', yesNo(dep.identity.hasRepository), 'Indicates whether the package declares a source repository.'),
+          renderRow('Funding Info', yesNo(dep.identity.hasFunding), 'Indicates whether the package declares funding or sponsorship information.')
+        ]),
+        renderSection('Dependency Surface Area', 'Declared dependency counts and coupling indicators.', [
+          renderRow(
+            'Dependency Surface',
+            dep.dependencySurface.dependencies + ' prod / ' +
+              dep.dependencySurface.devDependencies + ' dev / ' +
+              dep.dependencySurface.peerDependencies + ' peer / ' +
+              dep.dependencySurface.optionalDependencies + ' optional',
+            'Number of dependencies this package declares.'
+          ),
+          renderRow('Peer Dependencies', yesNo(dep.dependencySurface.hasPeerDependencies), 'Peer dependencies increase coupling and can complicate upgrades.')
+        ]),
+        renderSection('Size & Footprint', 'Local install size and file count.', [
+          renderRow('Installed Size', formatBytes(dep.sizeFootprint.installedSize), 'Disk space consumed by this package and its files.'),
+          renderRow('File Count', String(dep.sizeFootprint.fileCount), 'Total number of files installed for this package.')
+        ]),
+        renderSection('Build & Platform Complexity', 'Signals that may require native builds or install-time scripts.', [
+          renderRow('Native Code', yesNo(dep.buildPlatform.nativeBindings), 'Package includes native code that may require compilation.'),
+          renderRow('Install Scripts', yesNo(dep.buildPlatform.installScripts), 'Package executes code during installation.')
+        ]),
+        renderSection('Module System', 'Module format indicators derived from package metadata.', [
+          renderRow('Module Format', dep.moduleSystem.format, 'Indicates whether the package uses CommonJS, ES Modules, or both.'),
+          renderRow('Conditional Exports', yesNo(dep.moduleSystem.conditionalExports), 'Package defines conditional export paths for different environments.')
+        ]),
+        renderSection('TypeScript Support', 'Whether the package ships bundled type definitions.', [
+          renderRow('TypeScript Types', dep.typescript.types === 'bundled' ? 'Bundled' : 'None', 'Indicates whether the package ships TypeScript type definitions.')
+        ]),
+        renderSection('Graph Shape', 'Derived connectivity within the dependency graph.', [
+          renderRow('Depended On By', String(dep.graph.fanIn), 'Number of other dependencies that rely on this package.'),
+          renderRow('Depends On', String(dep.graph.fanOut), 'Number of dependencies this package relies on.')
+        ]),
         '<details class="section"><summary>Raw data</summary><pre>' + rawJson + '</pre></details>',
         '</details>'
       ].join('');
