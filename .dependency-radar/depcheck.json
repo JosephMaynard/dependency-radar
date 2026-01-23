@@ -1,0 +1,36 @@
+{
+  "dependencies": [
+    "license-checker"
+  ],
+  "devDependencies": [],
+  "missing": {},
+  "using": {
+    "ts-node": [
+      "/Users/josephmaynard/Developer/dependency-radar/package.json"
+    ],
+    "typescript": [
+      "/Users/josephmaynard/Developer/dependency-radar/package.json",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts"
+    ],
+    "@types/node": [
+      "/Users/josephmaynard/Developer/dependency-radar/package.json",
+      "/Users/josephmaynard/Developer/dependency-radar/src/aggregator.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/cli.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/report.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/utils.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/depcheckRunner.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/licenseChecker.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/npmAudit.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/npmLs.ts"
+    ],
+    "depcheck": [
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/depcheckRunner.ts"
+    ],
+    "madge": [
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts"
+    ]
+  },
+  "invalidFiles": {},
+  "invalidDirs": {}
+}

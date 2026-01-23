@@ -31,7 +31,7 @@ The simplest way to run Dependency Radar is via npx. It runs in the current dire
 Run a scan against the current project (writes `dependency-radar.html`):
 
 ```bash
-npx dependency-radar
+npx dependency-radar scan
 ```
 
 Specify a project and output path:

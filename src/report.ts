@@ -93,17 +93,11 @@ function buildHtml(data: AggregatedData): string {
       gap: 16px;
     }
     
-    .logo-placeholder {
-      width: 48px;
-      height: 48px;
-      border: 2px dashed var(--border-color-strong);
-      border-radius: var(--radius);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 10px;
-      flex-shrink: 0;
+    .logo,
+    .logo-wrapper {
+      display: block;
+      width: 72px;
+      height: 72px;
     }
     
     .header-text h1 {
@@ -720,7 +714,80 @@ function buildHtml(data: AggregatedData): string {
   <!-- Top Header (Scrollable) -->
   <header class="top-header">
     <div class="header-content">
-      <div class="logo-placeholder">LOGO</div>
+      <div class="logo-wrapper">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
+  viewBox="0 0 1024 1024" class="logo">
+  <defs>
+    <style>
+      .st0, .st1 {
+      fill: #ff8000;
+      }
+
+      .st2 {
+      fill: #191772;
+      }
+
+      .st2, .st3, .st4, .st5 {
+      stroke: #55fffa;
+      stroke-miterlimit: 10;
+      stroke-width: 8px;
+      }
+
+      .st6 {
+      fill: #0a0a33;
+      }
+
+      .st3 {
+      fill: #161466;
+      }
+
+      .st7 {
+      fill: url(#linear-gradient);
+      }
+
+      .st8, .st1 {
+      opacity: .4;
+      }
+
+      .st8, .st9 {
+      fill: red;
+      }
+
+      .st4 {
+      fill: #1c197f;
+      }
+
+      .st10 {
+      fill: #55fffa;
+      }
+
+      .st5 {
+      fill: #141259;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="225" y1="287" x2="831.3" y2="287"
+      gradientUnits="userSpaceOnUse">
+      <stop offset=".4" stop-color="#55fffa" stop-opacity="0" />
+      <stop offset="1" stop-color="#55fffa" stop-opacity=".5" />
+    </linearGradient>
+  </defs>
+  <circle class="st6" cx="512" cy="512" r="512" />
+  <circle class="st5" cx="512" cy="512" r="450" />
+  <circle class="st3" cx="512" cy="512" r="325" />
+  <circle class="st2" cx="512" cy="512" r="200" />
+  <circle class="st4" cx="512" cy="512" r="80" />
+  <path class="st7"
+    d="M517.7,512l313.6-317.1c-81.5-82.1-194.5-132.9-319.3-132.9s-209.1,38.8-287,103.4l292.7,346.6Z" />
+  <rect class="st10" x="664.2" y="129.5" width="16.7" height="450"
+    transform="translate(447.6 -371.7) rotate(45)" />
+  <circle class="st8" cx="800" cy="662" r="50" />
+  <circle class="st9" cx="800" cy="662" r="25" />
+  <circle class="st8" cx="256.9" cy="315.2" r="50" />
+  <circle class="st9" cx="256.9" cy="315.2" r="25" />
+  <circle class="st1" cx="400.1" cy="673" r="50" />
+  <circle class="st0" cx="400.1" cy="673" r="25" />
+</svg>
+      </div>
       <div class="header-text">
         <h1>Dependency Radar</h1>
         <p class="header-meta">
