@@ -7,6 +7,52 @@ exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
+async function getGitBranch(projectPath) {
+    var _a;
+    try {
+        const result = await (0, utils_1.runCommand)('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: projectPath });
+        const branch = (_a = result.stdout) === null || _a === void 0 ? void 0 : _a.trim();
+        // HEAD means detached state
+        if (!branch || branch === 'HEAD') {
+            return undefined;
+        }
+        return branch;
+    }
+    catch {
+        return undefined;
+    }
+}
+function findRootCauses(node, nodeMap, pkg) {
+    // If it's a direct dependency, it's its own root cause
+    if (isDirectDependency(node.name, pkg)) {
+        return [node.name];
+    }
+    // BFS up the parent chain to find all direct dependencies that lead to this
+    const rootCauses = new Set();
+    const visited = new Set();
+    const queue = [...node.parents];
+    while (queue.length > 0) {
+        const parentKey = queue.shift();
+        if (visited.has(parentKey))
+            continue;
+        visited.add(parentKey);
+        const parent = nodeMap.get(parentKey);
+        if (!parent)
+            continue;
+        if (isDirectDependency(parent.name, pkg)) {
+            rootCauses.add(parent.name);
+        }
+        else {
+            // Keep going up the chain
+            for (const grandparent of parent.parents) {
+                if (!visited.has(grandparent)) {
+                    queue.push(grandparent);
+                }
+            }
+        }
+    }
+    return Array.from(rootCauses).sort();
+}
 async function aggregateData(input) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     const pkg = await (0, utils_1.readPackageJson)(input.projectPath);
@@ -28,6 +74,8 @@ async function aggregateData(input) {
         toolErrors['depcheck'] = input.depcheckResult.error || 'unknown error';
     if (input.madgeResult && !input.madgeResult.ok)
         toolErrors['madge'] = input.madgeResult.error || 'unknown error';
+    // Get git branch
+    const gitBranch = await getGitBranch(input.projectPath);
     const nodeMap = buildNodeMap((_f = input.npmLsResult) === null || _f === void 0 ? void 0 : _f.data, pkg);
     const vulnMap = parseVulnerabilities((_g = input.auditResult) === null || _g === void 0 ? void 0 : _g.data);
     const licenseData = normalizeLicenseData((_h = input.licenseResult) === null || _h === void 0 ? void 0 : _h.data);
@@ -64,7 +112,18 @@ async function aggregateData(input) {
         }
         const maintenanceRiskLevel = (0, utils_1.maintenanceRisk)(maintenance.lastPublished);
         const runtimeData = classifyRuntime(node, pkg, nodeMap);
-        const packageInsights = await gatherPackageInsights(node.name, input.projectPath, packageMetaCache, packageStatCache, node.parents.size, node.children.size);
+        // Calculate root causes (direct dependencies that cause this to be installed)
+        const rootCauses = findRootCauses(node, nodeMap, pkg);
+        // Build dependedOnBy and dependsOn lists
+        const dependedOnBy = Array.from(node.parents).map(key => {
+            const parent = nodeMap.get(key);
+            return parent ? parent.name : key.split('@')[0];
+        });
+        const dependsOn = Array.from(node.children).map(key => {
+            const child = nodeMap.get(key);
+            return child ? child.name : key.split('@')[0];
+        });
+        const packageInsights = await gatherPackageInsights(node.name, input.projectPath, packageMetaCache, packageStatCache, node.parents.size, node.children.size, dependedOnBy, dependsOn);
         dependencies.push({
             name: node.name,
             version: node.version,
@@ -73,6 +132,7 @@ async function aggregateData(input) {
             transitive: !direct,
             depth: node.depth,
             parents: Array.from(node.parents),
+            rootCauses,
             license,
             licenseRisk,
             vulnerabilities,
@@ -98,6 +158,7 @@ async function aggregateData(input) {
     return {
         generatedAt: new Date().toISOString(),
         projectPath: input.projectPath,
+        gitBranch,
         maintenanceEnabled: input.maintenanceEnabled,
         dependencies,
         toolErrors,
@@ -342,7 +403,7 @@ function classifyRuntime(node, pkg, map) {
     }
     return { classification: 'build-time', reason: 'Only seen in dev dependency tree' };
 }
-async function gatherPackageInsights(name, projectPath, metaCache, statCache, fanIn, fanOut) {
+async function gatherPackageInsights(name, projectPath, metaCache, statCache, fanIn, fanOut, dependedOnBy, dependsOn) {
     var _a;
     const meta = await loadPackageMeta(name, projectPath, metaCache);
     const pkg = (meta === null || meta === void 0 ? void 0 : meta.pkg) || {};
@@ -374,7 +435,9 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache, fa
     };
     const graph = {
         fanIn,
-        fanOut
+        fanOut,
+        dependedOnBy,
+        dependsOn
     };
     return {
         identity,

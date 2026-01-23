@@ -52,6 +52,7 @@ export interface DependencyRecord {
   transitive: boolean;
   depth: number;
   parents: string[];
+  rootCauses: string[];
   license: LicenseInfo;
   licenseRisk: 'green' | 'amber' | 'red';
   vulnerabilities: VulnerabilitySummary;
@@ -91,6 +92,7 @@ export interface ToolResult<T> {
 export interface AggregatedData {
   generatedAt: string;
   projectPath: string;
+  gitBranch?: string;
   maintenanceEnabled: boolean;
   dependencies: DependencyRecord[];
   toolErrors: Record<string, string>;
@@ -134,6 +136,8 @@ export interface TypeSupportInfo {
 export interface GraphShape {
   fanIn: number;
   fanOut: number;
+  dependedOnBy: string[];
+  dependsOn: string[];
 }
 
 export interface ScanOptions {

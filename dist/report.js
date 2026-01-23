@@ -13,6 +13,7 @@ async function renderReport(data, outputPath) {
 }
 function buildHtml(data) {
     const json = JSON.stringify(data).replace(/</g, '\\u003c');
+    const gitBranchHtml = data.gitBranch ? `<br/>Branch: <strong>${escapeHtml(data.gitBranch)}</strong>` : '';
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -57,8 +58,6 @@ function buildHtml(data) {
       --transition: 0.2s ease;
       --radius: 8px;
       --radius-lg: 12px;
-
-      --logo-shadow: #55fffa;
     }
     
     :root.light {
@@ -92,22 +91,29 @@ function buildHtml(data) {
       margin: 0 auto;
     }
     
+    .header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    
     .header-content {
       display: flex;
       align-items: center;
       gap: 16px;
     }
     
-    .logo,
-    .logo-wrapper {
+    .logo, .logo-wrapper {
       display: block;
       width: 72px;
       height: 72px;
-      }
-
-    .logo-wrapper {
-      border-radius: 50%;
-      box-shadow: 0 0 32px var(--logo-shadow);
+      flex-shrink: 0;
+    }
+    
+    .logo svg {
+      width: 100%;
+      height: 100%;
     }
     
     .header-text h1 {
@@ -130,6 +136,43 @@ function buildHtml(data) {
       color: var(--text-primary);
       font-family: var(--font-mono);
       font-size: 12px;
+    }
+    
+    /* CTA Button */
+    .cta-section {
+      flex-shrink: 0;
+      text-align: right;
+    }
+    
+    .cta-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: var(--radius-lg);
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform var(--transition), box-shadow var(--transition);
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+    }
+    
+    .cta-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+    }
+    
+    .cta-text {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    
+    .cta-arrow {
+      font-size: 16px;
     }
     
     /* ===== STICKY FILTER BAR ===== */
@@ -303,16 +346,51 @@ function buildHtml(data) {
       background: var(--accent);
     }
     
-    /* ===== LICENSE FILTER ===== */
-    .license-filter-section {
-      padding: 8px 24px 12px;
+    /* ===== COLLAPSIBLE LICENSE FILTER ===== */
+    .license-filter-toggle {
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all var(--transition);
+    }
+    
+    .license-filter-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    
+    .license-filter-toggle .chevron {
+      transition: transform var(--transition);
+    }
+    
+    .license-filter-toggle.open .chevron {
+      transform: rotate(180deg);
+    }
+    
+    .license-filter-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
       background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid transparent;
+    }
+    
+    .license-filter-panel.open {
+      max-height: 200px;
+      border-bottom-color: var(--border-color);
     }
     
     .license-filter-inner {
       max-width: 1400px;
       margin: 0 auto;
+      padding: 12px 24px;
     }
     
     .license-filter-header {
@@ -351,22 +429,10 @@ function buildHtml(data) {
       color: var(--accent);
     }
     
-    .quick-action-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: white;
-    }
-    
     .license-groups {
       display: flex;
       flex-wrap: wrap;
       gap: 16px;
-    }
-    
-    .license-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
     
     .license-group-checkbox {
@@ -606,6 +672,37 @@ function buildHtml(data) {
       font-style: italic;
     }
     
+    /* Package list in graph section */
+    .package-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    
+    .package-tag {
+      padding: 2px 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+    
+    .package-list-toggle {
+      font-size: 11px;
+      color: var(--accent);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    
+    .package-list-toggle:hover {
+      text-decoration: underline;
+    }
+    
     /* Vulnerability table */
     .vuln-table {
       width: 100%;
@@ -695,6 +792,15 @@ function buildHtml(data) {
     
     /* ===== RESPONSIVE ===== */
     @media (max-width: 768px) {
+      .header-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .cta-section {
+        text-align: left;
+      }
+      
       .filter-bar-inner {
         flex-direction: column;
         align-items: stretch;
@@ -723,86 +829,40 @@ function buildHtml(data) {
 <body>
   <!-- Top Header (Scrollable) -->
   <header class="top-header">
-    <div class="header-content">
-      <div class="logo-wrapper">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
-  viewBox="0 0 1024 1024" class="logo">
-  <defs>
-    <style>
-      .st0, .st1 {
-      fill: #ff8000;
-      }
-
-      .st2 {
-      fill: #191772;
-      }
-
-      .st2, .st3, .st4, .st5 {
-      stroke: #55fffa;
-      stroke-miterlimit: 10;
-      stroke-width: 8px;
-      }
-
-      .st6 {
-      fill: #0a0a33;
-      }
-
-      .st3 {
-      fill: #161466;
-      }
-
-      .st7 {
-      fill: url(#linear-gradient);
-      }
-
-      .st8, .st1 {
-      opacity: .4;
-      }
-
-      .st8, .st9 {
-      fill: red;
-      }
-
-      .st4 {
-      fill: #1c197f;
-      }
-
-      .st10 {
-      fill: #55fffa;
-      }
-
-      .st5 {
-      fill: #141259;
-      }
-    </style>
-    <linearGradient id="linear-gradient" x1="225" y1="287" x2="831.3" y2="287"
-      gradientUnits="userSpaceOnUse">
-      <stop offset=".4" stop-color="#55fffa" stop-opacity="0" />
-      <stop offset="1" stop-color="#55fffa" stop-opacity=".5" />
-    </linearGradient>
-  </defs>
-  <circle class="st6" cx="512" cy="512" r="512" />
-  <circle class="st5" cx="512" cy="512" r="450" />
-  <circle class="st3" cx="512" cy="512" r="325" />
-  <circle class="st2" cx="512" cy="512" r="200" />
-  <circle class="st4" cx="512" cy="512" r="80" />
-  <path class="st7"
-    d="M517.7,512l313.6-317.1c-81.5-82.1-194.5-132.9-319.3-132.9s-209.1,38.8-287,103.4l292.7,346.6Z" />
-  <rect class="st10" x="664.2" y="129.5" width="16.7" height="450"
-    transform="translate(447.6 -371.7) rotate(45)" />
-  <circle class="st8" cx="800" cy="662" r="50" />
-  <circle class="st9" cx="800" cy="662" r="25" />
-  <circle class="st8" cx="256.9" cy="315.2" r="50" />
-  <circle class="st9" cx="256.9" cy="315.2" r="25" />
-  <circle class="st1" cx="400.1" cy="673" r="50" />
-  <circle class="st0" cx="400.1" cy="673" r="25" />
-</svg>
+    <div class="header-row">
+      <div class="header-content">
+        <div class="logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#3b82f6"/>
+                <stop offset="100%" style="stop-color:#a855f7"/>
+              </linearGradient>
+            </defs>
+            <circle cx="50" cy="50" r="45" fill="none" stroke="url(#logoGrad)" stroke-width="4"/>
+            <circle cx="50" cy="50" r="30" fill="none" stroke="url(#logoGrad)" stroke-width="3" opacity="0.7"/>
+            <circle cx="50" cy="50" r="15" fill="none" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
+            <circle cx="50" cy="50" r="5" fill="url(#logoGrad)"/>
+            <line x1="50" y1="5" x2="50" y2="20" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
+            <line x1="50" y1="80" x2="50" y2="95" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
+            <line x1="5" y1="50" x2="20" y2="50" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
+            <line x1="80" y1="50" x2="95" y2="50" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
+          </svg>
+        </div>
+        <div class="header-text">
+          <h1>Dependency Radar</h1>
+          <p class="header-meta">
+            Project: <strong>${escapeHtml(data.projectPath)}</strong>${gitBranchHtml}<br/>
+            Generated: <span id="formatted-date">${data.generatedAt}</span>
+          </p>
+        </div>
       </div>
-      <div class="header-text">
-        <h1>Dependency Radar</h1>
-        <p class="header-meta">
-          Project: <strong>${escapeHtml(data.projectPath)}</strong> · Generated ${data.generatedAt}
-        </p>
+      <div class="cta-section">
+        <a href="https://dependency-radar.com" class="cta-link" target="_blank" rel="noopener">
+          Get risk analysis & summary
+          <span class="cta-arrow">→</span>
+        </a>
+        <div class="cta-text">dependency-radar.com</div>
       </div>
     </div>
   </header>
@@ -818,11 +878,11 @@ function buildHtml(data) {
       </div>
       
       <div class="filter-group">
-        <span class="filter-label">Directness</span>
+        <span class="filter-label">Type</span>
         <select id="direct-filter">
           <option value="all">All</option>
-          <option value="direct">Direct</option>
-          <option value="transitive">Transitive</option>
+          <option value="direct">Dependency</option>
+          <option value="transitive">Sub-Dependency</option>
         </select>
       </div>
       
@@ -847,6 +907,11 @@ function buildHtml(data) {
         <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
       </div>
       
+      <button type="button" class="license-filter-toggle" id="license-toggle">
+        License Categories
+        <span class="chevron">▼</span>
+      </button>
+      
       <label class="checkbox-filter">
         <input type="checkbox" id="has-vulns" />
         Has vulnerabilities
@@ -864,45 +929,37 @@ function buildHtml(data) {
     </div>
   </div>
   
-  <!-- License Filter Section -->
-  <div class="license-filter-section">
+  <!-- Collapsible License Filter Panel -->
+  <div class="license-filter-panel" id="license-panel">
     <div class="license-filter-inner">
       <div class="license-filter-header">
-        <span class="license-filter-title">License Categories</span>
+        <span class="license-filter-title">Filter by License Type</span>
         <div class="license-quick-actions">
           <button type="button" class="quick-action-btn" id="license-all">Show All</button>
           <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
         </div>
       </div>
       <div class="license-groups">
-        <div class="license-group">
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-permissive" checked />
-            <span class="license-dot permissive"></span>
-            Permissive (MIT, BSD, Apache, ISC)
-          </label>
-        </div>
-        <div class="license-group">
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-weak-copyleft" checked />
-            <span class="license-dot weak-copyleft"></span>
-            Weak Copyleft (LGPL, MPL, EPL)
-          </label>
-        </div>
-        <div class="license-group">
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-strong-copyleft" checked />
-            <span class="license-dot strong-copyleft"></span>
-            Strong Copyleft (GPL, AGPL)
-          </label>
-        </div>
-        <div class="license-group">
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-unknown" checked />
-            <span class="license-dot unknown"></span>
-            Other / Unknown
-          </label>
-        </div>
+        <label class="license-group-checkbox">
+          <input type="checkbox" id="license-permissive" checked />
+          <span class="license-dot permissive"></span>
+          Permissive (MIT, BSD, Apache, ISC)
+        </label>
+        <label class="license-group-checkbox">
+          <input type="checkbox" id="license-weak-copyleft" checked />
+          <span class="license-dot weak-copyleft"></span>
+          Weak Copyleft (LGPL, MPL, EPL)
+        </label>
+        <label class="license-group-checkbox">
+          <input type="checkbox" id="license-strong-copyleft" checked />
+          <span class="license-dot strong-copyleft"></span>
+          Strong Copyleft (GPL, AGPL)
+        </label>
+        <label class="license-group-checkbox">
+          <input type="checkbox" id="license-unknown" checked />
+          <span class="license-dot unknown"></span>
+          Other / Unknown
+        </label>
       </div>
     </div>
   </div>
@@ -923,6 +980,24 @@ function buildHtml(data) {
       const maintenanceEnabled = Boolean(report.maintenanceEnabled);
       const container = document.getElementById('dependency-list');
       const summaryEl = document.getElementById('results-summary');
+      
+      // Format timestamp
+      const dateEl = document.getElementById('formatted-date');
+      if (dateEl && report.generatedAt) {
+        try {
+          const date = new Date(report.generatedAt);
+          const formatted = new Intl.DateTimeFormat(undefined, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }).format(date);
+          dateEl.textContent = formatted;
+        } catch (e) {
+          // Fallback: keep ISO format
+        }
+      }
       
       // License categorization
       const LICENSE_CATEGORIES = {
@@ -950,6 +1025,8 @@ function buildHtml(data) {
         hasVulns: document.getElementById('has-vulns'),
         unusedOnly: document.getElementById('unused-only'),
         themeSwitch: document.getElementById('theme-switch'),
+        licenseToggle: document.getElementById('license-toggle'),
+        licensePanel: document.getElementById('license-panel'),
         licensePermissive: document.getElementById('license-permissive'),
         licenseWeakCopyleft: document.getElementById('license-weak-copyleft'),
         licenseStrongCopyleft: document.getElementById('license-strong-copyleft'),
@@ -972,6 +1049,12 @@ function buildHtml(data) {
         controls.themeSwitch.classList.toggle('light');
         const isLight = document.documentElement.classList.contains('light');
         localStorage.setItem('dependency-radar-theme', isLight ? 'light' : 'dark');
+      });
+      
+      // License panel toggle
+      controls.licenseToggle.addEventListener('click', () => {
+        controls.licenseToggle.classList.toggle('open');
+        controls.licensePanel.classList.toggle('open');
       });
       
       // Sort direction toggle
@@ -1098,6 +1181,21 @@ function buildHtml(data) {
         return html;
       }
       
+      function renderPackageList(packages, maxShow) {
+        if (!packages || packages.length === 0) return '<span class="kv-value">None</span>';
+        const shown = packages.slice(0, maxShow);
+        const remaining = packages.length - maxShow;
+        let html = '<div class="package-list">';
+        shown.forEach(pkg => {
+          html += '<span class="package-tag">' + escapeHtml(pkg) + '</span>';
+        });
+        if (remaining > 0) {
+          html += '<span class="package-tag">+' + remaining + ' more</span>';
+        }
+        html += '</div>';
+        return html;
+      }
+      
       function renderSection(title, desc, bodyHtml) {
         let html = '<div class="section">';
         html += '<div class="section-header">';
@@ -1126,8 +1224,12 @@ function buildHtml(data) {
           unknown: { text: 'Unknown', class: 'gray' }
         };
         
+        // Use new terminology: Dependency/Sub-Dependency instead of Direct/Transitive
+        const depTypeText = dep.direct ? 'Dependency' : 'Sub-Dependency';
+        const depTypeClass = dep.direct ? 'green' : 'amber';
+        
         const indicators = [
-          indicator(dep.direct ? 'Direct' : 'Transitive', dep.direct ? 'green' : 'amber'),
+          indicator(depTypeText, depTypeClass),
           indicatorSeparator(),
           indicator(dep.runtimeClass, dep.runtimeClass === 'runtime' ? 'green' : dep.runtimeClass === 'build-time' ? 'amber' : 'gray'),
           indicatorSeparator(),
@@ -1158,9 +1260,15 @@ function buildHtml(data) {
         
         const rawJson = JSON.stringify(dep, null, 2);
         
+        // Parents as package names, not keys
+        const parentNames = (dep.parents || []).map(key => key.split('@')[0]);
+        const installedBy = (dep.rootCauses || []).join(', ') || (dep.direct ? 'package.json' : 'Unknown');
+        
         const overviewSection = renderKvSection('Overview', 'Dependency position and runtime classification', [
+          renderKvItem('Type', depTypeText, dep.direct ? 'Listed in package.json' : 'Installed as a sub-dependency'),
           renderKvItem('Depth', dep.depth, 'How deep this package is in the dependency tree'),
-          renderKvItem('Parents', dep.parents.join(', ') || 'root', 'Packages that depend on this'),
+          renderKvItem('Parents', parentNames.join(', ') || 'root', 'Packages that directly depend on this'),
+          renderKvItem('Installed By', installedBy, 'Root dependency in package.json that causes this to be installed'),
           renderKvItem('Runtime Class', dep.runtimeClass, dep.runtimeReason)
         ]);
         
@@ -1218,10 +1326,16 @@ function buildHtml(data) {
           renderKvItem('Types', dep.typescript.types === 'bundled' ? 'Bundled' : 'None', 'Whether types are included')
         ]);
         
-        const graphSection = renderKvSection('Graph Shape', 'Dependency graph metrics', [
-          renderKvItem('Depended On By', dep.graph.fanIn, 'Packages that use this'),
-          renderKvItem('Depends On', dep.graph.fanOut, 'Packages this uses')
-        ]);
+        // Graph section with package lists
+        const dependedOnByList = dep.graph?.dependedOnBy || [];
+        const dependsOnList = dep.graph?.dependsOn || [];
+        
+        const graphSection = renderSection('Graph Shape', 'Dependency graph connections', 
+          '<div class="kv-grid">' +
+            '<div class="kv-item"><span class="kv-label">Depended On By (' + dep.graph.fanIn + ')</span>' + renderPackageList(dependedOnByList, 8) + '</div>' +
+            '<div class="kv-item"><span class="kv-label">Depends On (' + dep.graph.fanOut + ')</span>' + renderPackageList(dependsOnList, 8) + '</div>' +
+          '</div>'
+        );
         
         return [
           '<details class="dep-card" data-risk="' + highestRisk + '">',

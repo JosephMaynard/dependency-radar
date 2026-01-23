@@ -42,6 +42,55 @@ interface NodeInfo {
   dev?: boolean;
 }
 
+async function getGitBranch(projectPath: string): Promise<string | undefined> {
+  try {
+    const result = await runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: projectPath });
+    const branch = result.stdout?.trim();
+    // HEAD means detached state
+    if (!branch || branch === 'HEAD') {
+      return undefined;
+    }
+    return branch;
+  } catch {
+    return undefined;
+  }
+}
+
+
+function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any): string[] {
+  // If it's a direct dependency, it's its own root cause
+  if (isDirectDependency(node.name, pkg)) {
+    return [node.name];
+  }
+  
+  // BFS up the parent chain to find all direct dependencies that lead to this
+  const rootCauses = new Set<string>();
+  const visited = new Set<string>();
+  const queue = [...node.parents];
+  
+  while (queue.length > 0) {
+    const parentKey = queue.shift()!;
+    if (visited.has(parentKey)) continue;
+    visited.add(parentKey);
+    
+    const parent = nodeMap.get(parentKey);
+    if (!parent) continue;
+    
+    if (isDirectDependency(parent.name, pkg)) {
+      rootCauses.add(parent.name);
+    } else {
+      // Keep going up the chain
+      for (const grandparent of parent.parents) {
+        if (!visited.has(grandparent)) {
+          queue.push(grandparent);
+        }
+      }
+    }
+  }
+  
+  return Array.from(rootCauses).sort();
+}
+
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
   const pkg = await readPackageJson(input.projectPath);
   const raw: RawOutputs = {
@@ -58,6 +107,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   if (input.licenseResult && !input.licenseResult.ok) toolErrors['license-checker'] = input.licenseResult.error || 'unknown error';
   if (input.depcheckResult && !input.depcheckResult.ok) toolErrors['depcheck'] = input.depcheckResult.error || 'unknown error';
   if (input.madgeResult && !input.madgeResult.ok) toolErrors['madge'] = input.madgeResult.error || 'unknown error';
+
+  // Get git branch
+  const gitBranch = await getGitBranch(input.projectPath);
 
   const nodeMap = buildNodeMap(input.npmLsResult?.data, pkg);
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
@@ -107,13 +159,29 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
     const maintenanceRiskLevel = maintenanceRisk(maintenance.lastPublished);
     const runtimeData = classifyRuntime(node, pkg, nodeMap);
+    
+    // Calculate root causes (direct dependencies that cause this to be installed)
+    const rootCauses = findRootCauses(node, nodeMap, pkg);
+    
+    // Build dependedOnBy and dependsOn lists
+    const dependedOnBy = Array.from(node.parents).map(key => {
+      const parent = nodeMap.get(key);
+      return parent ? parent.name : key.split('@')[0];
+    });
+    const dependsOn = Array.from(node.children).map(key => {
+      const child = nodeMap.get(key);
+      return child ? child.name : key.split('@')[0];
+    });
+    
     const packageInsights = await gatherPackageInsights(
       node.name,
       input.projectPath,
       packageMetaCache,
       packageStatCache,
       node.parents.size,
-      node.children.size
+      node.children.size,
+      dependedOnBy,
+      dependsOn
     );
 
     dependencies.push({
@@ -124,6 +192,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       transitive: !direct,
       depth: node.depth,
       parents: Array.from(node.parents),
+      rootCauses,
       license,
       licenseRisk,
       vulnerabilities,
@@ -152,6 +221,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   return {
     generatedAt: new Date().toISOString(),
     projectPath: input.projectPath,
+    gitBranch,
     maintenanceEnabled: input.maintenanceEnabled,
     dependencies,
     toolErrors,
@@ -435,7 +505,9 @@ async function gatherPackageInsights(
   metaCache: Map<string, PackageMeta>,
   statCache: Map<string, PackageStats>,
   fanIn: number,
-  fanOut: number
+  fanOut: number,
+  dependedOnBy: string[],
+  dependsOn: string[]
 ): Promise<PackageInsights> {
   const meta = await loadPackageMeta(name, projectPath, metaCache);
   const pkg = meta?.pkg || {};
@@ -472,7 +544,9 @@ async function gatherPackageInsights(
 
   const graph = {
     fanIn,
-    fanOut
+    fanOut,
+    dependedOnBy,
+    dependsOn
   };
 
   return {
