@@ -124,8 +124,6 @@ async function run(): Promise<void> {
     console.log(`Report written to ${outputPath}`);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-    console.log('');
-    console.log('Get additional risk analysis and a management-ready summary at https://dependency-radar.com');
   } catch (err: any) {
     stopSpinner(false);
     console.error('Failed to generate report:', err);
@@ -137,7 +135,12 @@ async function run(): Promise<void> {
       console.log(`Temporary data kept at ${tempDir}`);
     }
   }
+  
+  // Always show CTA as the last output
+  console.log('');
+  console.log('Get additional risk analysis and a management-ready summary at https://dependency-radar.com');
 }
+
 
 
 run();

@@ -506,11 +506,10 @@ function buildHtml(data: AggregatedData): string {
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
       overflow: hidden;
-      transition: all var(--transition);
+      transition: border-color var(--transition);
     }
     
     .dep-card:hover {
-      background: var(--bg-card-hover);
       border-color: var(--border-color-strong);
     }
     
@@ -533,6 +532,11 @@ function buildHtml(data: AggregatedData): string {
       padding: 14px 16px;
       cursor: pointer;
       list-style: none;
+      transition: background var(--transition);
+    }
+    
+    .dep-summary:hover {
+      background: var(--bg-card-hover);
     }
     
     .dep-summary::-webkit-details-marker { display: none; }
@@ -830,22 +834,7 @@ function buildHtml(data: AggregatedData): string {
     <div class="header-row">
       <div class="header-content">
         <div class="logo">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-            <defs>
-              <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#3b82f6"/>
-                <stop offset="100%" style="stop-color:#a855f7"/>
-              </linearGradient>
-            </defs>
-            <circle cx="50" cy="50" r="45" fill="none" stroke="url(#logoGrad)" stroke-width="4"/>
-            <circle cx="50" cy="50" r="30" fill="none" stroke="url(#logoGrad)" stroke-width="3" opacity="0.7"/>
-            <circle cx="50" cy="50" r="15" fill="none" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
-            <circle cx="50" cy="50" r="5" fill="url(#logoGrad)"/>
-            <line x1="50" y1="5" x2="50" y2="20" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
-            <line x1="50" y1="80" x2="50" y2="95" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
-            <line x1="5" y1="50" x2="20" y2="50" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
-            <line x1="80" y1="50" x2="95" y2="50" stroke="url(#logoGrad)" stroke-width="2" opacity="0.5"/>
-          </svg>
+          <!-- Logo placeholder - replace with your SVG -->
         </div>
         <div class="header-text">
           <h1>Dependency Radar</h1>
@@ -925,39 +914,39 @@ function buildHtml(data: AggregatedData): string {
         <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
       </div>
     </div>
-  </div>
-  
-  <!-- Collapsible License Filter Panel -->
-  <div class="license-filter-panel" id="license-panel">
-    <div class="license-filter-inner">
-      <div class="license-filter-header">
-        <span class="license-filter-title">Filter by License Type</span>
-        <div class="license-quick-actions">
-          <button type="button" class="quick-action-btn" id="license-all">Show All</button>
-          <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
+    
+    <!-- Collapsible License Filter Panel (inside sticky bar) -->
+    <div class="license-filter-panel" id="license-panel">
+      <div class="license-filter-inner">
+        <div class="license-filter-header">
+          <span class="license-filter-title">Filter by License Type</span>
+          <div class="license-quick-actions">
+            <button type="button" class="quick-action-btn" id="license-all">Show All</button>
+            <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
+          </div>
         </div>
-      </div>
-      <div class="license-groups">
-        <label class="license-group-checkbox">
-          <input type="checkbox" id="license-permissive" checked />
-          <span class="license-dot permissive"></span>
-          Permissive (MIT, BSD, Apache, ISC)
-        </label>
-        <label class="license-group-checkbox">
-          <input type="checkbox" id="license-weak-copyleft" checked />
-          <span class="license-dot weak-copyleft"></span>
-          Weak Copyleft (LGPL, MPL, EPL)
-        </label>
-        <label class="license-group-checkbox">
-          <input type="checkbox" id="license-strong-copyleft" checked />
-          <span class="license-dot strong-copyleft"></span>
-          Strong Copyleft (GPL, AGPL)
-        </label>
-        <label class="license-group-checkbox">
-          <input type="checkbox" id="license-unknown" checked />
-          <span class="license-dot unknown"></span>
-          Other / Unknown
-        </label>
+        <div class="license-groups">
+          <label class="license-group-checkbox">
+            <input type="checkbox" id="license-permissive" checked />
+            <span class="license-dot permissive"></span>
+            Permissive (MIT, BSD, Apache, ISC)
+          </label>
+          <label class="license-group-checkbox">
+            <input type="checkbox" id="license-weak-copyleft" checked />
+            <span class="license-dot weak-copyleft"></span>
+            Weak Copyleft (LGPL, MPL, EPL)
+          </label>
+          <label class="license-group-checkbox">
+            <input type="checkbox" id="license-strong-copyleft" checked />
+            <span class="license-dot strong-copyleft"></span>
+            Strong Copyleft (GPL, AGPL)
+          </label>
+          <label class="license-group-checkbox">
+            <input type="checkbox" id="license-unknown" checked />
+            <span class="license-dot unknown"></span>
+            Other / Unknown
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -1265,7 +1254,7 @@ function buildHtml(data: AggregatedData): string {
         const overviewSection = renderKvSection('Overview', 'Dependency position and runtime classification', [
           renderKvItem('Type', depTypeText, dep.direct ? 'Listed in package.json' : 'Installed as a sub-dependency'),
           renderKvItem('Depth', dep.depth, 'How deep this package is in the dependency tree'),
-          renderKvItem('Parents', parentNames.join(', ') || 'root', 'Packages that directly depend on this'),
+          renderKvItem('Parents', parentNames.join(', ') || 'None (direct dependency)', 'Packages that directly depend on this'),
           renderKvItem('Installed By', installedBy, 'Root dependency in package.json that causes this to be installed'),
           renderKvItem('Runtime Class', dep.runtimeClass, dep.runtimeReason)
         ]);

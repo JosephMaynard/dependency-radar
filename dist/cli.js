@@ -114,8 +114,6 @@ async function run() {
         console.log(`Report written to ${outputPath}`);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        console.log('');
-        console.log('Get additional risk analysis and a management-ready summary at https://dependency-radar.com');
     }
     catch (err) {
         stopSpinner(false);
@@ -130,6 +128,9 @@ async function run() {
             console.log(`Temporary data kept at ${tempDir}`);
         }
     }
+    // Always show CTA as the last output
+    console.log('');
+    console.log('Get additional risk analysis and a management-ready summary at https://dependency-radar.com');
 }
 run();
 function startSpinner(text) {
