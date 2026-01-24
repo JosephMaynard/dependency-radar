@@ -44,6 +44,13 @@ export interface ImportGraphInfo {
   fanOut?: Record<string, number>;
 }
 
+export interface PackageLinks {
+  npm: string;
+  repository?: string;
+  bugs?: string;
+  homepage?: string;
+}
+
 export interface DependencyRecord {
   name: string;
   version: string;
@@ -67,6 +74,7 @@ export interface DependencyRecord {
   moduleSystem: ModuleSystemInfo;
   typescript: TypeSupportInfo;
   graph: GraphShape;
+  links: PackageLinks;
   importInfo?: ImportGraphInfo;
   runtimeClass: 'runtime' | 'build-time' | 'dev-only';
   runtimeReason: string;

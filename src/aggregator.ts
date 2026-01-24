@@ -3,6 +3,7 @@ import {
   DependencyRecord,
   ImportGraphInfo,
   MaintenanceInfo,
+  PackageLinks,
   RawOutputs,
   Severity,
   ToolResult,
@@ -89,6 +90,34 @@ function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any
   }
   
   return Array.from(rootCauses).sort();
+}
+
+/**
+ * Normalize repository URLs to browsable HTTPS format.
+ * Handles: git+https://, git://, github:user/repo, git@github.com:user/repo.git
+ */
+function normalizeRepoUrl(url: string): string {
+  if (!url) return url;
+  
+  // Handle shorthand: github:user/repo or user/repo
+  if (url.match(/^(github:|gitlab:|bitbucket:)?[\w-]+\/[\w.-]+$/)) {
+    const cleaned = url.replace(/^(github:|gitlab:|bitbucket:)/, '');
+    const host = url.startsWith('gitlab:') ? 'gitlab.com' 
+               : url.startsWith('bitbucket:') ? 'bitbucket.org' 
+               : 'github.com';
+    return `https://${host}/${cleaned}`;
+  }
+  
+  // Handle git+https:// or git:// prefix
+  let normalized = url.replace(/^git\+/, '').replace(/^git:\/\//, 'https://');
+  
+  // Handle git@host:user/repo.git SSH format
+  normalized = normalized.replace(/^git@([^:]+):(.+)$/, 'https://$1/$2');
+  
+  // Remove .git suffix
+  normalized = normalized.replace(/\.git$/, '');
+  
+  return normalized;
 }
 
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
@@ -207,6 +236,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       moduleSystem: packageInsights.moduleSystem,
       typescript: packageInsights.typescript,
       graph: packageInsights.graph,
+      links: packageInsights.links,
       importInfo,
       runtimeClass: runtimeData.classification,
       runtimeReason: runtimeData.reason,
@@ -497,6 +527,7 @@ interface PackageInsights {
   moduleSystem: DependencyRecord['moduleSystem'];
   typescript: DependencyRecord['typescript'];
   graph: DependencyRecord['graph'];
+  links: PackageLinks;
 }
 
 async function gatherPackageInsights(
@@ -549,6 +580,34 @@ async function gatherPackageInsights(
     dependsOn
   };
 
+  // Extract package links
+  const links: PackageLinks = {
+    npm: `https://www.npmjs.com/package/${name}`
+  };
+  
+  // Repository can be string or object with url
+  if (pkg.repository) {
+    if (typeof pkg.repository === 'string') {
+      links.repository = normalizeRepoUrl(pkg.repository);
+    } else if (pkg.repository.url) {
+      links.repository = normalizeRepoUrl(pkg.repository.url);
+    }
+  }
+  
+  // Bugs can be string or object with url
+  if (pkg.bugs) {
+    if (typeof pkg.bugs === 'string') {
+      links.bugs = pkg.bugs;
+    } else if (pkg.bugs.url) {
+      links.bugs = pkg.bugs.url;
+    }
+  }
+  
+  // Homepage is a simple string
+  if (pkg.homepage && typeof pkg.homepage === 'string') {
+    links.homepage = pkg.homepage;
+  }
+
   return {
     identity,
     dependencySurface,
@@ -556,7 +615,8 @@ async function gatherPackageInsights(
     buildPlatform,
     moduleSystem,
     typescript,
-    graph
+    graph,
+    links
   };
 }
 

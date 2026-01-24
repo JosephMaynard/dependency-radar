@@ -617,6 +617,43 @@ function buildHtml(data) {
       }
     }
     
+    /* ===== PACKAGE LINKS BAR ===== */
+    .package-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 0;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .package-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all var(--transition);
+    }
+    
+    .package-link:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    
+    .package-link svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    
     .section {
       margin-top: 16px;
     }
@@ -1200,6 +1237,35 @@ function buildHtml(data) {
         return renderSection(title, desc, '<div class="kv-grid">' + items.join('') + '</div>');
       }
       
+      function renderPackageLinks(links) {
+        const icons = {
+          npm: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"/></svg>',
+          repo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>',
+          bugs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+          homepage: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
+        };
+        
+        let html = '<div class="package-links">';
+        
+        // npm link is always present
+        html += '<a href="' + escapeHtml(links.npm) + '" target="_blank" rel="noopener" class="package-link">' + icons.npm + 'npm</a>';
+        
+        if (links.repository) {
+          html += '<a href="' + escapeHtml(links.repository) + '" target="_blank" rel="noopener" class="package-link">' + icons.repo + 'Repository</a>';
+        }
+        
+        if (links.homepage) {
+          html += '<a href="' + escapeHtml(links.homepage) + '" target="_blank" rel="noopener" class="package-link">' + icons.homepage + 'Homepage</a>';
+        }
+        
+        if (links.bugs) {
+          html += '<a href="' + escapeHtml(links.bugs) + '" target="_blank" rel="noopener" class="package-link">' + icons.bugs + 'Issues</a>';
+        }
+        
+        html += '</div>';
+        return html;
+      }
+      
       function renderDep(dep) {
         const licenseText = dep.license.license || 'Unknown';
         const severity = highestSeverity(dep);
@@ -1330,6 +1396,7 @@ function buildHtml(data) {
           '<details class="dep-card" data-risk="' + highestRisk + '">',
           summary,
           '<div class="dep-details">',
+          renderPackageLinks(dep.links),
           overviewSection,
           licenseSection,
           vulnSection,
