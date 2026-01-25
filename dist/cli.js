@@ -20,7 +20,8 @@ function parseArgs(argv) {
         project: process.cwd(),
         out: 'dependency-radar.html',
         keepTemp: false,
-        maintenance: false
+        maintenance: false,
+        audit: true
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith('-')) {
@@ -38,6 +39,8 @@ function parseArgs(argv) {
             opts.keepTemp = true;
         else if (arg === '--maintenance')
             opts.maintenance = true;
+        else if (arg === '--no-audit')
+            opts.audit = false;
         else if (arg === '--help' || arg === '-h') {
             printHelp();
             process.exit(0);
@@ -53,6 +56,7 @@ Options:
   --out <path>       Output HTML file (default: dependency-radar.html)
   --keep-temp        Keep .dependency-radar folder
   --maintenance      Enable slow maintenance checks (npm registry calls)
+  --no-audit         Skip npm audit (useful for offline scans)
 `);
 }
 async function run() {
@@ -68,7 +72,9 @@ async function run() {
     let dependencyCount = 0;
     try {
         const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
-        if ((stat && stat.isDirectory()) || opts.out.endsWith(path_1.default.sep)) {
+        const endsWithSeparator = opts.out.endsWith('/') || opts.out.endsWith('\\');
+        const hasExtension = Boolean(path_1.default.extname(outputPath));
+        if ((stat && stat.isDirectory()) || endsWithSeparator || (!stat && !hasExtension)) {
             outputPath = path_1.default.join(outputPath, 'dependency-radar.html');
         }
     }
@@ -80,7 +86,7 @@ async function run() {
     try {
         await (0, utils_1.ensureDir)(tempDir);
         const [auditResult, npmLsResult, licenseResult, depcheckResult, madgeResult] = await Promise.all([
-            (0, npmAudit_1.runNpmAudit)(projectPath, tempDir),
+            opts.audit ? (0, npmAudit_1.runNpmAudit)(projectPath, tempDir) : Promise.resolve(undefined),
             (0, npmLs_1.runNpmLs)(projectPath, tempDir),
             (0, licenseChecker_1.runLicenseChecker)(projectPath, tempDir),
             (0, depcheckRunner_1.runDepcheck)(projectPath, tempDir),

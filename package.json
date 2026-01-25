@@ -13,10 +13,36 @@
     "build": "tsc",
     "dev": "ts-node src/cli.ts scan",
     "scan": "node dist/cli.js scan",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": " ",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JosephMaynard/dependency-radar.git"
+  },
+  "homepage": "http://dependency-radar.com",
+  "bugs": {
+    "url": "https://github.com/JosephMaynard/dependency-radar/issues"
+  },
+  "keywords": [
+    "dependency",
+    "dependencies",
+    "analysis",
+    "audit",
+    "security",
+    "license",
+    "cli",
+    "report",
+    "scan",
+    "npm",
+    "node",
+    "html"
+  ],
   "dependencies": {
     "depcheck": "^1.4.7",
     "license-checker": "^25.0.1",

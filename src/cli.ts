@@ -16,6 +16,7 @@ interface CliOptions {
   out: string;
   keepTemp: boolean;
   maintenance: boolean;
+  audit: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -24,7 +25,8 @@ function parseArgs(argv: string[]): CliOptions {
     project: process.cwd(),
     out: 'dependency-radar.html',
     keepTemp: false,
-    maintenance: false
+    maintenance: false,
+    audit: true
   };
 
   const args = [...argv];
@@ -39,6 +41,7 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg === '--out' && args[0]) opts.out = args.shift()!;
     else if (arg === '--keep-temp') opts.keepTemp = true;
     else if (arg === '--maintenance') opts.maintenance = true;
+    else if (arg === '--no-audit') opts.audit = false;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -56,6 +59,7 @@ Options:
   --out <path>       Output HTML file (default: dependency-radar.html)
   --keep-temp        Keep .dependency-radar folder
   --maintenance      Enable slow maintenance checks (npm registry calls)
+  --no-audit         Skip npm audit (useful for offline scans)
 `);
 }
 
@@ -73,7 +77,9 @@ async function run(): Promise<void> {
   let dependencyCount = 0;
   try {
     const stat = await fs.stat(outputPath).catch(() => undefined);
-    if ((stat && stat.isDirectory()) || opts.out.endsWith(path.sep)) {
+    const endsWithSeparator = opts.out.endsWith('/') || opts.out.endsWith('\\');
+    const hasExtension = Boolean(path.extname(outputPath));
+    if ((stat && stat.isDirectory()) || endsWithSeparator || (!stat && !hasExtension)) {
       outputPath = path.join(outputPath, 'dependency-radar.html');
     }
   } catch (e) {
@@ -86,7 +92,7 @@ async function run(): Promise<void> {
     await ensureDir(tempDir);
 
     const [auditResult, npmLsResult, licenseResult, depcheckResult, madgeResult] = await Promise.all([
-      runNpmAudit(projectPath, tempDir),
+      opts.audit ? runNpmAudit(projectPath, tempDir) : Promise.resolve(undefined),
       runNpmLs(projectPath, tempDir),
       runLicenseChecker(projectPath, tempDir),
       runDepcheck(projectPath, tempDir),

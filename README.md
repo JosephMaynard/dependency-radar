@@ -24,6 +24,10 @@ npm install
 npm run build
 ```
 
+## Requirements
+
+- Node.js 18+ (required by `madge`, one of the analyzers)
+
 ## Usage
 
 The simplest way to run Dependency Radar is via npx. It runs in the current directory and writes an HTML report to disk.
@@ -46,6 +50,12 @@ Keep the temporary `.dependency-radar` folder for debugging raw tool outputs:
 npx dependency-radar scan --keep-temp
 ```
 
+Skip `npm audit` (useful for offline scans):
+
+```bash
+npx dependency-radar scan --no-audit
+```
+
 ## Scripts
 
 - `npm run build` – compile TypeScript to `dist/`
@@ -56,9 +66,11 @@ npx dependency-radar scan --keep-temp
 
 - The target project must have node_modules installed (run npm install first).
 - The scan is local-first and does not upload your code or dependencies anywhere.
+- `npm audit` performs registry lookups; use `--no-audit` for offline-only scans.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
 - If a tool fails, its section is marked as unavailable, but the report is still generated.
+- Node.js 18+ is required because `madge` (one of the analyzers) targets Node 18+.
 
 ## Output
 
