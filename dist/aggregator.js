@@ -7,6 +7,7 @@ exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
+const dependencyRadarVersion = (0, utils_1.getDependencyRadarVersion)();
 async function getGitBranch(projectPath) {
     var _a;
     try {
@@ -182,6 +183,7 @@ async function aggregateData(input) {
     return {
         generatedAt: new Date().toISOString(),
         projectPath: input.projectPath,
+        dependencyRadarVersion,
         gitBranch,
         maintenanceEnabled: input.maintenanceEnabled,
         dependencies,

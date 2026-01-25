@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runCommand = runCommand;
 exports.delay = delay;
+exports.getDependencyRadarVersion = getDependencyRadarVersion;
 exports.ensureDir = ensureDir;
 exports.writeJsonFile = writeJsonFile;
 exports.pathExists = pathExists;
@@ -42,6 +43,17 @@ function runCommand(command, args, options = {}) {
 }
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function getDependencyRadarVersion() {
+    try {
+        const pkgPath = path_1.default.join(__dirname, '..', 'package.json');
+        const raw = fs_1.default.readFileSync(pkgPath, 'utf8');
+        const pkg = JSON.parse(raw);
+        return pkg.version || 'unknown';
+    }
+    catch {
+        return 'unknown';
+    }
 }
 async function ensureDir(dir) {
     await promises_1.default.mkdir(dir, { recursive: true });

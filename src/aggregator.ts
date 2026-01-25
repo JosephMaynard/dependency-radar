@@ -17,7 +17,8 @@ import {
   readLicenseFromPackageJson,
   runCommand,
   delay,
-  vulnRiskLevel
+  vulnRiskLevel,
+  getDependencyRadarVersion
 } from './utils';
 import fs from 'fs/promises';
 import path from 'path';
@@ -42,6 +43,8 @@ interface NodeInfo {
   children: Set<string>;
   dev?: boolean;
 }
+
+const dependencyRadarVersion = getDependencyRadarVersion();
 
 async function getGitBranch(projectPath: string): Promise<string | undefined> {
   try {
@@ -251,6 +254,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   return {
     generatedAt: new Date().toISOString(),
     projectPath: input.projectPath,
+    dependencyRadarVersion,
     gitBranch,
     maintenanceEnabled: input.maintenanceEnabled,
     dependencies,

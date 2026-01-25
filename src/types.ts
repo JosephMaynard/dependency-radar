@@ -101,6 +101,7 @@ export interface AggregatedData {
   generatedAt: string;
   projectPath: string;
   gitBranch?: string;
+  dependencyRadarVersion?: string;
   maintenanceEnabled: boolean;
   dependencies: DependencyRecord[];
   toolErrors: Record<string, string>;
