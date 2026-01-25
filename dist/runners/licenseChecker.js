@@ -10,7 +10,7 @@ async function runLicenseChecker(projectPath, tempDir) {
     const targetFile = path_1.default.join(tempDir, 'license-checker.json');
     const bin = (0, utils_1.findBin)(projectPath, 'license-checker');
     try {
-        const result = await (0, utils_1.runCommand)(bin, ['--json', '--production', '--development'], { cwd: projectPath });
+        const result = await (0, utils_1.runCommand)(bin, ['--json'], { cwd: projectPath });
         let parsed;
         try {
             parsed = JSON.parse(result.stdout || '{}');
