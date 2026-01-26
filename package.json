@@ -1,6 +1,6 @@
 {
   "name": "dependency-radar",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local-first dependency analysis tool that generates a single HTML report showing risk, size, usage, and structure of your project's dependencies.",
   "main": "dist/index.js",
   "bin": {
