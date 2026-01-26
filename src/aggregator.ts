@@ -151,6 +151,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
   const dependencies: DependencyRecord[] = [];
   const licenseCache = new Map<string, { license?: string; licenseFile?: string }>();
+  const nodeEngineRanges: string[] = [];
 
   const nodes = Array.from(nodeMap.values());
   const totalDeps = nodes.length;
@@ -207,6 +208,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       dependedOnBy,
       dependsOn
     );
+    if (packageInsights.identity.nodeEngine) {
+      nodeEngineRanges.push(packageInsights.identity.nodeEngine);
+    }
 
     dependencies.push({
       name: node.name,
@@ -242,6 +246,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   }
 
   dependencies.sort((a, b) => a.name.localeCompare(b.name));
+  const runtimeVersion = process.version.replace(/^v/, '');
+  const runtimeMajor = Number.parseInt(runtimeVersion.split('.')[0], 10);
+  const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -249,11 +256,76 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     dependencyRadarVersion,
     gitBranch,
     maintenanceEnabled: input.maintenanceEnabled,
+    environment: {
+      node: {
+        runtimeVersion,
+        runtimeMajor: Number.isNaN(runtimeMajor) ? 0 : runtimeMajor,
+        minRequiredMajor,
+        source: minRequiredMajor === undefined ? 'unknown' : 'dependency-engines'
+      }
+    },
     dependencies,
     toolErrors,
     raw,
     importAnalysis
   };
+}
+
+function deriveMinRequiredMajor(engineRanges: string[]): number | undefined {
+  let strictest: number | undefined;
+  for (const range of engineRanges) {
+    const minMajor = parseMinMajorFromRange(range);
+    if (minMajor === undefined) continue;
+    if (strictest === undefined || minMajor > strictest) {
+      strictest = minMajor;
+    }
+  }
+  return strictest;
+}
+
+function parseMinMajorFromRange(range: string): number | undefined {
+  const normalized = range.trim();
+  if (!normalized) return undefined;
+  const clauses = normalized.split('||').map((clause) => clause.trim()).filter(Boolean);
+  if (clauses.length === 0) return undefined;
+  let rangeMin: number | undefined;
+  for (const clause of clauses) {
+    const clauseMin = parseMinMajorFromClause(clause);
+    // Conservative: skip ranges that allow any version in at least one clause.
+    if (clauseMin === undefined) return undefined;
+    if (rangeMin === undefined || clauseMin < rangeMin) {
+      rangeMin = clauseMin;
+    }
+  }
+  return rangeMin;
+}
+
+function parseMinMajorFromClause(clause: string): number | undefined {
+  const hyphenMatch = clause.match(/(\d+)\s*-\s*\d+/);
+  if (hyphenMatch) {
+    return Number.parseInt(hyphenMatch[1], 10);
+  }
+  const tokens = clause.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+  let clauseMin: number | undefined;
+  for (const token of tokens) {
+    if (token.startsWith('<')) continue;
+    const major = parseMajorFromToken(token);
+    if (major === undefined) continue;
+    if (clauseMin === undefined || major > clauseMin) {
+      clauseMin = major;
+    }
+  }
+  return clauseMin;
+}
+
+function parseMajorFromToken(token: string): number | undefined {
+  const trimmed = token.trim();
+  if (!trimmed) return undefined;
+  if (!/^[0-9^~=>v]/.test(trimmed)) return undefined;
+  const match = trimmed.match(/v?(\d+)/);
+  if (!match) return undefined;
+  const major = Number.parseInt(match[1], 10);
+  return Number.isNaN(major) ? undefined : major;
 }
 
 function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {

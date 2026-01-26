@@ -101,10 +101,22 @@ export interface AggregatedData {
   gitBranch?: string;
   dependencyRadarVersion?: string;
   maintenanceEnabled: boolean;
+  environment: EnvironmentInfo;
   dependencies: DependencyRecord[];
   toolErrors: Record<string, string>;
   raw: RawOutputs;
   importAnalysis?: ImportAnalysisSummary;
+}
+
+export interface EnvironmentInfo {
+  node: NodeEnvironmentInfo;
+}
+
+export interface NodeEnvironmentInfo {
+  runtimeVersion: string;
+  runtimeMajor: number;
+  minRequiredMajor?: number;
+  source: 'dependency-engines' | 'project-engines' | 'unknown';
 }
 
 export interface IdentityMetadata {

@@ -12,8 +12,17 @@ async function renderReport(data, outputPath) {
     await promises_1.default.writeFile(outputPath, html, 'utf8');
 }
 function buildHtml(data) {
+    var _a, _b, _c, _d;
     const json = JSON.stringify(data).replace(/</g, '\\u003c');
     const gitBranchHtml = data.gitBranch ? `<br/>Branch: <strong>${escapeHtml(data.gitBranch)}</strong>` : '';
+    const runtimeVersion = ((_b = (_a = data.environment) === null || _a === void 0 ? void 0 : _a.node) === null || _b === void 0 ? void 0 : _b.runtimeVersion)
+        ? data.environment.node.runtimeVersion.replace(/^v/, '')
+        : 'unknown';
+    const minRequiredMajor = (_d = (_c = data.environment) === null || _c === void 0 ? void 0 : _c.node) === null || _d === void 0 ? void 0 : _d.minRequiredMajor;
+    const nodeRequirement = minRequiredMajor !== undefined ? ` · dependency engines require ≥${minRequiredMajor}` : '';
+    const nodeBlockHtml = minRequiredMajor !== undefined
+        ? `Node: run on ${escapeHtml(runtimeVersion)}${nodeRequirement}<br/><span class="header-disclaimer">Derived from declared dependency engine ranges; does not guarantee runtime compatibility.</span>`
+        : `Node: run on ${escapeHtml(runtimeVersion)}`;
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -130,6 +139,12 @@ function buildHtml(data) {
       margin-top: 4px;
       font-size: 13px;
       color: var(--text-secondary);
+    }
+
+    .header-disclaimer {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
     }
     
     .header-meta strong {
@@ -948,6 +963,7 @@ function buildHtml(data) {
           <h1>Dependency Radar</h1>
           <p class="header-meta">
             Project: <strong>${escapeHtml(data.projectPath)}</strong>${gitBranchHtml}<br/>
+            ${nodeBlockHtml}<br/>
             Generated: <span id="formatted-date">${data.generatedAt}</span>
           </p>
         </div>

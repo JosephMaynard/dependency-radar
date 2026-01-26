@@ -11,6 +11,14 @@ export async function renderReport(data: AggregatedData, outputPath: string): Pr
 function buildHtml(data: AggregatedData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const gitBranchHtml = data.gitBranch ? `<br/>Branch: <strong>${escapeHtml(data.gitBranch)}</strong>` : '';
+  const runtimeVersion = data.environment?.node?.runtimeVersion
+    ? data.environment.node.runtimeVersion.replace(/^v/, '')
+    : 'unknown';
+  const minRequiredMajor = data.environment?.node?.minRequiredMajor;
+  const nodeRequirement = minRequiredMajor !== undefined ? ` · dependency engines require ≥${minRequiredMajor}` : '';
+  const nodeBlockHtml = minRequiredMajor !== undefined
+    ? `Node: run on ${escapeHtml(runtimeVersion)}${nodeRequirement}<br/><span class="header-disclaimer">Derived from declared dependency engine ranges; does not guarantee runtime compatibility.</span>`
+    : `Node: run on ${escapeHtml(runtimeVersion)}`;
   
   return `<!doctype html>
 <html lang="en">
@@ -128,6 +136,12 @@ function buildHtml(data: AggregatedData): string {
       margin-top: 4px;
       font-size: 13px;
       color: var(--text-secondary);
+    }
+
+    .header-disclaimer {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
     }
     
     .header-meta strong {
@@ -946,6 +960,7 @@ function buildHtml(data: AggregatedData): string {
           <h1>Dependency Radar</h1>
           <p class="header-meta">
             Project: <strong>${escapeHtml(data.projectPath)}</strong>${gitBranchHtml}<br/>
+            ${nodeBlockHtml}<br/>
             Generated: <span id="formatted-date">${data.generatedAt}</span>
           </p>
         </div>
