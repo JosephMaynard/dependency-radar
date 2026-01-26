@@ -145,6 +145,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const importAnalysis = buildImportAnalysis(importGraph, pkg);
   const packageUsageCounts = new Map(Object.entries(importAnalysis.packageHotness));
   const maintenanceCache = new Map<string, MaintenanceInfo>();
+  const runtimeCache = new Map<string, { classification: RuntimeClass; reason: string }>();
   const packageMetaCache = new Map<string, PackageMeta>();
   const packageStatCache = new Map<string, PackageStats>();
 
@@ -181,7 +182,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     }
 
     const maintenanceRiskLevel = maintenanceRisk(maintenance.lastPublished);
-    const runtimeData = classifyRuntime(node, pkg, nodeMap);
+    const runtimeData = classifyRuntime(node.key, pkg, nodeMap, runtimeCache);
     
     // Calculate root causes (direct dependencies that cause this to be installed)
     const rootCauses = findRootCauses(node, nodeMap, pkg);
@@ -529,24 +530,65 @@ async function resolveMaintenance(
   }
 }
 
-function classifyRuntime(node: NodeInfo, pkg: any, map: Map<string, NodeInfo>): { classification: 'runtime' | 'build-time' | 'dev-only'; reason: string } {
+type RuntimeClass = 'runtime' | 'build-time' | 'dev-only';
+
+function classifyRuntime(
+  nodeKey: string,
+  pkg: any,
+  map: Map<string, NodeInfo>,
+  cache: Map<string, { classification: RuntimeClass; reason: string }>
+): { classification: RuntimeClass; reason: string } {
+  const cached = cache.get(nodeKey);
+  if (cached) return cached;
+
+  const node = map.get(nodeKey);
+  if (!node) {
+    const fallback = { classification: 'build-time' as RuntimeClass, reason: 'Unknown node in dependency graph' };
+    cache.set(nodeKey, fallback);
+    return fallback;
+  }
+
   if (pkg.dependencies && pkg.dependencies[node.name]) {
-    return { classification: 'runtime', reason: 'Declared in dependencies' };
+    const result = { classification: 'runtime' as RuntimeClass, reason: 'Declared in dependencies' };
+    cache.set(nodeKey, result);
+    return result;
   }
   if (pkg.devDependencies && pkg.devDependencies[node.name]) {
-    return { classification: 'dev-only', reason: 'Declared in devDependencies' };
+    const result = { classification: 'dev-only' as RuntimeClass, reason: 'Declared in devDependencies' };
+    cache.set(nodeKey, result);
+    return result;
   }
-  if (node.dev) {
-    return { classification: 'dev-only', reason: 'npm ls marks as dev dependency' };
+
+  // Memoized recursion to inherit runtime class from parents; conservative for cycles.
+  const parentClasses: RuntimeClass[] = [];
+  const inProgress = cache.get(`__visiting__${nodeKey}`);
+  if (inProgress) {
+    const cycleFallback = { classification: 'build-time' as RuntimeClass, reason: 'Dependency cycle; defaulting to build-time' };
+    cache.set(nodeKey, cycleFallback);
+    return cycleFallback;
   }
-  const hasRuntimeParent = Array.from(node.parents).some((parentKey) => {
+  cache.set(`__visiting__${nodeKey}`, { classification: 'build-time', reason: 'visiting' });
+
+  for (const parentKey of node.parents) {
     const parent = map.get(parentKey);
-    return parent ? !parent.dev : false;
-  });
-  if (hasRuntimeParent) {
-    return { classification: 'runtime', reason: 'Transitive of runtime dependency' };
+    if (!parent) continue;
+    const parentClass = classifyRuntime(parentKey, pkg, map, cache).classification;
+    parentClasses.push(parentClass);
   }
-  return { classification: 'build-time', reason: 'Only seen in dev dependency tree' };
+
+  cache.delete(`__visiting__${nodeKey}`);
+
+  let result: { classification: RuntimeClass; reason: string };
+  if (parentClasses.includes('runtime')) {
+    result = { classification: 'runtime', reason: 'Transitive of runtime dependency' };
+  } else if (parentClasses.includes('build-time')) {
+    result = { classification: 'build-time', reason: 'Transitive of build-time dependency' };
+  } else {
+    result = { classification: 'dev-only', reason: 'Transitive of dev-only dependency' };
+  }
+
+  cache.set(nodeKey, result);
+  return result;
 }
 
 interface PackageMeta {

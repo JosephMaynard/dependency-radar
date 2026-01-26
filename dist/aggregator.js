@@ -101,6 +101,7 @@ async function aggregateData(input) {
     const importAnalysis = buildImportAnalysis(importGraph, pkg);
     const packageUsageCounts = new Map(Object.entries(importAnalysis.packageHotness));
     const maintenanceCache = new Map();
+    const runtimeCache = new Map();
     const packageMetaCache = new Map();
     const packageStatCache = new Map();
     const dependencies = [];
@@ -126,7 +127,7 @@ async function aggregateData(input) {
             maintenanceCache.set(node.name, maintenance);
         }
         const maintenanceRiskLevel = (0, utils_1.maintenanceRisk)(maintenance.lastPublished);
-        const runtimeData = classifyRuntime(node, pkg, nodeMap);
+        const runtimeData = classifyRuntime(node.key, pkg, nodeMap, runtimeCache);
         // Calculate root causes (direct dependencies that cause this to be installed)
         const rootCauses = findRootCauses(node, nodeMap, pkg);
         // Build dependedOnBy and dependsOn lists
@@ -435,24 +436,55 @@ async function resolveMaintenance(name, cache, maintenanceEnabled, current, tota
         return { status: 'unknown', reason: 'lookup failed' };
     }
 }
-function classifyRuntime(node, pkg, map) {
+function classifyRuntime(nodeKey, pkg, map, cache) {
+    const cached = cache.get(nodeKey);
+    if (cached)
+        return cached;
+    const node = map.get(nodeKey);
+    if (!node) {
+        const fallback = { classification: 'build-time', reason: 'Unknown node in dependency graph' };
+        cache.set(nodeKey, fallback);
+        return fallback;
+    }
     if (pkg.dependencies && pkg.dependencies[node.name]) {
-        return { classification: 'runtime', reason: 'Declared in dependencies' };
+        const result = { classification: 'runtime', reason: 'Declared in dependencies' };
+        cache.set(nodeKey, result);
+        return result;
     }
     if (pkg.devDependencies && pkg.devDependencies[node.name]) {
-        return { classification: 'dev-only', reason: 'Declared in devDependencies' };
+        const result = { classification: 'dev-only', reason: 'Declared in devDependencies' };
+        cache.set(nodeKey, result);
+        return result;
     }
-    if (node.dev) {
-        return { classification: 'dev-only', reason: 'npm ls marks as dev dependency' };
+    // Memoized recursion to inherit runtime class from parents; conservative for cycles.
+    const parentClasses = [];
+    const inProgress = cache.get(`__visiting__${nodeKey}`);
+    if (inProgress) {
+        const cycleFallback = { classification: 'build-time', reason: 'Dependency cycle; defaulting to build-time' };
+        cache.set(nodeKey, cycleFallback);
+        return cycleFallback;
     }
-    const hasRuntimeParent = Array.from(node.parents).some((parentKey) => {
+    cache.set(`__visiting__${nodeKey}`, { classification: 'build-time', reason: 'visiting' });
+    for (const parentKey of node.parents) {
         const parent = map.get(parentKey);
-        return parent ? !parent.dev : false;
-    });
-    if (hasRuntimeParent) {
-        return { classification: 'runtime', reason: 'Transitive of runtime dependency' };
+        if (!parent)
+            continue;
+        const parentClass = classifyRuntime(parentKey, pkg, map, cache).classification;
+        parentClasses.push(parentClass);
     }
-    return { classification: 'build-time', reason: 'Only seen in dev dependency tree' };
+    cache.delete(`__visiting__${nodeKey}`);
+    let result;
+    if (parentClasses.includes('runtime')) {
+        result = { classification: 'runtime', reason: 'Transitive of runtime dependency' };
+    }
+    else if (parentClasses.includes('build-time')) {
+        result = { classification: 'build-time', reason: 'Transitive of build-time dependency' };
+    }
+    else {
+        result = { classification: 'dev-only', reason: 'Transitive of dev-only dependency' };
+    }
+    cache.set(nodeKey, result);
+    return result;
 }
 async function gatherPackageInsights(name, projectPath, metaCache, statCache, fanIn, fanOut, dependedOnBy, dependsOn) {
     var _a;
