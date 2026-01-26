@@ -137,9 +137,25 @@ export async function readLicenseFromPackageJson(
     const pkgRaw = await fsp.readFile(pkgJsonPath, 'utf8');
     const pkg = JSON.parse(pkgRaw);
     const license = pkg.license || (Array.isArray(pkg.licenses) ? pkg.licenses.map((l: any) => (typeof l === 'string' ? l : l?.type)).filter(Boolean).join(' OR ') : undefined);
-    if (!license) return undefined;
-    return { license, licenseFile: pkgJsonPath };
+    const licenseFile = await findLicenseFile(path.dirname(pkgJsonPath));
+    if (!license && !licenseFile) return undefined;
+    return { license, licenseFile };
   } catch (err) {
+    return undefined;
+  }
+}
+
+async function findLicenseFile(dir: string): Promise<string | undefined> {
+  try {
+    const entries = await fsp.readdir(dir, { withFileTypes: true });
+    const fileNames = entries.filter((e) => e.isFile()).map((e) => e.name);
+    const patterns = [/^licen[cs]e(\.|$)/, /^copying(\.|$)/, /^notice(\.|$)/];
+    const match = fileNames.find((name) => {
+      const lower = name.toLowerCase();
+      return patterns.some((pattern) => pattern.test(lower));
+    });
+    return match ? path.join(dir, match) : undefined;
+  } catch {
     return undefined;
   }
 }

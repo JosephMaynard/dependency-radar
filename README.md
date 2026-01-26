@@ -5,7 +5,7 @@ Dependency Radar is a local-first CLI tool that inspects a Node.js project’s i
 ## What it does
 
 - Analyses installed dependencies using only local data (no SaaS, no uploads by default)
-- Combines multiple tools (npm audit, npm ls, license-checker, depcheck, madge) into a single report
+- Combines multiple tools (npm audit, npm ls, depcheck, madge) into a single report
 - Shows direct vs sub-dependencies, dependency depth, and parent relationships
 - Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint
 - Produces a single self-contained HTML file you can share or archive

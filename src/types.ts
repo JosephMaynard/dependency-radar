@@ -85,7 +85,6 @@ export interface DependencyRecord {
 export interface RawOutputs {
   audit?: any;
   npmLs?: any;
-  licenseChecker?: any;
   depcheck?: any;
   madge?: any;
 }

@@ -45,7 +45,6 @@
   ],
   "dependencies": {
     "depcheck": "^1.4.7",
-    "license-checker": "^25.0.1",
     "madge": "^8.0.0"
   },
   "devDependencies": {

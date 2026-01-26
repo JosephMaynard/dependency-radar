@@ -1,7 +1,5 @@
 {
-  "dependencies": [
-    "license-checker"
-  ],
+  "dependencies": [],
   "devDependencies": [],
   "missing": {},
   "using": {
@@ -19,7 +17,6 @@
       "/Users/josephmaynard/Developer/dependency-radar/src/report.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/utils.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/depcheckRunner.ts",
-      "/Users/josephmaynard/Developer/dependency-radar/src/runners/licenseChecker.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/npmAudit.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/npmLs.ts"

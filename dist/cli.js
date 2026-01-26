@@ -7,7 +7,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const path_1 = __importDefault(require("path"));
 const aggregator_1 = require("./aggregator");
 const depcheckRunner_1 = require("./runners/depcheckRunner");
-const licenseChecker_1 = require("./runners/licenseChecker");
 const madgeRunner_1 = require("./runners/madgeRunner");
 const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
@@ -85,10 +84,9 @@ async function run() {
     const stopSpinner = startSpinner(`Scanning project at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
-        const [auditResult, npmLsResult, licenseResult, depcheckResult, madgeResult] = await Promise.all([
+        const [auditResult, npmLsResult, depcheckResult, madgeResult] = await Promise.all([
             opts.audit ? (0, npmAudit_1.runNpmAudit)(projectPath, tempDir) : Promise.resolve(undefined),
             (0, npmLs_1.runNpmLs)(projectPath, tempDir),
-            (0, licenseChecker_1.runLicenseChecker)(projectPath, tempDir),
             (0, depcheckRunner_1.runDepcheck)(projectPath, tempDir),
             (0, madgeRunner_1.runMadge)(projectPath, tempDir)
         ]);
@@ -107,7 +105,6 @@ async function run() {
                 : undefined,
             auditResult,
             npmLsResult,
-            licenseResult,
             depcheckResult,
             madgeResult
         });

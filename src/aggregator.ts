@@ -29,7 +29,6 @@ interface AggregateInput {
   onMaintenanceProgress?: (current: number, total: number, name: string) => void;
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
-  licenseResult?: ToolResult<any>;
   depcheckResult?: ToolResult<any>;
   madgeResult?: ToolResult<any>;
 }
@@ -128,7 +127,6 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const raw: RawOutputs = {
     audit: input.auditResult?.data,
     npmLs: input.npmLsResult?.data,
-    licenseChecker: input.licenseResult?.data,
     depcheck: input.depcheckResult?.data,
     madge: input.madgeResult?.data
   };
@@ -136,7 +134,6 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const toolErrors: Record<string, string> = {};
   if (input.auditResult && !input.auditResult.ok) toolErrors['npm-audit'] = input.auditResult.error || 'unknown error';
   if (input.npmLsResult && !input.npmLsResult.ok) toolErrors['npm-ls'] = input.npmLsResult.error || 'unknown error';
-  if (input.licenseResult && !input.licenseResult.ok) toolErrors['license-checker'] = input.licenseResult.error || 'unknown error';
   if (input.depcheckResult && !input.depcheckResult.ok) toolErrors['depcheck'] = input.depcheckResult.error || 'unknown error';
   if (input.madgeResult && !input.madgeResult.ok) toolErrors['madge'] = input.madgeResult.error || 'unknown error';
 
@@ -145,7 +142,6 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
   const nodeMap = buildNodeMap(input.npmLsResult?.data, pkg);
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
-  const licenseData = normalizeLicenseData(input.licenseResult?.data);
   const depcheckUsage = buildUsageInfo(input.depcheckResult?.data);
   const importInfo = buildImportInfo(input.madgeResult?.data);
   const maintenanceCache = new Map<string, MaintenanceInfo>();
@@ -153,7 +149,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const packageStatCache = new Map<string, PackageStats>();
 
   const dependencies: DependencyRecord[] = [];
-  const licenseFallbackCache = new Map<string, { license?: string; licenseFile?: string }>();
+  const licenseCache = new Map<string, { license?: string; licenseFile?: string }>();
 
   const nodes = Array.from(nodeMap.values());
   const totalDeps = nodes.length;
@@ -161,14 +157,12 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
   for (const node of nodes) {
     const direct = isDirectDependency(node.name, pkg);
-    const license =
-      licenseData.byKey.get(node.key) ||
-      licenseData.byName.get(node.name) ||
-      licenseFallbackCache.get(node.name) ||
+    const cachedLicense = licenseCache.get(node.name);
+    const license = cachedLicense ||
       (await readLicenseFromPackageJson(node.name, input.projectPath)) ||
       { license: undefined };
-    if (!licenseFallbackCache.has(node.name) && license.license) {
-      licenseFallbackCache.set(node.name, license);
+    if (!licenseCache.has(node.name) && (license.license || license.licenseFile)) {
+      licenseCache.set(node.name, license);
     }
     const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
     const licenseRisk = licenseRiskLevel(license.license);
@@ -404,23 +398,6 @@ function computeHighestSeverity(counts: Record<Severity, number>): Severity | 'n
   if (counts.moderate > 0) return 'moderate';
   if (counts.low > 0) return 'low';
   return 'none';
-}
-
-function normalizeLicenseData(data: any): { byKey: Map<string, { license?: string; licenseFile?: string }>; byName: Map<string, { license?: string; licenseFile?: string }> } {
-  const byKey = new Map<string, { license?: string; licenseFile?: string }>();
-  const byName = new Map<string, { license?: string; licenseFile?: string }>();
-  if (!data) return { byKey, byName };
-  Object.entries<any>(data).forEach(([key, value]: [string, any]) => {
-    const lic = Array.isArray(value.licenses) ? value.licenses.join(' OR ') : value.licenses;
-    const entry = {
-      license: lic,
-      licenseFile: value.licenseFile || value.licenseFilePath
-    };
-    byKey.set(key, entry);
-    const namePart = key.includes('@', 1) ? key.slice(0, key.lastIndexOf('@')) : key;
-    if (!byName.has(namePart)) byName.set(namePart, entry);
-  });
-  return { byKey, byName };
 }
 
 function buildUsageInfo(depcheckData: any): Map<string, UsageInfo> {

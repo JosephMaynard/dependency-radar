@@ -2,7 +2,6 @@
 import path from 'path';
 import { aggregateData } from './aggregator';
 import { runDepcheck } from './runners/depcheckRunner';
-import { runLicenseChecker } from './runners/licenseChecker';
 import { runMadge } from './runners/madgeRunner';
 import { runNpmAudit } from './runners/npmAudit';
 import { runNpmLs } from './runners/npmLs';
@@ -91,10 +90,9 @@ async function run(): Promise<void> {
   try {
     await ensureDir(tempDir);
 
-    const [auditResult, npmLsResult, licenseResult, depcheckResult, madgeResult] = await Promise.all([
+    const [auditResult, npmLsResult, depcheckResult, madgeResult] = await Promise.all([
       opts.audit ? runNpmAudit(projectPath, tempDir) : Promise.resolve(undefined),
       runNpmLs(projectPath, tempDir),
-      runLicenseChecker(projectPath, tempDir),
       runDepcheck(projectPath, tempDir),
       runMadge(projectPath, tempDir)
     ]);
@@ -115,7 +113,6 @@ async function run(): Promise<void> {
         : undefined,
       auditResult,
       npmLsResult,
-      licenseResult,
       depcheckResult,
       madgeResult
     });
