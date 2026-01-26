@@ -90,3 +90,33 @@ npx dependency-radar --help
 
 Dependency Radar writes a single HTML file (dependency-radar.html by default).  
 The file is fully self-contained and can be opened locally in a browser, shared with others, or attached to tickets and documentation.
+
+### JSON output
+
+Use `--json` to write the aggregated scan data as JSON (defaults to `dependency-radar.json`).
+
+The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.ts`. For quick reference:
+
+```ts
+export interface AggregatedData {
+  generatedAt: string;
+  projectPath: string;
+  gitBranch?: string;
+  dependencyRadarVersion?: string;
+  maintenanceEnabled: boolean;
+  environment: {
+    node: {
+      runtimeVersion: string;
+      runtimeMajor: number;
+      minRequiredMajor?: number;
+      source: 'dependency-engines' | 'project-engines' | 'unknown';
+    };
+  };
+  dependencies: DependencyRecord[];
+  toolErrors: Record<string, string>;
+  raw: RawOutputs;
+  importAnalysis?: ImportAnalysisSummary;
+}
+```
+
+For full details on `DependencyRecord`, `RawOutputs`, and related types, see `src/types.ts`.
