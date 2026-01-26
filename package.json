@@ -19,7 +19,7 @@
   "author": " ",
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=14.14.0"
   },
   "repository": {
     "type": "git",
@@ -44,8 +44,7 @@
     "html"
   ],
   "dependencies": {
-    "depcheck": "^1.4.7",
-    "madge": "^8.0.0"
+    "depcheck": "^1.4.7"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",

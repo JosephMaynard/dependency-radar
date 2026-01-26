@@ -84,7 +84,7 @@ async function aggregateData(input) {
         audit: (_a = input.auditResult) === null || _a === void 0 ? void 0 : _a.data,
         npmLs: (_b = input.npmLsResult) === null || _b === void 0 ? void 0 : _b.data,
         depcheck: (_c = input.depcheckResult) === null || _c === void 0 ? void 0 : _c.data,
-        madge: (_d = input.madgeResult) === null || _d === void 0 ? void 0 : _d.data
+        importGraph: (_d = input.importGraphResult) === null || _d === void 0 ? void 0 : _d.data
     };
     const toolErrors = {};
     if (input.auditResult && !input.auditResult.ok)
@@ -93,14 +93,14 @@ async function aggregateData(input) {
         toolErrors['npm-ls'] = input.npmLsResult.error || 'unknown error';
     if (input.depcheckResult && !input.depcheckResult.ok)
         toolErrors['depcheck'] = input.depcheckResult.error || 'unknown error';
-    if (input.madgeResult && !input.madgeResult.ok)
-        toolErrors['madge'] = input.madgeResult.error || 'unknown error';
+    if (input.importGraphResult && !input.importGraphResult.ok)
+        toolErrors['import-graph'] = input.importGraphResult.error || 'unknown error';
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
     const nodeMap = buildNodeMap((_e = input.npmLsResult) === null || _e === void 0 ? void 0 : _e.data, pkg);
     const vulnMap = parseVulnerabilities((_f = input.auditResult) === null || _f === void 0 ? void 0 : _f.data);
     const depcheckUsage = buildUsageInfo((_g = input.depcheckResult) === null || _g === void 0 ? void 0 : _g.data);
-    const importInfo = buildImportInfo((_h = input.madgeResult) === null || _h === void 0 ? void 0 : _h.data);
+    const importInfo = buildImportInfo((_h = input.importGraphResult) === null || _h === void 0 ? void 0 : _h.data);
     const maintenanceCache = new Map();
     const packageMetaCache = new Map();
     const packageStatCache = new Map();

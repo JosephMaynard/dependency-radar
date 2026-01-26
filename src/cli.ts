@@ -2,7 +2,7 @@
 import path from 'path';
 import { aggregateData } from './aggregator';
 import { runDepcheck } from './runners/depcheckRunner';
-import { runMadge } from './runners/madgeRunner';
+import { runImportGraph } from './runners/importGraphRunner';
 import { runNpmAudit } from './runners/npmAudit';
 import { runNpmLs } from './runners/npmLs';
 import { renderReport } from './report';
@@ -90,11 +90,11 @@ async function run(): Promise<void> {
   try {
     await ensureDir(tempDir);
 
-    const [auditResult, npmLsResult, depcheckResult, madgeResult] = await Promise.all([
+    const [auditResult, npmLsResult, depcheckResult, importGraphResult] = await Promise.all([
       opts.audit ? runNpmAudit(projectPath, tempDir) : Promise.resolve(undefined),
       runNpmLs(projectPath, tempDir),
       runDepcheck(projectPath, tempDir),
-      runMadge(projectPath, tempDir)
+      runImportGraph(projectPath, tempDir)
     ]);
 
     if (opts.maintenance) {
@@ -114,7 +114,7 @@ async function run(): Promise<void> {
       auditResult,
       npmLsResult,
       depcheckResult,
-      madgeResult
+      importGraphResult
     });
     dependencyCount = aggregated.dependencies.length;
 

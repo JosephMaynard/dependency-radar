@@ -86,7 +86,7 @@ export interface RawOutputs {
   audit?: any;
   npmLs?: any;
   depcheck?: any;
-  madge?: any;
+  importGraph?: any;
 }
 
 export interface ToolResult<T> {

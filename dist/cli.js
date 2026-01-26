@@ -7,7 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const path_1 = __importDefault(require("path"));
 const aggregator_1 = require("./aggregator");
 const depcheckRunner_1 = require("./runners/depcheckRunner");
-const madgeRunner_1 = require("./runners/madgeRunner");
+const importGraphRunner_1 = require("./runners/importGraphRunner");
 const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
 const report_1 = require("./report");
@@ -84,11 +84,11 @@ async function run() {
     const stopSpinner = startSpinner(`Scanning project at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
-        const [auditResult, npmLsResult, depcheckResult, madgeResult] = await Promise.all([
+        const [auditResult, npmLsResult, depcheckResult, importGraphResult] = await Promise.all([
             opts.audit ? (0, npmAudit_1.runNpmAudit)(projectPath, tempDir) : Promise.resolve(undefined),
             (0, npmLs_1.runNpmLs)(projectPath, tempDir),
             (0, depcheckRunner_1.runDepcheck)(projectPath, tempDir),
-            (0, madgeRunner_1.runMadge)(projectPath, tempDir)
+            (0, importGraphRunner_1.runImportGraph)(projectPath, tempDir)
         ]);
         if (opts.maintenance) {
             stopSpinner(true);
@@ -106,7 +106,7 @@ async function run() {
             auditResult,
             npmLsResult,
             depcheckResult,
-            madgeResult
+            importGraphResult
         });
         dependencyCount = aggregated.dependencies.length;
         if (opts.maintenance) {

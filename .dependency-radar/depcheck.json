@@ -7,8 +7,7 @@
       "/Users/josephmaynard/Developer/dependency-radar/package.json"
     ],
     "typescript": [
-      "/Users/josephmaynard/Developer/dependency-radar/package.json",
-      "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts"
+      "/Users/josephmaynard/Developer/dependency-radar/package.json"
     ],
     "@types/node": [
       "/Users/josephmaynard/Developer/dependency-radar/package.json",
@@ -17,15 +16,12 @@
       "/Users/josephmaynard/Developer/dependency-radar/src/report.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/utils.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/depcheckRunner.ts",
-      "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts",
+      "/Users/josephmaynard/Developer/dependency-radar/src/runners/importGraphRunner.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/npmAudit.ts",
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/npmLs.ts"
     ],
     "depcheck": [
       "/Users/josephmaynard/Developer/dependency-radar/src/runners/depcheckRunner.ts"
-    ],
-    "madge": [
-      "/Users/josephmaynard/Developer/dependency-radar/src/runners/madgeRunner.ts"
     ]
   },
   "invalidFiles": {},
