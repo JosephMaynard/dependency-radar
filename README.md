@@ -35,25 +35,40 @@ The simplest way to run Dependency Radar is via npx. It runs in the current dire
 Run a scan against the current project (writes `dependency-radar.html`):
 
 ```bash
-npx dependency-radar scan
+npx dependency-radar
 ```
+
+The `scan` command is the default and can also be run explicitly as `npx dependency-radar scan`.
+
 
 Specify a project and output path:
 
 ```bash
-npx dependency-radar scan --project ./my-app --out ./reports/dependency-radar.html
+npx dependency-radar --project ./my-app --out ./reports/dependency-radar.html
 ```
 
 Keep the temporary `.dependency-radar` folder for debugging raw tool outputs:
 
 ```bash
-npx dependency-radar scan --keep-temp
+npx dependency-radar --keep-temp
 ```
 
 Skip `npm audit` (useful for offline scans):
 
 ```bash
-npx dependency-radar scan --no-audit
+npx dependency-radar --no-audit
+```
+
+Output JSON instead of HTML report:
+
+```bash
+npx dependency-radar --json
+```
+
+Show options:
+
+```bash
+npx dependency-radar --help
 ```
 
 ## Scripts

@@ -50,7 +50,9 @@ function parseArgs(argv) {
     return opts;
 }
 function printHelp() {
-    console.log(`dependency-radar scan [options]
+    console.log(`dependency-radar [scan] [options]
+
+If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
