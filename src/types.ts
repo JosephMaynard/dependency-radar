@@ -27,7 +27,7 @@ export interface MaintenanceInfo {
 }
 
 export interface UsageInfo {
-  status: 'used' | 'unused' | 'unknown';
+  status: 'imported' | 'not-imported' | 'undeclared' | 'unknown';
   reason: string;
 }
 
@@ -85,7 +85,6 @@ export interface DependencyRecord {
 export interface RawOutputs {
   audit?: any;
   npmLs?: any;
-  depcheck?: any;
   importGraph?: any;
 }
 
@@ -105,6 +104,7 @@ export interface AggregatedData {
   dependencies: DependencyRecord[];
   toolErrors: Record<string, string>;
   raw: RawOutputs;
+  importAnalysis?: ImportAnalysisSummary;
 }
 
 export interface IdentityMetadata {
@@ -146,6 +146,14 @@ export interface GraphShape {
   fanOut: number;
   dependedOnBy: string[];
   dependsOn: string[];
+}
+
+export interface ImportAnalysisSummary {
+  staticOnly: boolean;
+  notes: string[];
+  packageHotness: Record<string, number>;
+  undeclaredImports: string[];
+  unresolvedImports: Array<{ importer: string; specifier: string }>;
 }
 
 export interface ScanOptions {

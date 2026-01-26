@@ -43,9 +43,6 @@
     "node",
     "html"
   ],
-  "dependencies": {
-    "depcheck": "^1.4.7"
-  },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "ts-node": "^10.9.2",

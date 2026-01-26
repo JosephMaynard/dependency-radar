@@ -1,5 +1,6 @@
 import path from 'path';
 import fsp from 'fs/promises';
+import { builtinModules } from 'module';
 import { ToolResult } from '../types';
 import { pathExists, writeJsonFile } from '../utils';
 
@@ -13,18 +14,23 @@ export async function runImportGraph(projectPath: string, tempDir: string): Prom
     const hasSrc = await pathExists(srcPath);
     const entry = hasSrc ? srcPath : projectPath;
     const files = await collectSourceFiles(entry);
-    const graph: Record<string, string[]> = {};
+    const fileGraph: Record<string, string[]> = {};
+    const packageGraph: Record<string, string[]> = {};
+    const unresolvedImports: Array<{ importer: string; specifier: string }> = [];
 
     for (const file of files) {
       const rel = normalizePath(projectPath, file);
       const content = await fsp.readFile(file, 'utf8');
       const imports = extractImports(content);
       const resolved = await resolveImports(imports, path.dirname(file), projectPath);
-      graph[rel] = resolved;
+      fileGraph[rel] = resolved.files;
+      packageGraph[rel] = resolved.packages;
+      unresolvedImports.push(...resolved.unresolved.map((spec) => ({ importer: rel, specifier: spec })));
     }
 
-    await writeJsonFile(targetFile, graph);
-    return { ok: true, data: graph, file: targetFile };
+    const output = { files: fileGraph, packages: packageGraph, unresolvedImports };
+    await writeJsonFile(targetFile, output);
+    return { ok: true, data: output, file: targetFile };
   } catch (err: any) {
     await writeJsonFile(targetFile, { error: String(err) });
     return { ok: false, error: `import graph failed: ${String(err)}`, file: targetFile };
@@ -73,17 +79,32 @@ function extractImports(content: string): string[] {
   return Array.from(matches);
 }
 
-async function resolveImports(specifiers: string[], fileDir: string, projectPath: string): Promise<string[]> {
-  const resolved: string[] = [];
+async function resolveImports(
+  specifiers: string[],
+  fileDir: string,
+  projectPath: string
+): Promise<{ files: string[]; packages: string[]; unresolved: string[] }> {
+  const resolvedFiles: string[] = [];
+  const resolvedPackages: string[] = [];
+  const unresolved: string[] = [];
   for (const spec of specifiers) {
+    if (isBuiltinModule(spec)) continue;
     if (spec.startsWith('.') || spec.startsWith('/')) {
       const target = await resolveFileTarget(spec, fileDir, projectPath);
-      if (target) resolved.push(target);
+      if (target) {
+        resolvedFiles.push(target);
+      } else {
+        unresolved.push(spec);
+      }
     } else {
-      resolved.push(toPackageName(spec));
+      resolvedPackages.push(toPackageName(spec));
     }
   }
-  return resolved;
+  return {
+    files: uniqSorted(resolvedFiles),
+    packages: uniqSorted(resolvedPackages),
+    unresolved: uniqSorted(unresolved)
+  };
 }
 
 async function resolveFileTarget(spec: string, fileDir: string, projectPath: string): Promise<string | undefined> {
@@ -92,7 +113,7 @@ async function resolveFileTarget(spec: string, fileDir: string, projectPath: str
     : path.resolve(fileDir, spec);
   const direct = await resolveFile(base);
   if (direct) return normalizePath(projectPath, direct);
-  return normalizePath(projectPath, base);
+  return undefined;
 }
 
 async function resolveFile(basePath: string): Promise<string | undefined> {
@@ -139,4 +160,19 @@ function toPackageName(spec: string): string {
 function normalizePath(baseDir: string, filePath: string): string {
   const rel = path.relative(baseDir, filePath);
   return rel.split(path.sep).join('/');
+}
+
+const BUILTIN_MODULES = new Set(
+  builtinModules.flatMap((mod) => (mod.startsWith('node:') ? [mod, mod.slice(5)] : [mod]))
+);
+
+function isBuiltinModule(spec: string): boolean {
+  const normalized = spec.startsWith('node:') ? spec.slice(5) : spec;
+  if (BUILTIN_MODULES.has(spec) || BUILTIN_MODULES.has(normalized)) return true;
+  const root = normalized.split('/')[0];
+  return BUILTIN_MODULES.has(root);
+}
+
+function uniqSorted(values: string[]): string[] {
+  return Array.from(new Set(values)).sort();
 }

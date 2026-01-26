@@ -1,6 +1,7 @@
 import {
   AggregatedData,
   DependencyRecord,
+  ImportAnalysisSummary,
   ImportGraphInfo,
   MaintenanceInfo,
   PackageLinks,
@@ -29,7 +30,6 @@ interface AggregateInput {
   onMaintenanceProgress?: (current: number, total: number, name: string) => void;
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
-  depcheckResult?: ToolResult<any>;
   importGraphResult?: ToolResult<any>;
 }
 
@@ -127,14 +127,12 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const raw: RawOutputs = {
     audit: input.auditResult?.data,
     npmLs: input.npmLsResult?.data,
-    depcheck: input.depcheckResult?.data,
     importGraph: input.importGraphResult?.data
   };
 
   const toolErrors: Record<string, string> = {};
   if (input.auditResult && !input.auditResult.ok) toolErrors['npm-audit'] = input.auditResult.error || 'unknown error';
   if (input.npmLsResult && !input.npmLsResult.ok) toolErrors['npm-ls'] = input.npmLsResult.error || 'unknown error';
-  if (input.depcheckResult && !input.depcheckResult.ok) toolErrors['depcheck'] = input.depcheckResult.error || 'unknown error';
   if (input.importGraphResult && !input.importGraphResult.ok) toolErrors['import-graph'] = input.importGraphResult.error || 'unknown error';
 
   // Get git branch
@@ -142,8 +140,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
   const nodeMap = buildNodeMap(input.npmLsResult?.data, pkg);
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
-  const depcheckUsage = buildUsageInfo(input.depcheckResult?.data);
-  const importInfo = buildImportInfo(input.importGraphResult?.data);
+  const importGraph = normalizeImportGraph(input.importGraphResult?.data);
+  const importInfo = buildImportInfo(importGraph.files);
+  const importAnalysis = buildImportAnalysis(importGraph, pkg);
+  const packageUsageCounts = new Map(Object.entries(importAnalysis.packageHotness));
   const maintenanceCache = new Map<string, MaintenanceInfo>();
   const packageMetaCache = new Map<string, PackageMeta>();
   const packageStatCache = new Map<string, PackageStats>();
@@ -167,10 +167,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
     const licenseRisk = licenseRiskLevel(license.license);
     const vulnRisk = vulnRiskLevel(vulnerabilities.counts);
-    const usage = depcheckUsage.get(node.name) ||
-      (input.depcheckResult?.data
-        ? { status: 'used', reason: 'Not flagged as unused by depcheck' }
-        : { status: 'unknown', reason: 'depcheck unavailable' });
+    const usage = buildUsageInfo(node.name, packageUsageCounts, pkg);
     const maintenance = await resolveMaintenance(
       node.name,
       maintenanceCache,
@@ -253,7 +250,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     maintenanceEnabled: input.maintenanceEnabled,
     dependencies,
     toolErrors,
-    raw
+    raw,
+    importAnalysis
   };
 }
 
@@ -400,24 +398,88 @@ function computeHighestSeverity(counts: Record<Severity, number>): Severity | 'n
   return 'none';
 }
 
-function buildUsageInfo(depcheckData: any): Map<string, UsageInfo> {
-  const map = new Map<string, UsageInfo>();
-  if (!depcheckData) return map;
-  const unused = new Set<string>([...(depcheckData.dependencies || []), ...(depcheckData.devDependencies || [])]);
+interface ImportGraphData {
+  files: Record<string, string[]>;
+  packages: Record<string, string[]>;
+  unresolvedImports: Array<{ importer: string; specifier: string }>;
+}
 
-  unused.forEach((name) => {
-    map.set(name, { status: 'unused', reason: 'Marked unused by depcheck' });
+function normalizeImportGraph(data: any): ImportGraphData {
+  if (data && typeof data === 'object' && data.files && data.packages) {
+    return {
+      files: data.files || {},
+      packages: data.packages || {},
+      unresolvedImports: Array.isArray(data.unresolvedImports) ? data.unresolvedImports : []
+    };
+  }
+  return { files: data || {}, packages: {}, unresolvedImports: [] };
+}
+
+function buildUsageInfo(
+  name: string,
+  packageUsageCounts: Map<string, number>,
+  pkg: any
+): UsageInfo {
+  const declared = Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
+  const importedCount = packageUsageCounts.get(name) || 0;
+  if (importedCount > 0) {
+    if (declared) {
+      return {
+        status: 'imported',
+        reason: `Imported by ${importedCount} file${importedCount === 1 ? '' : 's'} (static analysis)`
+      };
+    }
+    return {
+      status: 'undeclared',
+      reason: 'Imported but not declared (may rely on transitive resolution; pnpm will usually break this)'
+    };
+  }
+  if (declared) {
+    return {
+      status: 'not-imported',
+      reason: 'Declared but never statically imported (may be used via tooling, scripts, or runtime plugins)'
+    };
+  }
+  return {
+    status: 'unknown',
+    reason: 'Not statically imported; package is likely transitive or used dynamically'
+  };
+}
+
+function buildImportAnalysis(graph: ImportGraphData, pkg: any): ImportAnalysisSummary {
+  const packageImporters = new Map<string, Set<string>>();
+
+  Object.entries(graph.packages || {}).forEach(([file, packages]) => {
+    const unique = new Set(packages || []);
+    unique.forEach((pkgName) => {
+      if (!packageImporters.has(pkgName)) packageImporters.set(pkgName, new Set<string>());
+      packageImporters.get(pkgName)!.add(file);
+    });
   });
 
-  if (Array.isArray(depcheckData.dependencies) || Array.isArray(depcheckData.devDependencies)) {
-    Object.keys(depcheckData.missing || {}).forEach((name) => {
-      if (!map.has(name)) {
-        map.set(name, { status: 'unknown', reason: 'Missing according to depcheck' });
-      }
-    });
-  }
+  const packageHotness: Record<string, number> = {};
+  packageImporters.forEach((importers, name) => {
+    packageHotness[name] = importers.size;
+  });
 
-  return map;
+  const declared = new Set<string>([
+    ...Object.keys(pkg.dependencies || {}),
+    ...Object.keys(pkg.devDependencies || {})
+  ]);
+  const undeclaredImports = Array.from(packageImporters.keys())
+    .filter((name) => !declared.has(name))
+    .sort();
+
+  return {
+    staticOnly: true,
+    notes: [
+      'Import analysis is static only.',
+      'Dynamic imports, runtime plugin loading, and tooling usage are not evaluated.'
+    ],
+    packageHotness,
+    undeclaredImports,
+    unresolvedImports: graph.unresolvedImports || []
+  };
 }
 
 function buildImportInfo(graphData: any): ImportGraphInfo | undefined {

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import path from 'path';
 import { aggregateData } from './aggregator';
-import { runDepcheck } from './runners/depcheckRunner';
 import { runImportGraph } from './runners/importGraphRunner';
 import { runNpmAudit } from './runners/npmAudit';
 import { runNpmLs } from './runners/npmLs';
@@ -90,10 +89,9 @@ async function run(): Promise<void> {
   try {
     await ensureDir(tempDir);
 
-    const [auditResult, npmLsResult, depcheckResult, importGraphResult] = await Promise.all([
+    const [auditResult, npmLsResult, importGraphResult] = await Promise.all([
       opts.audit ? runNpmAudit(projectPath, tempDir) : Promise.resolve(undefined),
       runNpmLs(projectPath, tempDir),
-      runDepcheck(projectPath, tempDir),
       runImportGraph(projectPath, tempDir)
     ]);
 
@@ -113,7 +111,6 @@ async function run(): Promise<void> {
         : undefined,
       auditResult,
       npmLsResult,
-      depcheckResult,
       importGraphResult
     });
     dependencyCount = aggregated.dependencies.length;

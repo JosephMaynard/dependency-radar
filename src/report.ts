@@ -1012,7 +1012,7 @@ function buildHtml(data: AggregatedData): string {
       
       <label class="checkbox-filter">
         <input type="checkbox" id="unused-only" />
-        Unused only
+        Not statically imported
       </label>
       
       <div class="theme-toggle">
@@ -1213,7 +1213,7 @@ function buildHtml(data: AggregatedData): string {
         const directFilter = controls.direct.value;
         const runtimeFilter = controls.runtime.value;
         const hasVulns = controls.hasVulns.checked;
-        const unusedOnly = controls.unusedOnly.checked;
+        const notImportedOnly = controls.unusedOnly.checked;
         
         const showPermissive = controls.licensePermissive.checked;
         const showWeakCopyleft = controls.licenseWeakCopyleft.checked;
@@ -1226,7 +1226,7 @@ function buildHtml(data: AggregatedData): string {
           if (directFilter === 'transitive' && dep.direct) return false;
           if (runtimeFilter !== 'all' && dep.runtimeClass !== runtimeFilter) return false;
           if (hasVulns && severityOrder[highestSeverity(dep)] === 0) return false;
-          if (unusedOnly && dep.usage.status !== 'unused') return false;
+          if (notImportedOnly && dep.usage.status !== 'not-imported') return false;
           
           // License category filter
           const licenseCategory = getLicenseCategory(dep.license.license);
@@ -1263,6 +1263,13 @@ function buildHtml(data: AggregatedData): string {
       
       function indicatorSeparator() {
         return '<div class="indicator-separator"></div>';
+      }
+
+      function usageLabel(status) {
+        if (status === 'imported') return 'Imported';
+        if (status === 'not-imported') return 'Not statically imported';
+        if (status === 'undeclared') return 'Imported but not declared';
+        return 'Unknown';
       }
       
       function renderKvItem(label, value, hint) {
@@ -1359,7 +1366,16 @@ function buildHtml(data: AggregatedData): string {
           indicatorSeparator(),
           indicator('Vulns: ' + severity, dep.vulnRisk),
           indicatorSeparator(),
-          indicator(dep.usage.status, dep.usage.status === 'unused' ? 'red' : dep.usage.status === 'used' ? 'green' : 'gray')
+          indicator(
+            usageLabel(dep.usage.status),
+            dep.usage.status === 'undeclared'
+              ? 'red'
+              : dep.usage.status === 'imported'
+                ? 'green'
+                : dep.usage.status === 'not-imported'
+                  ? 'amber'
+                  : 'gray'
+          )
         ];
         
         const summary = [
@@ -1413,8 +1429,8 @@ function buildHtml(data: AggregatedData): string {
         
         const usageSection = renderSection(
           'Usage',
-          'Whether this package is actively used in your code',
-          '<div class="kv-grid">' + renderKvItem('Status', dep.usage.status, dep.usage.reason) + '</div>'
+          'Static import usage in your codebase',
+          '<div class="kv-grid">' + renderKvItem('Status', usageLabel(dep.usage.status), dep.usage.reason) + '</div>'
         );
         
         const identitySection = renderKvSection('Identity & Metadata', 'Package metadata', [

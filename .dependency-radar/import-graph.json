@@ -1,57 +1,49 @@
 {
-  "src/aggregator.ts": [
-    "src/types.ts",
-    "src/utils.ts",
-    "fs",
-    "path"
-  ],
-  "src/cli.ts": [
-    "path",
-    "src/aggregator.ts",
-    "src/runners/depcheckRunner.ts",
-    "src/runners/importGraphRunner.ts",
-    "src/runners/npmAudit.ts",
-    "src/runners/npmLs.ts",
-    "src/report.ts",
-    "fs",
-    "src/utils.ts"
-  ],
-  "src/index.ts": [
-    "src/aggregator.ts",
-    "src/report.ts"
-  ],
-  "src/report.ts": [
-    "fs",
-    "path",
-    "src/types.ts"
-  ],
-  "src/runners/depcheckRunner.ts": [
-    "path",
-    "depcheck",
-    "src/types.ts",
-    "src/utils.ts"
-  ],
-  "src/runners/importGraphRunner.ts": [
-    "path",
-    "fs",
-    "src/types.ts",
-    "src/utils.ts"
-  ],
-  "src/runners/npmAudit.ts": [
-    "path",
-    "src/types.ts",
-    "src/utils.ts"
-  ],
-  "src/runners/npmLs.ts": [
-    "path",
-    "src/types.ts",
-    "src/utils.ts"
-  ],
-  "src/types.ts": [],
-  "src/utils.ts": [
-    "child_process",
-    "fs",
-    "fs",
-    "path"
-  ]
+  "files": {
+    "src/aggregator.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/cli.ts": [
+      "src/aggregator.ts",
+      "src/report.ts",
+      "src/runners/importGraphRunner.ts",
+      "src/runners/npmAudit.ts",
+      "src/runners/npmLs.ts",
+      "src/utils.ts"
+    ],
+    "src/index.ts": [
+      "src/aggregator.ts",
+      "src/report.ts"
+    ],
+    "src/report.ts": [
+      "src/types.ts"
+    ],
+    "src/runners/importGraphRunner.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/runners/npmAudit.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/runners/npmLs.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/types.ts": [],
+    "src/utils.ts": []
+  },
+  "packages": {
+    "src/aggregator.ts": [],
+    "src/cli.ts": [],
+    "src/index.ts": [],
+    "src/report.ts": [],
+    "src/runners/importGraphRunner.ts": [],
+    "src/runners/npmAudit.ts": [],
+    "src/runners/npmLs.ts": [],
+    "src/types.ts": [],
+    "src/utils.ts": []
+  },
+  "unresolvedImports": []
 }

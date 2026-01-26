@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.runImportGraph = runImportGraph;
 const path_1 = __importDefault(require("path"));
 const promises_1 = __importDefault(require("fs/promises"));
+const module_1 = require("module");
 const utils_1 = require("../utils");
 const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.dependency-radar']);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
@@ -16,16 +17,21 @@ async function runImportGraph(projectPath, tempDir) {
         const hasSrc = await (0, utils_1.pathExists)(srcPath);
         const entry = hasSrc ? srcPath : projectPath;
         const files = await collectSourceFiles(entry);
-        const graph = {};
+        const fileGraph = {};
+        const packageGraph = {};
+        const unresolvedImports = [];
         for (const file of files) {
             const rel = normalizePath(projectPath, file);
             const content = await promises_1.default.readFile(file, 'utf8');
             const imports = extractImports(content);
             const resolved = await resolveImports(imports, path_1.default.dirname(file), projectPath);
-            graph[rel] = resolved;
+            fileGraph[rel] = resolved.files;
+            packageGraph[rel] = resolved.packages;
+            unresolvedImports.push(...resolved.unresolved.map((spec) => ({ importer: rel, specifier: spec })));
         }
-        await (0, utils_1.writeJsonFile)(targetFile, graph);
-        return { ok: true, data: graph, file: targetFile };
+        const output = { files: fileGraph, packages: packageGraph, unresolvedImports };
+        await (0, utils_1.writeJsonFile)(targetFile, output);
+        return { ok: true, data: output, file: targetFile };
     }
     catch (err) {
         await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
@@ -73,18 +79,30 @@ function extractImports(content) {
     return Array.from(matches);
 }
 async function resolveImports(specifiers, fileDir, projectPath) {
-    const resolved = [];
+    const resolvedFiles = [];
+    const resolvedPackages = [];
+    const unresolved = [];
     for (const spec of specifiers) {
+        if (isBuiltinModule(spec))
+            continue;
         if (spec.startsWith('.') || spec.startsWith('/')) {
             const target = await resolveFileTarget(spec, fileDir, projectPath);
-            if (target)
-                resolved.push(target);
+            if (target) {
+                resolvedFiles.push(target);
+            }
+            else {
+                unresolved.push(spec);
+            }
         }
         else {
-            resolved.push(toPackageName(spec));
+            resolvedPackages.push(toPackageName(spec));
         }
     }
-    return resolved;
+    return {
+        files: uniqSorted(resolvedFiles),
+        packages: uniqSorted(resolvedPackages),
+        unresolved: uniqSorted(unresolved)
+    };
 }
 async function resolveFileTarget(spec, fileDir, projectPath) {
     const base = spec.startsWith('/')
@@ -93,7 +111,7 @@ async function resolveFileTarget(spec, fileDir, projectPath) {
     const direct = await resolveFile(base);
     if (direct)
         return normalizePath(projectPath, direct);
-    return normalizePath(projectPath, base);
+    return undefined;
 }
 async function resolveFile(basePath) {
     if (await isFile(basePath))
@@ -140,4 +158,15 @@ function toPackageName(spec) {
 function normalizePath(baseDir, filePath) {
     const rel = path_1.default.relative(baseDir, filePath);
     return rel.split(path_1.default.sep).join('/');
+}
+const BUILTIN_MODULES = new Set(module_1.builtinModules.flatMap((mod) => (mod.startsWith('node:') ? [mod, mod.slice(5)] : [mod])));
+function isBuiltinModule(spec) {
+    const normalized = spec.startsWith('node:') ? spec.slice(5) : spec;
+    if (BUILTIN_MODULES.has(spec) || BUILTIN_MODULES.has(normalized))
+        return true;
+    const root = normalized.split('/')[0];
+    return BUILTIN_MODULES.has(root);
+}
+function uniqSorted(values) {
+    return Array.from(new Set(values)).sort();
 }
