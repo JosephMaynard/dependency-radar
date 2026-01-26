@@ -15,6 +15,7 @@ interface CliOptions {
   keepTemp: boolean;
   maintenance: boolean;
   audit: boolean;
+  json: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -24,7 +25,8 @@ function parseArgs(argv: string[]): CliOptions {
     out: 'dependency-radar.html',
     keepTemp: false,
     maintenance: false,
-    audit: true
+    audit: true,
+    json: false
   };
 
   const args = [...argv];
@@ -40,6 +42,7 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg === '--keep-temp') opts.keepTemp = true;
     else if (arg === '--maintenance') opts.maintenance = true;
     else if (arg === '--no-audit') opts.audit = false;
+    else if (arg === '--json') opts.json = true;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -55,6 +58,7 @@ function printHelp(): void {
 Options:
   --project <path>   Project folder (default: cwd)
   --out <path>       Output HTML file (default: dependency-radar.html)
+  --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
   --maintenance      Enable slow maintenance checks (npm registry calls)
   --no-audit         Skip npm audit (useful for offline scans)
@@ -70,6 +74,9 @@ async function run(): Promise<void> {
   }
 
   const projectPath = path.resolve(opts.project);
+  if (opts.json && opts.out === 'dependency-radar.html') {
+    opts.out = 'dependency-radar.json';
+  }
   let outputPath = path.resolve(opts.out);
   const startTime = Date.now();
   let dependencyCount = 0;
@@ -78,7 +85,7 @@ async function run(): Promise<void> {
     const endsWithSeparator = opts.out.endsWith('/') || opts.out.endsWith('\\');
     const hasExtension = Boolean(path.extname(outputPath));
     if ((stat && stat.isDirectory()) || endsWithSeparator || (!stat && !hasExtension)) {
-      outputPath = path.join(outputPath, 'dependency-radar.html');
+      outputPath = path.join(outputPath, opts.json ? 'dependency-radar.json' : 'dependency-radar.html');
     }
   } catch (e) {
     // ignore, best-effort path normalization
@@ -119,9 +126,14 @@ async function run(): Promise<void> {
       process.stdout.write('\n');
     }
 
-    await renderReport(aggregated, outputPath);
+    if (opts.json) {
+      await fs.mkdir(path.dirname(outputPath), { recursive: true });
+      await fs.writeFile(outputPath, JSON.stringify(aggregated, null, 2), 'utf8');
+    } else {
+      await renderReport(aggregated, outputPath);
+    }
     stopSpinner(true);
-    console.log(`Report written to ${outputPath}`);
+    console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
   } catch (err: any) {
