@@ -120,3 +120,33 @@ export interface AggregatedData {
 ```
 
 For full details on `DependencyRecord`, `RawOutputs`, and related types, see `src/types.ts`.
+
+## Development
+
+### Report UI Development
+
+The HTML report UI is developed in a separate Vite project located in `report-ui/`. This provides a proper development environment with hot reload, TypeScript support, and sample data.
+
+**Start the development server:**
+
+```bash
+npm run dev:report
+```
+
+This opens the report UI in your browser with sample data covering all dependency states (various licenses, vulnerability severities, usage statuses, etc.).
+
+**Build workflow:**
+
+1. Make changes in `report-ui/` (edit `style.css`, `main.ts`, `index.html`)
+2. Run `npm run build:report` to compile and inject assets into `src/report-assets.ts`
+3. Run `npm run build` to compile the full project (this runs `build:report` automatically)
+
+**File structure:**
+
+- `report-ui/index.html` – HTML template structure
+- `report-ui/style.css` – All CSS styles
+- `report-ui/main.ts` – TypeScript rendering logic
+- `report-ui/sample-data.json` – Sample data for development
+- `report-ui/types.ts` – Client-side TypeScript types
+- `src/report-assets.ts` – Auto-generated file with bundled CSS/JS (do not edit directly)
+

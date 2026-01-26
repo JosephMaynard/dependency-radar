@@ -1,38 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderReport = renderReport;
-const promises_1 = __importDefault(require("fs/promises"));
-const path_1 = __importDefault(require("path"));
-const report_assets_1 = require("./report-assets");
-async function renderReport(data, outputPath) {
-    const html = buildHtml(data);
-    await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
-    await promises_1.default.writeFile(outputPath, html, 'utf8');
-}
-function buildHtml(data) {
-    var _a, _b, _c, _d;
-    const json = JSON.stringify(data).replace(/</g, '\\u003c');
-    const gitBranchHtml = data.gitBranch ? `<br/>Branch: <strong>${escapeHtml(data.gitBranch)}</strong>` : '';
-    const runtimeVersion = ((_b = (_a = data.environment) === null || _a === void 0 ? void 0 : _a.node) === null || _b === void 0 ? void 0 : _b.runtimeVersion)
-        ? data.environment.node.runtimeVersion.replace(/^v/, '')
-        : 'unknown';
-    const minRequiredMajor = (_d = (_c = data.environment) === null || _c === void 0 ? void 0 : _c.node) === null || _d === void 0 ? void 0 : _d.minRequiredMajor;
-    const nodeRequirement = minRequiredMajor !== undefined ? ` · dependency engines require ≥${minRequiredMajor}` : '';
-    const nodeBlockHtml = minRequiredMajor !== undefined
-        ? `Node: run on ${escapeHtml(runtimeVersion)}${nodeRequirement}<br/><span class="header-disclaimer">Derived from declared dependency engine ranges; does not guarantee runtime compatibility.</span>`
-        : `Node: run on ${escapeHtml(runtimeVersion)}`;
-    return `<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dependency Radar</title>
-  <style>
-${report_assets_1.CSS_CONTENT}
-  </style>
+  <title>Dependency Radar - Development</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <!-- Top Header (Scrollable) -->
@@ -114,9 +86,9 @@ ${report_assets_1.CSS_CONTENT}
         <div class="header-text">
           <h1>Dependency Radar</h1>
           <p class="header-meta">
-            Project: <strong id="project-path">${escapeHtml(data.projectPath)}</strong>${gitBranchHtml}<br id="git-branch-br" /><span id="git-branch-text"></span>
-            <span id="node-block">${nodeBlockHtml}</span><br/>
-            Generated: <span id="formatted-date">${data.generatedAt}</span>
+            Project: <strong id="project-path">/example/project</strong><br id="git-branch-br" /><span id="git-branch-text"></span>
+            <span id="node-block"></span><br/>
+            Generated: <span id="formatted-date"></span>
           </p>
         </div>
       </div>
@@ -227,7 +199,7 @@ ${report_assets_1.CSS_CONTENT}
     </div>
   </div>
   
-  ${renderToolErrors(data)}
+  <div id="tool-errors"></div>
   
   <!-- Main Content -->
   <main class="main-content">
@@ -235,20 +207,8 @@ ${report_assets_1.CSS_CONTENT}
     <div id="dependency-list" class="dependency-grid"></div>
   </main>
   
-  <script type="application/json" id="radar-data">${json}</script>
-  <script>
-${report_assets_1.JS_CONTENT}
-  </script>
+  <!-- Data placeholder - in development, loaded from sample-data.json -->
+  <script type="application/json" id="radar-data">{}</script>
+  <script type="module" src="./main.ts"></script>
 </body>
-</html>`;
-}
-function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-function renderToolErrors(data) {
-    const entries = Object.entries(data.toolErrors || {});
-    if (!entries.length)
-        return '';
-    const list = entries.map(([tool, err]) => `<div><strong>${escapeHtml(tool)}:</strong> ${escapeHtml(err)}</div>`).join('');
-    return `<div class="tool-errors"><strong>Some tools failed:</strong>${list}</div>`;
-}
+</html>

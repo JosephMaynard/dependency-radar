@@ -1,7 +1,7 @@
 {
   "name": "dependency-radar",
   "version": "0.1.1",
-  "description": "Local-first dependency analysis tool that generates a single HTML report showing risk, size, usage, and structure of your project’s dependencies.",
+  "description": "Local-first dependency analysis tool that generates a single HTML report showing risk, size, usage, and structure of your project's dependencies.",
   "main": "dist/index.js",
   "bin": {
     "dependency-radar": "dist/cli.js"
@@ -10,7 +10,10 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "dev:report": "cd report-ui && npx vite",
+    "build:report-ui": "cd report-ui && npx vite build",
+    "build:report": "npm run build:report-ui && npx ts-node scripts/build-report.ts",
+    "build": "npm run build:report && tsc",
     "dev": "ts-node src/cli.ts scan",
     "scan": "node dist/cli.js scan",
     "prepublishOnly": "npm run build",
@@ -45,7 +48,9 @@
   ],
   "devDependencies": {
     "@types/node": "^20.11.30",
+    "terser": "^5.27.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.3",
+    "vite": "^5.4.0"
   }
 }
