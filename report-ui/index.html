@@ -85,18 +85,25 @@
         </svg>
         <div class="header-text">
           <h1>Dependency Radar</h1>
-          <p class="header-meta">
-            Project: <strong id="project-path">/example/project</strong><br id="git-branch-br" /><span id="git-branch-text"></span>
-            <span id="node-block"></span><br/>
-            Generated: <span id="formatted-date"></span>
-          </p>
+          <div class="header-meta">
+            <span class="meta-item"><span class="meta-label">Project</span> <strong id="project-path">/example/project</strong></span>
+            <span class="meta-item" id="git-branch-item" style="display: none;"><span class="meta-label">Branch</span> <strong id="git-branch"></strong></span>
+            <span class="meta-item" id="node-item" style="display: none;"><span class="meta-label">Node</span> <strong id="node-version"></strong></span>
+            <span class="meta-item"><span class="meta-label">Generated</span> <strong id="formatted-date"></strong></span>
+            <span class="header-disclaimer" id="node-disclaimer" style="display: none;"></span>
+          </div>
         </div>
       </div>
       <div class="cta-section">
         <a href="https://dependency-radar.com" class="cta-link" target="_blank" rel="noopener">
-          Get risk analysis & summary
+          Get full analysis report
           <span class="cta-arrow">→</span>
         </a>
+        <div class="cta-benefits">
+          <span>AI-powered risk summary for stakeholders</span>
+          <span>Charts & assets for presentations</span>
+          <span>Actionable upgrade recommendations</span>
+        </div>
         <div class="cta-text">dependency-radar.com</div>
       </div>
     </div>

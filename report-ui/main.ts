@@ -71,17 +71,28 @@ function getHighestRisk(dep: DependencyRecord): 'red' | 'amber' | 'green' {
 
 function usageLabel(status: string): string {
   if (status === 'imported') return 'Imported';
-  if (status === 'not-imported') return 'Not statically imported';
-  if (status === 'undeclared') return 'Imported but not declared';
+  if (status === 'not-imported') return 'Not imported';
+  if (status === 'undeclared') return 'Undeclared';
   return 'Unknown';
 }
 
-function indicator(text: string, tone: string): string {
-  return '<div class="indicator"><span class="indicator-dot ' + tone + '"></span>' + escapeHtml(text) + '</div>';
+function runtimeLabel(runtimeClass: string): string {
+  if (runtimeClass === 'runtime') return 'Runtime';
+  if (runtimeClass === 'build-time') return 'Build-time';
+  if (runtimeClass === 'dev-only') return 'Dev-only';
+  return runtimeClass;
 }
 
-function indicatorSeparator(): string {
-  return '<div class="indicator-separator"></div>';
+function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function badgeCard(label: string, value: string, tone: string): string {
+  return '<div class="badge-card ' + tone + '">' +
+    '<span class="badge-label">' + escapeHtml(label) + '</span>' +
+    '<span class="badge-value">' + escapeHtml(value) + '</span>' +
+    '</div>';
 }
 
 function renderKvItem(label: string, value: string | number, hint?: string): string {
@@ -166,25 +177,22 @@ function renderDep(dep: DependencyRecord): string {
   const depTypeText = dep.direct ? 'Dependency' : 'Sub-Dependency';
   const depTypeClass = dep.direct ? 'green' : 'amber';
   
-  const indicators = [
-    indicator(depTypeText, depTypeClass),
-    indicatorSeparator(),
-    indicator(dep.runtimeClass, dep.runtimeClass === 'runtime' ? 'green' : dep.runtimeClass === 'build-time' ? 'amber' : 'gray'),
-    indicatorSeparator(),
-    indicator(licenseText + ' (' + licenseCategoryDisplay[licenseCategory].text + ')', licenseCategoryDisplay[licenseCategory].class),
-    indicatorSeparator(),
-    indicator('Vulns: ' + severity, dep.vulnRisk),
-    indicatorSeparator(),
-    indicator(
-      usageLabel(dep.usage.status),
-      dep.usage.status === 'undeclared'
-        ? 'red'
-        : dep.usage.status === 'imported'
-          ? 'green'
-          : dep.usage.status === 'not-imported'
-            ? 'amber'
-            : 'gray'
-    )
+  const runtimeTone = dep.runtimeClass === 'runtime' ? 'green' : dep.runtimeClass === 'build-time' ? 'amber' : 'gray';
+  
+  const usageTone = dep.usage.status === 'undeclared'
+    ? 'red'
+    : dep.usage.status === 'imported'
+      ? 'green'
+      : dep.usage.status === 'not-imported'
+        ? 'amber'
+        : 'gray';
+  
+  const badges = [
+    badgeCard('Type', depTypeText, depTypeClass),
+    badgeCard('Runtime', runtimeLabel(dep.runtimeClass), runtimeTone),
+    badgeCard('License', licenseText, licenseCategoryDisplay[licenseCategory].class),
+    badgeCard('Vulns', capitalize(severity), dep.vulnRisk),
+    badgeCard('Usage', usageLabel(dep.usage.status), usageTone)
   ];
   
   const summary = [
@@ -192,7 +200,7 @@ function renderDep(dep: DependencyRecord): string {
       '<svg class="expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
       '<span class="dep-name">' + escapeHtml(dep.name) + '<span class="dep-version">@' + escapeHtml(dep.version) + '</span></span>',
       '<div class="dep-indicators">',
-        indicators.join(''),
+        badges.join(''),
       '</div>',
     '</summary>'
   ].join('');
@@ -311,26 +319,31 @@ async function init(): Promise<void> {
   const container = document.getElementById('dependency-list')!;
   const summaryEl = document.getElementById('results-summary')!;
   
-  // Update header info
+  // Update header info with new chip-based layout
   const projectPathEl = document.getElementById('project-path');
   if (projectPathEl) projectPathEl.textContent = report.projectPath;
   
-  const gitBranchBr = document.getElementById('git-branch-br');
-  const gitBranchText = document.getElementById('git-branch-text');
-  if (report.gitBranch && gitBranchText) {
-    gitBranchText.innerHTML = 'Branch: <strong>' + escapeHtml(report.gitBranch) + '</strong>';
-  } else if (gitBranchBr) {
-    gitBranchBr.remove();
+  // Git branch chip
+  const gitBranchItem = document.getElementById('git-branch-item');
+  const gitBranchEl = document.getElementById('git-branch');
+  if (report.gitBranch && gitBranchItem && gitBranchEl) {
+    gitBranchEl.textContent = report.gitBranch;
+    gitBranchItem.style.display = '';
   }
   
-  const nodeBlockEl = document.getElementById('node-block');
-  if (nodeBlockEl && report.environment?.node) {
+  // Node version chip
+  const nodeItem = document.getElementById('node-item');
+  const nodeVersionEl = document.getElementById('node-version');
+  const nodeDisclaimer = document.getElementById('node-disclaimer');
+  if (report.environment?.node && nodeItem && nodeVersionEl) {
     const runtimeVersion = report.environment.node.runtimeVersion?.replace(/^v/, '') || 'unknown';
     const minRequiredMajor = report.environment.node.minRequiredMajor;
-    const nodeRequirement = minRequiredMajor !== undefined ? ` · dependency engines require ≥${minRequiredMajor}` : '';
-    nodeBlockEl.innerHTML = minRequiredMajor !== undefined
-      ? `<br/>Node: run on ${escapeHtml(runtimeVersion)}${nodeRequirement}<br/><span class="header-disclaimer">Derived from declared dependency engine ranges; does not guarantee runtime compatibility.</span>`
-      : `<br/>Node: run on ${escapeHtml(runtimeVersion)}`;
+    nodeVersionEl.textContent = runtimeVersion + (minRequiredMajor !== undefined ? ` (requires ≥${minRequiredMajor})` : '');
+    nodeItem.style.display = '';
+    if (minRequiredMajor !== undefined && nodeDisclaimer) {
+      nodeDisclaimer.textContent = 'Node requirement derived from dependency engine ranges.';
+      nodeDisclaimer.style.display = '';
+    }
   }
   
   // Format timestamp
