@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-01-26T22:38:33.832Z",
+  "generatedAt": "2026-01-27T16:34:37.288Z",
   "projectPath": "/Users/josephmaynard/Developer/dependency-radar",
   "dependencyRadarVersion": "0.2.0",
-  "gitBranch": "master",
+  "gitBranch": "feat/add-workspace-support",
   "maintenanceEnabled": false,
   "environment": {
     "node": {
@@ -19,7 +19,7 @@
       "key": "@cspotcode/source-map-support@0.8.1",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -160,7 +160,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/aix-ppc64",
@@ -168,7 +172,7 @@
       "key": "@esbuild/aix-ppc64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -302,7 +306,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/android-arm",
@@ -310,7 +318,7 @@
       "key": "@esbuild/android-arm@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -444,7 +452,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/android-arm64",
@@ -452,7 +464,7 @@
       "key": "@esbuild/android-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -586,7 +598,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/android-x64",
@@ -594,7 +610,7 @@
       "key": "@esbuild/android-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -728,7 +744,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/darwin-arm64",
@@ -736,7 +756,7 @@
       "key": "@esbuild/darwin-arm64@0.21.5",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -873,7 +893,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/darwin-x64",
@@ -881,7 +905,7 @@
       "key": "@esbuild/darwin-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1015,7 +1039,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/freebsd-arm64",
@@ -1023,7 +1051,7 @@
       "key": "@esbuild/freebsd-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1157,7 +1185,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/freebsd-x64",
@@ -1165,7 +1197,7 @@
       "key": "@esbuild/freebsd-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1299,7 +1331,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-arm",
@@ -1307,7 +1343,7 @@
       "key": "@esbuild/linux-arm@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1441,7 +1477,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-arm64",
@@ -1449,7 +1489,7 @@
       "key": "@esbuild/linux-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1583,7 +1623,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-ia32",
@@ -1591,7 +1635,7 @@
       "key": "@esbuild/linux-ia32@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1725,7 +1769,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-loong64",
@@ -1733,7 +1781,7 @@
       "key": "@esbuild/linux-loong64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -1867,7 +1915,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-mips64el",
@@ -1875,7 +1927,7 @@
       "key": "@esbuild/linux-mips64el@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2009,7 +2061,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-ppc64",
@@ -2017,7 +2073,7 @@
       "key": "@esbuild/linux-ppc64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2151,7 +2207,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-riscv64",
@@ -2159,7 +2219,7 @@
       "key": "@esbuild/linux-riscv64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2293,7 +2353,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-s390x",
@@ -2301,7 +2365,7 @@
       "key": "@esbuild/linux-s390x@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2435,7 +2499,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/linux-x64",
@@ -2443,7 +2511,7 @@
       "key": "@esbuild/linux-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2577,7 +2645,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/netbsd-x64",
@@ -2585,7 +2657,7 @@
       "key": "@esbuild/netbsd-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2719,7 +2791,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/openbsd-x64",
@@ -2727,7 +2803,7 @@
       "key": "@esbuild/openbsd-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -2861,7 +2937,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/sunos-x64",
@@ -2869,7 +2949,7 @@
       "key": "@esbuild/sunos-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -3003,7 +3083,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/win32-arm64",
@@ -3011,7 +3095,7 @@
       "key": "@esbuild/win32-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -3145,7 +3229,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/win32-ia32",
@@ -3153,7 +3241,7 @@
       "key": "@esbuild/win32-ia32@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -3287,7 +3375,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@esbuild/win32-x64",
@@ -3295,7 +3387,7 @@
       "key": "@esbuild/win32-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "esbuild@0.21.5"
       ],
@@ -3429,7 +3521,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@jridgewell/gen-mapping",
@@ -3437,7 +3533,7 @@
       "key": "@jridgewell/gen-mapping@0.3.13",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "@jridgewell/source-map@0.3.11"
       ],
@@ -3579,7 +3675,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@jridgewell/resolve-uri",
@@ -3587,7 +3687,7 @@
       "key": "@jridgewell/resolve-uri@3.1.2",
       "direct": false,
       "transitive": true,
-      "depth": 4,
+      "depth": 5,
       "parents": [
         "@jridgewell/trace-mapping@0.3.31",
         "@jridgewell/trace-mapping@0.3.9"
@@ -3728,7 +3828,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@jridgewell/source-map",
@@ -3736,7 +3840,7 @@
       "key": "@jridgewell/source-map@0.3.11",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "terser@5.46.0"
       ],
@@ -3878,7 +3982,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@jridgewell/sourcemap-codec",
@@ -3886,7 +3994,7 @@
       "key": "@jridgewell/sourcemap-codec@1.5.5",
       "direct": false,
       "transitive": true,
-      "depth": 4,
+      "depth": 5,
       "parents": [
         "@jridgewell/gen-mapping@0.3.13",
         "@jridgewell/trace-mapping@0.3.31",
@@ -4030,7 +4138,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@jridgewell/trace-mapping",
@@ -4038,7 +4150,7 @@
       "key": "@jridgewell/trace-mapping@0.3.31",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "@jridgewell/gen-mapping@0.3.13",
         "@jridgewell/source-map@0.3.11"
@@ -4182,7 +4294,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@jridgewell/trace-mapping",
@@ -4190,7 +4306,7 @@
       "key": "@jridgewell/trace-mapping@0.3.9",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "@cspotcode/source-map-support@0.8.1"
       ],
@@ -4332,7 +4448,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-android-arm-eabi",
@@ -4340,7 +4460,7 @@
       "key": "@rollup/rollup-android-arm-eabi@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -4474,7 +4594,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-android-arm64",
@@ -4482,7 +4606,7 @@
       "key": "@rollup/rollup-android-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -4616,7 +4740,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-darwin-arm64",
@@ -4624,7 +4752,7 @@
       "key": "@rollup/rollup-darwin-arm64@4.56.0",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -4762,7 +4890,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-darwin-x64",
@@ -4770,7 +4902,7 @@
       "key": "@rollup/rollup-darwin-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -4904,7 +5036,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-freebsd-arm64",
@@ -4912,7 +5048,7 @@
       "key": "@rollup/rollup-freebsd-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5046,7 +5182,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-freebsd-x64",
@@ -5054,7 +5194,7 @@
       "key": "@rollup/rollup-freebsd-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5188,7 +5328,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-arm-gnueabihf",
@@ -5196,7 +5340,7 @@
       "key": "@rollup/rollup-linux-arm-gnueabihf@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5330,7 +5474,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-arm-musleabihf",
@@ -5338,7 +5486,7 @@
       "key": "@rollup/rollup-linux-arm-musleabihf@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5472,7 +5620,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-arm64-gnu",
@@ -5480,7 +5632,7 @@
       "key": "@rollup/rollup-linux-arm64-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5614,7 +5766,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-arm64-musl",
@@ -5622,7 +5778,7 @@
       "key": "@rollup/rollup-linux-arm64-musl@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5756,7 +5912,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-loong64-gnu",
@@ -5764,7 +5924,7 @@
       "key": "@rollup/rollup-linux-loong64-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -5898,7 +6058,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-loong64-musl",
@@ -5906,7 +6070,7 @@
       "key": "@rollup/rollup-linux-loong64-musl@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6040,7 +6204,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-ppc64-gnu",
@@ -6048,7 +6216,7 @@
       "key": "@rollup/rollup-linux-ppc64-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6182,7 +6350,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-ppc64-musl",
@@ -6190,7 +6362,7 @@
       "key": "@rollup/rollup-linux-ppc64-musl@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6324,7 +6496,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-riscv64-gnu",
@@ -6332,7 +6508,7 @@
       "key": "@rollup/rollup-linux-riscv64-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6466,7 +6642,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-riscv64-musl",
@@ -6474,7 +6654,7 @@
       "key": "@rollup/rollup-linux-riscv64-musl@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6608,7 +6788,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-s390x-gnu",
@@ -6616,7 +6800,7 @@
       "key": "@rollup/rollup-linux-s390x-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6750,7 +6934,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-x64-gnu",
@@ -6758,7 +6946,7 @@
       "key": "@rollup/rollup-linux-x64-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -6892,7 +7080,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-linux-x64-musl",
@@ -6900,7 +7092,7 @@
       "key": "@rollup/rollup-linux-x64-musl@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7034,7 +7226,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-openbsd-x64",
@@ -7042,7 +7238,7 @@
       "key": "@rollup/rollup-openbsd-x64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7176,7 +7372,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-openharmony-arm64",
@@ -7184,7 +7384,7 @@
       "key": "@rollup/rollup-openharmony-arm64@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7318,7 +7518,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-win32-arm64-msvc",
@@ -7326,7 +7530,7 @@
       "key": "@rollup/rollup-win32-arm64-msvc@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7460,7 +7664,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-win32-ia32-msvc",
@@ -7468,7 +7676,7 @@
       "key": "@rollup/rollup-win32-ia32-msvc@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7602,7 +7810,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-win32-x64-gnu",
@@ -7610,7 +7822,7 @@
       "key": "@rollup/rollup-win32-x64-gnu@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7744,7 +7956,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@rollup/rollup-win32-x64-msvc",
@@ -7752,7 +7968,7 @@
       "key": "@rollup/rollup-win32-x64-msvc@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -7886,7 +8102,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@swc/core",
@@ -7894,7 +8114,7 @@
       "key": "@swc/core@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -8028,7 +8248,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@swc/wasm",
@@ -8036,7 +8260,7 @@
       "key": "@swc/wasm@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -8170,7 +8394,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@tsconfig/node10",
@@ -8178,7 +8406,7 @@
       "key": "@tsconfig/node10@1.0.12",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -8316,7 +8544,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@tsconfig/node12",
@@ -8324,7 +8556,7 @@
       "key": "@tsconfig/node12@1.0.11",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -8462,7 +8694,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@tsconfig/node14",
@@ -8470,7 +8706,7 @@
       "key": "@tsconfig/node14@1.0.3",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -8608,7 +8844,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@tsconfig/node16",
@@ -8616,7 +8856,7 @@
       "key": "@tsconfig/node16@1.0.4",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -8754,7 +8994,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@types/estree",
@@ -8762,7 +9006,7 @@
       "key": "@types/estree@1.0.8",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "rollup@4.56.0"
       ],
@@ -8901,7 +9145,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "@types/node",
@@ -8909,8 +9157,9 @@
       "key": "@types/node@20.19.30",
       "direct": true,
       "transitive": false,
-      "depth": 1,
+      "depth": 2,
       "parents": [
+        "dependency-radar@0.2.0",
         "ts-node@10.9.2",
         "vite@5.4.21"
       ],
@@ -8971,9 +9220,10 @@
         "types": "bundled"
       },
       "graph": {
-        "fanIn": 2,
+        "fanIn": 3,
         "fanOut": 1,
         "dependedOnBy": [
+          "dependency-radar",
           "ts-node",
           "vite"
         ],
@@ -9052,7 +9302,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "acorn",
@@ -9060,7 +9314,7 @@
       "key": "acorn@8.15.0",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "terser@5.46.0",
         "acorn-walk@8.3.4",
@@ -9204,7 +9458,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "acorn-walk",
@@ -9212,7 +9470,7 @@
       "key": "acorn-walk@8.3.4",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -9353,7 +9611,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "arg",
@@ -9361,7 +9623,7 @@
       "key": "arg@4.1.3",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -9499,7 +9761,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "buffer-from",
@@ -9507,7 +9773,7 @@
       "key": "buffer-from@1.1.2",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "source-map-support@0.5.21"
       ],
@@ -9645,7 +9911,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "commander",
@@ -9653,7 +9923,7 @@
       "key": "commander@2.20.3",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "terser@5.46.0"
       ],
@@ -9791,7 +10061,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "create-require",
@@ -9799,7 +10073,7 @@
       "key": "create-require@1.1.1",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -9937,7 +10211,155 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
+    },
+    {
+      "name": "dependency-radar",
+      "version": "0.2.0",
+      "key": "dependency-radar@0.2.0",
+      "direct": false,
+      "transitive": true,
+      "depth": 1,
+      "parents": [],
+      "rootCauses": [],
+      "license": {},
+      "licenseRisk": "red",
+      "vulnerabilities": {
+        "counts": {
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0
+        },
+        "items": [],
+        "highestSeverity": "none"
+      },
+      "vulnRisk": "green",
+      "maintenance": {
+        "status": "unknown",
+        "reason": "maintenance checks disabled"
+      },
+      "maintenanceRisk": "unknown",
+      "usage": {
+        "status": "unknown",
+        "reason": "Not statically imported; package is likely transitive or used dynamically"
+      },
+      "identity": {
+        "deprecated": false,
+        "nodeEngine": null,
+        "hasRepository": false,
+        "hasFunding": false
+      },
+      "dependencySurface": {
+        "dependencies": 0,
+        "devDependencies": 0,
+        "peerDependencies": 0,
+        "optionalDependencies": 0,
+        "hasPeerDependencies": false
+      },
+      "sizeFootprint": {
+        "installedSize": 0,
+        "fileCount": 0
+      },
+      "buildPlatform": {
+        "nativeBindings": false,
+        "installScripts": false
+      },
+      "moduleSystem": {
+        "format": "commonjs",
+        "conditionalExports": false
+      },
+      "typescript": {
+        "types": "none"
+      },
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 5,
+        "dependedOnBy": [],
+        "dependsOn": [
+          "@types/node",
+          "terser",
+          "ts-node",
+          "typescript",
+          "vite"
+        ]
+      },
+      "links": {
+        "npm": "https://www.npmjs.com/package/dependency-radar"
+      },
+      "importInfo": {
+        "files": {
+          "src/aggregator.ts": [
+            "src/types.ts",
+            "src/utils.ts"
+          ],
+          "src/cli.ts": [
+            "src/aggregator.ts",
+            "src/report.ts",
+            "src/runners/importGraphRunner.ts",
+            "src/runners/npmAudit.ts",
+            "src/runners/npmLs.ts",
+            "src/utils.ts"
+          ],
+          "src/index.ts": [
+            "src/aggregator.ts",
+            "src/report.ts"
+          ],
+          "src/report-assets.ts": [],
+          "src/report.ts": [
+            "src/report-assets.ts",
+            "src/types.ts"
+          ],
+          "src/runners/importGraphRunner.ts": [
+            "src/types.ts",
+            "src/utils.ts"
+          ],
+          "src/runners/npmAudit.ts": [
+            "src/types.ts",
+            "src/utils.ts"
+          ],
+          "src/runners/npmLs.ts": [
+            "src/types.ts",
+            "src/utils.ts"
+          ],
+          "src/types.ts": [],
+          "src/utils.ts": []
+        },
+        "fanIn": {
+          "src/types.ts": 5,
+          "src/utils.ts": 5,
+          "src/aggregator.ts": 2,
+          "src/report.ts": 2,
+          "src/runners/importGraphRunner.ts": 1,
+          "src/runners/npmAudit.ts": 1,
+          "src/runners/npmLs.ts": 1,
+          "src/report-assets.ts": 1
+        },
+        "fanOut": {
+          "src/aggregator.ts": 2,
+          "src/cli.ts": 6,
+          "src/index.ts": 2,
+          "src/report-assets.ts": 0,
+          "src/report.ts": 2,
+          "src/runners/importGraphRunner.ts": 2,
+          "src/runners/npmAudit.ts": 2,
+          "src/runners/npmLs.ts": 2,
+          "src/types.ts": 0,
+          "src/utils.ts": 0
+        }
+      },
+      "runtimeClass": "dev-only",
+      "runtimeReason": "Transitive of dev-only dependency",
+      "outdated": {
+        "status": "unknown"
+      },
+      "raw": {
+        "workspacePackages": []
+      }
     },
     {
       "name": "diff",
@@ -9945,7 +10367,7 @@
       "key": "diff@4.0.4",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -10084,7 +10506,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "esbuild",
@@ -10092,7 +10518,7 @@
       "key": "esbuild@0.21.5",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -10269,7 +10695,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "fsevents",
@@ -10277,7 +10707,7 @@
       "key": "fsevents@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21",
         "rollup@4.56.0"
@@ -10413,7 +10843,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "less",
@@ -10421,7 +10855,7 @@
       "key": "less@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -10555,7 +10989,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "lightningcss",
@@ -10563,7 +11001,7 @@
       "key": "lightningcss@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -10697,7 +11135,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "make-error",
@@ -10705,7 +11147,7 @@
       "key": "make-error@1.3.6",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -10845,7 +11287,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "nanoid",
@@ -10853,7 +11299,7 @@
       "key": "nanoid@3.3.11",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "postcss@8.5.6"
       ],
@@ -10991,7 +11437,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "picocolors",
@@ -10999,7 +11449,7 @@
       "key": "picocolors@1.1.1",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "postcss@8.5.6"
       ],
@@ -11137,7 +11587,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "postcss",
@@ -11145,7 +11599,7 @@
       "key": "postcss@8.5.6",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -11289,7 +11743,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "rollup",
@@ -11297,7 +11755,7 @@
       "key": "rollup@4.56.0",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -11465,7 +11923,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "sass",
@@ -11473,7 +11935,7 @@
       "key": "sass@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -11607,7 +12069,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "sass-embedded",
@@ -11615,7 +12081,7 @@
       "key": "sass-embedded@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -11749,7 +12215,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "source-map",
@@ -11757,7 +12227,7 @@
       "key": "source-map@0.6.1",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "source-map-support@0.5.21"
       ],
@@ -11896,7 +12366,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "source-map-js",
@@ -11904,7 +12378,7 @@
       "key": "source-map-js@1.2.1",
       "direct": false,
       "transitive": true,
-      "depth": 3,
+      "depth": 4,
       "parents": [
         "postcss@8.5.6"
       ],
@@ -12043,7 +12517,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "source-map-support",
@@ -12051,7 +12529,7 @@
       "key": "source-map-support@0.5.21",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "terser@5.46.0"
       ],
@@ -12193,7 +12671,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "stylus",
@@ -12201,7 +12683,7 @@
       "key": "stylus@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -12335,7 +12817,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "sugarss",
@@ -12343,7 +12829,7 @@
       "key": "sugarss@unknown",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "vite@5.4.21"
       ],
@@ -12477,7 +12963,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "terser",
@@ -12485,8 +12975,9 @@
       "key": "terser@5.46.0",
       "direct": true,
       "transitive": false,
-      "depth": 1,
+      "depth": 2,
       "parents": [
+        "dependency-radar@0.2.0",
         "vite@5.4.21"
       ],
       "rootCauses": [
@@ -12546,9 +13037,10 @@
         "types": "bundled"
       },
       "graph": {
-        "fanIn": 1,
+        "fanIn": 2,
         "fanOut": 4,
         "dependedOnBy": [
+          "dependency-radar",
           "vite"
         ],
         "dependsOn": [
@@ -12629,7 +13121,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "ts-node",
@@ -12637,8 +13133,10 @@
       "key": "ts-node@10.9.2",
       "direct": true,
       "transitive": false,
-      "depth": 1,
-      "parents": [],
+      "depth": 2,
+      "parents": [
+        "dependency-radar@0.2.0"
+      ],
       "rootCauses": [
         "ts-node"
       ],
@@ -12696,9 +13194,11 @@
         "types": "bundled"
       },
       "graph": {
-        "fanIn": 0,
+        "fanIn": 1,
         "fanOut": 17,
-        "dependedOnBy": [],
+        "dependedOnBy": [
+          "dependency-radar"
+        ],
         "dependsOn": [
           "@cspotcode/source-map-support",
           "@swc/core",
@@ -12791,7 +13291,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "typescript",
@@ -12799,9 +13303,10 @@
       "key": "typescript@5.9.3",
       "direct": true,
       "transitive": false,
-      "depth": 1,
+      "depth": 2,
       "parents": [
-        "ts-node@10.9.2"
+        "ts-node@10.9.2",
+        "dependency-radar@0.2.0"
       ],
       "rootCauses": [
         "typescript"
@@ -12860,10 +13365,11 @@
         "types": "bundled"
       },
       "graph": {
-        "fanIn": 1,
+        "fanIn": 2,
         "fanOut": 0,
         "dependedOnBy": [
-          "ts-node"
+          "ts-node",
+          "dependency-radar"
         ],
         "dependsOn": []
       },
@@ -12939,7 +13445,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "undici-types",
@@ -12947,7 +13457,7 @@
       "key": "undici-types@6.21.0",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "@types/node@20.19.30"
       ],
@@ -13087,7 +13597,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "v8-compile-cache-lib",
@@ -13095,7 +13609,7 @@
       "key": "v8-compile-cache-lib@3.0.1",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -13233,7 +13747,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "vite",
@@ -13241,8 +13759,10 @@
       "key": "vite@5.4.21",
       "direct": true,
       "transitive": false,
-      "depth": 1,
-      "parents": [],
+      "depth": 2,
+      "parents": [
+        "dependency-radar@0.2.0"
+      ],
       "rootCauses": [
         "vite"
       ],
@@ -13300,9 +13820,11 @@
         "types": "bundled"
       },
       "graph": {
-        "fanIn": 0,
+        "fanIn": 1,
         "fanOut": 12,
-        "dependedOnBy": [],
+        "dependedOnBy": [
+          "dependency-radar"
+        ],
         "dependsOn": [
           "@types/node",
           "esbuild",
@@ -13390,7 +13912,11 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     },
     {
       "name": "yn",
@@ -13398,7 +13924,7 @@
       "key": "yn@3.1.1",
       "direct": false,
       "transitive": true,
-      "depth": 2,
+      "depth": 3,
       "parents": [
         "ts-node@10.9.2"
       ],
@@ -13536,13 +14062,16 @@
       "outdated": {
         "status": "unknown"
       },
-      "raw": {}
+      "raw": {
+        "workspacePackages": [
+          "dependency-radar"
+        ]
+      }
     }
   ],
   "toolErrors": {},
   "raw": {
     "audit": {
-      "auditReportVersion": 2,
       "vulnerabilities": {
         "esbuild": {
           "name": "esbuild",
@@ -13618,310 +14147,316 @@
       }
     },
     "npmLs": {
-      "version": "0.2.0",
-      "name": "dependency-radar",
+      "name": "dependency-radar-workspace",
+      "version": "0.0.0",
       "dependencies": {
-        "@types/node": {
-          "version": "20.19.30",
-          "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.30.tgz",
-          "overridden": false,
+        "dependency-radar": {
+          "name": "dependency-radar",
+          "version": "0.2.0",
           "dependencies": {
-            "undici-types": {
-              "version": "6.21.0",
-              "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz",
-              "overridden": false
-            }
-          }
-        },
-        "terser": {
-          "version": "5.46.0",
-          "resolved": "https://registry.npmjs.org/terser/-/terser-5.46.0.tgz",
-          "overridden": false,
-          "dependencies": {
-            "@jridgewell/source-map": {
-              "version": "0.3.11",
-              "resolved": "https://registry.npmjs.org/@jridgewell/source-map/-/source-map-0.3.11.tgz",
+            "@types/node": {
+              "version": "20.19.30",
+              "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.30.tgz",
               "overridden": false,
               "dependencies": {
-                "@jridgewell/gen-mapping": {
-                  "version": "0.3.13",
-                  "resolved": "https://registry.npmjs.org/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz",
+                "undici-types": {
+                  "version": "6.21.0",
+                  "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz",
+                  "overridden": false
+                }
+              }
+            },
+            "terser": {
+              "version": "5.46.0",
+              "resolved": "https://registry.npmjs.org/terser/-/terser-5.46.0.tgz",
+              "overridden": false,
+              "dependencies": {
+                "@jridgewell/source-map": {
+                  "version": "0.3.11",
+                  "resolved": "https://registry.npmjs.org/@jridgewell/source-map/-/source-map-0.3.11.tgz",
                   "overridden": false,
                   "dependencies": {
-                    "@jridgewell/sourcemap-codec": {
-                      "version": "1.5.5",
-                      "resolved": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.5.5.tgz",
-                      "overridden": false
+                    "@jridgewell/gen-mapping": {
+                      "version": "0.3.13",
+                      "resolved": "https://registry.npmjs.org/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz",
+                      "overridden": false,
+                      "dependencies": {
+                        "@jridgewell/sourcemap-codec": {
+                          "version": "1.5.5",
+                          "resolved": "https://registry.npmjs.org/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.5.5.tgz",
+                          "overridden": false
+                        },
+                        "@jridgewell/trace-mapping": {
+                          "version": "0.3.31"
+                        }
+                      }
                     },
                     "@jridgewell/trace-mapping": {
-                      "version": "0.3.31"
+                      "version": "0.3.31",
+                      "resolved": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz",
+                      "overridden": false,
+                      "dependencies": {
+                        "@jridgewell/resolve-uri": {
+                          "version": "3.1.2",
+                          "resolved": "https://registry.npmjs.org/@jridgewell/resolve-uri/-/resolve-uri-3.1.2.tgz",
+                          "overridden": false
+                        },
+                        "@jridgewell/sourcemap-codec": {
+                          "version": "1.5.5"
+                        }
+                      }
                     }
                   }
                 },
-                "@jridgewell/trace-mapping": {
-                  "version": "0.3.31",
-                  "resolved": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz",
+                "acorn": {
+                  "version": "8.15.0",
+                  "resolved": "https://registry.npmjs.org/acorn/-/acorn-8.15.0.tgz",
+                  "overridden": false
+                },
+                "commander": {
+                  "version": "2.20.3",
+                  "resolved": "https://registry.npmjs.org/commander/-/commander-2.20.3.tgz",
+                  "overridden": false
+                },
+                "source-map-support": {
+                  "version": "0.5.21",
+                  "resolved": "https://registry.npmjs.org/source-map-support/-/source-map-support-0.5.21.tgz",
                   "overridden": false,
                   "dependencies": {
-                    "@jridgewell/resolve-uri": {
-                      "version": "3.1.2",
-                      "resolved": "https://registry.npmjs.org/@jridgewell/resolve-uri/-/resolve-uri-3.1.2.tgz",
+                    "buffer-from": {
+                      "version": "1.1.2",
+                      "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
                       "overridden": false
                     },
-                    "@jridgewell/sourcemap-codec": {
-                      "version": "1.5.5"
+                    "source-map": {
+                      "version": "0.6.1",
+                      "resolved": "https://registry.npmjs.org/source-map/-/source-map-0.6.1.tgz",
+                      "overridden": false
                     }
                   }
                 }
               }
             },
-            "acorn": {
-              "version": "8.15.0",
-              "resolved": "https://registry.npmjs.org/acorn/-/acorn-8.15.0.tgz",
-              "overridden": false
-            },
-            "commander": {
-              "version": "2.20.3",
-              "resolved": "https://registry.npmjs.org/commander/-/commander-2.20.3.tgz",
-              "overridden": false
-            },
-            "source-map-support": {
-              "version": "0.5.21",
-              "resolved": "https://registry.npmjs.org/source-map-support/-/source-map-support-0.5.21.tgz",
+            "ts-node": {
+              "version": "10.9.2",
+              "resolved": "https://registry.npmjs.org/ts-node/-/ts-node-10.9.2.tgz",
               "overridden": false,
               "dependencies": {
-                "buffer-from": {
-                  "version": "1.1.2",
-                  "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
-                  "overridden": false
-                },
-                "source-map": {
-                  "version": "0.6.1",
-                  "resolved": "https://registry.npmjs.org/source-map/-/source-map-0.6.1.tgz",
-                  "overridden": false
-                }
-              }
-            }
-          }
-        },
-        "ts-node": {
-          "version": "10.9.2",
-          "resolved": "https://registry.npmjs.org/ts-node/-/ts-node-10.9.2.tgz",
-          "overridden": false,
-          "dependencies": {
-            "@cspotcode/source-map-support": {
-              "version": "0.8.1",
-              "resolved": "https://registry.npmjs.org/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz",
-              "overridden": false,
-              "dependencies": {
-                "@jridgewell/trace-mapping": {
-                  "version": "0.3.9",
-                  "resolved": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.9.tgz",
+                "@cspotcode/source-map-support": {
+                  "version": "0.8.1",
+                  "resolved": "https://registry.npmjs.org/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz",
                   "overridden": false,
                   "dependencies": {
-                    "@jridgewell/resolve-uri": {
-                      "version": "3.1.2"
-                    },
-                    "@jridgewell/sourcemap-codec": {
-                      "version": "1.5.5"
+                    "@jridgewell/trace-mapping": {
+                      "version": "0.3.9",
+                      "resolved": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.9.tgz",
+                      "overridden": false,
+                      "dependencies": {
+                        "@jridgewell/resolve-uri": {
+                          "version": "3.1.2"
+                        },
+                        "@jridgewell/sourcemap-codec": {
+                          "version": "1.5.5"
+                        }
+                      }
                     }
                   }
-                }
-              }
-            },
-            "@swc/core": {},
-            "@swc/wasm": {},
-            "@tsconfig/node10": {
-              "version": "1.0.12",
-              "resolved": "https://registry.npmjs.org/@tsconfig/node10/-/node10-1.0.12.tgz",
-              "overridden": false
-            },
-            "@tsconfig/node12": {
-              "version": "1.0.11",
-              "resolved": "https://registry.npmjs.org/@tsconfig/node12/-/node12-1.0.11.tgz",
-              "overridden": false
-            },
-            "@tsconfig/node14": {
-              "version": "1.0.3",
-              "resolved": "https://registry.npmjs.org/@tsconfig/node14/-/node14-1.0.3.tgz",
-              "overridden": false
-            },
-            "@tsconfig/node16": {
-              "version": "1.0.4",
-              "resolved": "https://registry.npmjs.org/@tsconfig/node16/-/node16-1.0.4.tgz",
-              "overridden": false
-            },
-            "@types/node": {
-              "version": "20.19.30"
-            },
-            "acorn-walk": {
-              "version": "8.3.4",
-              "resolved": "https://registry.npmjs.org/acorn-walk/-/acorn-walk-8.3.4.tgz",
-              "overridden": false,
-              "dependencies": {
+                },
+                "@swc/core": {},
+                "@swc/wasm": {},
+                "@tsconfig/node10": {
+                  "version": "1.0.12",
+                  "resolved": "https://registry.npmjs.org/@tsconfig/node10/-/node10-1.0.12.tgz",
+                  "overridden": false
+                },
+                "@tsconfig/node12": {
+                  "version": "1.0.11",
+                  "resolved": "https://registry.npmjs.org/@tsconfig/node12/-/node12-1.0.11.tgz",
+                  "overridden": false
+                },
+                "@tsconfig/node14": {
+                  "version": "1.0.3",
+                  "resolved": "https://registry.npmjs.org/@tsconfig/node14/-/node14-1.0.3.tgz",
+                  "overridden": false
+                },
+                "@tsconfig/node16": {
+                  "version": "1.0.4",
+                  "resolved": "https://registry.npmjs.org/@tsconfig/node16/-/node16-1.0.4.tgz",
+                  "overridden": false
+                },
+                "@types/node": {
+                  "version": "20.19.30"
+                },
+                "acorn-walk": {
+                  "version": "8.3.4",
+                  "resolved": "https://registry.npmjs.org/acorn-walk/-/acorn-walk-8.3.4.tgz",
+                  "overridden": false,
+                  "dependencies": {
+                    "acorn": {
+                      "version": "8.15.0"
+                    }
+                  }
+                },
                 "acorn": {
                   "version": "8.15.0"
+                },
+                "arg": {
+                  "version": "4.1.3",
+                  "resolved": "https://registry.npmjs.org/arg/-/arg-4.1.3.tgz",
+                  "overridden": false
+                },
+                "create-require": {
+                  "version": "1.1.1",
+                  "resolved": "https://registry.npmjs.org/create-require/-/create-require-1.1.1.tgz",
+                  "overridden": false
+                },
+                "diff": {
+                  "version": "4.0.4",
+                  "resolved": "https://registry.npmjs.org/diff/-/diff-4.0.4.tgz",
+                  "overridden": false
+                },
+                "make-error": {
+                  "version": "1.3.6",
+                  "resolved": "https://registry.npmjs.org/make-error/-/make-error-1.3.6.tgz",
+                  "overridden": false
+                },
+                "typescript": {
+                  "version": "5.9.3"
+                },
+                "v8-compile-cache-lib": {
+                  "version": "3.0.1",
+                  "resolved": "https://registry.npmjs.org/v8-compile-cache-lib/-/v8-compile-cache-lib-3.0.1.tgz",
+                  "overridden": false
+                },
+                "yn": {
+                  "version": "3.1.1",
+                  "resolved": "https://registry.npmjs.org/yn/-/yn-3.1.1.tgz",
+                  "overridden": false
                 }
               }
-            },
-            "acorn": {
-              "version": "8.15.0"
-            },
-            "arg": {
-              "version": "4.1.3",
-              "resolved": "https://registry.npmjs.org/arg/-/arg-4.1.3.tgz",
-              "overridden": false
-            },
-            "create-require": {
-              "version": "1.1.1",
-              "resolved": "https://registry.npmjs.org/create-require/-/create-require-1.1.1.tgz",
-              "overridden": false
-            },
-            "diff": {
-              "version": "4.0.4",
-              "resolved": "https://registry.npmjs.org/diff/-/diff-4.0.4.tgz",
-              "overridden": false
-            },
-            "make-error": {
-              "version": "1.3.6",
-              "resolved": "https://registry.npmjs.org/make-error/-/make-error-1.3.6.tgz",
-              "overridden": false
             },
             "typescript": {
-              "version": "5.9.3"
-            },
-            "v8-compile-cache-lib": {
-              "version": "3.0.1",
-              "resolved": "https://registry.npmjs.org/v8-compile-cache-lib/-/v8-compile-cache-lib-3.0.1.tgz",
+              "version": "5.9.3",
+              "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
               "overridden": false
             },
-            "yn": {
-              "version": "3.1.1",
-              "resolved": "https://registry.npmjs.org/yn/-/yn-3.1.1.tgz",
-              "overridden": false
-            }
-          }
-        },
-        "typescript": {
-          "version": "5.9.3",
-          "resolved": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
-          "overridden": false
-        },
-        "vite": {
-          "version": "5.4.21",
-          "resolved": "https://registry.npmjs.org/vite/-/vite-5.4.21.tgz",
-          "overridden": false,
-          "dependencies": {
-            "@types/node": {
-              "version": "20.19.30"
-            },
-            "esbuild": {
-              "version": "0.21.5",
-              "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.21.5.tgz",
+            "vite": {
+              "version": "5.4.21",
+              "resolved": "https://registry.npmjs.org/vite/-/vite-5.4.21.tgz",
               "overridden": false,
               "dependencies": {
-                "@esbuild/aix-ppc64": {},
-                "@esbuild/android-arm": {},
-                "@esbuild/android-arm64": {},
-                "@esbuild/android-x64": {},
-                "@esbuild/darwin-arm64": {
+                "@types/node": {
+                  "version": "20.19.30"
+                },
+                "esbuild": {
                   "version": "0.21.5",
-                  "resolved": "https://registry.npmjs.org/@esbuild/darwin-arm64/-/darwin-arm64-0.21.5.tgz",
-                  "overridden": false
+                  "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.21.5.tgz",
+                  "overridden": false,
+                  "dependencies": {
+                    "@esbuild/aix-ppc64": {},
+                    "@esbuild/android-arm": {},
+                    "@esbuild/android-arm64": {},
+                    "@esbuild/android-x64": {},
+                    "@esbuild/darwin-arm64": {
+                      "version": "0.21.5",
+                      "resolved": "https://registry.npmjs.org/@esbuild/darwin-arm64/-/darwin-arm64-0.21.5.tgz",
+                      "overridden": false
+                    },
+                    "@esbuild/darwin-x64": {},
+                    "@esbuild/freebsd-arm64": {},
+                    "@esbuild/freebsd-x64": {},
+                    "@esbuild/linux-arm": {},
+                    "@esbuild/linux-arm64": {},
+                    "@esbuild/linux-ia32": {},
+                    "@esbuild/linux-loong64": {},
+                    "@esbuild/linux-mips64el": {},
+                    "@esbuild/linux-ppc64": {},
+                    "@esbuild/linux-riscv64": {},
+                    "@esbuild/linux-s390x": {},
+                    "@esbuild/linux-x64": {},
+                    "@esbuild/netbsd-x64": {},
+                    "@esbuild/openbsd-x64": {},
+                    "@esbuild/sunos-x64": {},
+                    "@esbuild/win32-arm64": {},
+                    "@esbuild/win32-ia32": {},
+                    "@esbuild/win32-x64": {}
+                  }
                 },
-                "@esbuild/darwin-x64": {},
-                "@esbuild/freebsd-arm64": {},
-                "@esbuild/freebsd-x64": {},
-                "@esbuild/linux-arm": {},
-                "@esbuild/linux-arm64": {},
-                "@esbuild/linux-ia32": {},
-                "@esbuild/linux-loong64": {},
-                "@esbuild/linux-mips64el": {},
-                "@esbuild/linux-ppc64": {},
-                "@esbuild/linux-riscv64": {},
-                "@esbuild/linux-s390x": {},
-                "@esbuild/linux-x64": {},
-                "@esbuild/netbsd-x64": {},
-                "@esbuild/openbsd-x64": {},
-                "@esbuild/sunos-x64": {},
-                "@esbuild/win32-arm64": {},
-                "@esbuild/win32-ia32": {},
-                "@esbuild/win32-x64": {}
-              }
-            },
-            "fsevents": {},
-            "less": {},
-            "lightningcss": {},
-            "postcss": {
-              "version": "8.5.6",
-              "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz",
-              "overridden": false,
-              "dependencies": {
-                "nanoid": {
-                  "version": "3.3.11",
-                  "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz",
-                  "overridden": false
+                "fsevents": {},
+                "less": {},
+                "lightningcss": {},
+                "postcss": {
+                  "version": "8.5.6",
+                  "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.6.tgz",
+                  "overridden": false,
+                  "dependencies": {
+                    "nanoid": {
+                      "version": "3.3.11",
+                      "resolved": "https://registry.npmjs.org/nanoid/-/nanoid-3.3.11.tgz",
+                      "overridden": false
+                    },
+                    "picocolors": {
+                      "version": "1.1.1",
+                      "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+                      "overridden": false
+                    },
+                    "source-map-js": {
+                      "version": "1.2.1",
+                      "resolved": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz",
+                      "overridden": false
+                    }
+                  }
                 },
-                "picocolors": {
-                  "version": "1.1.1",
-                  "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
-                  "overridden": false
+                "rollup": {
+                  "version": "4.56.0",
+                  "resolved": "https://registry.npmjs.org/rollup/-/rollup-4.56.0.tgz",
+                  "overridden": false,
+                  "dependencies": {
+                    "@rollup/rollup-android-arm-eabi": {},
+                    "@rollup/rollup-android-arm64": {},
+                    "@rollup/rollup-darwin-arm64": {
+                      "version": "4.56.0",
+                      "resolved": "https://registry.npmjs.org/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.56.0.tgz",
+                      "overridden": false
+                    },
+                    "@rollup/rollup-darwin-x64": {},
+                    "@rollup/rollup-freebsd-arm64": {},
+                    "@rollup/rollup-freebsd-x64": {},
+                    "@rollup/rollup-linux-arm-gnueabihf": {},
+                    "@rollup/rollup-linux-arm-musleabihf": {},
+                    "@rollup/rollup-linux-arm64-gnu": {},
+                    "@rollup/rollup-linux-arm64-musl": {},
+                    "@rollup/rollup-linux-loong64-gnu": {},
+                    "@rollup/rollup-linux-loong64-musl": {},
+                    "@rollup/rollup-linux-ppc64-gnu": {},
+                    "@rollup/rollup-linux-ppc64-musl": {},
+                    "@rollup/rollup-linux-riscv64-gnu": {},
+                    "@rollup/rollup-linux-riscv64-musl": {},
+                    "@rollup/rollup-linux-s390x-gnu": {},
+                    "@rollup/rollup-linux-x64-gnu": {},
+                    "@rollup/rollup-linux-x64-musl": {},
+                    "@rollup/rollup-openbsd-x64": {},
+                    "@rollup/rollup-openharmony-arm64": {},
+                    "@rollup/rollup-win32-arm64-msvc": {},
+                    "@rollup/rollup-win32-ia32-msvc": {},
+                    "@rollup/rollup-win32-x64-gnu": {},
+                    "@rollup/rollup-win32-x64-msvc": {},
+                    "@types/estree": {
+                      "version": "1.0.8",
+                      "resolved": "https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz",
+                      "overridden": false
+                    },
+                    "fsevents": {}
+                  }
                 },
-                "source-map-js": {
-                  "version": "1.2.1",
-                  "resolved": "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.1.tgz",
-                  "overridden": false
+                "sass-embedded": {},
+                "sass": {},
+                "stylus": {},
+                "sugarss": {},
+                "terser": {
+                  "version": "5.46.0"
                 }
               }
-            },
-            "rollup": {
-              "version": "4.56.0",
-              "resolved": "https://registry.npmjs.org/rollup/-/rollup-4.56.0.tgz",
-              "overridden": false,
-              "dependencies": {
-                "@rollup/rollup-android-arm-eabi": {},
-                "@rollup/rollup-android-arm64": {},
-                "@rollup/rollup-darwin-arm64": {
-                  "version": "4.56.0",
-                  "resolved": "https://registry.npmjs.org/@rollup/rollup-darwin-arm64/-/rollup-darwin-arm64-4.56.0.tgz",
-                  "overridden": false
-                },
-                "@rollup/rollup-darwin-x64": {},
-                "@rollup/rollup-freebsd-arm64": {},
-                "@rollup/rollup-freebsd-x64": {},
-                "@rollup/rollup-linux-arm-gnueabihf": {},
-                "@rollup/rollup-linux-arm-musleabihf": {},
-                "@rollup/rollup-linux-arm64-gnu": {},
-                "@rollup/rollup-linux-arm64-musl": {},
-                "@rollup/rollup-linux-loong64-gnu": {},
-                "@rollup/rollup-linux-loong64-musl": {},
-                "@rollup/rollup-linux-ppc64-gnu": {},
-                "@rollup/rollup-linux-ppc64-musl": {},
-                "@rollup/rollup-linux-riscv64-gnu": {},
-                "@rollup/rollup-linux-riscv64-musl": {},
-                "@rollup/rollup-linux-s390x-gnu": {},
-                "@rollup/rollup-linux-x64-gnu": {},
-                "@rollup/rollup-linux-x64-musl": {},
-                "@rollup/rollup-openbsd-x64": {},
-                "@rollup/rollup-openharmony-arm64": {},
-                "@rollup/rollup-win32-arm64-msvc": {},
-                "@rollup/rollup-win32-ia32-msvc": {},
-                "@rollup/rollup-win32-x64-gnu": {},
-                "@rollup/rollup-win32-x64-msvc": {},
-                "@types/estree": {
-                  "version": "1.0.8",
-                  "resolved": "https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz",
-                  "overridden": false
-                },
-                "fsevents": {}
-              }
-            },
-            "sass-embedded": {},
-            "sass": {},
-            "stylus": {},
-            "sugarss": {},
-            "terser": {
-              "version": "5.46.0"
             }
           }
         }

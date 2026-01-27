@@ -78,8 +78,8 @@ function normalizeRepoUrl(url) {
     return normalized;
 }
 async function aggregateData(input) {
-    var _a, _b, _c, _d, _e, _f;
-    const pkg = await (0, utils_1.readPackageJson)(input.projectPath);
+    var _a, _b, _c, _d, _e, _f, _g;
+    const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     const raw = {
         audit: (_a = input.auditResult) === null || _a === void 0 ? void 0 : _a.data,
         npmLs: (_b = input.npmLsResult) === null || _b === void 0 ? void 0 : _b.data,
@@ -172,7 +172,9 @@ async function aggregateData(input) {
             runtimeClass: runtimeData.classification,
             runtimeReason: runtimeData.reason,
             outdated: { status: 'unknown' },
-            raw: {}
+            raw: {
+                workspacePackages: ((_g = input.workspaceUsage) === null || _g === void 0 ? void 0 : _g.get(node.name)) || []
+            }
         });
     }
     dependencies.sort((a, b) => a.name.localeCompare(b.name));

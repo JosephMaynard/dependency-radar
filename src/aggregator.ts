@@ -31,6 +31,10 @@ interface AggregateInput {
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
   importGraphResult?: ToolResult<any>;
+  // Optional: allow CLI to pass a merged view of workspace package.json dependencies
+  pkgOverride?: any;
+  // Map dependency name -> workspace package names where it is used/declared
+  workspaceUsage?: Map<string, string[]>;
 }
 
 interface NodeInfo {
@@ -123,7 +127,7 @@ function normalizeRepoUrl(url: string): string {
 }
 
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
-  const pkg = await readPackageJson(input.projectPath);
+  const pkg = input.pkgOverride || (await readPackageJson(input.projectPath));
   const raw: RawOutputs = {
     audit: input.auditResult?.data,
     npmLs: input.npmLsResult?.data,
@@ -240,7 +244,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       runtimeClass: runtimeData.classification,
       runtimeReason: runtimeData.reason,
       outdated: { status: 'unknown' },
-      raw: {}
+      raw: {
+        workspacePackages: input.workspaceUsage?.get(node.name) || []
+      }
     });
 
   }

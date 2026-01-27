@@ -1,0 +1,52 @@
+{
+  "files": {
+    "src/aggregator.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/cli.ts": [
+      "src/aggregator.ts",
+      "src/report.ts",
+      "src/runners/importGraphRunner.ts",
+      "src/runners/npmAudit.ts",
+      "src/runners/npmLs.ts",
+      "src/utils.ts"
+    ],
+    "src/index.ts": [
+      "src/aggregator.ts",
+      "src/report.ts"
+    ],
+    "src/report-assets.ts": [],
+    "src/report.ts": [
+      "src/report-assets.ts",
+      "src/types.ts"
+    ],
+    "src/runners/importGraphRunner.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/runners/npmAudit.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/runners/npmLs.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
+    "src/types.ts": [],
+    "src/utils.ts": []
+  },
+  "packages": {
+    "src/aggregator.ts": [],
+    "src/cli.ts": [],
+    "src/index.ts": [],
+    "src/report-assets.ts": [],
+    "src/report.ts": [],
+    "src/runners/importGraphRunner.ts": [],
+    "src/runners/npmAudit.ts": [],
+    "src/runners/npmLs.ts": [],
+    "src/types.ts": [],
+    "src/utils.ts": []
+  },
+  "unresolvedImports": []
+}
