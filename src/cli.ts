@@ -5,6 +5,7 @@ import { runImportGraph } from './runners/importGraphRunner';
 import { runNpmAudit } from './runners/npmAudit';
 import { runNpmLs } from './runners/npmLs';
 import { renderReport } from './report';
+import type { ToolResult } from './types';
 import fs from 'fs/promises';
 import { ensureDir, removeDir } from './utils';
 
@@ -230,37 +231,6 @@ function mergeAuditResults(results: Array<any | undefined>): any | undefined {
   return base;
 }
 
-function mergeImportGraphs(rootPath: string, packageMetas: Array<{ path: string; name: string }>, graphs: Array<any | undefined>): any {
-  const files: Record<string, string[]> = {};
-  const packages: Record<string, string[]> = {};
-  const unresolvedImports: Array<{ importer: string; specifier: string }> = [];
-
-  for (let i = 0; i < graphs.length; i++) {
-    const g = graphs[i];
-    const meta = packageMetas[i];
-    if (!g || typeof g !== 'object') continue;
-    const relBase = path.relative(rootPath, meta.path).split(path.sep).join('/');
-    const prefix = relBase ? `${relBase}/` : '';
-
-    const gf = g.files || {};
-    const gp = g.packages || {};
-    for (const [k, v] of Object.entries<any>(gf)) {
-      files[`${prefix}${k}`] = Array.isArray(v) ? v.map((x) => `${prefix}${x}`) : [];
-    }
-    for (const [k, v] of Object.entries<any>(gp)) {
-      packages[`${prefix}${k}`] = Array.isArray(v) ? v : [];
-    }
-    const unresolved = Array.isArray(g.unresolvedImports) ? g.unresolvedImports : [];
-    unresolved.forEach((u: any) => {
-      if (u && typeof u.importer === 'string' && typeof u.specifier === 'string') {
-        unresolvedImports.push({ importer: `${prefix}${u.importer}`, specifier: u.specifier });
-      }
-    });
-  }
-
-  return { files, packages, unresolvedImports };
-}
-
 function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>, npmLsDatas: Array<any | undefined>): Map<string, string[]> {
   const usage = new Map<string, Set<string>>();
 
@@ -342,7 +312,6 @@ interface CliOptions {
   project: string;
   out: string;
   keepTemp: boolean;
-  maintenance: boolean;
   audit: boolean;
   json: boolean;
 }
@@ -353,7 +322,6 @@ function parseArgs(argv: string[]): CliOptions {
     project: process.cwd(),
     out: 'dependency-radar.html',
     keepTemp: false,
-    maintenance: false,
     audit: true,
     json: false
   };
@@ -369,7 +337,6 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === '--project' && args[0]) opts.project = args.shift()!;
     else if (arg === '--out' && args[0]) opts.out = args.shift()!;
     else if (arg === '--keep-temp') opts.keepTemp = true;
-    else if (arg === '--maintenance') opts.maintenance = true;
     else if (arg === '--no-audit') opts.audit = false;
     else if (arg === '--json') opts.json = true;
     else if (arg === '--help' || arg === '-h') {
@@ -391,7 +358,6 @@ Options:
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
-  --maintenance      Enable slow maintenance checks (npm registry calls)
   --no-audit         Skip npm audit (useful for offline scans)
 `);
 }
@@ -441,64 +407,53 @@ async function run(): Promise<void> {
     // Run tools per package for best coverage.
     const packageMetas = await readWorkspacePackageMeta(projectPath, packagePaths);
 
-    const perPackageAudit: Array<any | undefined> = [];
-    const perPackageLs: Array<any | undefined> = [];
-    const perPackageImportGraph: Array<any | undefined> = [];
+    const perPackageAudit: Array<ToolResult<any> | undefined> = [];
+    const perPackageLs: Array<ToolResult<any>> = [];
+    const perPackageImportGraph: Array<ToolResult<any>> = [];
 
     for (const meta of packageMetas) {
       const pkgTempDir = path.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
       await ensureDir(pkgTempDir);
       const [a, l, ig] = await Promise.all([
-        opts.audit ? runNpmAudit(meta.path, pkgTempDir).then(r => (r && r.ok ? r.data : undefined)).catch(() => undefined) : Promise.resolve(undefined),
-        runNpmLs(meta.path, pkgTempDir).then(r => (r && r.ok ? r.data : undefined)).catch(() => undefined),
-        runImportGraph(meta.path, pkgTempDir).then(r => (r && r.ok ? r.data : undefined)).catch(() => undefined)
+        opts.audit ? runNpmAudit(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
+        runNpmLs(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
+        runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
       perPackageImportGraph.push(ig);
     }
 
-    const mergedAuditData = mergeAuditResults(perPackageAudit);
-    const mergedLsData = buildCombinedNpmLs(projectPath, packageMetas, perPackageLs);
-    const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph);
-
-    const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs);
+    const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
+    const mergedLsData = buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+    const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
 
     const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
     const npmLsResult = { ok: true, data: mergedLsData };
-    const importGraphResult = { ok: true, data: mergedImportGraphData };
 
     // Build a merged package.json view for aggregator direct-dep checks.
     const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas);
 
-    if (opts.maintenance) {
-      stopSpinner(true);
-      console.log('Running maintenance checks (slow mode)');
-      console.log('This may take several minutes depending on dependency count.');
+    const auditFailure = opts.audit ? perPackageAudit.find((r) => r && !r.ok) : undefined;
+    const lsFailure = perPackageLs.find((r) => r && !r.ok);
+    const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
+    if (auditFailure || lsFailure || importFailure) {
+      const err = auditFailure || lsFailure || importFailure;
+      throw new Error(err?.error || 'Tool execution failed');
     }
 
     const aggregated = await aggregateData({
       projectPath,
-      maintenanceEnabled: opts.maintenance,
-      onMaintenanceProgress: opts.maintenance
-        ? (current, total, name) => {
-            process.stdout.write(`\r[${current}/${total}] ${name}                      `);
-          }
-        : undefined,
       auditResult,
       npmLsResult,
-      importGraphResult,
       pkgOverride: mergedPkgForAggregator,
       workspaceUsage,
+      workspaceEnabled: workspace.type !== 'none',
     });
-    dependencyCount = aggregated.dependencies.length;
+    dependencyCount = Object.keys(aggregated.dependencies).length;
 
     if (workspace.type !== 'none') {
       console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? '' : 's'}.`);
-    }
-
-    if (opts.maintenance) {
-      process.stdout.write('\n');
     }
 
     if (opts.json) {

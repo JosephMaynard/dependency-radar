@@ -11,13 +11,13 @@ export async function renderReport(data: AggregatedData, outputPath: string): Pr
 
 function buildHtml(data: AggregatedData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
-  const gitBranchHtml = data.gitBranch ? `<br/>Branch: <strong>${escapeHtml(data.gitBranch)}</strong>` : '';
-  const runtimeVersion = data.environment?.node?.runtimeVersion
-    ? data.environment.node.runtimeVersion.replace(/^v/, '')
+  const gitBranchHtml = data.git?.branch ? `<br/>Branch: <strong>${escapeHtml(data.git.branch)}</strong>` : '';
+  const runtimeVersion = data.environment?.runtimeVersion
+    ? data.environment.runtimeVersion.replace(/^v/, '')
     : 'unknown';
-  const minRequiredMajor = data.environment?.node?.minRequiredMajor;
-  const nodeRequirement = minRequiredMajor !== undefined ? ` · dependency engines require ≥${minRequiredMajor}` : '';
-  const nodeBlockHtml = minRequiredMajor !== undefined
+  const minRequiredMajor = data.environment?.minRequiredMajor;
+  const nodeRequirement = minRequiredMajor && minRequiredMajor > 0 ? ` · dependency engines require ≥${minRequiredMajor}` : '';
+  const nodeBlockHtml = minRequiredMajor && minRequiredMajor > 0
     ? `Node: run on ${escapeHtml(runtimeVersion)}${nodeRequirement}<br/><span class="header-disclaimer">Derived from declared dependency engine ranges; does not guarantee runtime compatibility.</span>`
     : `Node: run on ${escapeHtml(runtimeVersion)}`;
   
@@ -111,7 +111,7 @@ ${CSS_CONTENT}
         <div class="header-text">
           <h1>Dependency Radar</h1>
           <p class="header-meta">
-            Project: <strong id="project-path">${escapeHtml(data.projectPath)}</strong>${gitBranchHtml}<br id="git-branch-br" /><span id="git-branch-text"></span>
+            Project: <strong id="project-path">${escapeHtml(data.project.projectDir)}</strong>${gitBranchHtml}<br id="git-branch-br" /><span id="git-branch-text"></span>
             <span id="node-block">${nodeBlockHtml}</span><br/>
             Generated: <span id="formatted-date">${data.generatedAt}</span>
           </p>
@@ -147,12 +147,13 @@ ${CSS_CONTENT}
       </div>
       
       <div class="filter-group">
-        <span class="filter-label">Runtime</span>
+        <span class="filter-label">Scope</span>
         <select id="runtime-filter">
           <option value="all">All</option>
           <option value="runtime">Runtime</option>
-          <option value="build-time">Build-time</option>
-          <option value="dev-only">Dev-only</option>
+          <option value="dev">Dev</option>
+          <option value="optional">Optional</option>
+          <option value="peer">Peer</option>
         </select>
       </div>
       
@@ -162,7 +163,6 @@ ${CSS_CONTENT}
           <option value="name">Name</option>
           <option value="severity">Severity</option>
           <option value="depth">Depth</option>
-          <option value="size">Size</option>
         </select>
         <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
       </div>
@@ -175,11 +175,6 @@ ${CSS_CONTENT}
       <label class="checkbox-filter">
         <input type="checkbox" id="has-vulns" />
         Has vulnerabilities
-      </label>
-      
-      <label class="checkbox-filter">
-        <input type="checkbox" id="unused-only" />
-        Not statically imported
       </label>
       
       <div class="theme-toggle">
@@ -224,8 +219,6 @@ ${CSS_CONTENT}
     </div>
   </div>
   
-  ${renderToolErrors(data)}
-  
   <!-- Main Content -->
   <main class="main-content">
     <div class="results-summary" id="results-summary"></div>
@@ -242,11 +235,4 @@ ${JS_CONTENT}
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function renderToolErrors(data: AggregatedData): string {
-  const entries = Object.entries(data.toolErrors || {});
-  if (!entries.length) return '';
-  const list = entries.map(([tool, err]) => `<div><strong>${escapeHtml(tool)}:</strong> ${escapeHtml(err)}</div>`).join('');
-  return `<div class="tool-errors"><strong>Some tools failed:</strong>${list}</div>`;
 }

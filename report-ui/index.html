@@ -129,12 +129,13 @@
       </div>
       
       <div class="filter-group">
-        <span class="filter-label">Runtime</span>
+        <span class="filter-label">Scope</span>
         <select id="runtime-filter">
           <option value="all">All</option>
           <option value="runtime">Runtime</option>
-          <option value="build-time">Build-time</option>
-          <option value="dev-only">Dev-only</option>
+          <option value="dev">Dev</option>
+          <option value="optional">Optional</option>
+          <option value="peer">Peer</option>
         </select>
       </div>
       
@@ -144,7 +145,6 @@
           <option value="name">Name</option>
           <option value="severity">Severity</option>
           <option value="depth">Depth</option>
-          <option value="size">Size</option>
         </select>
         <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
       </div>
@@ -157,11 +157,6 @@
       <label class="checkbox-filter">
         <input type="checkbox" id="has-vulns" />
         Has vulnerabilities
-      </label>
-      
-      <label class="checkbox-filter">
-        <input type="checkbox" id="unused-only" />
-        Not statically imported
       </label>
       
       <div class="theme-toggle">
@@ -205,8 +200,6 @@
       </div>
     </div>
   </div>
-  
-  <div id="tool-errors"></div>
   
   <!-- Main Content -->
   <main class="main-content">

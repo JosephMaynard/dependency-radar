@@ -13,15 +13,15 @@ async function renderReport(data, outputPath) {
     await promises_1.default.writeFile(outputPath, html, 'utf8');
 }
 function buildHtml(data) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c;
     const json = JSON.stringify(data).replace(/</g, '\\u003c');
-    const gitBranchHtml = data.gitBranch ? `<br/>Branch: <strong>${escapeHtml(data.gitBranch)}</strong>` : '';
-    const runtimeVersion = ((_b = (_a = data.environment) === null || _a === void 0 ? void 0 : _a.node) === null || _b === void 0 ? void 0 : _b.runtimeVersion)
-        ? data.environment.node.runtimeVersion.replace(/^v/, '')
+    const gitBranchHtml = ((_a = data.git) === null || _a === void 0 ? void 0 : _a.branch) ? `<br/>Branch: <strong>${escapeHtml(data.git.branch)}</strong>` : '';
+    const runtimeVersion = ((_b = data.environment) === null || _b === void 0 ? void 0 : _b.runtimeVersion)
+        ? data.environment.runtimeVersion.replace(/^v/, '')
         : 'unknown';
-    const minRequiredMajor = (_d = (_c = data.environment) === null || _c === void 0 ? void 0 : _c.node) === null || _d === void 0 ? void 0 : _d.minRequiredMajor;
-    const nodeRequirement = minRequiredMajor !== undefined ? ` · dependency engines require ≥${minRequiredMajor}` : '';
-    const nodeBlockHtml = minRequiredMajor !== undefined
+    const minRequiredMajor = (_c = data.environment) === null || _c === void 0 ? void 0 : _c.minRequiredMajor;
+    const nodeRequirement = minRequiredMajor && minRequiredMajor > 0 ? ` · dependency engines require ≥${minRequiredMajor}` : '';
+    const nodeBlockHtml = minRequiredMajor && minRequiredMajor > 0
         ? `Node: run on ${escapeHtml(runtimeVersion)}${nodeRequirement}<br/><span class="header-disclaimer">Derived from declared dependency engine ranges; does not guarantee runtime compatibility.</span>`
         : `Node: run on ${escapeHtml(runtimeVersion)}`;
     return `<!doctype html>
@@ -114,7 +114,7 @@ ${report_assets_1.CSS_CONTENT}
         <div class="header-text">
           <h1>Dependency Radar</h1>
           <p class="header-meta">
-            Project: <strong id="project-path">${escapeHtml(data.projectPath)}</strong>${gitBranchHtml}<br id="git-branch-br" /><span id="git-branch-text"></span>
+            Project: <strong id="project-path">${escapeHtml(data.project.projectDir)}</strong>${gitBranchHtml}<br id="git-branch-br" /><span id="git-branch-text"></span>
             <span id="node-block">${nodeBlockHtml}</span><br/>
             Generated: <span id="formatted-date">${data.generatedAt}</span>
           </p>
@@ -150,12 +150,13 @@ ${report_assets_1.CSS_CONTENT}
       </div>
       
       <div class="filter-group">
-        <span class="filter-label">Runtime</span>
+        <span class="filter-label">Scope</span>
         <select id="runtime-filter">
           <option value="all">All</option>
           <option value="runtime">Runtime</option>
-          <option value="build-time">Build-time</option>
-          <option value="dev-only">Dev-only</option>
+          <option value="dev">Dev</option>
+          <option value="optional">Optional</option>
+          <option value="peer">Peer</option>
         </select>
       </div>
       
@@ -165,7 +166,6 @@ ${report_assets_1.CSS_CONTENT}
           <option value="name">Name</option>
           <option value="severity">Severity</option>
           <option value="depth">Depth</option>
-          <option value="size">Size</option>
         </select>
         <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
       </div>
@@ -178,11 +178,6 @@ ${report_assets_1.CSS_CONTENT}
       <label class="checkbox-filter">
         <input type="checkbox" id="has-vulns" />
         Has vulnerabilities
-      </label>
-      
-      <label class="checkbox-filter">
-        <input type="checkbox" id="unused-only" />
-        Not statically imported
       </label>
       
       <div class="theme-toggle">
@@ -227,8 +222,6 @@ ${report_assets_1.CSS_CONTENT}
     </div>
   </div>
   
-  ${renderToolErrors(data)}
-  
   <!-- Main Content -->
   <main class="main-content">
     <div class="results-summary" id="results-summary"></div>
@@ -244,11 +237,4 @@ ${report_assets_1.JS_CONTENT}
 }
 function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-function renderToolErrors(data) {
-    const entries = Object.entries(data.toolErrors || {});
-    if (!entries.length)
-        return '';
-    const list = entries.map(([tool, err]) => `<div><strong>${escapeHtml(tool)}:</strong> ${escapeHtml(err)}</div>`).join('');
-    return `<div class="tool-errors"><strong>Some tools failed:</strong>${list}</div>`;
 }

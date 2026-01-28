@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runCommand = runCommand;
-exports.delay = delay;
 exports.getDependencyRadarVersion = getDependencyRadarVersion;
 exports.ensureDir = ensureDir;
 exports.writeJsonFile = writeJsonFile;
@@ -15,7 +14,6 @@ exports.readPackageJson = readPackageJson;
 exports.findBin = findBin;
 exports.licenseRiskLevel = licenseRiskLevel;
 exports.vulnRiskLevel = vulnRiskLevel;
-exports.maintenanceRisk = maintenanceRisk;
 exports.readLicenseFromPackageJson = readLicenseFromPackageJson;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
@@ -40,9 +38,6 @@ function runCommand(command, args, options = {}) {
             });
         });
     });
-}
-function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function getDependencyRadarVersion() {
     try {
@@ -117,20 +112,6 @@ function vulnRiskLevel(counts) {
     if (low > 0 || moderate > 0)
         return 'amber';
     return 'green';
-}
-function maintenanceRisk(lastPublished) {
-    if (!lastPublished)
-        return 'unknown';
-    const last = new Date(lastPublished).getTime();
-    if (Number.isNaN(last))
-        return 'unknown';
-    const now = Date.now();
-    const months = (now - last) / (1000 * 60 * 60 * 24 * 30);
-    if (months <= 12)
-        return 'green';
-    if (months <= 36)
-        return 'amber';
-    return 'red';
 }
 async function readLicenseFromPackageJson(pkgName, projectPath) {
     try {

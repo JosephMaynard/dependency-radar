@@ -1,347 +1,113 @@
 {
-  "generatedAt": "2025-01-26T12:00:00.000Z",
-  "projectPath": "/example/sample-project",
-  "gitBranch": "main",
-  "dependencyRadarVersion": "0.1.1",
-  "maintenanceEnabled": true,
-  "environment": {
-    "node": {
-      "runtimeVersion": "v20.11.0",
-      "runtimeMajor": 20,
-      "minRequiredMajor": 18,
-      "source": "dependency-engines"
-    }
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-01-28T00:00:00.000Z",
+  "dependencyRadarVersion": "0.0.0",
+  "git": {
+    "branch": "main"
   },
-  "toolErrors": {},
-  "dependencies": [
-    {
-      "name": "lodash",
-      "version": "4.17.21",
-      "key": "lodash@4.17.21",
+  "project": {
+    "projectDir": "/path/to/project",
+    "projectPathHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "environment": {
+    "nodeVersion": "20.11.0",
+    "runtimeVersion": "v20.11.0",
+    "minRequiredMajor": 18
+  },
+  "workspaces": {
+    "enabled": false
+  },
+  "summary": {
+    "dependencyCount": 2,
+    "directCount": 1,
+    "transitiveCount": 1
+  },
+  "dependencies": {
+    "chalk@5.3.0": {
+      "id": "chalk@5.3.0",
+      "name": "chalk",
+      "version": "5.3.0",
       "direct": true,
-      "transitive": false,
+      "scope": "runtime",
       "depth": 1,
-      "parents": [],
-      "rootCauses": ["package.json"],
-      "license": { "license": "MIT", "licenseFile": "LICENSE" },
+      "origins": {
+        "rootPackageCount": 1,
+        "topRootPackages": ["chalk"]
+      },
+      "license": "MIT",
       "licenseRisk": "green",
       "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [],
-        "highestSeverity": "none"
+        "critical": 0,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+        "highest": "none"
       },
       "vulnRisk": "green",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-12-15" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "imported", "reason": "Found static imports in source files" },
-      "identity": { "deprecated": false, "nodeEngine": null, "hasRepository": true, "hasFunding": false },
-      "dependencySurface": { "dependencies": 0, "devDependencies": 35, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 1456789, "fileCount": 1054 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "commonjs", "conditionalExports": false },
-      "typescript": { "types": "bundled" },
-      "graph": { "fanIn": 3, "fanOut": 0, "dependedOnBy": ["my-app", "utils", "helpers"], "dependsOn": [] },
-      "links": { "npm": "https://www.npmjs.com/package/lodash", "repository": "https://github.com/lodash/lodash", "homepage": "https://lodash.com/" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Used as production dependency",
-      "outdated": { "status": "up-to-date" }
-    },
-    {
-      "name": "express",
-      "version": "4.18.2",
-      "key": "express@4.18.2",
-      "direct": true,
-      "transitive": false,
-      "depth": 1,
-      "parents": [],
-      "rootCauses": ["package.json"],
-      "license": { "license": "MIT", "licenseFile": "LICENSE" },
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 1, "high": 0, "critical": 0 },
-        "items": [
-          { "title": "Express vulnerable to DoS via malformed URL", "severity": "moderate", "url": "https://github.com/advisories/GHSA-rv95-896h-c2vc", "vulnerableRange": "<4.19.0" }
-        ],
-        "highestSeverity": "moderate"
+      "deprecated": false,
+      "nodeEngine": ">=14.0.0",
+      "build": {
+        "native": false,
+        "installScripts": false,
+        "risk": "green"
       },
-      "vulnRisk": "amber",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-11-01" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "imported", "reason": "Found static imports in source files" },
-      "identity": { "deprecated": false, "nodeEngine": ">= 0.10.0", "hasRepository": true, "hasFunding": true },
-      "dependencySurface": { "dependencies": 30, "devDependencies": 24, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 234567, "fileCount": 45 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "commonjs", "conditionalExports": false },
-      "typescript": { "types": "none" },
-      "graph": { "fanIn": 1, "fanOut": 30, "dependedOnBy": ["my-app"], "dependsOn": ["body-parser", "cookie", "debug", "depd", "accepts"] },
-      "links": { "npm": "https://www.npmjs.com/package/express", "repository": "https://github.com/expressjs/express", "homepage": "http://expressjs.com/", "bugs": "https://github.com/expressjs/express/issues" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Used as production dependency",
-      "outdated": { "status": "available", "current": "4.18.2", "wanted": "4.18.2", "latest": "4.19.2" }
+      "tsTypes": "bundled",
+      "dependencySurface": {
+        "deps": 0,
+        "dev": 0,
+        "peer": 0,
+        "opt": 0
+      },
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 0
+      },
+      "links": {
+        "npm": "https://www.npmjs.com/package/chalk"
+      }
     },
-    {
-      "name": "node-gyp",
-      "version": "9.4.0",
-      "key": "node-gyp@9.4.0",
+    "ansi-styles@6.2.1": {
+      "id": "ansi-styles@6.2.1",
+      "name": "ansi-styles",
+      "version": "6.2.1",
       "direct": false,
-      "transitive": true,
-      "depth": 3,
-      "parents": ["npm@10.2.4", "node-pre-gyp@1.0.11"],
-      "rootCauses": ["bcrypt"],
-      "license": { "license": "MIT", "licenseFile": "LICENSE" },
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [],
-        "highestSeverity": "none"
-      },
-      "vulnRisk": "green",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-10-20" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "not-imported", "reason": "No static imports found" },
-      "identity": { "deprecated": false, "nodeEngine": "^12.13 || ^14.13 || >=16", "hasRepository": true, "hasFunding": false },
-      "dependencySurface": { "dependencies": 8, "devDependencies": 5, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 567890, "fileCount": 89 },
-      "buildPlatform": { "nativeBindings": true, "installScripts": true },
-      "moduleSystem": { "format": "commonjs", "conditionalExports": false },
-      "typescript": { "types": "none" },
-      "graph": { "fanIn": 2, "fanOut": 8, "dependedOnBy": ["npm", "node-pre-gyp"], "dependsOn": ["env-paths", "glob", "make-fetch-happen", "nopt"] },
-      "links": { "npm": "https://www.npmjs.com/package/node-gyp", "repository": "https://github.com/nodejs/node-gyp" },
-      "runtimeClass": "build-time",
-      "runtimeReason": "Used only during build/compilation",
-      "outdated": { "status": "up-to-date" }
-    },
-    {
-      "name": "mysql",
-      "version": "2.18.1",
-      "key": "mysql@2.18.1",
-      "direct": true,
-      "transitive": false,
-      "depth": 1,
-      "parents": [],
-      "rootCauses": ["package.json"],
-      "license": { "license": "MIT", "licenseFile": "License" },
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 1, "critical": 0 },
-        "items": [
-          { "title": "SQL Injection vulnerability in mysql package", "severity": "high", "url": "https://github.com/advisories/GHSA-example", "vulnerableRange": "<2.18.2" }
-        ],
-        "highestSeverity": "high"
-      },
-      "vulnRisk": "red",
-      "maintenance": { "status": "stale", "reason": "No updates in over 2 years", "lastPublished": "2021-03-15" },
-      "maintenanceRisk": "red",
-      "usage": { "status": "imported", "reason": "Found static imports in source files" },
-      "identity": { "deprecated": false, "nodeEngine": ">= 0.6", "hasRepository": true, "hasFunding": false },
-      "dependencySurface": { "dependencies": 4, "devDependencies": 8, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 345678, "fileCount": 67 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "commonjs", "conditionalExports": false },
-      "typescript": { "types": "none" },
-      "graph": { "fanIn": 1, "fanOut": 4, "dependedOnBy": ["my-app"], "dependsOn": ["bignumber.js", "readable-stream", "safe-buffer", "sqlstring"] },
-      "links": { "npm": "https://www.npmjs.com/package/mysql", "repository": "https://github.com/mysqljs/mysql" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Used as production dependency",
-      "outdated": { "status": "up-to-date" }
-    },
-    {
-      "name": "eslint",
-      "version": "8.56.0",
-      "key": "eslint@8.56.0",
-      "direct": true,
-      "transitive": false,
-      "depth": 1,
-      "parents": [],
-      "rootCauses": ["package.json"],
-      "license": { "license": "MIT", "licenseFile": "LICENSE" },
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [],
-        "highestSeverity": "none"
-      },
-      "vulnRisk": "green",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-12-01" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "not-imported", "reason": "devDependency - not imported in source" },
-      "identity": { "deprecated": false, "nodeEngine": "^12.22.0 || ^14.17.0 || >=16.0.0", "hasRepository": true, "hasFunding": true },
-      "dependencySurface": { "dependencies": 39, "devDependencies": 54, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 2345678, "fileCount": 345 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "commonjs", "conditionalExports": true },
-      "typescript": { "types": "bundled" },
-      "graph": { "fanIn": 1, "fanOut": 39, "dependedOnBy": ["my-app"], "dependsOn": ["@eslint-community/eslint-utils", "@eslint-community/regexpp", "ajv", "chalk"] },
-      "links": { "npm": "https://www.npmjs.com/package/eslint", "repository": "https://github.com/eslint/eslint", "homepage": "https://eslint.org", "bugs": "https://github.com/eslint/eslint/issues" },
-      "runtimeClass": "dev-only",
-      "runtimeReason": "Listed in devDependencies only",
-      "outdated": { "status": "available", "current": "8.56.0", "wanted": "8.56.0", "latest": "9.0.0" }
-    },
-    {
-      "name": "gpl-licensed-pkg",
-      "version": "1.0.0",
-      "key": "gpl-licensed-pkg@1.0.0",
-      "direct": false,
-      "transitive": true,
+      "scope": "runtime",
       "depth": 2,
-      "parents": ["some-other-pkg@2.0.0"],
-      "rootCauses": ["some-other-pkg"],
-      "license": { "license": "GPL-3.0", "licenseFile": "COPYING" },
-      "licenseRisk": "red",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [],
-        "highestSeverity": "none"
+      "origins": {
+        "rootPackageCount": 1,
+        "topRootPackages": ["chalk"]
       },
-      "vulnRisk": "green",
-      "maintenance": { "status": "quiet", "reason": "No updates in 6-12 months", "lastPublished": "2024-04-10" },
-      "maintenanceRisk": "amber",
-      "usage": { "status": "not-imported", "reason": "No static imports found" },
-      "identity": { "deprecated": false, "nodeEngine": null, "hasRepository": true, "hasFunding": false },
-      "dependencySurface": { "dependencies": 0, "devDependencies": 2, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 12345, "fileCount": 5 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "esm", "conditionalExports": true },
-      "typescript": { "types": "bundled" },
-      "graph": { "fanIn": 1, "fanOut": 0, "dependedOnBy": ["some-other-pkg"], "dependsOn": [] },
-      "links": { "npm": "https://www.npmjs.com/package/gpl-licensed-pkg", "repository": "https://github.com/example/gpl-licensed-pkg" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Transitive production dependency",
-      "outdated": { "status": "unknown" }
-    },
-    {
-      "name": "lgpl-lib",
-      "version": "2.1.0",
-      "key": "lgpl-lib@2.1.0",
-      "direct": true,
-      "transitive": false,
-      "depth": 1,
-      "parents": [],
-      "rootCauses": ["package.json"],
-      "license": { "license": "LGPL-3.0", "licenseFile": "LICENSE.LGPL" },
-      "licenseRisk": "amber",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [],
-        "highestSeverity": "none"
-      },
-      "vulnRisk": "green",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-11-20" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "imported", "reason": "Found static imports in source files" },
-      "identity": { "deprecated": false, "nodeEngine": ">=14", "hasRepository": true, "hasFunding": true },
-      "dependencySurface": { "dependencies": 2, "devDependencies": 10, "peerDependencies": 1, "optionalDependencies": 0, "hasPeerDependencies": true },
-      "sizeFootprint": { "installedSize": 89012, "fileCount": 23 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "dual", "conditionalExports": true },
-      "typescript": { "types": "bundled" },
-      "graph": { "fanIn": 1, "fanOut": 2, "dependedOnBy": ["my-app"], "dependsOn": ["some-dep", "another-dep"] },
-      "links": { "npm": "https://www.npmjs.com/package/lgpl-lib", "repository": "https://github.com/example/lgpl-lib" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Used as production dependency",
-      "outdated": { "status": "up-to-date" }
-    },
-    {
-      "name": "unknown-license-pkg",
-      "version": "0.5.0",
-      "key": "unknown-license-pkg@0.5.0",
-      "direct": false,
-      "transitive": true,
-      "depth": 4,
-      "parents": ["deep-dep@1.0.0"],
-      "rootCauses": ["express"],
-      "license": { "license": null, "licenseFile": null },
-      "licenseRisk": "amber",
-      "vulnerabilities": {
-        "counts": { "low": 1, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [
-          { "title": "Minor information disclosure", "severity": "low", "url": "https://github.com/advisories/GHSA-minor", "vulnerableRange": "<=0.5.0" }
-        ],
-        "highestSeverity": "low"
-      },
-      "vulnRisk": "green",
-      "maintenance": { "status": "unknown", "reason": "Could not determine maintenance status" },
-      "maintenanceRisk": "unknown",
-      "usage": { "status": "unknown", "reason": "Could not determine usage" },
-      "identity": { "deprecated": true, "nodeEngine": null, "hasRepository": false, "hasFunding": false },
-      "dependencySurface": { "dependencies": 0, "devDependencies": 0, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 5432, "fileCount": 3 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "unknown", "conditionalExports": false },
-      "typescript": { "types": "none" },
-      "graph": { "fanIn": 1, "fanOut": 0, "dependedOnBy": ["deep-dep"], "dependsOn": [] },
-      "links": { "npm": "https://www.npmjs.com/package/unknown-license-pkg" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Transitive production dependency",
-      "outdated": { "status": "unknown" }
-    },
-    {
-      "name": "critical-vuln-pkg",
-      "version": "1.2.3",
-      "key": "critical-vuln-pkg@1.2.3",
-      "direct": true,
-      "transitive": false,
-      "depth": 1,
-      "parents": [],
-      "rootCauses": ["package.json"],
-      "license": { "license": "Apache-2.0", "licenseFile": "LICENSE" },
+      "license": "MIT",
       "licenseRisk": "green",
       "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 1, "critical": 1 },
-        "items": [
-          { "title": "Critical RCE vulnerability", "severity": "critical", "url": "https://github.com/advisories/GHSA-critical", "vulnerableRange": "<2.0.0" },
-          { "title": "High severity prototype pollution", "severity": "high", "url": "https://github.com/advisories/GHSA-high", "vulnerableRange": "<1.5.0" }
-        ],
-        "highestSeverity": "critical"
-      },
-      "vulnRisk": "red",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-12-10" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "imported", "reason": "Found static imports in source files" },
-      "identity": { "deprecated": false, "nodeEngine": ">=16", "hasRepository": true, "hasFunding": false },
-      "dependencySurface": { "dependencies": 5, "devDependencies": 12, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 456789, "fileCount": 78 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "esm", "conditionalExports": true },
-      "typescript": { "types": "bundled" },
-      "graph": { "fanIn": 2, "fanOut": 5, "dependedOnBy": ["my-app", "other-pkg"], "dependsOn": ["dep-a", "dep-b", "dep-c", "dep-d", "dep-e"] },
-      "links": { "npm": "https://www.npmjs.com/package/critical-vuln-pkg", "repository": "https://github.com/example/critical-vuln-pkg", "bugs": "https://github.com/example/critical-vuln-pkg/issues" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Used as production dependency",
-      "outdated": { "status": "available", "current": "1.2.3", "wanted": "1.2.3", "latest": "2.0.0" }
-    },
-    {
-      "name": "undeclared-import",
-      "version": "3.0.0",
-      "key": "undeclared-import@3.0.0",
-      "direct": false,
-      "transitive": true,
-      "depth": 2,
-      "parents": ["some-pkg@1.0.0"],
-      "rootCauses": ["express"],
-      "license": { "license": "BSD-3-Clause", "licenseFile": "LICENSE" },
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
-        "items": [],
-        "highestSeverity": "none"
+        "critical": 0,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+        "highest": "none"
       },
       "vulnRisk": "green",
-      "maintenance": { "status": "active", "reason": "Published within last 6 months", "lastPublished": "2024-11-15" },
-      "maintenanceRisk": "green",
-      "usage": { "status": "undeclared", "reason": "Imported in source but not in package.json dependencies" },
-      "identity": { "deprecated": false, "nodeEngine": null, "hasRepository": true, "hasFunding": false },
-      "dependencySurface": { "dependencies": 1, "devDependencies": 5, "peerDependencies": 0, "optionalDependencies": 0, "hasPeerDependencies": false },
-      "sizeFootprint": { "installedSize": 34567, "fileCount": 12 },
-      "buildPlatform": { "nativeBindings": false, "installScripts": false },
-      "moduleSystem": { "format": "commonjs", "conditionalExports": false },
-      "typescript": { "types": "none" },
-      "graph": { "fanIn": 2, "fanOut": 1, "dependedOnBy": ["some-pkg", "another-pkg"], "dependsOn": ["tiny-dep"] },
-      "links": { "npm": "https://www.npmjs.com/package/undeclared-import", "repository": "https://github.com/example/undeclared-import" },
-      "runtimeClass": "runtime",
-      "runtimeReason": "Transitive production dependency",
-      "outdated": { "status": "up-to-date" }
+      "deprecated": false,
+      "nodeEngine": null,
+      "build": {
+        "native": false,
+        "installScripts": false,
+        "risk": "green"
+      },
+      "tsTypes": "none",
+      "dependencySurface": {
+        "deps": 0,
+        "dev": 0,
+        "peer": 0,
+        "opt": 0
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      "links": {
+        "npm": "https://www.npmjs.com/package/ansi-styles"
+      }
     }
-  ]
+  }
 }
