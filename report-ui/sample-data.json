@@ -6,8 +6,7 @@
     "branch": "main"
   },
   "project": {
-    "projectDir": "/path/to/project",
-    "projectPathHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    "projectDir": "/path/to/project"
   },
   "environment": {
     "nodeVersion": "20.11.0",

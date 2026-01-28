@@ -101,7 +101,6 @@ export interface AggregatedData {
   };
   project: {
     projectDir: string;
-    projectPathHash: string;
   };
   environment: {
     nodeVersion: string;

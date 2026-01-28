@@ -7,7 +7,7 @@ exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
-const crypto_1 = __importDefault(require("crypto"));
+const os_1 = __importDefault(require("os"));
 const dependencyRadarVersion = (0, utils_1.getDependencyRadarVersion)();
 async function getGitBranch(projectPath) {
     var _a;
@@ -55,8 +55,13 @@ function findRootCauses(node, nodeMap, pkg) {
     }
     return Array.from(rootCauses).sort();
 }
-function hashProjectPath(projectPath) {
-    return crypto_1.default.createHash('sha256').update(projectPath).digest('hex');
+function formatProjectDir(projectPath) {
+    const home = os_1.default.homedir();
+    const relative = path_1.default.relative(home, projectPath);
+    if (relative && !relative.startsWith('..') && !path_1.default.isAbsolute(relative)) {
+        return `/${relative.split(path_1.default.sep).join('/')}`;
+    }
+    return projectPath;
 }
 async function aggregateData(input) {
     var _a, _b, _c, _d, _e;
@@ -161,8 +166,7 @@ async function aggregateData(input) {
             branch: gitBranch || ''
         },
         project: {
-            projectDir: input.projectPath,
-            projectPathHash: hashProjectPath(input.projectPath)
+            projectDir: formatProjectDir(input.projectPath)
         },
         environment: {
             nodeVersion,

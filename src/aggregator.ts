@@ -16,7 +16,7 @@ import {
 } from './utils';
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
+import os from 'os';
 
 interface AggregateInput {
   projectPath: string;
@@ -92,8 +92,13 @@ function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any
   return Array.from(rootCauses).sort();
 }
 
-function hashProjectPath(projectPath: string): string {
-  return crypto.createHash('sha256').update(projectPath).digest('hex');
+function formatProjectDir(projectPath: string): string {
+  const home = os.homedir();
+  const relative = path.relative(home, projectPath);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return `/${relative.split(path.sep).join('/')}`;
+  }
+  return projectPath;
 }
 
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
@@ -214,8 +219,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       branch: gitBranch || ''
     },
     project: {
-      projectDir: input.projectPath,
-      projectPathHash: hashProjectPath(input.projectPath)
+      projectDir: formatProjectDir(input.projectPath)
     },
     environment: {
       nodeVersion,

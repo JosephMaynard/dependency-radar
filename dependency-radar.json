@@ -1,13 +1,12 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-01-28T19:39:00.747Z",
+  "generatedAt": "2026-01-28T22:29:05.271Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
     "branch": "feat/add-workspace-support"
   },
   "project": {
-    "projectDir": "/Users/josephmaynard/Developer/dependency-radar",
-    "projectPathHash": "c63b4c6102b2a40bb8e0ce0cf6550bf0dd363e14640cccc6485c99572461332a"
+    "projectDir": "/Developer/dependency-radar"
   },
   "environment": {
     "nodeVersion": "23.6.0",
@@ -18,66 +17,18 @@
     "enabled": false
   },
   "summary": {
-    "dependencyCount": 94,
+    "dependencyCount": 93,
     "directCount": 5,
-    "transitiveCount": 89
+    "transitiveCount": 88
   },
   "dependencies": {
-    "dependency-radar@0.2.0": {
-      "id": "dependency-radar@0.2.0",
-      "name": "dependency-radar",
-      "version": "0.2.0",
-      "direct": false,
-      "scope": "runtime",
-      "depth": 1,
-      "origins": {
-        "rootPackageCount": 0,
-        "topRootPackages": []
-      },
-      "license": "unknown",
-      "licenseRisk": "red",
-      "vulnerabilities": {
-        "critical": 0,
-        "high": 0,
-        "moderate": 0,
-        "low": 0,
-        "highest": "none"
-      },
-      "vulnRisk": "green",
-      "deprecated": false,
-      "nodeEngine": null,
-      "build": {
-        "native": false,
-        "installScripts": false,
-        "risk": "green"
-      },
-      "tsTypes": "unknown",
-      "dependencySurface": {
-        "deps": 0,
-        "dev": 0,
-        "peer": 0,
-        "opt": 0
-      },
-      "graph": {
-        "fanIn": 0,
-        "fanOut": 5
-      },
-      "links": {
-        "npm": "https://www.npmjs.com/package/dependency-radar"
-      },
-      "introduction": "unknown",
-      "upgrade": {
-        "blocksNodeMajor": false,
-        "blockers": []
-      }
-    },
     "@types/node@20.19.30": {
       "id": "@types/node@20.19.30",
       "name": "@types/node",
       "version": "20.19.30",
       "direct": true,
       "scope": "dev",
-      "depth": 2,
+      "depth": 1,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -109,7 +60,7 @@
         "opt": 0
       },
       "graph": {
-        "fanIn": 3,
+        "fanIn": 2,
         "fanOut": 1
       },
       "links": {
@@ -121,7 +72,8 @@
         "blockers": []
       },
       "outdated": {
-        "status": "unknown"
+        "status": "major",
+        "latestVersion": "25.1.0"
       }
     },
     "undici-types@6.21.0": {
@@ -130,7 +82,7 @@
       "version": "6.21.0",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -180,7 +132,7 @@
       "version": "5.46.0",
       "direct": true,
       "scope": "dev",
-      "depth": 2,
+      "depth": 1,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -212,7 +164,7 @@
         "opt": 0
       },
       "graph": {
-        "fanIn": 2,
+        "fanIn": 1,
         "fanOut": 4
       },
       "links": {
@@ -232,7 +184,7 @@
       "version": "0.3.11",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -282,7 +234,7 @@
       "version": "0.3.13",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -332,7 +284,7 @@
       "version": "1.5.5",
       "direct": false,
       "scope": "dev",
-      "depth": 5,
+      "depth": 4,
       "origins": {
         "rootPackageCount": 2,
         "topRootPackages": [
@@ -383,7 +335,7 @@
       "version": "0.3.31",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -433,7 +385,7 @@
       "version": "3.1.2",
       "direct": false,
       "scope": "dev",
-      "depth": 5,
+      "depth": 4,
       "origins": {
         "rootPackageCount": 2,
         "topRootPackages": [
@@ -486,7 +438,7 @@
       "version": "8.15.0",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 2,
         "topRootPackages": [
@@ -539,7 +491,7 @@
       "version": "2.20.3",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -589,7 +541,7 @@
       "version": "0.5.21",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -639,7 +591,7 @@
       "version": "1.1.2",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -689,7 +641,7 @@
       "version": "0.6.1",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -741,7 +693,7 @@
       "version": "10.9.2",
       "direct": true,
       "scope": "dev",
-      "depth": 2,
+      "depth": 1,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -773,7 +725,7 @@
         "opt": 0
       },
       "graph": {
-        "fanIn": 1,
+        "fanIn": 0,
         "fanOut": 17
       },
       "links": {
@@ -793,7 +745,7 @@
       "version": "0.8.1",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -845,7 +797,7 @@
       "version": "0.3.9",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -895,7 +847,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -945,7 +897,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -995,7 +947,7 @@
       "version": "1.0.12",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1045,7 +997,7 @@
       "version": "1.0.11",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1095,7 +1047,7 @@
       "version": "1.0.3",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1145,7 +1097,7 @@
       "version": "1.0.4",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1195,7 +1147,7 @@
       "version": "8.3.4",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1247,7 +1199,7 @@
       "version": "4.1.3",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1297,7 +1249,7 @@
       "version": "1.1.1",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1347,7 +1299,7 @@
       "version": "4.0.4",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1399,7 +1351,7 @@
       "version": "1.3.6",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1449,7 +1401,7 @@
       "version": "5.9.3",
       "direct": true,
       "scope": "dev",
-      "depth": 2,
+      "depth": 1,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1481,7 +1433,7 @@
         "opt": 0
       },
       "graph": {
-        "fanIn": 2,
+        "fanIn": 1,
         "fanOut": 0
       },
       "links": {
@@ -1501,7 +1453,7 @@
       "version": "3.0.1",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1551,7 +1503,7 @@
       "version": "3.1.1",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1603,7 +1555,7 @@
       "version": "5.4.21",
       "direct": true,
       "scope": "dev",
-      "depth": 2,
+      "depth": 1,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1635,7 +1587,7 @@
         "opt": 1
       },
       "graph": {
-        "fanIn": 1,
+        "fanIn": 0,
         "fanOut": 12
       },
       "links": {
@@ -1650,7 +1602,8 @@
         ]
       },
       "outdated": {
-        "status": "unknown"
+        "status": "major",
+        "latestVersion": "7.3.1"
       }
     },
     "esbuild@0.21.5": {
@@ -1659,7 +1612,7 @@
       "version": "0.21.5",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1711,7 +1664,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1761,7 +1714,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1811,7 +1764,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1861,7 +1814,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1911,7 +1864,7 @@
       "version": "0.21.5",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -1963,7 +1916,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2013,7 +1966,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2063,7 +2016,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2113,7 +2066,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2163,7 +2116,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2213,7 +2166,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2263,7 +2216,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2313,7 +2266,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2363,7 +2316,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2413,7 +2366,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2463,7 +2416,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2513,7 +2466,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2563,7 +2516,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2613,7 +2566,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2663,7 +2616,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2713,7 +2666,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2763,7 +2716,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2813,7 +2766,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2863,7 +2816,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2913,7 +2866,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -2963,7 +2916,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3013,7 +2966,7 @@
       "version": "8.5.6",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3065,7 +3018,7 @@
       "version": "3.3.11",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3117,7 +3070,7 @@
       "version": "1.1.1",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3167,7 +3120,7 @@
       "version": "1.2.1",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3219,7 +3172,7 @@
       "version": "4.56.0",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3271,7 +3224,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3321,7 +3274,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3371,7 +3324,7 @@
       "version": "4.56.0",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3423,7 +3376,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3473,7 +3426,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3523,7 +3476,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3573,7 +3526,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3623,7 +3576,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3673,7 +3626,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3723,7 +3676,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3773,7 +3726,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3823,7 +3776,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3873,7 +3826,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3923,7 +3876,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -3973,7 +3926,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4023,7 +3976,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4073,7 +4026,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4123,7 +4076,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4173,7 +4126,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4223,7 +4176,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4273,7 +4226,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4323,7 +4276,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4373,7 +4326,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4423,7 +4376,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4473,7 +4426,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4523,7 +4476,7 @@
       "version": "1.0.8",
       "direct": false,
       "scope": "dev",
-      "depth": 4,
+      "depth": 3,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4573,7 +4526,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4623,7 +4576,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4673,7 +4626,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [
@@ -4723,7 +4676,7 @@
       "version": "unknown",
       "direct": false,
       "scope": "dev",
-      "depth": 3,
+      "depth": 2,
       "origins": {
         "rootPackageCount": 1,
         "topRootPackages": [

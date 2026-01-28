@@ -99,27 +99,92 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  generatedAt: string;
-  projectPath: string;
-  gitBranch?: string;
-  dependencyRadarVersion?: string;
-  maintenanceEnabled: boolean;
-  environment: {
-    node: {
-      runtimeVersion: string;
-      runtimeMajor: number;
-      minRequiredMajor?: number;
-      source: 'dependency-engines' | 'project-engines' | 'unknown';
-    };
+  schemaVersion: '1.0'; // Report schema version for compatibility checks
+  generatedAt: string; // ISO timestamp when the scan finished
+  dependencyRadarVersion: string; // CLI version that produced the report
+  git: {
+    branch: string; // Git branch name, empty when unavailable/detached
   };
-  dependencies: DependencyRecord[];
-  toolErrors: Record<string, string>;
-  raw: RawOutputs;
-  importAnalysis?: ImportAnalysisSummary;
+  project: {
+    projectDir: string; // Project path relative to the user's home directory (e.g. /Developer/app)
+  };
+  environment: {
+    nodeVersion: string; // Node.js version from process.versions.node
+    runtimeVersion: string; // Node.js runtime version from process.version
+    minRequiredMajor: number; // Strictest Node major required by dependency engines (0 if unknown)
+  };
+  workspaces: {
+    enabled: boolean; // True when the scan used workspace aggregation
+  };
+  summary: {
+    dependencyCount: number; // Total dependencies in the graph
+    directCount: number; // Dependencies listed in package.json
+    transitiveCount: number; // Dependencies pulled in by other dependencies
+  };
+  dependencies: Record<string, DependencyRecord>; // Keyed by name@version
+}
+
+export interface DependencyRecord {
+  id: string; // Stable identifier in the form name@version
+  name: string; // Package name from npm metadata
+  version: string; // Installed version from npm ls
+  direct: boolean; // True if declared in package.json (dependencies/devDependencies/etc.)
+  scope: 'runtime' | 'dev' | 'optional' | 'peer'; // Scope inferred from the declaring root package(s)
+  depth: number; // Minimum dependency tree depth observed in npm ls
+  origins: {
+    rootPackageCount: number; // Number of direct roots that introduce this dependency
+    topRootPackages: string[]; // Up to 10 root package names that cause installation
+    workspaces?: string[]; // Workspace packages that declare/use this dependency
+  };
+  license: string; // License string read from the installed package.json
+  licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from license string
+  vulnerabilities: {
+    critical: number; // npm audit counts for critical issues
+    high: number; // npm audit counts for high issues
+    moderate: number; // npm audit counts for moderate issues
+    low: number; // npm audit counts for low issues
+    highest: 'low' | 'moderate' | 'high' | 'critical' | 'none'; // Highest severity present
+  };
+  vulnRisk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
+  deprecated: boolean; // True if the package.json has a deprecated flag
+  nodeEngine: string | null; // engines.node from the package.json (if present)
+  build: {
+    native: boolean; // True if native bindings detected (gyp/.node/scripts)
+    installScripts: boolean; // True if preinstall/install/postinstall scripts are present
+    risk: 'green' | 'amber' | 'red'; // Build risk derived from native/scripts flags
+  };
+  tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown'; // TypeScript type availability
+  dependencySurface: {
+    deps: number; // Count of production dependencies declared by this package
+    dev: number; // Count of dev dependencies declared by this package
+    peer: number; // Count of peer dependencies declared by this package
+    opt: number; // Count of optional dependencies declared by this package
+  };
+  graph: {
+    fanIn: number; // Number of packages that depend on this package
+    fanOut: number; // Number of packages this package depends on
+  };
+  links: {
+    npm: string; // npm package page URL
+  };
+  usage?: {
+    fileCount: number; // Number of project files importing this package (import graph)
+    topFiles: string[]; // Top import locations (bounded to 5)
+  };
+  introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown'; // Heuristic for why the dependency exists
+  runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed'; // Heuristic based on import locations
+  upgrade?: {
+    blocksNodeMajor: boolean; // True if local signals indicate a node major bump is risky
+    blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; // Reasons for upgrade friction
+  };
+  outdated?: {
+    status: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (or unknown if ambiguous)
+    latestVersion?: string; // npm latest version (present only when status is not current)
+  };
 }
 ```
 
-For full details on `DependencyRecord`, `RawOutputs`, and related types, see `src/types.ts`.
+For full details and any future changes, see `src/types.ts`.
 
 ## Development
 
@@ -149,4 +214,3 @@ This opens the report UI in your browser with sample data covering all dependenc
 - `report-ui/sample-data.json` – Sample data for development
 - `report-ui/types.ts` – Client-side TypeScript types
 - `src/report-assets.ts` – Auto-generated file with bundled CSS/JS (do not edit directly)
-
