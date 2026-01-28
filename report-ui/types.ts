@@ -2,6 +2,7 @@
 // These are used for the report UI rendering
 
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
+export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
 
 export interface DependencyObject {
   id: string;
@@ -55,6 +56,10 @@ export interface DependencyObject {
   upgrade?: {
     blocksNodeMajor: boolean;
     blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+  };
+  outdated?: {
+    status: OutdatedStatus;
+    latestVersion?: string;
   };
 }
 

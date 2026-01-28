@@ -1,0 +1,20 @@
+{
+  "@types/node": {
+    "current": "20.19.30",
+    "wanted": "20.19.30",
+    "latest": "25.1.0",
+    "dependent": "dependency-radar",
+    "location": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@types/node",
+    "type": "devDependencies",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node"
+  },
+  "vite": {
+    "current": "5.4.21",
+    "wanted": "5.4.21",
+    "latest": "7.3.1",
+    "dependent": "dependency-radar",
+    "location": "/Users/josephmaynard/Developer/dependency-radar/node_modules/vite",
+    "type": "devDependencies",
+    "homepage": "https://vite.dev"
+  }
+}

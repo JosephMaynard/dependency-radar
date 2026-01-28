@@ -9,6 +9,7 @@ const aggregator_1 = require("./aggregator");
 const importGraphRunner_1 = require("./runners/importGraphRunner");
 const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
+const npmOutdated_1 = require("./runners/npmOutdated");
 const report_1 = require("./report");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
@@ -215,6 +216,123 @@ function mergeAuditResults(results) {
     }
     return base;
 }
+function collectDeclaredDeps(pkg) {
+    const out = new Set();
+    const sections = [
+        pkg === null || pkg === void 0 ? void 0 : pkg.dependencies,
+        pkg === null || pkg === void 0 ? void 0 : pkg.devDependencies,
+        pkg === null || pkg === void 0 ? void 0 : pkg.optionalDependencies,
+        pkg === null || pkg === void 0 ? void 0 : pkg.peerDependencies
+    ];
+    for (const deps of sections) {
+        if (deps && typeof deps === 'object') {
+            Object.keys(deps).forEach((name) => out.add(name));
+        }
+    }
+    return Array.from(out);
+}
+function parseOutdatedData(data, unknownNames) {
+    const entries = [];
+    if (!data || typeof data !== 'object')
+        return entries;
+    for (const [name, info] of Object.entries(data)) {
+        if (!info || typeof info !== 'object') {
+            unknownNames.add(name);
+            continue;
+        }
+        const current = typeof info.current === 'string' ? info.current : '';
+        const latest = typeof info.latest === 'string' ? info.latest : undefined;
+        const type = typeof info.type === 'string' ? info.type.toLowerCase() : '';
+        if (!current) {
+            unknownNames.add(name);
+            continue;
+        }
+        let status = 'unknown';
+        if (type === 'patch' || type === 'minor' || type === 'major') {
+            status = type;
+        }
+        else if (latest) {
+            status = classifyOutdated(current, latest);
+        }
+        if (status === 'current')
+            continue;
+        if (status === 'major' || status === 'minor' || status === 'patch') {
+            if (latest) {
+                entries.push({ name, currentVersion: current, status, latestVersion: latest });
+            }
+            else {
+                entries.push({ name, currentVersion: current, status: 'unknown' });
+            }
+            continue;
+        }
+        entries.push({ name, currentVersion: current, status: 'unknown' });
+    }
+    return entries;
+}
+function parseSimpleVersion(value) {
+    if (!value || typeof value !== 'string')
+        return undefined;
+    const trimmed = value.trim();
+    if (!trimmed)
+        return undefined;
+    if (trimmed.includes('-') || trimmed.includes('+'))
+        return undefined;
+    const match = trimmed.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+    if (!match)
+        return undefined;
+    const major = Number.parseInt(match[1], 10);
+    const minor = Number.parseInt(match[2], 10);
+    const patch = Number.parseInt(match[3], 10);
+    if ([major, minor, patch].some((n) => Number.isNaN(n)))
+        return undefined;
+    return { major, minor, patch };
+}
+function classifyOutdated(current, latest) {
+    const currentVer = parseSimpleVersion(current);
+    const latestVer = parseSimpleVersion(latest);
+    if (!currentVer || !latestVer)
+        return 'unknown';
+    if (currentVer.major !== latestVer.major)
+        return 'major';
+    if (currentVer.minor !== latestVer.minor)
+        return 'minor';
+    if (currentVer.patch !== latestVer.patch)
+        return 'patch';
+    return 'current';
+}
+function mergeOutdatedResults(packageMetas, results) {
+    const entries = [];
+    const unknownNames = new Set();
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const meta = packageMetas[i];
+        if (!result || !result.ok || !result.data || typeof result.data !== 'object') {
+            const declared = collectDeclaredDeps(meta === null || meta === void 0 ? void 0 : meta.pkg);
+            declared.forEach((name) => unknownNames.add(name));
+            continue;
+        }
+        entries.push(...parseOutdatedData(result.data, unknownNames));
+    }
+    if (entries.length === 0 && unknownNames.size === 0) {
+        return undefined;
+    }
+    const merged = new Map();
+    for (const entry of entries) {
+        const key = `${entry.name}@${entry.currentVersion}`;
+        const existing = merged.get(key);
+        if (!existing) {
+            merged.set(key, entry);
+            continue;
+        }
+        if (existing.status !== entry.status || existing.latestVersion !== entry.latestVersion) {
+            merged.set(key, { name: entry.name, currentVersion: entry.currentVersion, status: 'unknown' });
+        }
+    }
+    return {
+        entries: Array.from(merged.values()),
+        unknownNames: Array.from(unknownNames)
+    };
+}
 function mergeImportGraphs(rootPath, packageMetas, graphs) {
     const files = {};
     const packages = {};
@@ -420,22 +538,28 @@ async function run() {
         const perPackageAudit = [];
         const perPackageLs = [];
         const perPackageImportGraph = [];
+        const perPackageOutdated = [];
         for (const meta of packageMetas) {
             const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
             await (0, utils_1.ensureDir)(pkgTempDir);
-            const [a, l, ig] = await Promise.all([
+            const [a, l, ig, o] = await Promise.all([
                 opts.audit ? (0, npmAudit_1.runNpmAudit)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
-                (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) }))
+                (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
+                (0, npmOutdated_1.runNpmOutdated)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) }))
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
             perPackageImportGraph.push(ig);
+            perPackageOutdated.push(o);
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
-        const mergedLsData = buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+        const mergedLsData = workspace.type === 'none'
+            ? (perPackageLs[0] && perPackageLs[0].ok ? perPackageLs[0].data : undefined)
+            : buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
         const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+        const outdatedResult = mergeOutdatedResults(packageMetas, perPackageOutdated);
         const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
         const npmLsResult = { ok: true, data: mergedLsData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
@@ -453,6 +577,7 @@ async function run() {
             auditResult,
             npmLsResult,
             importGraphResult,
+            outdatedResult,
             pkgOverride: mergedPkgForAggregator,
             workspaceUsage,
             workspaceEnabled: workspace.type !== 'none',

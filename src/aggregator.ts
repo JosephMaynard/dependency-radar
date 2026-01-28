@@ -1,6 +1,7 @@
 import {
   AggregatedData,
   DependencyObject,
+  OutdatedResult,
   Severity,
   ToolResult,
   VulnerabilitySummary
@@ -22,6 +23,7 @@ interface AggregateInput {
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
   importGraphResult?: ToolResult<any>;
+  outdatedResult?: OutdatedResult;
   // Optional: allow CLI to pass a merged view of workspace package.json dependencies
   pkgOverride?: any;
   // Map dependency name -> workspace package names where it is used/declared
@@ -104,6 +106,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
   const importGraph = normalizeImportGraph(input.importGraphResult?.data);
   const usageResult = buildUsageSummary(importGraph, input.projectPath);
+  const outdatedById = buildOutdatedMap(input.outdatedResult);
+  const outdatedUnknownNames = new Set(input.outdatedResult?.unknownNames || []);
   const packageMetaCache = new Map<string, PackageMeta>();
   const packageStatCache = new Map<string, PackageStats>();
 
@@ -151,6 +155,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const buildRisk = determineBuildRisk(packageInsights.build.native, packageInsights.build.installScripts);
     const id = node.key;
     const upgrade = buildUpgradeBlock(packageInsights);
+    const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
 
     dependencies[id] = {
       id,
@@ -189,7 +194,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       ...(usage ? { usage } : {}),
       ...(introduction ? { introduction } : {}),
       ...(runtimeImpact ? { runtimeImpact } : {}),
-      ...(upgrade ? { upgrade } : {})
+      ...(upgrade ? { upgrade } : {}),
+      ...(outdated ? { outdated } : {})
     };
 
   }
@@ -341,6 +347,47 @@ function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
   }
 
   return map;
+}
+
+function buildOutdatedMap(outdatedResult?: OutdatedResult): Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }> {
+  const map = new Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }>();
+  if (!outdatedResult || !Array.isArray(outdatedResult.entries)) return map;
+  for (const entry of outdatedResult.entries) {
+    if (!entry || typeof entry.name !== 'string' || typeof entry.currentVersion !== 'string') continue;
+    const key = `${entry.name}@${entry.currentVersion}`;
+    if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
+      if (entry.latestVersion) {
+        map.set(key, { status: entry.status, latestVersion: entry.latestVersion });
+      } else {
+        map.set(key, { status: 'unknown' });
+      }
+      continue;
+    }
+    map.set(key, { status: 'unknown' });
+  }
+  return map;
+}
+
+function resolveOutdated(
+  node: NodeInfo,
+  direct: boolean,
+  outdatedById: Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }>,
+  unknownNames: Set<string>
+): DependencyObject['outdated'] | undefined {
+  const entry = outdatedById.get(node.key);
+  if (entry) {
+    if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
+      if (entry.latestVersion) {
+        return { status: entry.status, latestVersion: entry.latestVersion };
+      }
+      return { status: 'unknown' };
+    }
+    return { status: 'unknown' };
+  }
+  if (direct && unknownNames.has(node.name)) {
+    return { status: 'unknown' };
+  }
+  return undefined;
 }
 
 function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary> {

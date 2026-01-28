@@ -4,8 +4,9 @@ import { aggregateData } from './aggregator';
 import { runImportGraph } from './runners/importGraphRunner';
 import { runNpmAudit } from './runners/npmAudit';
 import { runNpmLs } from './runners/npmLs';
+import { runNpmOutdated } from './runners/npmOutdated';
 import { renderReport } from './report';
-import type { ToolResult } from './types';
+import type { OutdatedEntry, OutdatedResult, ToolResult } from './types';
 import fs from 'fs/promises';
 import { ensureDir, removeDir } from './utils';
 
@@ -231,6 +232,126 @@ function mergeAuditResults(results: Array<any | undefined>): any | undefined {
   return base;
 }
 
+function collectDeclaredDeps(pkg: any): string[] {
+  const out = new Set<string>();
+  const sections = [
+    pkg?.dependencies,
+    pkg?.devDependencies,
+    pkg?.optionalDependencies,
+    pkg?.peerDependencies
+  ];
+  for (const deps of sections) {
+    if (deps && typeof deps === 'object') {
+      Object.keys(deps).forEach((name) => out.add(name));
+    }
+  }
+  return Array.from(out);
+}
+
+function parseOutdatedData(data: any, unknownNames: Set<string>): OutdatedEntry[] {
+  const entries: OutdatedEntry[] = [];
+  if (!data || typeof data !== 'object') return entries;
+  for (const [name, info] of Object.entries<any>(data)) {
+    if (!info || typeof info !== 'object') {
+      unknownNames.add(name);
+      continue;
+    }
+    const current = typeof info.current === 'string' ? info.current : '';
+    const latest = typeof info.latest === 'string' ? info.latest : undefined;
+    const type = typeof info.type === 'string' ? info.type.toLowerCase() : '';
+    if (!current) {
+      unknownNames.add(name);
+      continue;
+    }
+    let status: 'patch' | 'minor' | 'major' | 'unknown' | 'current' = 'unknown';
+    if (type === 'patch' || type === 'minor' || type === 'major') {
+      status = type;
+    } else if (latest) {
+      status = classifyOutdated(current, latest);
+    }
+
+    if (status === 'current') continue;
+    if (status === 'major' || status === 'minor' || status === 'patch') {
+      if (latest) {
+        entries.push({ name, currentVersion: current, status, latestVersion: latest });
+      } else {
+        entries.push({ name, currentVersion: current, status: 'unknown' });
+      }
+      continue;
+    }
+    entries.push({ name, currentVersion: current, status: 'unknown' });
+  }
+  return entries;
+}
+
+function parseSimpleVersion(value: string): { major: number; minor: number; patch: number } | undefined {
+  if (!value || typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.includes('-') || trimmed.includes('+')) return undefined;
+  const match = trimmed.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return undefined;
+  const major = Number.parseInt(match[1], 10);
+  const minor = Number.parseInt(match[2], 10);
+  const patch = Number.parseInt(match[3], 10);
+  if ([major, minor, patch].some((n) => Number.isNaN(n))) return undefined;
+  return { major, minor, patch };
+}
+
+function classifyOutdated(
+  current: string,
+  latest: string
+): 'major' | 'minor' | 'patch' | 'current' | 'unknown' {
+  const currentVer = parseSimpleVersion(current);
+  const latestVer = parseSimpleVersion(latest);
+  if (!currentVer || !latestVer) return 'unknown';
+  if (currentVer.major !== latestVer.major) return 'major';
+  if (currentVer.minor !== latestVer.minor) return 'minor';
+  if (currentVer.patch !== latestVer.patch) return 'patch';
+  return 'current';
+}
+
+function mergeOutdatedResults(
+  packageMetas: Array<{ pkg: any }>,
+  results: Array<ToolResult<any> | undefined>
+): OutdatedResult | undefined {
+  const entries: OutdatedEntry[] = [];
+  const unknownNames = new Set<string>();
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const meta = packageMetas[i];
+    if (!result || !result.ok || !result.data || typeof result.data !== 'object') {
+      const declared = collectDeclaredDeps(meta?.pkg);
+      declared.forEach((name) => unknownNames.add(name));
+      continue;
+    }
+    entries.push(...parseOutdatedData(result.data, unknownNames));
+  }
+
+  if (entries.length === 0 && unknownNames.size === 0) {
+    return undefined;
+  }
+
+  const merged = new Map<string, OutdatedEntry>();
+  for (const entry of entries) {
+    const key = `${entry.name}@${entry.currentVersion}`;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, entry);
+      continue;
+    }
+    if (existing.status !== entry.status || existing.latestVersion !== entry.latestVersion) {
+      merged.set(key, { name: entry.name, currentVersion: entry.currentVersion, status: 'unknown' });
+    }
+  }
+
+  return {
+    entries: Array.from(merged.values()),
+    unknownNames: Array.from(unknownNames)
+  };
+}
+
 function mergeImportGraphs(rootPath: string, packageMetas: Array<{ path: string; name: string }>, graphs: Array<any | undefined>): any {
   const files: Record<string, string[]> = {};
   const packages: Record<string, string[]> = {};
@@ -451,24 +572,30 @@ async function run(): Promise<void> {
     const perPackageAudit: Array<ToolResult<any> | undefined> = [];
     const perPackageLs: Array<ToolResult<any>> = [];
     const perPackageImportGraph: Array<ToolResult<any>> = [];
+    const perPackageOutdated: Array<ToolResult<any> | undefined> = [];
 
     for (const meta of packageMetas) {
       const pkgTempDir = path.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
       await ensureDir(pkgTempDir);
-      const [a, l, ig] = await Promise.all([
+      const [a, l, ig, o] = await Promise.all([
         opts.audit ? runNpmAudit(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
         runNpmLs(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
-        runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
+        runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
+        runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
       perPackageImportGraph.push(ig);
+      perPackageOutdated.push(o);
     }
 
     const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
-    const mergedLsData = buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+    const mergedLsData = workspace.type === 'none'
+      ? (perPackageLs[0] && perPackageLs[0].ok ? perPackageLs[0].data : undefined)
+      : buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
     const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
     const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+    const outdatedResult = mergeOutdatedResults(packageMetas, perPackageOutdated);
 
     const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
     const npmLsResult = { ok: true, data: mergedLsData };
@@ -490,6 +617,7 @@ async function run(): Promise<void> {
       auditResult,
       npmLsResult,
       importGraphResult,
+      outdatedResult,
       pkgOverride: mergedPkgForAggregator,
       workspaceUsage,
       workspaceEnabled: workspace.type !== 'none',

@@ -10,6 +10,7 @@
       "src/runners/importGraphRunner.ts",
       "src/runners/npmAudit.ts",
       "src/runners/npmLs.ts",
+      "src/runners/npmOutdated.ts",
       "src/types.ts",
       "src/utils.ts"
     ],
@@ -34,6 +35,10 @@
       "src/types.ts",
       "src/utils.ts"
     ],
+    "src/runners/npmOutdated.ts": [
+      "src/types.ts",
+      "src/utils.ts"
+    ],
     "src/types.ts": [],
     "src/utils.ts": []
   },
@@ -46,6 +51,7 @@
     "src/runners/importGraphRunner.ts": [],
     "src/runners/npmAudit.ts": [],
     "src/runners/npmLs.ts": [],
+    "src/runners/npmOutdated.ts": [],
     "src/types.ts": [],
     "src/utils.ts": []
   },
@@ -58,6 +64,7 @@
     "src/runners/importGraphRunner.ts": {},
     "src/runners/npmAudit.ts": {},
     "src/runners/npmLs.ts": {},
+    "src/runners/npmOutdated.ts": {},
     "src/types.ts": {},
     "src/utils.ts": {}
   },

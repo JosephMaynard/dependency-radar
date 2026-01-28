@@ -1,4 +1,5 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
+export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
 
 export interface VulnerabilitySummary {
   counts: Record<Severity, number>;
@@ -66,6 +67,10 @@ export interface DependencyObject {
     blocksNodeMajor: boolean;
     blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
   };
+  outdated?: {
+    status: OutdatedStatus;
+    latestVersion?: string;
+  };
 }
 
 export interface ToolResult<T> {
@@ -73,6 +78,18 @@ export interface ToolResult<T> {
   data?: T;
   error?: string;
   file?: string;
+}
+
+export interface OutdatedEntry {
+  name: string;
+  currentVersion: string;
+  status: Exclude<OutdatedStatus, 'current'>;
+  latestVersion?: string;
+}
+
+export interface OutdatedResult {
+  entries: OutdatedEntry[];
+  unknownNames: string[];
 }
 
 export interface AggregatedData {

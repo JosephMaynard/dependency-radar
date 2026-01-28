@@ -59,7 +59,7 @@ function hashProjectPath(projectPath) {
     return crypto_1.default.createHash('sha256').update(projectPath).digest('hex');
 }
 async function aggregateData(input) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
@@ -67,6 +67,8 @@ async function aggregateData(input) {
     const vulnMap = parseVulnerabilities((_b = input.auditResult) === null || _b === void 0 ? void 0 : _b.data);
     const importGraph = normalizeImportGraph((_c = input.importGraphResult) === null || _c === void 0 ? void 0 : _c.data);
     const usageResult = buildUsageSummary(importGraph, input.projectPath);
+    const outdatedById = buildOutdatedMap(input.outdatedResult);
+    const outdatedUnknownNames = new Set(((_d = input.outdatedResult) === null || _d === void 0 ? void 0 : _d.unknownNames) || []);
     const packageMetaCache = new Map();
     const packageStatCache = new Map();
     const dependencies = {};
@@ -100,10 +102,11 @@ async function aggregateData(input) {
         const usage = usageResult.summary.get(node.name);
         const runtimeImpact = usageResult.runtimeImpact.get(node.name);
         const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
-        const origins = buildOrigins(rootCauses, (_d = input.workspaceUsage) === null || _d === void 0 ? void 0 : _d.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
+        const origins = buildOrigins(rootCauses, (_e = input.workspaceUsage) === null || _e === void 0 ? void 0 : _e.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
         const buildRisk = determineBuildRisk(packageInsights.build.native, packageInsights.build.installScripts);
         const id = node.key;
         const upgrade = buildUpgradeBlock(packageInsights);
+        const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
         dependencies[id] = {
             id,
             name: node.name,
@@ -141,7 +144,8 @@ async function aggregateData(input) {
             ...(usage ? { usage } : {}),
             ...(introduction ? { introduction } : {}),
             ...(runtimeImpact ? { runtimeImpact } : {}),
-            ...(upgrade ? { upgrade } : {})
+            ...(upgrade ? { upgrade } : {}),
+            ...(outdated ? { outdated } : {})
         };
     }
     const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
@@ -297,6 +301,43 @@ function buildNodeMap(lsData, pkg) {
         });
     }
     return map;
+}
+function buildOutdatedMap(outdatedResult) {
+    const map = new Map();
+    if (!outdatedResult || !Array.isArray(outdatedResult.entries))
+        return map;
+    for (const entry of outdatedResult.entries) {
+        if (!entry || typeof entry.name !== 'string' || typeof entry.currentVersion !== 'string')
+            continue;
+        const key = `${entry.name}@${entry.currentVersion}`;
+        if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
+            if (entry.latestVersion) {
+                map.set(key, { status: entry.status, latestVersion: entry.latestVersion });
+            }
+            else {
+                map.set(key, { status: 'unknown' });
+            }
+            continue;
+        }
+        map.set(key, { status: 'unknown' });
+    }
+    return map;
+}
+function resolveOutdated(node, direct, outdatedById, unknownNames) {
+    const entry = outdatedById.get(node.key);
+    if (entry) {
+        if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
+            if (entry.latestVersion) {
+                return { status: entry.status, latestVersion: entry.latestVersion };
+            }
+            return { status: 'unknown' };
+        }
+        return { status: 'unknown' };
+    }
+    if (direct && unknownNames.has(node.name)) {
+        return { status: 'unknown' };
+    }
+    return undefined;
 }
 function parseVulnerabilities(auditData) {
     const map = new Map();
