@@ -49,5 +49,17 @@
     "src/types.ts": [],
     "src/utils.ts": []
   },
+  "packageCounts": {
+    "src/aggregator.ts": {},
+    "src/cli.ts": {},
+    "src/index.ts": {},
+    "src/report-assets.ts": {},
+    "src/report.ts": {},
+    "src/runners/importGraphRunner.ts": {},
+    "src/runners/npmAudit.ts": {},
+    "src/runners/npmLs.ts": {},
+    "src/types.ts": {},
+    "src/utils.ts": {}
+  },
   "unresolvedImports": []
 }

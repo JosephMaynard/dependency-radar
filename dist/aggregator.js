@@ -59,12 +59,14 @@ function hashProjectPath(projectPath) {
     return crypto_1.default.createHash('sha256').update(projectPath).digest('hex');
 }
 async function aggregateData(input) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
     const nodeMap = buildNodeMap((_a = input.npmLsResult) === null || _a === void 0 ? void 0 : _a.data, pkg);
     const vulnMap = parseVulnerabilities((_b = input.auditResult) === null || _b === void 0 ? void 0 : _b.data);
+    const importGraph = normalizeImportGraph((_c = input.importGraphResult) === null || _c === void 0 ? void 0 : _c.data);
+    const usageResult = buildUsageSummary(importGraph, input.projectPath);
     const packageMetaCache = new Map();
     const packageStatCache = new Map();
     const dependencies = {};
@@ -95,9 +97,13 @@ async function aggregateData(input) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
         }
         const scope = determineScope(node.name, direct, rootCauses, pkg);
-        const origins = buildOrigins(rootCauses, (_c = input.workspaceUsage) === null || _c === void 0 ? void 0 : _c.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
+        const usage = usageResult.summary.get(node.name);
+        const runtimeImpact = usageResult.runtimeImpact.get(node.name);
+        const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
+        const origins = buildOrigins(rootCauses, (_d = input.workspaceUsage) === null || _d === void 0 ? void 0 : _d.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
         const buildRisk = determineBuildRisk(packageInsights.build.native, packageInsights.build.installScripts);
         const id = node.key;
+        const upgrade = buildUpgradeBlock(packageInsights);
         dependencies[id] = {
             id,
             name: node.name,
@@ -131,7 +137,11 @@ async function aggregateData(input) {
             },
             links: {
                 npm: `https://www.npmjs.com/package/${node.name}`
-            }
+            },
+            ...(usage ? { usage } : {}),
+            ...(introduction ? { introduction } : {}),
+            ...(runtimeImpact ? { runtimeImpact } : {}),
+            ...(upgrade ? { upgrade } : {})
         };
     }
     const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
@@ -355,6 +365,81 @@ function computeHighestSeverity(counts) {
         return 'low';
     return 'none';
 }
+function normalizeImportGraph(data) {
+    if (data && typeof data === 'object' && data.packages) {
+        return {
+            packages: data.packages || {},
+            packageCounts: data.packageCounts || {}
+        };
+    }
+    return { packages: {} };
+}
+function normalizeImportPath(file, projectPath) {
+    if (!file || typeof file !== 'string')
+        return undefined;
+    if (file.includes('node_modules'))
+        return undefined;
+    let relativePath = file;
+    if (path_1.default.isAbsolute(file)) {
+        relativePath = path_1.default.relative(projectPath, file);
+    }
+    if (!relativePath)
+        return undefined;
+    const trimmed = relativePath.replace(/^[.][\\/]/, '');
+    const normalized = trimmed.replace(/\\/g, '/');
+    if (!normalized || normalized.startsWith('..'))
+        return undefined;
+    if (normalized.includes('node_modules'))
+        return undefined;
+    return normalized;
+}
+function buildUsageSummary(graph, projectPath) {
+    var _a;
+    const summary = new Map();
+    const runtimeImpact = new Map();
+    const byDep = new Map();
+    const packages = graph.packages || {};
+    for (const [file, deps] of Object.entries(packages)) {
+        if (!Array.isArray(deps) || deps.length === 0)
+            continue;
+        const normalizedFile = normalizeImportPath(file, projectPath);
+        if (!normalizedFile)
+            continue;
+        const counts = ((_a = graph.packageCounts) === null || _a === void 0 ? void 0 : _a[file]) || {};
+        const uniqueDeps = new Set(deps.filter((dep) => typeof dep === 'string' && dep));
+        for (const dep of uniqueDeps) {
+            if (!byDep.has(dep))
+                byDep.set(dep, new Map());
+            const fileMap = byDep.get(dep);
+            const count = typeof counts[dep] === 'number' ? counts[dep] : 1;
+            fileMap.set(normalizedFile, count);
+        }
+    }
+    for (const [dep, fileMap] of byDep.entries()) {
+        const entries = Array.from(fileMap.entries()).map(([file, count]) => ({
+            file,
+            count,
+            depth: file.split('/').length,
+            isTest: isTestFile(file)
+        }));
+        // Rank: prefer non-test files, then higher import counts, then closer to root.
+        entries.sort((a, b) => {
+            if (a.isTest !== b.isTest)
+                return a.isTest ? 1 : -1;
+            if (b.count !== a.count)
+                return b.count - a.count;
+            if (a.depth !== b.depth)
+                return a.depth - b.depth;
+            return a.file.localeCompare(b.file);
+        });
+        summary.set(dep, {
+            fileCount: fileMap.size,
+            topFiles: entries.slice(0, 5).map((entry) => entry.file)
+        });
+        runtimeImpact.set(dep, determineRuntimeImpactFromFiles(Array.from(fileMap.keys())));
+    }
+    return { summary, runtimeImpact };
+}
 function isDirectDependency(name, pkg) {
     return Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
 }
@@ -405,6 +490,112 @@ function determineBuildRisk(hasNative, hasInstallScripts) {
     if (hasNative || hasInstallScripts)
         return 'amber';
     return 'green';
+}
+function isTestFile(file) {
+    return /(^|\/)(__tests__|__mocks__|test|tests)(\/|$)/.test(file) || /\.(test|spec)\./.test(file);
+}
+function isToolingFile(file) {
+    return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky)[^\/]*\./.test(file);
+}
+function isBuildFile(file) {
+    return /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind)[^\/]*\./.test(file);
+}
+function determineRuntimeImpactFromFiles(files) {
+    const categories = new Set();
+    for (const file of files) {
+        if (isTestFile(file)) {
+            categories.add('testing');
+        }
+        else if (isToolingFile(file)) {
+            categories.add('tooling');
+        }
+        else if (isBuildFile(file)) {
+            categories.add('build');
+        }
+        else {
+            categories.add('runtime');
+        }
+    }
+    if (categories.size === 0)
+        return 'runtime';
+    if (categories.size > 1)
+        return 'mixed';
+    return Array.from(categories)[0];
+}
+const TOOLING_PACKAGES = new Set([
+    'eslint',
+    'prettier',
+    'ts-node',
+    'typescript',
+    'babel',
+    '@babel/core',
+    'rollup',
+    'webpack',
+    'vite',
+    'parcel',
+    'swc',
+    '@swc/core',
+    'ts-jest',
+    'eslint-config-prettier',
+    'eslint-plugin-import',
+    'lint-staged',
+    'husky'
+]);
+const FRAMEWORK_PACKAGES = new Set([
+    'next',
+    'react-scripts',
+    '@angular/core',
+    '@angular/cli',
+    'vue',
+    'nuxt',
+    'svelte',
+    '@sveltejs/kit',
+    'gatsby',
+    'ember-cli',
+    'remix',
+    'expo'
+]);
+function isToolingPackage(name) {
+    if (TOOLING_PACKAGES.has(name))
+        return true;
+    if (name.startsWith('@typescript-eslint/'))
+        return true;
+    if (name.startsWith('eslint-'))
+        return true;
+    return false;
+}
+function isFrameworkPackage(name) {
+    return FRAMEWORK_PACKAGES.has(name);
+}
+// Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
+function determineIntroduction(direct, rootCauses, runtimeImpact) {
+    if (direct)
+        return 'direct';
+    if (runtimeImpact === 'testing')
+        return 'testing';
+    if (rootCauses.length > 0 && rootCauses.every((root) => isToolingPackage(root)))
+        return 'tooling';
+    if (rootCauses.some((root) => isFrameworkPackage(root)))
+        return 'framework';
+    if (rootCauses.length > 0)
+        return 'transitive';
+    return 'unknown';
+}
+// Upgrade blockers derived only from local metadata (no external lookups).
+function buildUpgradeBlock(insights) {
+    const blockers = [];
+    if (insights.nodeEngine)
+        blockers.push('nodeEngine');
+    if (insights.dependencySurface.peer > 0)
+        blockers.push('peerDependency');
+    if (insights.build.native)
+        blockers.push('nativeBindings');
+    if (insights.deprecated)
+        blockers.push('deprecated');
+    return {
+        blocksNodeMajor: blockers.length > 0,
+        blockers
+    };
 }
 async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
     var _a;

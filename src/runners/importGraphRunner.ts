@@ -16,6 +16,7 @@ export async function runImportGraph(projectPath: string, tempDir: string): Prom
     const files = await collectSourceFiles(entry);
     const fileGraph: Record<string, string[]> = {};
     const packageGraph: Record<string, string[]> = {};
+    const packageCounts: Record<string, Record<string, number>> = {};
     const unresolvedImports: Array<{ importer: string; specifier: string }> = [];
 
     for (const file of files) {
@@ -25,10 +26,11 @@ export async function runImportGraph(projectPath: string, tempDir: string): Prom
       const resolved = await resolveImports(imports, path.dirname(file), projectPath);
       fileGraph[rel] = resolved.files;
       packageGraph[rel] = resolved.packages;
+      packageCounts[rel] = resolved.packageCounts;
       unresolvedImports.push(...resolved.unresolved.map((spec) => ({ importer: rel, specifier: spec })));
     }
 
-    const output = { files: fileGraph, packages: packageGraph, unresolvedImports };
+    const output = { files: fileGraph, packages: packageGraph, packageCounts, unresolvedImports };
     await writeJsonFile(targetFile, output);
     return { ok: true, data: output, file: targetFile };
   } catch (err: any) {
@@ -61,7 +63,7 @@ async function collectSourceFiles(rootDir: string): Promise<string[]> {
 }
 
 function extractImports(content: string): string[] {
-  const matches = new Set<string>();
+  const matches: string[] = [];
   const patterns = [
     /\bimport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
     /\bexport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
@@ -72,20 +74,21 @@ function extractImports(content: string): string[] {
   for (const pattern of patterns) {
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(content)) !== null) {
-      if (match[1]) matches.add(match[1]);
+      if (match[1]) matches.push(match[1]);
     }
   }
 
-  return Array.from(matches);
+  return matches;
 }
 
 async function resolveImports(
   specifiers: string[],
   fileDir: string,
   projectPath: string
-): Promise<{ files: string[]; packages: string[]; unresolved: string[] }> {
+): Promise<{ files: string[]; packages: string[]; packageCounts: Record<string, number>; unresolved: string[] }> {
   const resolvedFiles: string[] = [];
   const resolvedPackages: string[] = [];
+  const packageCounts: Record<string, number> = {};
   const unresolved: string[] = [];
   for (const spec of specifiers) {
     if (isBuiltinModule(spec)) continue;
@@ -97,12 +100,15 @@ async function resolveImports(
         unresolved.push(spec);
       }
     } else {
-      resolvedPackages.push(toPackageName(spec));
+      const pkgName = toPackageName(spec);
+      resolvedPackages.push(pkgName);
+      packageCounts[pkgName] = (packageCounts[pkgName] || 0) + 1;
     }
   }
   return {
     files: uniqSorted(resolvedFiles),
     packages: uniqSorted(resolvedPackages),
+    packageCounts,
     unresolved: uniqSorted(unresolved)
   };
 }

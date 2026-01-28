@@ -21,6 +21,7 @@ interface AggregateInput {
   projectPath: string;
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
+  importGraphResult?: ToolResult<any>;
   // Optional: allow CLI to pass a merged view of workspace package.json dependencies
   pkgOverride?: any;
   // Map dependency name -> workspace package names where it is used/declared
@@ -101,6 +102,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
   const nodeMap = buildNodeMap(input.npmLsResult?.data, pkg);
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
+  const importGraph = normalizeImportGraph(input.importGraphResult?.data);
+  const usageResult = buildUsageSummary(importGraph, input.projectPath);
   const packageMetaCache = new Map<string, PackageMeta>();
   const packageStatCache = new Map<string, PackageStats>();
 
@@ -141,9 +144,13 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     }
 
     const scope = determineScope(node.name, direct, rootCauses, pkg);
+    const usage = usageResult.summary.get(node.name);
+    const runtimeImpact = usageResult.runtimeImpact.get(node.name);
+    const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
     const origins = buildOrigins(rootCauses, input.workspaceUsage?.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
     const buildRisk = determineBuildRisk(packageInsights.build.native, packageInsights.build.installScripts);
     const id = node.key;
+    const upgrade = buildUpgradeBlock(packageInsights);
 
     dependencies[id] = {
       id,
@@ -178,7 +185,11 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       },
       links: {
         npm: `https://www.npmjs.com/package/${node.name}`
-      }
+      },
+      ...(usage ? { usage } : {}),
+      ...(introduction ? { introduction } : {}),
+      ...(runtimeImpact ? { runtimeImpact } : {}),
+      ...(upgrade ? { upgrade } : {})
     };
 
   }
@@ -400,6 +411,90 @@ function computeHighestSeverity(counts: Record<Severity, number>): Severity | 'n
   return 'none';
 }
 
+interface ImportGraphData {
+  packages: Record<string, string[]>;
+  packageCounts?: Record<string, Record<string, number>>;
+}
+
+function normalizeImportGraph(data: any): ImportGraphData {
+  if (data && typeof data === 'object' && data.packages) {
+    return {
+      packages: data.packages || {},
+      packageCounts: data.packageCounts || {}
+    };
+  }
+  return { packages: {} };
+}
+
+function normalizeImportPath(file: string, projectPath: string): string | undefined {
+  if (!file || typeof file !== 'string') return undefined;
+  if (file.includes('node_modules')) return undefined;
+  let relativePath = file;
+  if (path.isAbsolute(file)) {
+    relativePath = path.relative(projectPath, file);
+  }
+  if (!relativePath) return undefined;
+  const trimmed = relativePath.replace(/^[.][\\/]/, '');
+  const normalized = trimmed.replace(/\\/g, '/');
+  if (!normalized || normalized.startsWith('..')) return undefined;
+  if (normalized.includes('node_modules')) return undefined;
+  return normalized;
+}
+
+interface UsageSummary {
+  fileCount: number;
+  topFiles: string[];
+}
+
+interface UsageBuildResult {
+  summary: Map<string, UsageSummary>;
+  runtimeImpact: Map<string, DependencyObject['runtimeImpact']>;
+}
+
+function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBuildResult {
+  const summary = new Map<string, UsageSummary>();
+  const runtimeImpact = new Map<string, DependencyObject['runtimeImpact']>();
+  const byDep = new Map<string, Map<string, number>>();
+  const packages = graph.packages || {};
+
+  for (const [file, deps] of Object.entries(packages)) {
+    if (!Array.isArray(deps) || deps.length === 0) continue;
+    const normalizedFile = normalizeImportPath(file, projectPath);
+    if (!normalizedFile) continue;
+    const counts = graph.packageCounts?.[file] || {};
+    const uniqueDeps = new Set(deps.filter((dep) => typeof dep === 'string' && dep));
+    for (const dep of uniqueDeps) {
+      if (!byDep.has(dep)) byDep.set(dep, new Map<string, number>());
+      const fileMap = byDep.get(dep)!;
+      const count = typeof counts[dep] === 'number' ? counts[dep] : 1;
+      fileMap.set(normalizedFile, count);
+    }
+  }
+
+  for (const [dep, fileMap] of byDep.entries()) {
+    const entries = Array.from(fileMap.entries()).map(([file, count]) => ({
+      file,
+      count,
+      depth: file.split('/').length,
+      isTest: isTestFile(file)
+    }));
+    // Rank: prefer non-test files, then higher import counts, then closer to root.
+    entries.sort((a, b) => {
+      if (a.isTest !== b.isTest) return a.isTest ? 1 : -1;
+      if (b.count !== a.count) return b.count - a.count;
+      if (a.depth !== b.depth) return a.depth - b.depth;
+      return a.file.localeCompare(b.file);
+    });
+    summary.set(dep, {
+      fileCount: fileMap.size,
+      topFiles: entries.slice(0, 5).map((entry) => entry.file)
+    });
+    runtimeImpact.set(dep, determineRuntimeImpactFromFiles(Array.from(fileMap.keys())));
+  }
+
+  return { summary, runtimeImpact };
+}
+
 function isDirectDependency(name: string, pkg: any): boolean {
   return Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
 }
@@ -450,6 +545,112 @@ function determineBuildRisk(hasNative: boolean, hasInstallScripts: boolean): 'gr
   if (hasNative && hasInstallScripts) return 'red';
   if (hasNative || hasInstallScripts) return 'amber';
   return 'green';
+}
+
+function isTestFile(file: string): boolean {
+  return /(^|\/)(__tests__|__mocks__|test|tests)(\/|$)/.test(file) || /\.(test|spec)\./.test(file);
+}
+
+function isToolingFile(file: string): boolean {
+  return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky)[^\/]*\./.test(file);
+}
+
+function isBuildFile(file: string): boolean {
+  return /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind)[^\/]*\./.test(file);
+}
+
+function determineRuntimeImpactFromFiles(files: string[]): DependencyObject['runtimeImpact'] {
+  const categories = new Set<'runtime' | 'build' | 'testing' | 'tooling'>();
+  for (const file of files) {
+    if (isTestFile(file)) {
+      categories.add('testing');
+    } else if (isToolingFile(file)) {
+      categories.add('tooling');
+    } else if (isBuildFile(file)) {
+      categories.add('build');
+    } else {
+      categories.add('runtime');
+    }
+  }
+  if (categories.size === 0) return 'runtime';
+  if (categories.size > 1) return 'mixed';
+  return Array.from(categories)[0];
+}
+
+const TOOLING_PACKAGES = new Set([
+  'eslint',
+  'prettier',
+  'ts-node',
+  'typescript',
+  'babel',
+  '@babel/core',
+  'rollup',
+  'webpack',
+  'vite',
+  'parcel',
+  'swc',
+  '@swc/core',
+  'ts-jest',
+  'eslint-config-prettier',
+  'eslint-plugin-import',
+  'lint-staged',
+  'husky'
+]);
+
+const FRAMEWORK_PACKAGES = new Set([
+  'next',
+  'react-scripts',
+  '@angular/core',
+  '@angular/cli',
+  'vue',
+  'nuxt',
+  'svelte',
+  '@sveltejs/kit',
+  'gatsby',
+  'ember-cli',
+  'remix',
+  'expo'
+]);
+
+function isToolingPackage(name: string): boolean {
+  if (TOOLING_PACKAGES.has(name)) return true;
+  if (name.startsWith('@typescript-eslint/')) return true;
+  if (name.startsWith('eslint-')) return true;
+  return false;
+}
+
+function isFrameworkPackage(name: string): boolean {
+  return FRAMEWORK_PACKAGES.has(name);
+}
+
+// Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
+function determineIntroduction(
+  direct: boolean,
+  rootCauses: string[],
+  runtimeImpact: DependencyObject['runtimeImpact']
+): DependencyObject['introduction'] {
+  if (direct) return 'direct';
+  if (runtimeImpact === 'testing') return 'testing';
+  if (rootCauses.length > 0 && rootCauses.every((root) => isToolingPackage(root))) return 'tooling';
+  if (rootCauses.some((root) => isFrameworkPackage(root))) return 'framework';
+  if (rootCauses.length > 0) return 'transitive';
+  return 'unknown';
+}
+
+// Upgrade blockers derived only from local metadata (no external lookups).
+function buildUpgradeBlock(
+  insights: PackageInsights
+): DependencyObject['upgrade'] | undefined {
+  const blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'> = [];
+  if (insights.nodeEngine) blockers.push('nodeEngine');
+  if (insights.dependencySurface.peer > 0) blockers.push('peerDependency');
+  if (insights.build.native) blockers.push('nativeBindings');
+  if (insights.deprecated) blockers.push('deprecated');
+
+  return {
+    blocksNodeMajor: blockers.length > 0,
+    blockers
+  };
 }
 
 interface PackageMeta {

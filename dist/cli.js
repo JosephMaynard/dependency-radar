@@ -215,6 +215,46 @@ function mergeAuditResults(results) {
     }
     return base;
 }
+function mergeImportGraphs(rootPath, packageMetas, graphs) {
+    const files = {};
+    const packages = {};
+    const packageCounts = {};
+    const unresolvedImports = [];
+    for (let i = 0; i < graphs.length; i++) {
+        const g = graphs[i];
+        const meta = packageMetas[i];
+        if (!g || typeof g !== 'object')
+            continue;
+        const relBase = path_1.default.relative(rootPath, meta.path).split(path_1.default.sep).join('/');
+        const prefix = relBase ? `${relBase}/` : '';
+        const gf = g.files || {};
+        const gp = g.packages || {};
+        const gc = g.packageCounts || {};
+        for (const [k, v] of Object.entries(gf)) {
+            files[`${prefix}${k}`] = Array.isArray(v) ? v.map((x) => `${prefix}${x}`) : [];
+        }
+        for (const [k, v] of Object.entries(gp)) {
+            packages[`${prefix}${k}`] = Array.isArray(v) ? v : [];
+        }
+        for (const [k, v] of Object.entries(gc)) {
+            if (!v || typeof v !== 'object')
+                continue;
+            const next = {};
+            for (const [dep, count] of Object.entries(v)) {
+                if (typeof count === 'number')
+                    next[dep] = count;
+            }
+            packageCounts[`${prefix}${k}`] = next;
+        }
+        const unresolved = Array.isArray(g.unresolvedImports) ? g.unresolvedImports : [];
+        unresolved.forEach((u) => {
+            if (u && typeof u.importer === 'string' && typeof u.specifier === 'string') {
+                unresolvedImports.push({ importer: `${prefix}${u.importer}`, specifier: u.specifier });
+            }
+        });
+    }
+    return { files, packages, packageCounts, unresolvedImports };
+}
 function buildWorkspaceUsageMap(packageMetas, npmLsDatas) {
     var _a, _b;
     const usage = new Map();
@@ -394,9 +434,11 @@ async function run() {
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedLsData = buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+        const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
         const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
         const npmLsResult = { ok: true, data: mergedLsData };
+        const importGraphResult = { ok: true, data: mergedImportGraphData };
         // Build a merged package.json view for aggregator direct-dep checks.
         const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas);
         const auditFailure = opts.audit ? perPackageAudit.find((r) => r && !r.ok) : undefined;
@@ -410,6 +452,7 @@ async function run() {
             projectPath,
             auditResult,
             npmLsResult,
+            importGraphResult,
             pkgOverride: mergedPkgForAggregator,
             workspaceUsage,
             workspaceEnabled: workspace.type !== 'none',

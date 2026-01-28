@@ -56,6 +56,16 @@ export interface DependencyObject {
   links: {
     npm: string;
   };
+  usage?: {
+    fileCount: number;
+    topFiles: string[];
+  };
+  introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
+  runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
+  upgrade?: {
+    blocksNodeMajor: boolean;
+    blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+  };
 }
 
 export interface ToolResult<T> {
