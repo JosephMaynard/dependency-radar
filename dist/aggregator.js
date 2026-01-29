@@ -64,7 +64,7 @@ function formatProjectDir(projectPath) {
     return projectPath;
 }
 async function aggregateData(input) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
@@ -128,7 +128,10 @@ async function aggregateData(input) {
                 version: node.version,
                 deprecated: packageInsights.deprecated,
                 links: {
-                    npm: `https://www.npmjs.com/package/${node.name}`
+                    npm: `https://www.npmjs.com/package/${node.name}`,
+                    ...(((_f = packageInsights.links) === null || _f === void 0 ? void 0 : _f.repository) ? { repository: packageInsights.links.repository } : {}),
+                    ...(((_g = packageInsights.links) === null || _g === void 0 ? void 0 : _g.homepage) ? { homepage: packageInsights.links.homepage } : {}),
+                    ...(((_h = packageInsights.links) === null || _h === void 0 ? void 0 : _h.bugs) ? { bugs: packageInsights.links.bugs } : {})
                 }
             },
             compliance: {
@@ -674,11 +677,13 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
     const nodeEngine = typeof ((_a = pkg.engines) === null || _a === void 0 ? void 0 : _a.node) === 'string' ? pkg.engines.node : null;
     const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
     const tsTypes = determineTypes(pkg, (stats === null || stats === void 0 ? void 0 : stats.hasDts) || false, hasDefinitelyTyped);
+    const links = extractPackageLinks(pkg);
     const execution = await deriveExecutionInfo(scripts, dir, stats);
     return {
         deprecated,
         nodeEngine,
         dependencySurface,
+        links,
         execution,
         tsTypes
     };
@@ -760,6 +765,73 @@ function determineTypes(pkg, hasDts, hasDefinitelyTyped) {
     if (hasDefinitelyTyped)
         return 'definitelyTyped';
     return 'none';
+}
+const REPO_SHORTHAND_HOSTS = {
+    github: 'github.com',
+    gitlab: 'gitlab.com',
+    bitbucket: 'bitbucket.org'
+};
+function normalizeUrl(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed)
+        return undefined;
+    let url = trimmed.replace(/^git\+/, '');
+    if (url.startsWith('ssh://')) {
+        url = url.slice('ssh://'.length);
+        if (url.startsWith('git@')) {
+            const match = url.match(/^git@([^:]+):(.+)$/);
+            if (match) {
+                url = `https://${match[1]}/${match[2]}`;
+            }
+            else {
+                url = `https://${url}`;
+            }
+        }
+        else {
+            url = `https://${url}`;
+        }
+    }
+    if (url.startsWith('git@')) {
+        const match = url.match(/^git@([^:]+):(.+)$/);
+        if (match) {
+            url = `https://${match[1]}/${match[2]}`;
+        }
+    }
+    const shorthand = url.match(/^(github|gitlab|bitbucket):(.+)$/i);
+    if (shorthand) {
+        const host = REPO_SHORTHAND_HOSTS[shorthand[1].toLowerCase()];
+        url = `https://${host}/${shorthand[2]}`;
+    }
+    if (url.startsWith('git://')) {
+        url = `https://${url.slice('git://'.length)}`;
+    }
+    const hashIndex = url.indexOf('#');
+    const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+    const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+    const cleaned = base.endsWith('.git') ? base.slice(0, -4) : base;
+    return cleaned + hash;
+}
+function normalizeLinkValue(value) {
+    if (!value)
+        return undefined;
+    if (typeof value === 'string')
+        return normalizeUrl(value);
+    if (typeof value === 'object' && typeof value.url === 'string') {
+        return normalizeUrl(value.url);
+    }
+    return undefined;
+}
+function extractPackageLinks(pkg) {
+    const repository = normalizeLinkValue(pkg === null || pkg === void 0 ? void 0 : pkg.repository);
+    const homepage = normalizeLinkValue(pkg === null || pkg === void 0 ? void 0 : pkg.homepage);
+    const bugs = normalizeLinkValue(pkg === null || pkg === void 0 ? void 0 : pkg.bugs);
+    if (!repository && !homepage && !bugs)
+        return undefined;
+    return {
+        ...(repository ? { repository } : {}),
+        ...(homepage ? { homepage } : {}),
+        ...(bugs ? { bugs } : {})
+    };
 }
 const LIFECYCLE_HOOKS = ['preinstall', 'install', 'postinstall', 'prepare'];
 const EXECUTION_SIGNAL_ORDER = [

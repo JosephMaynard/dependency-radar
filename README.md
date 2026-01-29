@@ -132,6 +132,9 @@ export interface DependencyRecord {
     deprecated: boolean; // True if the package.json has a deprecated flag
     links: {
       npm: string; // npm package page URL
+      repository?: string; // Repository URL (if present)
+      homepage?: string; // Homepage URL (if present)
+      bugs?: string; // Issue tracker URL (if present)
     };
   };
   compliance: {

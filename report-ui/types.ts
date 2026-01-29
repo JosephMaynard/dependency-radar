@@ -22,6 +22,9 @@ export interface DependencyRecord {
     deprecated: boolean;
     links: {
       npm: string;
+      repository?: string;
+      homepage?: string;
+      bugs?: string;
     };
   };
   compliance: {

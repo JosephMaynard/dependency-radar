@@ -77,7 +77,10 @@
         "version": "6.2.1",
         "deprecated": false,
         "links": {
-          "npm": "https://www.npmjs.com/package/ansi-styles"
+          "npm": "https://www.npmjs.com/package/ansi-styles",
+          "repository": "https://www.npmjs.com/package/ansi-styles",
+          "homepage": "https://www.npmjs.com/package/ansi-styles",
+          "bugs": "https://www.npmjs.com/package/ansi-styles"
         }
       },
       "compliance": {

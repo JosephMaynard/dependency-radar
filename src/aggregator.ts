@@ -182,7 +182,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         version: node.version,
         deprecated: packageInsights.deprecated,
         links: {
-          npm: `https://www.npmjs.com/package/${node.name}`
+          npm: `https://www.npmjs.com/package/${node.name}`,
+          ...(packageInsights.links?.repository ? { repository: packageInsights.links.repository } : {}),
+          ...(packageInsights.links?.homepage ? { homepage: packageInsights.links.homepage } : {}),
+          ...(packageInsights.links?.bugs ? { bugs: packageInsights.links.bugs } : {})
         }
       },
       compliance: {
@@ -734,6 +737,11 @@ interface PackageInsights {
     peer: number;
     opt: number;
   };
+  links?: {
+    repository?: string;
+    homepage?: string;
+    bugs?: string;
+  };
   execution?: DependencyRecord['execution'];
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
 }
@@ -770,12 +778,14 @@ async function gatherPackageInsights(
 
   const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
   const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
+  const links = extractPackageLinks(pkg);
   const execution = await deriveExecutionInfo(scripts, dir, stats);
 
   return {
     deprecated,
     nodeEngine,
     dependencySurface,
+    links,
     execution,
     tsTypes
   };
@@ -861,6 +871,78 @@ function determineTypes(
   if (hasBundled) return 'bundled';
   if (hasDefinitelyTyped) return 'definitelyTyped';
   return 'none';
+}
+
+const REPO_SHORTHAND_HOSTS: Record<string, string> = {
+  github: 'github.com',
+  gitlab: 'gitlab.com',
+  bitbucket: 'bitbucket.org'
+};
+
+function normalizeUrl(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  let url = trimmed.replace(/^git\+/, '');
+
+  if (url.startsWith('ssh://')) {
+    url = url.slice('ssh://'.length);
+    if (url.startsWith('git@')) {
+      const match = url.match(/^git@([^:]+):(.+)$/);
+      if (match) {
+        url = `https://${match[1]}/${match[2]}`;
+      } else {
+        url = `https://${url}`;
+      }
+    } else {
+      url = `https://${url}`;
+    }
+  }
+
+  if (url.startsWith('git@')) {
+    const match = url.match(/^git@([^:]+):(.+)$/);
+    if (match) {
+      url = `https://${match[1]}/${match[2]}`;
+    }
+  }
+
+  const shorthand = url.match(/^(github|gitlab|bitbucket):(.+)$/i);
+  if (shorthand) {
+    const host = REPO_SHORTHAND_HOSTS[shorthand[1].toLowerCase()];
+    url = `https://${host}/${shorthand[2]}`;
+  }
+
+  if (url.startsWith('git://')) {
+    url = `https://${url.slice('git://'.length)}`;
+  }
+
+  const hashIndex = url.indexOf('#');
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const cleaned = base.endsWith('.git') ? base.slice(0, -4) : base;
+
+  return cleaned + hash;
+}
+
+function normalizeLinkValue(value: any): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return normalizeUrl(value);
+  if (typeof value === 'object' && typeof value.url === 'string') {
+    return normalizeUrl(value.url);
+  }
+  return undefined;
+}
+
+function extractPackageLinks(pkg: any): PackageInsights['links'] | undefined {
+  const repository = normalizeLinkValue(pkg?.repository);
+  const homepage = normalizeLinkValue(pkg?.homepage);
+  const bugs = normalizeLinkValue(pkg?.bugs);
+
+  if (!repository && !homepage && !bugs) return undefined;
+  return {
+    ...(repository ? { repository } : {}),
+    ...(homepage ? { homepage } : {}),
+    ...(bugs ? { bugs } : {})
+  };
 }
 
 const LIFECYCLE_HOOKS: ExecutionHook[] = ['preinstall', 'install', 'postinstall', 'prepare'];
