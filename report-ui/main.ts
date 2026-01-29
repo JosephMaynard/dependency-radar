@@ -4,7 +4,7 @@
  */
 
 import './style.css';
-import type { AggregatedData, DependencyObject, Severity } from './types';
+import type { AggregatedData, DependencyObject, InstallSignal, Severity } from './types';
 
 // In development, load sample data; in production, data is embedded
 async function loadReportData(): Promise<AggregatedData> {
@@ -25,6 +25,17 @@ const LICENSE_CATEGORIES = {
 } as const;
 
 type LicenseCategory = 'permissive' | 'weakCopyleft' | 'strongCopyleft' | 'unknown';
+
+const INSTALL_SIGNAL_LABELS: Record<InstallSignal, string> = {
+  'network-access': 'Accesses the network during install',
+  'dynamic-exec': 'Uses dynamic code execution',
+  'child-process': 'Spawns child processes',
+  'encoding': 'Encodes or decodes data',
+  'obfuscated': 'Install-time code is obfuscated or minified',
+  'reads-env': 'Reads environment variables',
+  'reads-home': 'Accesses the user home directory',
+  'uses-ssh': 'Accesses SSH or credential-related paths'
+};
 
 function getLicenseCategory(license: string | undefined | null): LicenseCategory {
   if (!license) return 'unknown';
@@ -86,6 +97,15 @@ function renderKvItem(label: string, value: string | number, hint?: string): str
   return html;
 }
 
+function renderKvItemHtml(label: string, valueHtml: string, hint?: string): string {
+  let html = '<div class="kv-item">';
+  html += '<span class="kv-label">' + escapeHtml(label) + '</span>';
+  html += valueHtml;
+  if (hint) html += '<span class="kv-hint">' + escapeHtml(hint) + '</span>';
+  html += '</div>';
+  return html;
+}
+
 function renderPackageList(packages: string[] | undefined, maxShow: number): string {
   if (!packages || packages.length === 0) return '<span class="kv-value">None</span>';
   const shown = packages.slice(0, maxShow);
@@ -116,6 +136,54 @@ function renderKvSection(title: string, desc: string | undefined, items: string[
   return renderSection(title, desc, '<div class="kv-grid">' + items.join('') + '</div>');
 }
 
+function installRiskTone(install: DependencyObject['install'] | undefined): 'green' | 'amber' | 'red' {
+  return install?.risk ?? 'green';
+}
+
+function installRiskLabel(install: DependencyObject['install'] | undefined): string {
+  const tone = installRiskTone(install);
+  if (tone === 'red') return 'High';
+  if (tone === 'amber') return 'Medium';
+  return 'Low';
+}
+
+function renderInstallSection(install: NonNullable<DependencyObject['install']>): string {
+  const items: string[] = [
+    renderKvItem('Risk', installRiskLabel(install), 'Install-time behaviour worth reviewing')
+  ];
+
+  if (install.native) {
+    items.push(renderKvItem('Native Code', 'Yes', 'Requires native build tooling or binaries'));
+  }
+
+  if (install.scripts?.hooks?.length) {
+    items.push(renderKvItemHtml(
+      'Lifecycle Hooks',
+      renderPackageList(install.scripts.hooks, 6),
+      'Install-time hooks from package.json'
+    ));
+  }
+
+  if (typeof install.scripts?.complexity === 'number') {
+    items.push(renderKvItem('Complexity', install.scripts.complexity, 'Heuristic score from lifecycle scripts'));
+  }
+
+  if (install.scripts?.signals?.length) {
+    const labels = install.scripts.signals.map((signal) => INSTALL_SIGNAL_LABELS[signal]);
+    items.push(renderKvItemHtml(
+      'Signals',
+      renderPackageList(labels, 6),
+      'Review-worthy install-time behaviour flags'
+    ));
+  }
+
+  return renderSection(
+    'Suspicious / Install-time behaviour',
+    'Install-time signals surfaced for review',
+    '<div class="kv-grid">' + items.join('') + '</div>'
+  );
+}
+
 function renderPackageLinks(links: DependencyObject['links']): string {
   const icons = {
     npm: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"/></svg>'
@@ -143,13 +211,15 @@ function renderDep(dep: DependencyObject): string {
   const depTypeText = dep.direct ? 'Dependency' : 'Sub-Dependency';
   const depTypeClass = dep.direct ? 'green' : 'amber';
   const scopeTone = dep.scope === 'runtime' ? 'green' : dep.scope === 'dev' ? 'amber' : dep.scope === 'optional' ? 'amber' : 'gray';
+  const installTone = installRiskTone(dep.install);
+  const installLabel = installRiskLabel(dep.install);
 
   const badges = [
     badgeCard('Type', depTypeText, depTypeClass),
     badgeCard('Scope', scopeLabel(dep.scope), scopeTone),
     badgeCard('License', licenseText, licenseCategoryDisplay[licenseCategory].class),
     badgeCard('Vulns', capitalize(severity), dep.vulnRisk),
-    badgeCard('Build', dep.build.risk === 'red' ? 'High' : dep.build.risk === 'amber' ? 'Medium' : 'Low', dep.build.risk)
+    badgeCard('Install', installLabel, installTone)
   ];
 
   const summary = [
@@ -202,11 +272,7 @@ function renderDep(dep: DependencyObject): string {
     renderKvItem('Dependencies', dep.dependencySurface.deps + ' prod / ' + dep.dependencySurface.dev + ' dev / ' + dep.dependencySurface.peer + ' peer / ' + dep.dependencySurface.opt + ' optional', '')
   ]);
 
-  const buildSection = renderKvSection('Build', 'Build complexity indicators', [
-    renderKvItem('Native Code', yesNo(dep.build.native), 'Requires compilation'),
-    renderKvItem('Install Scripts', yesNo(dep.build.installScripts), 'Runs code during install'),
-    renderKvItem('Risk', capitalize(dep.build.risk), 'Combined build risk signal')
-  ]);
+  const installSection = dep.install ? renderInstallSection(dep.install) : '';
 
   const typesSection = renderKvSection('TypeScript', 'Type definition support', [
     renderKvItem('Types', dep.tsTypes === 'bundled' ? 'Bundled' : dep.tsTypes === 'definitelyTyped' ? 'DefinitelyTyped' : dep.tsTypes === 'none' ? 'None' : 'Unknown', 'Types availability')
@@ -228,7 +294,7 @@ function renderDep(dep: DependencyObject): string {
     vulnSection,
     identitySection,
     dependencySurfaceSection,
-    buildSection,
+    installSection,
     typesSection,
     graphSection,
     '<details class="raw-data-toggle"><summary>View raw data</summary><pre>' + escapeHtml(rawJson) + '</pre></details>',

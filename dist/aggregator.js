@@ -108,7 +108,7 @@ async function aggregateData(input) {
         const runtimeImpact = usageResult.runtimeImpact.get(node.name);
         const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
         const origins = buildOrigins(rootCauses, (_e = input.workspaceUsage) === null || _e === void 0 ? void 0 : _e.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
-        const buildRisk = determineBuildRisk(packageInsights.build.native, packageInsights.build.installScripts);
+        const install = packageInsights.install;
         const id = node.key;
         const upgrade = buildUpgradeBlock(packageInsights);
         const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
@@ -132,11 +132,7 @@ async function aggregateData(input) {
             vulnRisk,
             deprecated: packageInsights.deprecated,
             nodeEngine: packageInsights.nodeEngine,
-            build: {
-                native: packageInsights.build.native,
-                installScripts: packageInsights.build.installScripts,
-                risk: buildRisk
-            },
+            ...(install ? { install } : {}),
             tsTypes: packageInsights.tsTypes,
             dependencySurface: packageInsights.dependencySurface,
             graph: {
@@ -529,13 +525,6 @@ function buildOrigins(rootCauses, workspaceList, workspaceEnabled, maxTop) {
     }
     return origins;
 }
-function determineBuildRisk(hasNative, hasInstallScripts) {
-    if (hasNative && hasInstallScripts)
-        return 'red';
-    if (hasNative || hasInstallScripts)
-        return 'amber';
-    return 'green';
-}
 function isTestFile(file) {
     return /(^|\/)(__tests__|__mocks__|test|tests)(\/|$)/.test(file) || /\.(test|spec)\./.test(file);
 }
@@ -628,12 +617,13 @@ function determineIntroduction(direct, rootCauses, runtimeImpact) {
 }
 // Upgrade blockers derived only from local metadata (no external lookups).
 function buildUpgradeBlock(insights) {
+    var _a;
     const blockers = [];
     if (insights.nodeEngine)
         blockers.push('nodeEngine');
     if (insights.dependencySurface.peer > 0)
         blockers.push('peerDependency');
-    if (insights.build.native)
+    if ((_a = insights.install) === null || _a === void 0 ? void 0 : _a.native)
         blockers.push('nativeBindings');
     if (insights.deprecated)
         blockers.push('deprecated');
@@ -650,7 +640,6 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
             deprecated: false,
             nodeEngine: null,
             dependencySurface: { deps: 0, dev: 0, peer: 0, opt: 0 },
-            build: { native: false, installScripts: false },
             tsTypes: 'unknown'
         };
     }
@@ -668,15 +657,12 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
     const nodeEngine = typeof ((_a = pkg.engines) === null || _a === void 0 ? void 0 : _a.node) === 'string' ? pkg.engines.node : null;
     const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
     const tsTypes = determineTypes(pkg, (stats === null || stats === void 0 ? void 0 : stats.hasDts) || false, hasDefinitelyTyped);
-    const build = {
-        native: Boolean((stats === null || stats === void 0 ? void 0 : stats.hasNativeBinary) || (stats === null || stats === void 0 ? void 0 : stats.hasBindingGyp) || scriptsContainNativeBuild(scripts)),
-        installScripts: hasInstallScripts(scripts)
-    };
+    const install = await deriveInstallInfo(scripts, dir, stats);
     return {
         deprecated,
         nodeEngine,
         dependencySurface,
-        build,
+        install,
         tsTypes
     };
 }
@@ -758,9 +744,220 @@ function determineTypes(pkg, hasDts, hasDefinitelyTyped) {
         return 'definitelyTyped';
     return 'none';
 }
-function scriptsContainNativeBuild(scripts) {
-    return Object.values(scripts || {}).some((cmd) => typeof cmd === 'string' && /node-?gyp|node-pre-gyp/.test(cmd));
+const LIFECYCLE_HOOKS = ['preinstall', 'install', 'postinstall', 'prepare'];
+const INSTALL_SIGNAL_ORDER = [
+    'network-access',
+    'dynamic-exec',
+    'child-process',
+    'encoding',
+    'obfuscated',
+    'reads-env',
+    'reads-home',
+    'uses-ssh'
+];
+const INSTALL_SCRIPT_MAX_BYTES = 200000;
+const COMPLEXITY_THRESHOLD = 12;
+function collectLifecycleScripts(scripts) {
+    const lifecycle = {};
+    for (const hook of LIFECYCLE_HOOKS) {
+        const cmd = scripts === null || scripts === void 0 ? void 0 : scripts[hook];
+        if (typeof cmd === 'string' && cmd.trim().length > 0) {
+            lifecycle[hook] = cmd.trim();
+        }
+    }
+    return lifecycle;
 }
-function hasInstallScripts(scripts) {
-    return ['preinstall', 'install', 'postinstall'].some((key) => typeof (scripts === null || scripts === void 0 ? void 0 : scripts[key]) === 'string' && scripts[key].trim().length > 0);
+function scriptsContainNativeTooling(scripts) {
+    return Object.values(scripts || {}).some((cmd) => typeof cmd === 'string' && /node-?gyp|node-pre-gyp|prebuild/i.test(cmd));
+}
+function scoreLifecycleScripts(lifecycleScripts) {
+    const commands = Object.values(lifecycleScripts).filter((cmd) => typeof cmd === 'string');
+    const combined = commands.join(' ');
+    if (!combined)
+        return 0;
+    const lengthScore = Math.ceil(combined.length / 40);
+    const andCount = (combined.match(/&&/g) || []).length;
+    const orCount = (combined.match(/\|\|/g) || []).length;
+    const semicolons = (combined.match(/;/g) || []).length;
+    const pipeCount = Math.max(0, (combined.match(/\|/g) || []).length - orCount * 2);
+    const inlineNodeExec = (combined.match(/\bnode\s+-[ep]\b/gi) || []).length;
+    const inlineEval = (combined.match(/\beval\s*\(/g) || []).length;
+    const inlineFunction = (combined.match(/new\s+Function\s*\(/g) || []).length;
+    return lengthScore + (andCount + orCount + semicolons + pipeCount) * 2 + (inlineNodeExec + inlineEval + inlineFunction) * 5;
+}
+function tokenizeCommand(command) {
+    var _a, _b;
+    const tokens = [];
+    const matcher = /"([^"]*)"|'([^']*)'|(\S+)/g;
+    let match;
+    while ((match = matcher.exec(command))) {
+        tokens.push((_b = (_a = match[1]) !== null && _a !== void 0 ? _a : match[2]) !== null && _b !== void 0 ? _b : match[3]);
+    }
+    return tokens;
+}
+function isNodeToken(token) {
+    const base = path_1.default.basename(token).toLowerCase();
+    return base === 'node' || base === 'node.exe';
+}
+function extractNodeScriptPath(command) {
+    const tokens = tokenizeCommand(command);
+    for (let i = 0; i < tokens.length; i += 1) {
+        if (!isNodeToken(tokens[i]))
+            continue;
+        let idx = i + 1;
+        while (idx < tokens.length) {
+            const token = tokens[idx];
+            if (token === '-e' || token === '-p' || token === '--eval') {
+                return undefined;
+            }
+            if (token === '-r' || token === '--require') {
+                idx += 2;
+                continue;
+            }
+            if (token.startsWith('-')) {
+                idx += 1;
+                continue;
+            }
+            const cleaned = token.replace(/[;|&]+$/, '');
+            if (cleaned.includes('://'))
+                return undefined;
+            if (cleaned.endsWith('.js') || cleaned.endsWith('.cjs') || cleaned.endsWith('.mjs')) {
+                return cleaned;
+            }
+            return undefined;
+        }
+    }
+    return undefined;
+}
+function findReferencedInstallScript(lifecycleScripts) {
+    for (const hook of LIFECYCLE_HOOKS) {
+        const command = lifecycleScripts[hook];
+        if (!command)
+            continue;
+        const candidate = extractNodeScriptPath(command);
+        if (candidate)
+            return candidate;
+    }
+    return undefined;
+}
+async function readInstallScriptFile(scriptPath, packageDir) {
+    const resolvedDir = path_1.default.resolve(packageDir);
+    const resolvedPath = path_1.default.resolve(resolvedDir, scriptPath);
+    if (!resolvedPath.startsWith(resolvedDir + path_1.default.sep))
+        return undefined;
+    try {
+        const stat = await promises_1.default.stat(resolvedPath);
+        if (!stat.isFile())
+            return undefined;
+        if (stat.size > INSTALL_SCRIPT_MAX_BYTES)
+            return undefined;
+        return await promises_1.default.readFile(resolvedPath, 'utf8');
+    }
+    catch {
+        return undefined;
+    }
+}
+function textHasAny(text, patterns) {
+    return patterns.some((pattern) => pattern.test(text));
+}
+function detectScriptSignals(text, signals) {
+    // Signals are derived from static text inspection only: no code execution and no import walking.
+    // They are NOT malware detection; they merely highlight review-worthy install-time behavior.
+    // "network-access" surfaces install scripts that fetch remote resources (review for expected downloads; does NOT imply exfiltration).
+    if (textHasAny(text, [/\bcurl\b/i, /\bwget\b/i, /https?:\/\//i, /\bfetch\s*\(/i, /\baxios\b/i, /node-fetch/i])) {
+        signals.add('network-access');
+    }
+    // "reads-env" highlights environment access (does NOT imply exfiltration).
+    if (textHasAny(text, [/\bprocess\.env\b/, /\bprintenv\b/i, /\benv\s*\|/i])) {
+        signals.add('reads-env');
+    }
+    // "reads-home" highlights access to user home paths (does NOT imply credential theft).
+    if (textHasAny(text, [/\$HOME\b/, /process\.env\.HOME\b/, /os\.homedir\s*\(/, /~\//])) {
+        signals.add('reads-home');
+    }
+    // "uses-ssh" flags access to SSH-related paths (does NOT imply key exfiltration).
+    if (textHasAny(text, [/\.ssh\b/i, /id_rsa\b/i, /known_hosts\b/i, /\.npmrc\b/i])) {
+        signals.add('uses-ssh');
+    }
+}
+function isObfuscated(text) {
+    const lines = text.split(/\r?\n/);
+    let longest = 0;
+    for (const line of lines) {
+        if (line.length > longest)
+            longest = line.length;
+        if (longest >= 4000)
+            return true;
+    }
+    if (text.length >= 2000) {
+        const nonWhitespace = text.replace(/\s/g, '');
+        const ratio = nonWhitespace.length / text.length;
+        if (ratio > 0.9)
+            return true;
+    }
+    return /[A-Za-z0-9+/]{800,}={0,2}/.test(text);
+}
+function detectFileSignals(text, signals) {
+    // Signals from a single directly-referenced JS file (no execution, no imports, no deep scanning).
+    // These are review cues only and do NOT imply malicious intent.
+    detectScriptSignals(text, signals);
+    // "dynamic-exec" flags dynamic code execution APIs (does NOT imply malicious behavior).
+    if (textHasAny(text, [/\beval\s*\(/, /new\s+Function\s*\(/, /\bvm\.runIn/i])) {
+        signals.add('dynamic-exec');
+    }
+    // "child-process" flags process spawning (does NOT imply abuse).
+    if (textHasAny(text, [/\bchild_process\.exec\b/, /\bspawn\s*\(/, /\bexecSync\s*\(/])) {
+        signals.add('child-process');
+    }
+    // "encoding" flags explicit encode/decode flows (does NOT imply obfuscation intent).
+    if (textHasAny(text, [/Buffer\.from\s*\(/, /\.toString\(\s*['"]base64['"]\s*\)/i, /\batob\s*\(/, /\bbtoa\s*\(/])) {
+        signals.add('encoding');
+    }
+    // "obfuscated" flags minified or opaque install-time code (does NOT imply malware).
+    if (isObfuscated(text)) {
+        signals.add('obfuscated');
+    }
+}
+function determineInstallRisk(hasScripts, hasSignals, highComplexity, hooks) {
+    const hasInstallHook = hooks.includes('install') || hooks.includes('postinstall');
+    if (hasScripts && (hasSignals || (highComplexity && hasInstallHook)))
+        return 'red';
+    return 'amber';
+}
+async function deriveInstallInfo(scripts, packageDir, stats) {
+    const lifecycleScripts = collectLifecycleScripts(scripts);
+    const hooks = LIFECYCLE_HOOKS.filter((hook) => Boolean(lifecycleScripts[hook]));
+    const hasScripts = hooks.length > 0;
+    const hasNative = Boolean((stats === null || stats === void 0 ? void 0 : stats.hasNativeBinary) || (stats === null || stats === void 0 ? void 0 : stats.hasBindingGyp) || scriptsContainNativeTooling(scripts));
+    if (!hasScripts && !hasNative)
+        return undefined;
+    const signals = new Set();
+    const combinedScripts = hooks.map((hook) => lifecycleScripts[hook]).join('\n');
+    if (combinedScripts) {
+        detectScriptSignals(combinedScripts, signals);
+    }
+    if (hasScripts && packageDir) {
+        const referencedScript = findReferencedInstallScript(lifecycleScripts);
+        if (referencedScript) {
+            const fileContent = await readInstallScriptFile(referencedScript, packageDir);
+            if (fileContent) {
+                detectFileSignals(fileContent, signals);
+            }
+        }
+    }
+    const complexityScore = hasScripts ? scoreLifecycleScripts(lifecycleScripts) : 0;
+    const complexity = complexityScore >= COMPLEXITY_THRESHOLD ? complexityScore : undefined;
+    const signalList = INSTALL_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+    const scriptsInfo = {
+        hooks,
+        ...(complexity !== undefined ? { complexity } : {}),
+        ...(signalList.length > 0 ? { signals: signalList } : {})
+    };
+    const risk = determineInstallRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
+    const install = { risk };
+    if (hasNative)
+        install.native = true;
+    if (hasScripts)
+        install.scripts = scriptsInfo;
+    return install;
 }

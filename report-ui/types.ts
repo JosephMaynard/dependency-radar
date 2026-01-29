@@ -3,6 +3,16 @@
 
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
+export type InstallHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
+export type InstallSignal =
+  | 'network-access'
+  | 'dynamic-exec'
+  | 'child-process'
+  | 'encoding'
+  | 'obfuscated'
+  | 'reads-env'
+  | 'reads-home'
+  | 'uses-ssh';
 
 export interface DependencyObject {
   id: string;
@@ -28,10 +38,14 @@ export interface DependencyObject {
   vulnRisk: 'green' | 'amber' | 'red';
   deprecated: boolean;
   nodeEngine: string | null;
-  build: {
-    native: boolean;
-    installScripts: boolean;
-    risk: 'green' | 'amber' | 'red';
+  install?: {
+    risk: 'amber' | 'red';
+    native?: true;
+    scripts?: {
+      hooks: InstallHook[];
+      complexity?: number;
+      signals?: InstallSignal[];
+    };
   };
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
   dependencySurface: {

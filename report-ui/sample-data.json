@@ -45,11 +45,6 @@
       "vulnRisk": "green",
       "deprecated": false,
       "nodeEngine": ">=14.0.0",
-      "build": {
-        "native": false,
-        "installScripts": false,
-        "risk": "green"
-      },
       "tsTypes": "bundled",
       "dependencySurface": {
         "deps": 0,
@@ -88,11 +83,6 @@
       "vulnRisk": "green",
       "deprecated": false,
       "nodeEngine": null,
-      "build": {
-        "native": false,
-        "installScripts": false,
-        "risk": "green"
-      },
       "tsTypes": "none",
       "dependencySurface": {
         "deps": 0,

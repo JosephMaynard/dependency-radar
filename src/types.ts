@@ -19,10 +19,25 @@ export interface DependencyOrigins {
   workspaces?: string[];
 }
 
-export interface DependencyBuildInfo {
-  native: boolean;
-  installScripts: boolean;
-  risk: 'green' | 'amber' | 'red';
+export type InstallHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
+export type InstallSignal =
+  | 'network-access'
+  | 'dynamic-exec'
+  | 'child-process'
+  | 'encoding'
+  | 'obfuscated'
+  | 'reads-env'
+  | 'reads-home'
+  | 'uses-ssh';
+
+export interface DependencyInstallInfo {
+  risk: 'amber' | 'red';
+  native?: true;
+  scripts?: {
+    hooks: InstallHook[];
+    complexity?: number;
+    signals?: InstallSignal[];
+  };
 }
 
 export interface DependencyGraphSummary {
@@ -50,7 +65,7 @@ export interface DependencyObject {
   vulnRisk: 'green' | 'amber' | 'red';
   deprecated: boolean;
   nodeEngine: string | null;
-  build: DependencyBuildInfo;
+  install?: DependencyInstallInfo;
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
   dependencySurface: DependencySurface;
   graph: DependencyGraphSummary;

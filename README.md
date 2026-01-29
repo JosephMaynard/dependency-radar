@@ -148,10 +148,23 @@ export interface DependencyRecord {
   vulnRisk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
   deprecated: boolean; // True if the package.json has a deprecated flag
   nodeEngine: string | null; // engines.node from the package.json (if present)
-  build: {
-    native: boolean; // True if native bindings detected (gyp/.node/scripts)
-    installScripts: boolean; // True if preinstall/install/postinstall scripts are present
-    risk: 'green' | 'amber' | 'red'; // Build risk derived from native/scripts flags
+  install?: {
+    risk: 'amber' | 'red'; // Install-time risk (green implied when absent)
+    native?: true; // True if native bindings or build tooling are detected
+    scripts?: {
+      hooks: Array<'preinstall' | 'install' | 'postinstall' | 'prepare'>; // Lifecycle hooks detected
+      complexity?: number; // Heuristic complexity (stored only when high)
+      signals?: Array<
+        | 'network-access'
+        | 'dynamic-exec'
+        | 'child-process'
+        | 'encoding'
+        | 'obfuscated'
+        | 'reads-env'
+        | 'reads-home'
+        | 'uses-ssh'
+      >; // Review-worthy install-time signals (sparse)
+    };
   };
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown'; // TypeScript type availability
   dependencySurface: {
