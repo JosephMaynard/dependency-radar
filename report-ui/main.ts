@@ -4,7 +4,7 @@
  */
 
 import './style.css';
-import type { AggregatedData, DependencyObject, InstallSignal, Severity } from './types';
+import type { AggregatedData, DependencyRecord, ExecutionSignal, Severity } from './types';
 
 // In development, load sample data; in production, data is embedded
 async function loadReportData(): Promise<AggregatedData> {
@@ -26,7 +26,7 @@ const LICENSE_CATEGORIES = {
 
 type LicenseCategory = 'permissive' | 'weakCopyleft' | 'strongCopyleft' | 'unknown';
 
-const INSTALL_SIGNAL_LABELS: Record<InstallSignal, string> = {
+const EXECUTION_SIGNAL_LABELS: Record<ExecutionSignal, string> = {
   'network-access': 'Accesses the network during install',
   'dynamic-exec': 'Uses dynamic code execution',
   'child-process': 'Spawns child processes',
@@ -48,8 +48,8 @@ function getLicenseCategory(license: string | undefined | null): LicenseCategory
 
 const severityOrder: Record<Severity | 'none', number> = { none: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 
-function highestSeverity(dep: DependencyObject): Severity | 'none' {
-  return dep.vulnerabilities?.highest || 'none';
+function highestSeverity(dep: DependencyRecord): Severity | 'none' {
+  return dep.security?.vulnerabilities?.highest || 'none';
 }
 
 function yesNo(flag: boolean | undefined): string {
@@ -61,8 +61,8 @@ function escapeHtml(str: string | null | undefined): string {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function getHighestRisk(dep: DependencyObject): 'red' | 'amber' | 'green' {
-  const risks = [dep.vulnRisk, dep.licenseRisk];
+function getHighestRisk(dep: DependencyRecord): 'red' | 'amber' | 'green' {
+  const risks = [dep.security.vulnRisk, dep.compliance.licenseRisk];
   if (risks.includes('red')) return 'red';
   if (risks.includes('amber')) return 'amber';
   return 'green';
@@ -136,40 +136,40 @@ function renderKvSection(title: string, desc: string | undefined, items: string[
   return renderSection(title, desc, '<div class="kv-grid">' + items.join('') + '</div>');
 }
 
-function installRiskTone(install: DependencyObject['install'] | undefined): 'green' | 'amber' | 'red' {
-  return install?.risk ?? 'green';
+function executionRiskTone(execution: DependencyRecord['execution'] | undefined): 'green' | 'amber' | 'red' {
+  return execution?.risk ?? 'green';
 }
 
-function installRiskLabel(install: DependencyObject['install'] | undefined): string {
-  const tone = installRiskTone(install);
+function executionRiskLabel(execution: DependencyRecord['execution'] | undefined): string {
+  const tone = executionRiskTone(execution);
   if (tone === 'red') return 'High';
   if (tone === 'amber') return 'Medium';
   return 'Low';
 }
 
-function renderInstallSection(install: NonNullable<DependencyObject['install']>): string {
+function renderExecutionSection(execution: NonNullable<DependencyRecord['execution']>): string {
   const items: string[] = [
-    renderKvItem('Risk', installRiskLabel(install), 'Install-time behaviour worth reviewing')
+    renderKvItem('Risk', executionRiskLabel(execution), 'Install-time behaviour worth reviewing')
   ];
 
-  if (install.native) {
+  if (execution.native) {
     items.push(renderKvItem('Native Code', 'Yes', 'Requires native build tooling or binaries'));
   }
 
-  if (install.scripts?.hooks?.length) {
+  if (execution.scripts?.hooks?.length) {
     items.push(renderKvItemHtml(
       'Lifecycle Hooks',
-      renderPackageList(install.scripts.hooks, 6),
+      renderPackageList(execution.scripts.hooks, 6),
       'Install-time hooks from package.json'
     ));
   }
 
-  if (typeof install.scripts?.complexity === 'number') {
-    items.push(renderKvItem('Complexity', install.scripts.complexity, 'Heuristic score from lifecycle scripts'));
+  if (typeof execution.scripts?.complexity === 'number') {
+    items.push(renderKvItem('Complexity', execution.scripts.complexity, 'Heuristic score from lifecycle scripts'));
   }
 
-  if (install.scripts?.signals?.length) {
-    const labels = install.scripts.signals.map((signal) => INSTALL_SIGNAL_LABELS[signal]);
+  if (execution.scripts?.signals?.length) {
+    const labels = execution.scripts.signals.map((signal) => EXECUTION_SIGNAL_LABELS[signal]);
     items.push(renderKvItemHtml(
       'Signals',
       renderPackageList(labels, 6),
@@ -184,7 +184,7 @@ function renderInstallSection(install: NonNullable<DependencyObject['install']>)
   );
 }
 
-function renderPackageLinks(links: DependencyObject['links']): string {
+function renderPackageLinks(links: DependencyRecord['package']['links']): string {
   const icons = {
     npm: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"/></svg>'
   };
@@ -195,8 +195,8 @@ function renderPackageLinks(links: DependencyObject['links']): string {
   return html;
 }
 
-function renderDep(dep: DependencyObject): string {
-  const licenseText = dep.license || 'Unknown';
+function renderDep(dep: DependencyRecord): string {
+  const licenseText = dep.compliance.license || 'Unknown';
   const licenseCategory = getLicenseCategory(licenseText);
   const highestRisk = getHighestRisk(dep);
   const severity = highestSeverity(dep);
@@ -208,24 +208,24 @@ function renderDep(dep: DependencyObject): string {
     unknown: { text: 'Unknown', class: 'gray' }
   };
 
-  const depTypeText = dep.direct ? 'Dependency' : 'Sub-Dependency';
-  const depTypeClass = dep.direct ? 'green' : 'amber';
-  const scopeTone = dep.scope === 'runtime' ? 'green' : dep.scope === 'dev' ? 'amber' : dep.scope === 'optional' ? 'amber' : 'gray';
-  const installTone = installRiskTone(dep.install);
-  const installLabel = installRiskLabel(dep.install);
+  const depTypeText = dep.usage.direct ? 'Dependency' : 'Sub-Dependency';
+  const depTypeClass = dep.usage.direct ? 'green' : 'amber';
+  const scopeTone = dep.usage.scope === 'runtime' ? 'green' : dep.usage.scope === 'dev' ? 'amber' : dep.usage.scope === 'optional' ? 'amber' : 'gray';
+  const executionTone = executionRiskTone(dep.execution);
+  const executionLabel = executionRiskLabel(dep.execution);
 
   const badges = [
     badgeCard('Type', depTypeText, depTypeClass),
-    badgeCard('Scope', scopeLabel(dep.scope), scopeTone),
+    badgeCard('Scope', scopeLabel(dep.usage.scope), scopeTone),
     badgeCard('License', licenseText, licenseCategoryDisplay[licenseCategory].class),
-    badgeCard('Vulns', capitalize(severity), dep.vulnRisk),
-    badgeCard('Install', installLabel, installTone)
+    badgeCard('Vulns', capitalize(severity), dep.security.vulnRisk),
+    badgeCard('Install', executionLabel, executionTone)
   ];
 
   const summary = [
     '<summary class="dep-summary">',
       '<svg class="expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>',
-      '<span class="dep-name">' + escapeHtml(dep.name) + '<span class="dep-version">@' + escapeHtml(dep.version) + '</span></span>',
+      '<span class="dep-name">' + escapeHtml(dep.package.name) + '<span class="dep-version">@' + escapeHtml(dep.package.version) + '</span></span>',
       '<div class="dep-indicators">',
         badges.join(''),
       '</div>',
@@ -235,17 +235,17 @@ function renderDep(dep: DependencyObject): string {
   const rawJson = JSON.stringify(dep, null, 2);
 
   const originsItems = [
-    '<div class="kv-item"><span class="kv-label">Root Packages</span><span class="kv-value">' + dep.origins.rootPackageCount + '</span></div>',
-    '<div class="kv-item"><span class="kv-label">Top Root Packages</span>' + renderPackageList(dep.origins.topRootPackages, 8) + '</div>'
+    '<div class="kv-item"><span class="kv-label">Root Packages</span><span class="kv-value">' + dep.usage.origins.rootPackageCount + '</span></div>',
+    '<div class="kv-item"><span class="kv-label">Top Root Packages</span>' + renderPackageList(dep.usage.origins.topRootPackages, 8) + '</div>'
   ];
-  if (dep.origins.workspaces && dep.origins.workspaces.length > 0) {
-    originsItems.push('<div class="kv-item"><span class="kv-label">Workspaces</span>' + renderPackageList(dep.origins.workspaces, 8) + '</div>');
+  if (dep.usage.origins.workspaces && dep.usage.origins.workspaces.length > 0) {
+    originsItems.push('<div class="kv-item"><span class="kv-label">Workspaces</span>' + renderPackageList(dep.usage.origins.workspaces, 8) + '</div>');
   }
 
   const overviewSection = renderKvSection('Overview', 'Dependency position and scope', [
-    renderKvItem('Type', depTypeText, dep.direct ? 'Listed in package.json' : 'Installed as a sub-dependency'),
-    renderKvItem('Scope', scopeLabel(dep.scope), 'Scope inferred from root dependencies'),
-    renderKvItem('Depth', dep.depth, 'How deep this package is in the dependency tree')
+    renderKvItem('Type', depTypeText, dep.usage.direct ? 'Listed in package.json' : 'Installed as a sub-dependency'),
+    renderKvItem('Scope', scopeLabel(dep.usage.scope), 'Scope inferred from root dependencies'),
+    renderKvItem('Depth', dep.usage.depth, 'How deep this package is in the dependency tree')
   ]);
 
   const originsSection = renderSection('Origins', 'Direct roots for this dependency', '<div class="kv-grid">' + originsItems.join('') + '</div>');
@@ -256,26 +256,26 @@ function renderDep(dep: DependencyObject): string {
   ]);
 
   const vulnSection = renderKvSection('Vulnerabilities', 'npm audit summary', [
-    renderKvItem('Critical', dep.vulnerabilities.critical),
-    renderKvItem('High', dep.vulnerabilities.high),
-    renderKvItem('Moderate', dep.vulnerabilities.moderate),
-    renderKvItem('Low', dep.vulnerabilities.low),
-    renderKvItem('Highest', capitalize(dep.vulnerabilities.highest))
+    renderKvItem('Critical', dep.security.vulnerabilities.critical),
+    renderKvItem('High', dep.security.vulnerabilities.high),
+    renderKvItem('Moderate', dep.security.vulnerabilities.moderate),
+    renderKvItem('Low', dep.security.vulnerabilities.low),
+    renderKvItem('Highest', capitalize(dep.security.vulnerabilities.highest))
   ]);
 
   const identitySection = renderKvSection('Identity', 'Package metadata', [
-    renderKvItem('Deprecated', yesNo(dep.deprecated), 'Whether the author has deprecated this package'),
-    renderKvItem('Node Engine', dep.nodeEngine || 'Any', 'Required Node.js version')
+    renderKvItem('Deprecated', yesNo(dep.package.deprecated), 'Whether the author has deprecated this package'),
+    renderKvItem('Node Engine', dep.upgrade.nodeEngine || 'Any', 'Required Node.js version')
   ]);
 
   const dependencySurfaceSection = renderKvSection('Dependency Surface', 'What this package depends on', [
-    renderKvItem('Dependencies', dep.dependencySurface.deps + ' prod / ' + dep.dependencySurface.dev + ' dev / ' + dep.dependencySurface.peer + ' peer / ' + dep.dependencySurface.opt + ' optional', '')
+    renderKvItem('Dependencies', dep.graph.dependencySurface.deps + ' prod / ' + dep.graph.dependencySurface.dev + ' dev / ' + dep.graph.dependencySurface.peer + ' peer / ' + dep.graph.dependencySurface.opt + ' optional', '')
   ]);
 
-  const installSection = dep.install ? renderInstallSection(dep.install) : '';
+  const installSection = dep.execution ? renderExecutionSection(dep.execution) : '';
 
   const typesSection = renderKvSection('TypeScript', 'Type definition support', [
-    renderKvItem('Types', dep.tsTypes === 'bundled' ? 'Bundled' : dep.tsTypes === 'definitelyTyped' ? 'DefinitelyTyped' : dep.tsTypes === 'none' ? 'None' : 'Unknown', 'Types availability')
+    renderKvItem('Types', dep.usage.tsTypes === 'bundled' ? 'Bundled' : dep.usage.tsTypes === 'definitelyTyped' ? 'DefinitelyTyped' : dep.usage.tsTypes === 'none' ? 'None' : 'Unknown', 'Types availability')
   ]);
 
   const graphSection = renderKvSection('Graph', 'Dependency graph summary', [
@@ -287,7 +287,7 @@ function renderDep(dep: DependencyObject): string {
     '<details class="dep-card" data-risk="' + highestRisk + '">',
     summary,
     '<div class="dep-details">',
-    renderPackageLinks(dep.links),
+    renderPackageLinks(dep.package.links),
     overviewSection,
     originsSection,
     licenseSection,
@@ -421,7 +421,7 @@ async function init(): Promise<void> {
   
   const allDependencies = Object.values(report.dependencies || {});
 
-  function applyFilters(): DependencyObject[] {
+  function applyFilters(): DependencyRecord[] {
     const term = (controls.search.value || '').toLowerCase();
     const directFilter = controls.direct.value;
     const runtimeFilter = controls.runtime.value;
@@ -433,13 +433,13 @@ async function init(): Promise<void> {
     const showUnknown = controls.licenseUnknown.checked;
     
     return allDependencies.filter((dep) => {
-      if (term && !(dep.name.toLowerCase().includes(term) || dep.license.toLowerCase().includes(term))) return false;
-      if (directFilter === 'direct' && !dep.direct) return false;
-      if (directFilter === 'transitive' && dep.direct) return false;
-      if (runtimeFilter !== 'all' && dep.scope !== runtimeFilter) return false;
+      if (term && !(dep.package.name.toLowerCase().includes(term) || dep.compliance.license.toLowerCase().includes(term))) return false;
+      if (directFilter === 'direct' && !dep.usage.direct) return false;
+      if (directFilter === 'transitive' && dep.usage.direct) return false;
+      if (runtimeFilter !== 'all' && dep.usage.scope !== runtimeFilter) return false;
       if (hasVulns && severityOrder[highestSeverity(dep)] === 0) return false;
       
-      const licenseCategory = getLicenseCategory(dep.license);
+      const licenseCategory = getLicenseCategory(dep.compliance.license);
       if (licenseCategory === 'permissive' && !showPermissive) return false;
       if (licenseCategory === 'weakCopyleft' && !showWeakCopyleft) return false;
       if (licenseCategory === 'strongCopyleft' && !showStrongCopyleft) return false;
@@ -449,14 +449,14 @@ async function init(): Promise<void> {
     });
   }
   
-  function sortDeps(deps: DependencyObject[]): DependencyObject[] {
+  function sortDeps(deps: DependencyRecord[]): DependencyRecord[] {
     const sortBy = controls.sort.value;
     const sorted = [...deps];
     
     if (sortBy === 'name') {
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
+      sorted.sort((a, b) => a.package.name.localeCompare(b.package.name));
     } else if (sortBy === 'depth') {
-      sorted.sort((a, b) => a.depth - b.depth);
+      sorted.sort((a, b) => a.usage.depth - b.usage.depth);
     } else if (sortBy === 'severity') {
       sorted.sort((a, b) => severityOrder[highestSeverity(b)] - severityOrder[highestSeverity(a)]);
     }

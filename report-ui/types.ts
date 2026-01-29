@@ -3,8 +3,8 @@
 
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
-export type InstallHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
-export type InstallSignal =
+export type ExecutionHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
+export type ExecutionSignal =
   | 'network-access'
   | 'dynamic-exec'
   | 'child-process'
@@ -14,66 +14,72 @@ export type InstallSignal =
   | 'reads-home'
   | 'uses-ssh';
 
-export interface DependencyObject {
-  id: string;
-  name: string;
-  version: string;
-  direct: boolean;
-  scope: 'runtime' | 'dev' | 'optional' | 'peer';
-  depth: number;
-  origins: {
-    workspaces?: string[];
-    rootPackageCount: number;
-    topRootPackages: string[];
-  };
-  license: string;
-  licenseRisk: 'green' | 'amber' | 'red';
-  vulnerabilities: {
-    critical: number;
-    high: number;
-    moderate: number;
-    low: number;
-    highest: Severity | 'none';
-  };
-  vulnRisk: 'green' | 'amber' | 'red';
-  deprecated: boolean;
-  nodeEngine: string | null;
-  install?: {
-    risk: 'amber' | 'red';
-    native?: true;
-    scripts?: {
-      hooks: InstallHook[];
-      complexity?: number;
-      signals?: InstallSignal[];
+export interface DependencyRecord {
+  package: {
+    id: string;
+    name: string;
+    version: string;
+    deprecated: boolean;
+    links: {
+      npm: string;
     };
   };
-  tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
-  dependencySurface: {
-    deps: number;
-    dev: number;
-    peer: number;
-    opt: number;
+  compliance: {
+    license: string;
+    licenseRisk: 'green' | 'amber' | 'red';
+  };
+  security: {
+    vulnerabilities: {
+      critical: number;
+      high: number;
+      moderate: number;
+      low: number;
+      highest: Severity | 'none';
+    };
+    vulnRisk: 'green' | 'amber' | 'red';
+  };
+  upgrade: {
+    nodeEngine: string | null;
+    outdatedStatus?: OutdatedStatus;
+    latestVersion?: string;
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+    blocksNodeMajor?: boolean;
+  };
+  usage: {
+    direct: boolean;
+    scope: 'runtime' | 'dev' | 'optional' | 'peer';
+    depth: number;
+    origins: {
+      workspaces?: string[];
+      rootPackageCount: number;
+      topRootPackages: string[];
+    };
+    introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
+    runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
+    importUsage?: {
+      fileCount: number;
+      topFiles: string[];
+    };
+    tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
   };
   graph: {
     fanIn: number;
     fanOut: number;
+    dependencySurface: {
+      deps: number;
+      dev: number;
+      peer: number;
+      opt: number;
+    };
   };
-  links: {
-    npm: string;
-  };
-  usage?: {
-    fileCount: number;
-    topFiles: string[];
-  };
-  introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
-  runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
-  upgrade?: {
-    blocksNodeMajor: boolean;
-    blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
-  };
-  outdated?: {
-    status: OutdatedStatus;
-    latestVersion?: string;
+  execution?: {
+    risk: 'amber' | 'red';
+    native?: true;
+    scripts?: {
+      hooks: ExecutionHook[];
+      complexity?: number;
+      signals?: ExecutionSignal[];
+    };
   };
 }
 
@@ -100,5 +106,5 @@ export interface AggregatedData {
     directCount: number;
     transitiveCount: number;
   };
-  dependencies: Record<string, DependencyObject>;
+  dependencies: Record<string, DependencyRecord>;
 }

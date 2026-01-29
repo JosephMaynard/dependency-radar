@@ -23,79 +23,99 @@
   },
   "dependencies": {
     "chalk@5.3.0": {
-      "id": "chalk@5.3.0",
-      "name": "chalk",
-      "version": "5.3.0",
-      "direct": true,
-      "scope": "runtime",
-      "depth": 1,
-      "origins": {
-        "rootPackageCount": 1,
-        "topRootPackages": ["chalk"]
+      "package": {
+        "id": "chalk@5.3.0",
+        "name": "chalk",
+        "version": "5.3.0",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/chalk"
+        }
       },
-      "license": "MIT",
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "critical": 0,
-        "high": 0,
-        "moderate": 0,
-        "low": 0,
-        "highest": "none"
+      "compliance": {
+        "license": "MIT",
+        "licenseRisk": "green"
       },
-      "vulnRisk": "green",
-      "deprecated": false,
-      "nodeEngine": ">=14.0.0",
-      "tsTypes": "bundled",
-      "dependencySurface": {
-        "deps": 0,
-        "dev": 0,
-        "peer": 0,
-        "opt": 0
+      "security": {
+        "vulnerabilities": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none"
+        },
+        "vulnRisk": "green"
+      },
+      "upgrade": {
+        "nodeEngine": ">=14.0.0"
+      },
+      "usage": {
+        "direct": true,
+        "scope": "runtime",
+        "depth": 1,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": ["chalk"]
+        },
+        "tsTypes": "bundled"
       },
       "graph": {
         "fanIn": 0,
-        "fanOut": 0
-      },
-      "links": {
-        "npm": "https://www.npmjs.com/package/chalk"
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "ansi-styles@6.2.1": {
-      "id": "ansi-styles@6.2.1",
-      "name": "ansi-styles",
-      "version": "6.2.1",
-      "direct": false,
-      "scope": "runtime",
-      "depth": 2,
-      "origins": {
-        "rootPackageCount": 1,
-        "topRootPackages": ["chalk"]
+      "package": {
+        "id": "ansi-styles@6.2.1",
+        "name": "ansi-styles",
+        "version": "6.2.1",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/ansi-styles"
+        }
       },
-      "license": "MIT",
-      "licenseRisk": "green",
-      "vulnerabilities": {
-        "critical": 0,
-        "high": 0,
-        "moderate": 0,
-        "low": 0,
-        "highest": "none"
+      "compliance": {
+        "license": "MIT",
+        "licenseRisk": "green"
       },
-      "vulnRisk": "green",
-      "deprecated": false,
-      "nodeEngine": null,
-      "tsTypes": "none",
-      "dependencySurface": {
-        "deps": 0,
-        "dev": 0,
-        "peer": 0,
-        "opt": 0
+      "security": {
+        "vulnerabilities": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none"
+        },
+        "vulnRisk": "green"
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "runtime",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": ["chalk"]
+        },
+        "tsTypes": "none"
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0
-      },
-      "links": {
-        "npm": "https://www.npmjs.com/package/ansi-styles"
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     }
   }

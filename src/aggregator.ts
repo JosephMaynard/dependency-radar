@@ -1,9 +1,10 @@
 import {
   AggregatedData,
-  DependencyObject,
-  InstallHook,
-  InstallSignal,
+  DependencyRecord,
+  ExecutionHook,
+  ExecutionSignal,
   OutdatedResult,
+  OutdatedStatus,
   Severity,
   ToolResult,
   VulnerabilitySummary
@@ -118,7 +119,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const packageMetaCache = new Map<string, PackageMeta>();
   const packageStatCache = new Map<string, PackageStats>();
 
-  const dependencies: Record<string, DependencyObject> = {};
+  const dependencies: Record<string, DependencyRecord> = {};
   const licenseCache = new Map<string, { license?: string }>();
   const nodeEngineRanges: string[] = [];
 
@@ -155,50 +156,66 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     }
 
     const scope = determineScope(node.name, direct, rootCauses, pkg);
-    const usage = usageResult.summary.get(node.name);
+    const importUsage = usageResult.summary.get(node.name);
     const runtimeImpact = usageResult.runtimeImpact.get(node.name);
     const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
     const origins = buildOrigins(rootCauses, input.workspaceUsage?.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
-    const install = packageInsights.install;
+    const execution = packageInsights.execution;
     const id = node.key;
     const upgrade = buildUpgradeBlock(packageInsights);
     const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
 
-    dependencies[id] = {
-      id,
-      name: node.name,
-      version: node.version,
-      direct,
-      scope,
-      depth: node.depth,
-      origins,
-      license: licenseValue,
-      licenseRisk,
-      vulnerabilities: {
-        critical: vulnerabilities.counts.critical,
-        high: vulnerabilities.counts.high,
-        moderate: vulnerabilities.counts.moderate,
-        low: vulnerabilities.counts.low,
-        highest: vulnerabilities.highestSeverity
-      },
-      vulnRisk,
-      deprecated: packageInsights.deprecated,
+    // Group fields by reviewer question to keep the JSON readable and source-agnostic.
+    // Optional fields are only attached when meaningful to keep the payload sparse.
+    const upgradeRecord: DependencyRecord['upgrade'] = {
       nodeEngine: packageInsights.nodeEngine,
-      ...(install ? { install } : {}),
-      tsTypes: packageInsights.tsTypes,
-      dependencySurface: packageInsights.dependencySurface,
+      ...(outdated ? { outdatedStatus: outdated.status } : {}),
+      ...(outdated?.latestVersion ? { latestVersion: outdated.latestVersion } : {}),
+      ...(upgrade?.blockers ? { blockers: upgrade.blockers } : {}),
+      ...(upgrade?.blocksNodeMajor ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {})
+    };
+
+    dependencies[id] = {
+      package: {
+        id,
+        name: node.name,
+        version: node.version,
+        deprecated: packageInsights.deprecated,
+        links: {
+          npm: `https://www.npmjs.com/package/${node.name}`
+        }
+      },
+      compliance: {
+        license: licenseValue,
+        licenseRisk
+      },
+      security: {
+        vulnerabilities: {
+          critical: vulnerabilities.counts.critical,
+          high: vulnerabilities.counts.high,
+          moderate: vulnerabilities.counts.moderate,
+          low: vulnerabilities.counts.low,
+          highest: vulnerabilities.highestSeverity
+        },
+        vulnRisk
+      },
+      upgrade: upgradeRecord,
+      usage: {
+        direct,
+        scope,
+        depth: node.depth,
+        origins,
+        ...(introduction ? { introduction } : {}),
+        ...(runtimeImpact ? { runtimeImpact } : {}),
+        ...(importUsage ? { importUsage } : {}),
+        tsTypes: packageInsights.tsTypes
+      },
       graph: {
         fanIn: node.parents.size,
-        fanOut: node.children.size
+        fanOut: node.children.size,
+        dependencySurface: packageInsights.dependencySurface
       },
-      links: {
-        npm: `https://www.npmjs.com/package/${node.name}`
-      },
-      ...(usage ? { usage } : {}),
-      ...(introduction ? { introduction } : {}),
-      ...(runtimeImpact ? { runtimeImpact } : {}),
-      ...(upgrade ? { upgrade } : {}),
-      ...(outdated ? { outdated } : {})
+      ...(execution ? { execution } : {})
     };
 
   }
@@ -375,7 +392,7 @@ function resolveOutdated(
   direct: boolean,
   outdatedById: Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }>,
   unknownNames: Set<string>
-): DependencyObject['outdated'] | undefined {
+): { status: OutdatedStatus; latestVersion?: string } | undefined {
   const entry = outdatedById.get(node.key);
   if (entry) {
     if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
@@ -497,12 +514,12 @@ interface UsageSummary {
 
 interface UsageBuildResult {
   summary: Map<string, UsageSummary>;
-  runtimeImpact: Map<string, DependencyObject['runtimeImpact']>;
+  runtimeImpact: Map<string, DependencyRecord['usage']['runtimeImpact']>;
 }
 
 function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBuildResult {
   const summary = new Map<string, UsageSummary>();
-  const runtimeImpact = new Map<string, DependencyObject['runtimeImpact']>();
+  const runtimeImpact = new Map<string, DependencyRecord['usage']['runtimeImpact']>();
   const byDep = new Map<string, Map<string, number>>();
   const packages = graph.packages || {};
 
@@ -602,7 +619,7 @@ function isBuildFile(file: string): boolean {
   return /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind)[^\/]*\./.test(file);
 }
 
-function determineRuntimeImpactFromFiles(files: string[]): DependencyObject['runtimeImpact'] {
+function determineRuntimeImpactFromFiles(files: string[]): DependencyRecord['usage']['runtimeImpact'] {
   const categories = new Set<'runtime' | 'build' | 'testing' | 'tooling'>();
   for (const file of files) {
     if (isTestFile(file)) {
@@ -670,8 +687,8 @@ function isFrameworkPackage(name: string): boolean {
 function determineIntroduction(
   direct: boolean,
   rootCauses: string[],
-  runtimeImpact: DependencyObject['runtimeImpact']
-): DependencyObject['introduction'] {
+  runtimeImpact: DependencyRecord['usage']['runtimeImpact']
+): DependencyRecord['usage']['introduction'] {
   if (direct) return 'direct';
   if (runtimeImpact === 'testing') return 'testing';
   if (rootCauses.length > 0 && rootCauses.every((root) => isToolingPackage(root))) return 'tooling';
@@ -683,15 +700,16 @@ function determineIntroduction(
 // Upgrade blockers derived only from local metadata (no external lookups).
 function buildUpgradeBlock(
   insights: PackageInsights
-): DependencyObject['upgrade'] | undefined {
+): { blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; blocksNodeMajor: boolean } | undefined {
   const blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'> = [];
   if (insights.nodeEngine) blockers.push('nodeEngine');
   if (insights.dependencySurface.peer > 0) blockers.push('peerDependency');
-  if (insights.install?.native) blockers.push('nativeBindings');
+  if (insights.execution?.native) blockers.push('nativeBindings');
   if (insights.deprecated) blockers.push('deprecated');
 
+  if (blockers.length === 0) return undefined;
   return {
-    blocksNodeMajor: blockers.length > 0,
+    blocksNodeMajor: true,
     blockers
   };
 }
@@ -716,7 +734,7 @@ interface PackageInsights {
     peer: number;
     opt: number;
   };
-  install?: DependencyObject['install'];
+  execution?: DependencyRecord['execution'];
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
 }
 
@@ -752,13 +770,13 @@ async function gatherPackageInsights(
 
   const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
   const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
-  const install = await deriveInstallInfo(scripts, dir, stats);
+  const execution = await deriveExecutionInfo(scripts, dir, stats);
 
   return {
     deprecated,
     nodeEngine,
     dependencySurface,
-    install,
+    execution,
     tsTypes
   };
 }
@@ -845,8 +863,8 @@ function determineTypes(
   return 'none';
 }
 
-const LIFECYCLE_HOOKS: InstallHook[] = ['preinstall', 'install', 'postinstall', 'prepare'];
-const INSTALL_SIGNAL_ORDER: InstallSignal[] = [
+const LIFECYCLE_HOOKS: ExecutionHook[] = ['preinstall', 'install', 'postinstall', 'prepare'];
+const EXECUTION_SIGNAL_ORDER: ExecutionSignal[] = [
   'network-access',
   'dynamic-exec',
   'child-process',
@@ -861,8 +879,8 @@ const COMPLEXITY_THRESHOLD = 12;
 
 function collectLifecycleScripts(
   scripts: Record<string, any>
-): Partial<Record<InstallHook, string>> {
-  const lifecycle: Partial<Record<InstallHook, string>> = {};
+): Partial<Record<ExecutionHook, string>> {
+  const lifecycle: Partial<Record<ExecutionHook, string>> = {};
   for (const hook of LIFECYCLE_HOOKS) {
     const cmd = scripts?.[hook];
     if (typeof cmd === 'string' && cmd.trim().length > 0) {
@@ -879,7 +897,7 @@ function scriptsContainNativeTooling(scripts: Record<string, any>): boolean {
 }
 
 function scoreLifecycleScripts(
-  lifecycleScripts: Partial<Record<InstallHook, string>>
+  lifecycleScripts: Partial<Record<ExecutionHook, string>>
 ): number {
   const commands = Object.values(lifecycleScripts).filter((cmd): cmd is string => typeof cmd === 'string');
   const combined = commands.join(' ');
@@ -940,7 +958,7 @@ function extractNodeScriptPath(command: string): string | undefined {
 }
 
 function findReferencedInstallScript(
-  lifecycleScripts: Partial<Record<InstallHook, string>>
+  lifecycleScripts: Partial<Record<ExecutionHook, string>>
 ): string | undefined {
   for (const hook of LIFECYCLE_HOOKS) {
     const command = lifecycleScripts[hook];
@@ -972,7 +990,7 @@ function textHasAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
 
-function detectScriptSignals(text: string, signals: Set<InstallSignal>): void {
+function detectScriptSignals(text: string, signals: Set<ExecutionSignal>): void {
   // Signals are derived from static text inspection only: no code execution and no import walking.
   // They are NOT malware detection; they merely highlight review-worthy install-time behavior.
 
@@ -1009,7 +1027,7 @@ function isObfuscated(text: string): boolean {
   return /[A-Za-z0-9+/]{800,}={0,2}/.test(text);
 }
 
-function detectFileSignals(text: string, signals: Set<InstallSignal>): void {
+function detectFileSignals(text: string, signals: Set<ExecutionSignal>): void {
   // Signals from a single directly-referenced JS file (no execution, no imports, no deep scanning).
   // These are review cues only and do NOT imply malicious intent.
   detectScriptSignals(text, signals);
@@ -1032,22 +1050,22 @@ function detectFileSignals(text: string, signals: Set<InstallSignal>): void {
   }
 }
 
-function determineInstallRisk(
+function determineExecutionRisk(
   hasScripts: boolean,
   hasSignals: boolean,
   highComplexity: boolean,
-  hooks: InstallHook[]
+  hooks: ExecutionHook[]
 ): 'amber' | 'red' {
   const hasInstallHook = hooks.includes('install') || hooks.includes('postinstall');
   if (hasScripts && (hasSignals || (highComplexity && hasInstallHook))) return 'red';
   return 'amber';
 }
 
-async function deriveInstallInfo(
+async function deriveExecutionInfo(
   scripts: Record<string, any>,
   packageDir: string | undefined,
   stats: PackageStats | undefined
-): Promise<DependencyObject['install'] | undefined> {
+): Promise<DependencyRecord['execution'] | undefined> {
   const lifecycleScripts = collectLifecycleScripts(scripts);
   const hooks = LIFECYCLE_HOOKS.filter((hook) => Boolean(lifecycleScripts[hook]));
   const hasScripts = hooks.length > 0;
@@ -1055,7 +1073,7 @@ async function deriveInstallInfo(
 
   if (!hasScripts && !hasNative) return undefined;
 
-  const signals = new Set<InstallSignal>();
+  const signals = new Set<ExecutionSignal>();
   const combinedScripts = hooks.map((hook) => lifecycleScripts[hook]!).join('\n');
   if (combinedScripts) {
     detectScriptSignals(combinedScripts, signals);
@@ -1074,17 +1092,18 @@ async function deriveInstallInfo(
   const complexityScore = hasScripts ? scoreLifecycleScripts(lifecycleScripts) : 0;
   const complexity = complexityScore >= COMPLEXITY_THRESHOLD ? complexityScore : undefined;
 
-  const signalList = INSTALL_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+  const signalList = EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
 
-  const scriptsInfo: NonNullable<DependencyObject['install']>['scripts'] = {
+  const scriptsInfo: NonNullable<DependencyRecord['execution']>['scripts'] = {
     hooks,
     ...(complexity !== undefined ? { complexity } : {}),
     ...(signalList.length > 0 ? { signals: signalList } : {})
   };
 
-  const risk = determineInstallRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
-  const install: DependencyObject['install'] = { risk };
-  if (hasNative) install.native = true;
-  if (hasScripts) install.scripts = scriptsInfo;
-  return install;
+  const risk = determineExecutionRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
+  const execution: DependencyRecord['execution'] = { risk };
+  // Native is surface description only; not a behavioral signal.
+  if (hasNative) execution.native = true;
+  if (hasScripts) execution.scripts = scriptsInfo;
+  return execution;
 }

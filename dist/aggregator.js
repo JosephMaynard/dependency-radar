@@ -104,49 +104,64 @@ async function aggregateData(input) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
         }
         const scope = determineScope(node.name, direct, rootCauses, pkg);
-        const usage = usageResult.summary.get(node.name);
+        const importUsage = usageResult.summary.get(node.name);
         const runtimeImpact = usageResult.runtimeImpact.get(node.name);
         const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
         const origins = buildOrigins(rootCauses, (_e = input.workspaceUsage) === null || _e === void 0 ? void 0 : _e.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
-        const install = packageInsights.install;
+        const execution = packageInsights.execution;
         const id = node.key;
         const upgrade = buildUpgradeBlock(packageInsights);
         const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
-        dependencies[id] = {
-            id,
-            name: node.name,
-            version: node.version,
-            direct,
-            scope,
-            depth: node.depth,
-            origins,
-            license: licenseValue,
-            licenseRisk,
-            vulnerabilities: {
-                critical: vulnerabilities.counts.critical,
-                high: vulnerabilities.counts.high,
-                moderate: vulnerabilities.counts.moderate,
-                low: vulnerabilities.counts.low,
-                highest: vulnerabilities.highestSeverity
-            },
-            vulnRisk,
-            deprecated: packageInsights.deprecated,
+        // Group fields by reviewer question to keep the JSON readable and source-agnostic.
+        // Optional fields are only attached when meaningful to keep the payload sparse.
+        const upgradeRecord = {
             nodeEngine: packageInsights.nodeEngine,
-            ...(install ? { install } : {}),
-            tsTypes: packageInsights.tsTypes,
-            dependencySurface: packageInsights.dependencySurface,
+            ...(outdated ? { outdatedStatus: outdated.status } : {}),
+            ...((outdated === null || outdated === void 0 ? void 0 : outdated.latestVersion) ? { latestVersion: outdated.latestVersion } : {}),
+            ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blockers) ? { blockers: upgrade.blockers } : {}),
+            ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blocksNodeMajor) ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {})
+        };
+        dependencies[id] = {
+            package: {
+                id,
+                name: node.name,
+                version: node.version,
+                deprecated: packageInsights.deprecated,
+                links: {
+                    npm: `https://www.npmjs.com/package/${node.name}`
+                }
+            },
+            compliance: {
+                license: licenseValue,
+                licenseRisk
+            },
+            security: {
+                vulnerabilities: {
+                    critical: vulnerabilities.counts.critical,
+                    high: vulnerabilities.counts.high,
+                    moderate: vulnerabilities.counts.moderate,
+                    low: vulnerabilities.counts.low,
+                    highest: vulnerabilities.highestSeverity
+                },
+                vulnRisk
+            },
+            upgrade: upgradeRecord,
+            usage: {
+                direct,
+                scope,
+                depth: node.depth,
+                origins,
+                ...(introduction ? { introduction } : {}),
+                ...(runtimeImpact ? { runtimeImpact } : {}),
+                ...(importUsage ? { importUsage } : {}),
+                tsTypes: packageInsights.tsTypes
+            },
             graph: {
                 fanIn: node.parents.size,
-                fanOut: node.children.size
+                fanOut: node.children.size,
+                dependencySurface: packageInsights.dependencySurface
             },
-            links: {
-                npm: `https://www.npmjs.com/package/${node.name}`
-            },
-            ...(usage ? { usage } : {}),
-            ...(introduction ? { introduction } : {}),
-            ...(runtimeImpact ? { runtimeImpact } : {}),
-            ...(upgrade ? { upgrade } : {}),
-            ...(outdated ? { outdated } : {})
+            ...(execution ? { execution } : {})
         };
     }
     const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
@@ -623,12 +638,14 @@ function buildUpgradeBlock(insights) {
         blockers.push('nodeEngine');
     if (insights.dependencySurface.peer > 0)
         blockers.push('peerDependency');
-    if ((_a = insights.install) === null || _a === void 0 ? void 0 : _a.native)
+    if ((_a = insights.execution) === null || _a === void 0 ? void 0 : _a.native)
         blockers.push('nativeBindings');
     if (insights.deprecated)
         blockers.push('deprecated');
+    if (blockers.length === 0)
+        return undefined;
     return {
-        blocksNodeMajor: blockers.length > 0,
+        blocksNodeMajor: true,
         blockers
     };
 }
@@ -657,12 +674,12 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
     const nodeEngine = typeof ((_a = pkg.engines) === null || _a === void 0 ? void 0 : _a.node) === 'string' ? pkg.engines.node : null;
     const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
     const tsTypes = determineTypes(pkg, (stats === null || stats === void 0 ? void 0 : stats.hasDts) || false, hasDefinitelyTyped);
-    const install = await deriveInstallInfo(scripts, dir, stats);
+    const execution = await deriveExecutionInfo(scripts, dir, stats);
     return {
         deprecated,
         nodeEngine,
         dependencySurface,
-        install,
+        execution,
         tsTypes
     };
 }
@@ -745,7 +762,7 @@ function determineTypes(pkg, hasDts, hasDefinitelyTyped) {
     return 'none';
 }
 const LIFECYCLE_HOOKS = ['preinstall', 'install', 'postinstall', 'prepare'];
-const INSTALL_SIGNAL_ORDER = [
+const EXECUTION_SIGNAL_ORDER = [
     'network-access',
     'dynamic-exec',
     'child-process',
@@ -918,13 +935,13 @@ function detectFileSignals(text, signals) {
         signals.add('obfuscated');
     }
 }
-function determineInstallRisk(hasScripts, hasSignals, highComplexity, hooks) {
+function determineExecutionRisk(hasScripts, hasSignals, highComplexity, hooks) {
     const hasInstallHook = hooks.includes('install') || hooks.includes('postinstall');
     if (hasScripts && (hasSignals || (highComplexity && hasInstallHook)))
         return 'red';
     return 'amber';
 }
-async function deriveInstallInfo(scripts, packageDir, stats) {
+async function deriveExecutionInfo(scripts, packageDir, stats) {
     const lifecycleScripts = collectLifecycleScripts(scripts);
     const hooks = LIFECYCLE_HOOKS.filter((hook) => Boolean(lifecycleScripts[hook]));
     const hasScripts = hooks.length > 0;
@@ -947,17 +964,18 @@ async function deriveInstallInfo(scripts, packageDir, stats) {
     }
     const complexityScore = hasScripts ? scoreLifecycleScripts(lifecycleScripts) : 0;
     const complexity = complexityScore >= COMPLEXITY_THRESHOLD ? complexityScore : undefined;
-    const signalList = INSTALL_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+    const signalList = EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
     const scriptsInfo = {
         hooks,
         ...(complexity !== undefined ? { complexity } : {}),
         ...(signalList.length > 0 ? { signals: signalList } : {})
     };
-    const risk = determineInstallRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
-    const install = { risk };
+    const risk = determineExecutionRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
+    const execution = { risk };
+    // Native is surface description only; not a behavioral signal.
     if (hasNative)
-        install.native = true;
+        execution.native = true;
     if (hasScripts)
-        install.scripts = scriptsInfo;
-    return install;
+        execution.scripts = scriptsInfo;
+    return execution;
 }

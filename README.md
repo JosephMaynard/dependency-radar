@@ -125,30 +125,64 @@ export interface AggregatedData {
 }
 
 export interface DependencyRecord {
-  id: string; // Stable identifier in the form name@version
-  name: string; // Package name from npm metadata
-  version: string; // Installed version from npm ls
-  direct: boolean; // True if declared in package.json (dependencies/devDependencies/etc.)
-  scope: 'runtime' | 'dev' | 'optional' | 'peer'; // Scope inferred from the declaring root package(s)
-  depth: number; // Minimum dependency tree depth observed in npm ls
-  origins: {
-    rootPackageCount: number; // Number of direct roots that introduce this dependency
-    topRootPackages: string[]; // Up to 10 root package names that cause installation
-    workspaces?: string[]; // Workspace packages that declare/use this dependency
+  package: {
+    id: string; // Stable identifier in the form name@version
+    name: string; // Package name from npm metadata
+    version: string; // Installed version from npm ls
+    deprecated: boolean; // True if the package.json has a deprecated flag
+    links: {
+      npm: string; // npm package page URL
+    };
   };
-  license: string; // License string read from the installed package.json
-  licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from license string
-  vulnerabilities: {
-    critical: number; // npm audit counts for critical issues
-    high: number; // npm audit counts for high issues
-    moderate: number; // npm audit counts for moderate issues
-    low: number; // npm audit counts for low issues
-    highest: 'low' | 'moderate' | 'high' | 'critical' | 'none'; // Highest severity present
+  compliance: {
+    license: string; // License string read from the installed package.json
+    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from license string
   };
-  vulnRisk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
-  deprecated: boolean; // True if the package.json has a deprecated flag
-  nodeEngine: string | null; // engines.node from the package.json (if present)
-  install?: {
+  security: {
+    vulnerabilities: {
+      critical: number; // npm audit counts for critical issues
+      high: number; // npm audit counts for high issues
+      moderate: number; // npm audit counts for moderate issues
+      low: number; // npm audit counts for low issues
+      highest: 'low' | 'moderate' | 'high' | 'critical' | 'none'; // Highest severity present
+    };
+    vulnRisk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
+  };
+  upgrade: {
+    nodeEngine: string | null; // engines.node from the package.json (if present)
+    outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (if present)
+    latestVersion?: string; // npm latest version (present only when status is not current)
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; // Reasons for upgrade friction
+    blocksNodeMajor?: boolean; // True if local signals indicate a node major bump is risky
+  };
+  usage: {
+    direct: boolean; // True if declared in package.json (dependencies/devDependencies/etc.)
+    scope: 'runtime' | 'dev' | 'optional' | 'peer'; // Scope inferred from the declaring root package(s)
+    depth: number; // Minimum dependency tree depth observed in npm ls
+    origins: {
+      rootPackageCount: number; // Number of direct roots that introduce this dependency
+      topRootPackages: string[]; // Up to 10 root package names that cause installation
+      workspaces?: string[]; // Workspace packages that declare/use this dependency
+    };
+    introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown'; // Heuristic for why the dependency exists
+    runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed'; // Heuristic based on import locations
+    importUsage?: {
+      fileCount: number; // Number of project files importing this package (import graph)
+      topFiles: string[]; // Top import locations (bounded to 5)
+    };
+    tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown'; // TypeScript type availability
+  };
+  graph: {
+    fanIn: number; // Number of packages that depend on this package
+    fanOut: number; // Number of packages this package depends on
+    dependencySurface: {
+      deps: number; // Count of production dependencies declared by this package
+      dev: number; // Count of dev dependencies declared by this package
+      peer: number; // Count of peer dependencies declared by this package
+      opt: number; // Count of optional dependencies declared by this package
+    };
+  };
+  execution?: {
     risk: 'amber' | 'red'; // Install-time risk (green implied when absent)
     native?: true; // True if native bindings or build tooling are detected
     scripts?: {
@@ -165,34 +199,6 @@ export interface DependencyRecord {
         | 'uses-ssh'
       >; // Review-worthy install-time signals (sparse)
     };
-  };
-  tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown'; // TypeScript type availability
-  dependencySurface: {
-    deps: number; // Count of production dependencies declared by this package
-    dev: number; // Count of dev dependencies declared by this package
-    peer: number; // Count of peer dependencies declared by this package
-    opt: number; // Count of optional dependencies declared by this package
-  };
-  graph: {
-    fanIn: number; // Number of packages that depend on this package
-    fanOut: number; // Number of packages this package depends on
-  };
-  links: {
-    npm: string; // npm package page URL
-  };
-  usage?: {
-    fileCount: number; // Number of project files importing this package (import graph)
-    topFiles: string[]; // Top import locations (bounded to 5)
-  };
-  introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown'; // Heuristic for why the dependency exists
-  runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed'; // Heuristic based on import locations
-  upgrade?: {
-    blocksNodeMajor: boolean; // True if local signals indicate a node major bump is risky
-    blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; // Reasons for upgrade friction
-  };
-  outdated?: {
-    status: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (or unknown if ambiguous)
-    latestVersion?: string; // npm latest version (present only when status is not current)
   };
 }
 ```

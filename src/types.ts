@@ -19,8 +19,8 @@ export interface DependencyOrigins {
   workspaces?: string[];
 }
 
-export type InstallHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
-export type InstallSignal =
+export type ExecutionHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
+export type ExecutionSignal =
   | 'network-access'
   | 'dynamic-exec'
   | 'child-process'
@@ -30,62 +30,72 @@ export type InstallSignal =
   | 'reads-home'
   | 'uses-ssh';
 
-export interface DependencyInstallInfo {
+// Sparse install-time execution signals only; absence means "nothing runs automatically".
+// Signals are behavioral hints, not malware classification, and no code is executed.
+export interface DependencyExecutionInfo {
   risk: 'amber' | 'red';
+  // Native compilation/tooling surface only (not a behavioral signal).
   native?: true;
   scripts?: {
-    hooks: InstallHook[];
+    hooks: ExecutionHook[];
     complexity?: number;
-    signals?: InstallSignal[];
+    signals?: ExecutionSignal[];
   };
 }
 
-export interface DependencyGraphSummary {
-  fanIn: number;
-  fanOut: number;
-}
-
-export interface DependencyObject {
-  id: string;
-  name: string;
-  version: string;
-  direct: boolean;
-  scope: 'runtime' | 'dev' | 'optional' | 'peer';
-  depth: number;
-  origins: DependencyOrigins;
-  license: string;
-  licenseRisk: 'green' | 'amber' | 'red';
-  vulnerabilities: {
-    critical: number;
-    high: number;
-    moderate: number;
-    low: number;
-    highest: Severity | 'none';
+// Grouped by human review questions (what it is, security, usage, graph impact, execution).
+export interface DependencyRecord {
+  package: {
+    id: string;
+    name: string;
+    version: string;
+    deprecated: boolean;
+    links: {
+      npm: string;
+    };
   };
-  vulnRisk: 'green' | 'amber' | 'red';
-  deprecated: boolean;
-  nodeEngine: string | null;
-  install?: DependencyInstallInfo;
-  tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
-  dependencySurface: DependencySurface;
-  graph: DependencyGraphSummary;
-  links: {
-    npm: string;
+  compliance: {
+    license: string;
+    licenseRisk: 'green' | 'amber' | 'red';
   };
-  usage?: {
-    fileCount: number;
-    topFiles: string[];
+  security: {
+    vulnerabilities: {
+      critical: number;
+      high: number;
+      moderate: number;
+      low: number;
+      highest: Severity | 'none';
+    };
+    vulnRisk: 'green' | 'amber' | 'red';
   };
-  introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
-  runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
-  upgrade?: {
-    blocksNodeMajor: boolean;
-    blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
-  };
-  outdated?: {
-    status: OutdatedStatus;
+  upgrade: {
+    nodeEngine: string | null;
+    outdatedStatus?: OutdatedStatus;
     latestVersion?: string;
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+    blocksNodeMajor?: boolean;
   };
+  // Usage answers why this dependency exists and where it shows up in the project.
+  usage: {
+    direct: boolean;
+    scope: 'runtime' | 'dev' | 'optional' | 'peer';
+    depth: number;
+    origins: DependencyOrigins;
+    introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
+    runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
+    importUsage?: {
+      fileCount: number;
+      topFiles: string[];
+    };
+    tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
+  };
+  // Graph answers blast-radius questions (who depends on it, and what it pulls in).
+  graph: {
+    fanIn: number;
+    fanOut: number;
+    dependencySurface: DependencySurface;
+  };
+  execution?: DependencyExecutionInfo;
 }
 
 export interface ToolResult<T> {
@@ -130,7 +140,7 @@ export interface AggregatedData {
     directCount: number;
     transitiveCount: number;
   };
-  dependencies: Record<string, DependencyObject>;
+  dependencies: Record<string, DependencyRecord>;
 }
 
 export interface ScanOptions {
