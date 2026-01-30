@@ -130,6 +130,151 @@
           "opt": 0
         }
       }
+    },
+    "vite@5.4.21": {
+      "package": {
+        "id": "vite@5.4.21",
+        "name": "vite",
+        "version": "5.4.21",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/vite",
+          "repository": "https://github.com/vitejs/vite",
+          "homepage": "https://vite.dev",
+          "bugs": "https://github.com/vitejs/vite/issues"
+        }
+      },
+      "compliance": {
+        "license": "MIT",
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 1,
+          "low": 0,
+          "highest": "moderate",
+          "risk": "amber"
+        },
+        "advisories": [
+          {
+            "id": "GHSA-67MH-4WV8-2F99",
+            "title": "esbuild enables any website to send any requests to the development server and read the response",
+            "severity": "moderate",
+            "vulnerableRange": "<=0.24.2",
+            "fixAvailable": true,
+            "url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99"
+          }
+        ]
+      },
+      "upgrade": {
+        "nodeEngine": "^18.0.0 || >=20.0.0",
+        "outdatedStatus": "major",
+        "latestVersion": "7.3.1",
+        "blockers": ["nodeEngine", "peerDependency"],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": true,
+        "scope": "dev",
+        "depth": 1,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": ["vite"]
+        },
+        "introduction": "direct",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 12,
+        "dependencySurface": {
+          "deps": 3,
+          "dev": 59,
+          "peer": 8,
+          "opt": 1
+        }
+      }
+    },
+    "esbuild@0.21.5": {
+      "package": {
+        "id": "esbuild@0.21.5",
+        "name": "esbuild",
+        "version": "0.21.5",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/esbuild",
+          "repository": "https://github.com/evanw/esbuild"
+        }
+      },
+      "compliance": {
+        "license": "MIT",
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 1,
+          "low": 0,
+          "highest": "moderate",
+          "risk": "amber"
+        },
+        "advisories": [
+          {
+            "id": "GHSA-67MH-4WV8-2F99",
+            "title": "esbuild enables any website to send any requests to the development server and read the response",
+            "severity": "moderate",
+            "vulnerableRange": "<=0.24.2",
+            "fixAvailable": true,
+            "url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99"
+          }
+        ]
+      },
+      "upgrade": {
+        "nodeEngine": ">=12",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 23,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 23
+        }
+      },
+      "execution": {
+        "risk": "red",
+        "scripts": {
+          "hooks": [
+            "postinstall"
+          ],
+          "signals": [
+            "network-access",
+            "child-process",
+            "reads-env"
+          ]
+        }
+      }
     }
   }
 }
