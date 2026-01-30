@@ -96,7 +96,6 @@ async function aggregateData(input) {
         const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
         const licenseValue = license.license || 'unknown';
         const licenseRisk = (0, utils_1.licenseRiskLevel)(licenseValue);
-        const vulnRisk = (0, utils_1.vulnRiskLevel)(vulnerabilities.counts);
         // Calculate root causes (direct dependencies that cause this to be installed)
         const rootCauses = findRootCauses(node, nodeMap, pkg);
         const packageInsights = await gatherPackageInsights(node.name, input.projectPath, packageMetaCache, packageStatCache);
@@ -139,14 +138,15 @@ async function aggregateData(input) {
                 licenseRisk
             },
             security: {
-                vulnerabilities: {
+                summary: {
                     critical: vulnerabilities.counts.critical,
                     high: vulnerabilities.counts.high,
                     moderate: vulnerabilities.counts.moderate,
                     low: vulnerabilities.counts.low,
-                    highest: vulnerabilities.highestSeverity
+                    highest: vulnerabilities.highestSeverity,
+                    risk: vulnerabilities.risk
                 },
-                vulnRisk
+                ...(vulnerabilities.advisories && vulnerabilities.advisories.length > 0 ? { advisories: vulnerabilities.advisories } : {})
             },
             upgrade: upgradeRecord,
             usage: {
@@ -357,6 +357,113 @@ function resolveOutdated(node, direct, outdatedById, unknownNames) {
     }
     return undefined;
 }
+const GHSA_ID_REGEX = /GHSA-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}/i;
+function extractGhsaId(value) {
+    if (typeof value !== 'string')
+        return undefined;
+    const match = value.match(GHSA_ID_REGEX);
+    return match ? match[0].toUpperCase() : undefined;
+}
+function extractNpmAdvisoryId(url) {
+    const match = url.match(/advisories\/(\d+)/i);
+    return match ? match[1] : undefined;
+}
+function resolveAdvisoryId(advisory, fallbackUrl) {
+    const ghsa = extractGhsaId(advisory === null || advisory === void 0 ? void 0 : advisory.github_advisory_id) ||
+        extractGhsaId(advisory === null || advisory === void 0 ? void 0 : advisory.ghsaId) ||
+        extractGhsaId(advisory === null || advisory === void 0 ? void 0 : advisory.ghsa_id) ||
+        extractGhsaId(advisory === null || advisory === void 0 ? void 0 : advisory.source) ||
+        extractGhsaId(advisory === null || advisory === void 0 ? void 0 : advisory.id) ||
+        extractGhsaId(advisory === null || advisory === void 0 ? void 0 : advisory.url) ||
+        (fallbackUrl ? extractGhsaId(fallbackUrl) : undefined);
+    if (ghsa)
+        return ghsa;
+    const url = typeof (advisory === null || advisory === void 0 ? void 0 : advisory.url) === 'string' ? advisory.url : undefined;
+    const npmId = url ? extractNpmAdvisoryId(url) : undefined;
+    if (npmId)
+        return npmId;
+    if ((advisory === null || advisory === void 0 ? void 0 : advisory.source) !== undefined)
+        return String(advisory.source);
+    if ((advisory === null || advisory === void 0 ? void 0 : advisory.id) !== undefined)
+        return String(advisory.id);
+    return undefined;
+}
+function resolveAdvisoryUrl(advisory, id) {
+    if (typeof (advisory === null || advisory === void 0 ? void 0 : advisory.url) === 'string' && advisory.url.trim())
+        return advisory.url.trim();
+    if (id) {
+        if (/^GHSA-/i.test(id))
+            return `https://github.com/advisories/${id}`;
+        if (/^\d+$/.test(id))
+            return `https://www.npmjs.com/advisories/${id}`;
+    }
+    return undefined;
+}
+function resolveFixAvailable(value, patchedVersions) {
+    if (typeof value === 'boolean')
+        return value;
+    if (value && typeof value === 'object')
+        return true;
+    if (typeof patchedVersions === 'string') {
+        const trimmed = patchedVersions.trim();
+        return Boolean(trimmed && trimmed !== '<0.0.0');
+    }
+    return false;
+}
+function normalizeAdvisoryRange(value) {
+    if (typeof value === 'string' && value.trim())
+        return value.trim();
+    return 'unknown';
+}
+function buildAdvisoryFromVia(via, item) {
+    var _a;
+    if (!via || typeof via !== 'object')
+        return undefined;
+    const id = resolveAdvisoryId(via, via.url) || resolveAdvisoryId(item, item === null || item === void 0 ? void 0 : item.url);
+    const title = typeof via.title === 'string' && via.title.trim()
+        ? via.title.trim()
+        : typeof via.name === 'string' && via.name.trim()
+            ? via.name.trim()
+            : 'Advisory';
+    const severity = normalizeSeverity(via.severity || (item === null || item === void 0 ? void 0 : item.severity));
+    const vulnerableRange = normalizeAdvisoryRange(via.range || via.vulnerable_versions || (item === null || item === void 0 ? void 0 : item.range));
+    const fixAvailable = resolveFixAvailable((_a = via.fixAvailable) !== null && _a !== void 0 ? _a : item === null || item === void 0 ? void 0 : item.fixAvailable, via.patched_versions);
+    const url = resolveAdvisoryUrl(via, id) || resolveAdvisoryUrl(item, id);
+    if (!id)
+        return undefined;
+    return {
+        id,
+        title,
+        severity,
+        vulnerableRange,
+        fixAvailable,
+        url: url || ''
+    };
+}
+function buildAdvisoryFromLegacy(adv) {
+    if (!adv || typeof adv !== 'object')
+        return undefined;
+    const id = resolveAdvisoryId(adv, adv.url);
+    const title = typeof adv.title === 'string' && adv.title.trim()
+        ? adv.title.trim()
+        : typeof adv.module_name === 'string' && adv.module_name.trim()
+            ? adv.module_name.trim()
+            : 'Advisory';
+    const severity = normalizeSeverity(adv.severity);
+    const vulnerableRange = normalizeAdvisoryRange(adv.vulnerable_versions || adv.vulnerableRange || adv.range);
+    const fixAvailable = resolveFixAvailable(adv.fix_available, adv.patched_versions);
+    const url = resolveAdvisoryUrl(adv, id);
+    if (!id)
+        return undefined;
+    return {
+        id,
+        title,
+        severity,
+        vulnerableRange,
+        fixAvailable,
+        url: url || ''
+    };
+}
 function parseVulnerabilities(auditData) {
     const map = new Map();
     if (!auditData)
@@ -367,33 +474,88 @@ function parseVulnerabilities(auditData) {
         }
         return map.get(name);
     };
+    const advisoryKeys = new Map();
+    const deferredViaStrings = [];
+    const addAdvisory = (name, advisory) => {
+        const entry = ensureEntry(name);
+        const key = `${advisory.id}|${advisory.vulnerableRange}`;
+        let keys = advisoryKeys.get(name);
+        if (!keys) {
+            keys = new Set();
+            advisoryKeys.set(name, keys);
+        }
+        if (keys.has(key))
+            return;
+        keys.add(key);
+        if (!entry.advisories)
+            entry.advisories = [];
+        entry.advisories.push(advisory);
+    };
+    // Advisories are disclosed findings from npm audit (not malware detection).
+    // Summary-only output loses evidence and is a data loss bug.
     if (auditData.vulnerabilities) {
         Object.values(auditData.vulnerabilities).forEach((item) => {
             const name = item.name || 'unknown';
-            const severity = normalizeSeverity(item.severity);
-            const entry = ensureEntry(name);
-            entry.counts[severity] = (entry.counts[severity] || 0) + 1;
             const viaList = Array.isArray(item.via) ? item.via : [];
-            viaList
-                .filter((v) => typeof v === 'object')
-                .forEach((vul) => {
-                const sev = normalizeSeverity(vul.severity) || severity;
-                entry.counts[sev] = (entry.counts[sev] || 0) + 0;
-            });
-            entry.highestSeverity = computeHighestSeverity(entry.counts);
+            let added = false;
+            for (const via of viaList) {
+                if (via && typeof via === 'object') {
+                    const advisory = buildAdvisoryFromVia(via, item);
+                    if (advisory) {
+                        addAdvisory(name, advisory);
+                        added = true;
+                    }
+                }
+            }
+            const viaStrings = viaList.filter((via) => typeof via === 'string');
+            if (viaStrings.length > 0) {
+                deferredViaStrings.push({ name, via: viaStrings });
+            }
+            if (!added) {
+                const fallback = buildAdvisoryFromVia(item, item);
+                if (fallback)
+                    addAdvisory(name, fallback);
+            }
         });
     }
     if (auditData.advisories) {
         Object.values(auditData.advisories).forEach((adv) => {
             const name = adv.module_name || adv.module || 'unknown';
-            const severity = normalizeSeverity(adv.severity);
-            const entry = ensureEntry(name);
-            entry.counts[severity] = (entry.counts[severity] || 0) + 1;
-            entry.highestSeverity = computeHighestSeverity(entry.counts);
+            const advisory = buildAdvisoryFromLegacy(adv);
+            if (advisory)
+                addAdvisory(name, advisory);
         });
     }
+    // One-level expansion: map string "via" references to their advisories without storing paths.
+    for (const entry of deferredViaStrings) {
+        for (const refName of entry.via) {
+            const referenced = map.get(refName);
+            if (referenced === null || referenced === void 0 ? void 0 : referenced.advisories) {
+                for (const advisory of referenced.advisories) {
+                    addAdvisory(entry.name, advisory);
+                }
+            }
+        }
+    }
     map.forEach((entry) => {
-        entry.highestSeverity = computeHighestSeverity(entry.counts);
+        const counts = { low: 0, moderate: 0, high: 0, critical: 0 };
+        if (entry.advisories) {
+            for (const advisory of entry.advisories) {
+                counts[advisory.severity] += 1;
+            }
+        }
+        entry.counts = counts;
+        entry.highestSeverity = computeHighestSeverity(counts);
+        entry.risk = (0, utils_1.vulnRiskLevel)(counts);
+        if (entry.advisories && entry.advisories.length > 0) {
+            entry.advisories.sort((a, b) => {
+                const order = { critical: 4, high: 3, moderate: 2, low: 1 };
+                const diff = order[b.severity] - order[a.severity];
+                if (diff !== 0)
+                    return diff;
+                return a.title.localeCompare(b.title);
+            });
+        }
     });
     return map;
 }
@@ -410,7 +572,8 @@ function normalizeSeverity(sev) {
 function emptyVulnSummary() {
     return {
         counts: { low: 0, moderate: 0, high: 0, critical: 0 },
-        highestSeverity: 'none'
+        highestSeverity: 'none',
+        risk: 'green'
     };
 }
 function computeHighestSeverity(counts) {

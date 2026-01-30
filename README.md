@@ -142,14 +142,22 @@ export interface DependencyRecord {
     licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from license string
   };
   security: {
-    vulnerabilities: {
+    summary: {
       critical: number; // npm audit counts for critical issues
       high: number; // npm audit counts for high issues
       moderate: number; // npm audit counts for moderate issues
       low: number; // npm audit counts for low issues
       highest: 'low' | 'moderate' | 'high' | 'critical' | 'none'; // Highest severity present
+      risk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
     };
-    vulnRisk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
+    advisories?: Array<{
+      id: string; // GHSA identifier
+      title: string; // Human-readable advisory title
+      severity: 'low' | 'moderate' | 'high' | 'critical';
+      vulnerableRange: string; // Semver range
+      fixAvailable: boolean; // True if npm audit indicates a fix exists
+      url: string; // Advisory URL
+    }>;
   };
   upgrade: {
     nodeEngine: string | null; // engines.node from the package.json (if present)

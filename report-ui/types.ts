@@ -14,6 +14,15 @@ export type ExecutionSignal =
   | 'reads-home'
   | 'uses-ssh';
 
+export interface VulnerabilityAdvisory {
+  id: string;
+  title: string;
+  severity: Severity;
+  vulnerableRange: string;
+  fixAvailable: boolean;
+  url: string;
+}
+
 export interface DependencyRecord {
   package: {
     id: string;
@@ -32,14 +41,15 @@ export interface DependencyRecord {
     licenseRisk: 'green' | 'amber' | 'red';
   };
   security: {
-    vulnerabilities: {
+    summary: {
       critical: number;
       high: number;
       moderate: number;
       low: number;
       highest: Severity | 'none';
+      risk: 'green' | 'amber' | 'red';
     };
-    vulnRisk: 'green' | 'amber' | 'red';
+    advisories?: VulnerabilityAdvisory[];
   };
   upgrade: {
     nodeEngine: string | null;

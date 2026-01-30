@@ -37,14 +37,14 @@
         "licenseRisk": "green"
       },
       "security": {
-        "vulnerabilities": {
+        "summary": {
           "critical": 0,
           "high": 0,
           "moderate": 0,
           "low": 0,
-          "highest": "none"
-        },
-        "vulnRisk": "green"
+          "highest": "none",
+          "risk": "green"
+        }
       },
       "upgrade": {
         "nodeEngine": ">=14.0.0"
@@ -88,14 +88,24 @@
         "licenseRisk": "green"
       },
       "security": {
-        "vulnerabilities": {
+        "summary": {
           "critical": 0,
-          "high": 0,
+          "high": 1,
           "moderate": 0,
           "low": 0,
-          "highest": "none"
+          "highest": "high",
+          "risk": "red"
         },
-        "vulnRisk": "green"
+        "advisories": [
+          {
+            "id": "GHSA-xxxx-xxxx-xxxx",
+            "title": "Regular Expression Denial of Service",
+            "severity": "high",
+            "vulnerableRange": "<6.2.2",
+            "fixAvailable": true,
+            "url": "https://github.com/advisories/GHSA-xxxx-xxxx-xxxx"
+          }
+        ]
       },
       "upgrade": {
         "nodeEngine": null

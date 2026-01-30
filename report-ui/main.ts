@@ -49,7 +49,7 @@ function getLicenseCategory(license: string | undefined | null): LicenseCategory
 const severityOrder: Record<Severity | 'none', number> = { none: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 
 function highestSeverity(dep: DependencyRecord): Severity | 'none' {
-  return dep.security?.vulnerabilities?.highest || 'none';
+  return dep.security?.summary?.highest || 'none';
 }
 
 function yesNo(flag: boolean | undefined): string {
@@ -62,7 +62,7 @@ function escapeHtml(str: string | null | undefined): string {
 }
 
 function getHighestRisk(dep: DependencyRecord): 'red' | 'amber' | 'green' {
-  const risks = [dep.security.vulnRisk, dep.compliance.licenseRisk];
+  const risks = [dep.security.summary.risk, dep.compliance.licenseRisk];
   if (risks.includes('red')) return 'red';
   if (risks.includes('amber')) return 'amber';
   return 'green';
@@ -211,6 +211,29 @@ function renderPackageLinks(links: DependencyRecord['package']['links']): string
   return html;
 }
 
+function renderAdvisoriesTable(advisories: DependencyRecord['security']['advisories'] | undefined): string {
+  if (!advisories || advisories.length === 0) {
+    return '<div class="no-vulns">No disclosed advisories for this dependency</div>';
+  }
+  let html = '<table class="vuln-table"><thead><tr>';
+  html += '<th>Advisory</th><th>Severity</th><th>Vulnerable Range</th><th>Fix Available</th>';
+  html += '</tr></thead><tbody>';
+  advisories.forEach((adv) => {
+    const label = adv.id ? adv.id + ' — ' + adv.title : adv.title;
+    const advisoryCell = adv.url
+      ? '<a href="' + escapeHtml(adv.url) + '" target="_blank" rel="noopener">' + escapeHtml(label) + '</a>'
+      : escapeHtml(label);
+    html += '<tr data-severity="' + escapeHtml(adv.severity) + '">';
+    html += '<td>' + advisoryCell + '</td>';
+    html += '<td>' + escapeHtml(capitalize(adv.severity)) + '</td>';
+    html += '<td>' + escapeHtml(adv.vulnerableRange) + '</td>';
+    html += '<td>' + escapeHtml(adv.fixAvailable ? 'Yes' : 'No') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
 function renderDep(dep: DependencyRecord): string {
   const licenseText = dep.compliance.license || 'Unknown';
   const licenseCategory = getLicenseCategory(licenseText);
@@ -234,7 +257,7 @@ function renderDep(dep: DependencyRecord): string {
     badgeCard('Type', depTypeText, depTypeClass),
     badgeCard('Scope', scopeLabel(dep.usage.scope), scopeTone),
     badgeCard('License', licenseText, licenseCategoryDisplay[licenseCategory].class),
-    badgeCard('Vulns', capitalize(severity), dep.security.vulnRisk),
+    badgeCard('Vulns', capitalize(severity), dep.security.summary.risk),
     badgeCard('Install', executionLabel, executionTone)
   ];
 
@@ -271,13 +294,18 @@ function renderDep(dep: DependencyRecord): string {
     renderKvItem('Category', licenseCategoryDisplay[licenseCategory].text, 'Business-friendliness classification')
   ]);
 
-  const vulnSection = renderKvSection('Vulnerabilities', 'npm audit summary', [
-    renderKvItem('Critical', dep.security.vulnerabilities.critical),
-    renderKvItem('High', dep.security.vulnerabilities.high),
-    renderKvItem('Moderate', dep.security.vulnerabilities.moderate),
-    renderKvItem('Low', dep.security.vulnerabilities.low),
-    renderKvItem('Highest', capitalize(dep.security.vulnerabilities.highest))
-  ]);
+  const vulnSummaryItems = [
+    renderKvItem('Critical', dep.security.summary.critical),
+    renderKvItem('High', dep.security.summary.high),
+    renderKvItem('Moderate', dep.security.summary.moderate),
+    renderKvItem('Low', dep.security.summary.low),
+    renderKvItem('Highest', capitalize(dep.security.summary.highest))
+  ];
+  const vulnSection = renderSection(
+    'Vulnerabilities',
+    'npm audit findings and summary',
+    '<div class="kv-grid">' + vulnSummaryItems.join('') + '</div>' + renderAdvisoriesTable(dep.security.advisories)
+  );
 
   const identitySection = renderKvSection('Identity', 'Package metadata', [
     renderKvItem('Deprecated', yesNo(dep.package.deprecated), 'Whether the author has deprecated this package'),

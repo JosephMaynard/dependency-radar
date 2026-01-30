@@ -1,9 +1,20 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
 
+export interface VulnerabilityAdvisory {
+  id: string;
+  title: string;
+  severity: Severity;
+  vulnerableRange: string;
+  fixAvailable: boolean;
+  url: string;
+}
+
 export interface VulnerabilitySummary {
   counts: Record<Severity, number>;
   highestSeverity: Severity | 'none';
+  risk: 'green' | 'amber' | 'red';
+  advisories?: VulnerabilityAdvisory[];
 }
 
 export interface DependencySurface {
@@ -62,14 +73,17 @@ export interface DependencyRecord {
     licenseRisk: 'green' | 'amber' | 'red';
   };
   security: {
-    vulnerabilities: {
+    // Summary answers "is this risky?" while advisories answer "why is this risky?"
+    // Advisories are disclosed findings; dropping them is a data loss bug.
+    summary: {
       critical: number;
       high: number;
       moderate: number;
       low: number;
       highest: Severity | 'none';
+      risk: 'green' | 'amber' | 'red';
     };
-    vulnRisk: 'green' | 'amber' | 'red';
+    advisories?: VulnerabilityAdvisory[];
   };
   upgrade: {
     nodeEngine: string | null;
