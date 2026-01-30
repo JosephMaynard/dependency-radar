@@ -779,6 +779,7 @@ details[open] .expand-icon {
 }
 
 .kv-grid-tight {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
