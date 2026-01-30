@@ -1,8 +1,9 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-01-31T19:22:15.526Z",
+  "generatedAt": "2026-01-30T20:45:21.272Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
+    "branch": "master"
     "branch": "master"
   },
   "project": {
@@ -27,7 +28,6 @@
         "id": "@types/node@20.19.30",
         "name": "@types/node",
         "version": "20.19.30",
-        "description": "TypeScript definitions for node",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@types/node",
@@ -76,6 +76,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 1,
+        "dependencySurface": {
+          "deps": 1,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "undici-types@6.21.0": {
@@ -83,7 +92,6 @@
         "id": "undici-types@6.21.0",
         "name": "undici-types",
         "version": "6.21.0",
-        "description": "A stand-alone types package for Undici",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/undici-types",
@@ -131,6 +139,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "terser@5.46.0": {
@@ -138,7 +155,6 @@
         "id": "terser@5.46.0",
         "name": "terser",
         "version": "5.46.0",
-        "description": "JavaScript parser, mangler/compressor and beautifier toolkit for ES6+",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/terser",
@@ -189,7 +205,23 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 4,
+        "dependencySurface": {
+          "deps": 4,
+          "dev": 10,
+          "peer": 0,
+          "opt": 0
+        }
       },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
       "execution": {
         "risk": "amber",
         "scripts": {
@@ -204,7 +236,6 @@
         "id": "@jridgewell/source-map@0.3.11",
         "name": "@jridgewell/source-map",
         "version": "0.3.11",
-        "description": "Packages @jridgewell/trace-mapping and @jridgewell/gen-mapping into the familiar source-map API",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@jridgewell/source-map",
@@ -251,6 +282,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "dependencySurface": {
+          "deps": 2,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@jridgewell/gen-mapping@0.3.13": {
@@ -258,7 +298,6 @@
         "id": "@jridgewell/gen-mapping@0.3.13",
         "name": "@jridgewell/gen-mapping",
         "version": "0.3.13",
-        "description": "Generate source maps",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@jridgewell/gen-mapping",
@@ -305,6 +344,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "dependencySurface": {
+          "deps": 2,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@jridgewell/sourcemap-codec@1.5.5": {
@@ -312,7 +360,6 @@
         "id": "@jridgewell/sourcemap-codec@1.5.5",
         "name": "@jridgewell/sourcemap-codec",
         "version": "1.5.5",
-        "description": "Encode/decode sourcemap mappings",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@jridgewell/sourcemap-codec",
@@ -360,6 +407,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 3,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@jridgewell/trace-mapping@0.3.31": {
@@ -367,7 +423,6 @@
         "id": "@jridgewell/trace-mapping@0.3.31",
         "name": "@jridgewell/trace-mapping",
         "version": "0.3.31",
-        "description": "Trace the original position through a source map",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@jridgewell/trace-mapping",
@@ -414,6 +469,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 2,
+        "dependencySurface": {
+          "deps": 2,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@jridgewell/resolve-uri@3.1.2": {
@@ -421,7 +485,6 @@
         "id": "@jridgewell/resolve-uri@3.1.2",
         "name": "@jridgewell/resolve-uri",
         "version": "3.1.2",
-        "description": "Resolve a URI relative to an optional base URI",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@jridgewell/resolve-uri",
@@ -479,7 +542,6 @@
         "id": "acorn@8.15.0",
         "name": "acorn",
         "version": "8.15.0",
-        "description": "ECMAScript parser",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/acorn",
@@ -501,10 +563,37 @@
           "risk": "green"
         }
       },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
       "upgrade": {
+        "nodeEngine": ">=0.4.0",
         "nodeEngine": ">=0.4.0",
         "blockers": [
           "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 2,
+          "topRootPackages": [
+            "terser",
+            "ts-node"
+          ]
+        },
+        "introduction": "transitive",
+        "tsTypes": "bundled"
         ],
         "blocksNodeMajor": true
       },
@@ -531,7 +620,23 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 3,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
       "execution": {
         "risk": "amber",
         "scripts": {
@@ -546,7 +651,6 @@
         "id": "commander@2.20.3",
         "name": "commander",
         "version": "2.20.3",
-        "description": "the complete solution for node.js command-line programs",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/commander",
@@ -592,6 +696,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 7,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "source-map-support@0.5.21": {
@@ -599,7 +712,6 @@
         "id": "source-map-support@0.5.21",
         "name": "source-map-support",
         "version": "0.5.21",
-        "description": "Fixes stack traces for files with source maps",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/source-map-support",
@@ -637,6 +749,15 @@
         "introduction": "transitive",
         "tsTypes": "none"
       },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "dependencySurface": {
+          "deps": 2,
+          "dev": 5,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
@@ -688,7 +809,55 @@
         },
         "introduction": "transitive",
         "tsTypes": "none"
+      "package": {
+        "id": "buffer-from@1.1.2",
+        "name": "buffer-from",
+        "version": "1.1.2",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/buffer-from",
+          "repository": "LinusU/buffer-from"
+        }
       },
+      "compliance": {
+        "license": "MIT",
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "terser"
+          ]
+        },
+        "introduction": "transitive",
+        "tsTypes": "none"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 1,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -705,7 +874,6 @@
         "id": "source-map@0.6.1",
         "name": "source-map",
         "version": "0.6.1",
-        "description": "Generates and consumes source maps",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/source-map",
@@ -756,6 +924,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 2,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "ts-node@10.9.2": {
@@ -763,7 +940,6 @@
         "id": "ts-node@10.9.2",
         "name": "ts-node",
         "version": "10.9.2",
-        "description": "TypeScript execution environment and REPL for node.js, with source map support",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/ts-node",
@@ -815,7 +991,23 @@
           "peer": 4,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 17,
+        "dependencySurface": {
+          "deps": 13,
+          "dev": 31,
+          "peer": 4,
+          "opt": 0
+        }
       },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
       "execution": {
         "risk": "amber",
         "scripts": {
@@ -830,7 +1022,6 @@
         "id": "@cspotcode/source-map-support@0.8.1",
         "name": "@cspotcode/source-map-support",
         "version": "0.8.1",
-        "description": "Fixes stack traces for files with source maps",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@cspotcode/source-map-support",
@@ -881,6 +1072,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 1,
+        "dependencySurface": {
+          "deps": 1,
+          "dev": 9,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@jridgewell/trace-mapping@0.3.9": {
@@ -888,7 +1088,6 @@
         "id": "@jridgewell/trace-mapping@0.3.9",
         "name": "@jridgewell/trace-mapping",
         "version": "0.3.9",
-        "description": "Trace the original position through a source map",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@jridgewell/trace-mapping",
@@ -926,6 +1125,15 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "dependencySurface": {
+          "deps": 2,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
@@ -976,7 +1184,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@swc/core@unknown",
+        "name": "@swc/core",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@swc/core"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "ts-node"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -1027,7 +1282,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@swc/wasm@unknown",
+        "name": "@swc/wasm",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@swc/wasm"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "ts-node"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -1044,7 +1346,6 @@
         "id": "@tsconfig/node10@1.0.12",
         "name": "@tsconfig/node10",
         "version": "1.0.12",
-        "description": "A base TSConfig for working with Node 10.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@tsconfig/node10",
@@ -1090,6 +1391,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@tsconfig/node12@1.0.11": {
@@ -1097,7 +1407,6 @@
         "id": "@tsconfig/node12@1.0.11",
         "name": "@tsconfig/node12",
         "version": "1.0.11",
-        "description": "A base TSConfig for working with Node 12.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@tsconfig/node12",
@@ -1143,6 +1452,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@tsconfig/node14@1.0.3": {
@@ -1150,7 +1468,6 @@
         "id": "@tsconfig/node14@1.0.3",
         "name": "@tsconfig/node14",
         "version": "1.0.3",
-        "description": "A base TSConfig for working with Node 14.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@tsconfig/node14",
@@ -1196,6 +1513,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "@tsconfig/node16@1.0.4": {
@@ -1203,7 +1529,6 @@
         "id": "@tsconfig/node16@1.0.4",
         "name": "@tsconfig/node16",
         "version": "1.0.4",
-        "description": "A base TSConfig for working with Node 16.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@tsconfig/node16",
@@ -1249,6 +1574,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "acorn-walk@8.3.4": {
@@ -1256,7 +1590,6 @@
         "id": "acorn-walk@8.3.4",
         "name": "acorn-walk",
         "version": "8.3.4",
-        "description": "ECMAScript (ESTree) AST walker",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/acorn-walk",
@@ -1307,7 +1640,23 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 1,
+        "dependencySurface": {
+          "deps": 1,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
       "execution": {
         "risk": "amber",
         "scripts": {
@@ -1322,7 +1671,6 @@
         "id": "arg@4.1.3",
         "name": "arg",
         "version": "4.1.3",
-        "description": "Another simple argument parser",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/arg",
@@ -1368,6 +1716,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 3,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "create-require@1.1.1": {
@@ -1375,7 +1732,6 @@
         "id": "create-require@1.1.1",
         "name": "create-require",
         "version": "1.1.1",
-        "description": "Polyfill for Node.js module.createRequire (<= v12.2.0)",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/create-require",
@@ -1421,6 +1777,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 4,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "diff@4.0.4": {
@@ -1428,7 +1793,6 @@
         "id": "diff@4.0.4",
         "name": "diff",
         "version": "4.0.4",
-        "description": "A javascript text diff implementation.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/diff",
@@ -1479,6 +1843,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 38,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "make-error@1.3.6": {
@@ -1486,7 +1859,6 @@
         "id": "make-error@1.3.6",
         "name": "make-error",
         "version": "1.3.6",
-        "description": "Make your own error types!",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/make-error",
@@ -1534,6 +1906,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 12,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "typescript@5.9.3": {
@@ -1541,7 +1922,6 @@
         "id": "typescript@5.9.3",
         "name": "typescript",
         "version": "5.9.3",
-        "description": "TypeScript is a language for application scale JavaScript development",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/typescript",
@@ -1593,6 +1973,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 44,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "v8-compile-cache-lib@3.0.1": {
@@ -1600,7 +1989,6 @@
         "id": "v8-compile-cache-lib@3.0.1",
         "name": "v8-compile-cache-lib",
         "version": "3.0.1",
-        "description": "Require hook for automatic V8 compile cache persistence",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/v8-compile-cache-lib",
@@ -1646,6 +2034,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 9,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "yn@3.1.1": {
@@ -1653,7 +2050,6 @@
         "id": "yn@3.1.1",
         "name": "yn",
         "version": "3.1.1",
-        "description": "Parse yes/no like values",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/yn",
@@ -1703,6 +2099,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 3,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "vite@5.4.21": {
@@ -1710,7 +2115,6 @@
         "id": "vite@5.4.21",
         "name": "vite",
         "version": "5.4.21",
-        "description": "Native-ESM powered web dev build tool",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/vite",
@@ -1775,6 +2179,15 @@
           "peer": 8,
           "opt": 1
         }
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 12,
+        "dependencySurface": {
+          "deps": 3,
+          "dev": 59,
+          "peer": 8,
+          "opt": 1
+        }
       }
     },
     "esbuild@0.21.5": {
@@ -1782,7 +2195,6 @@
         "id": "esbuild@0.21.5",
         "name": "esbuild",
         "version": "0.21.5",
-        "description": "An extremely fast JavaScript and CSS bundler and minifier.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/esbuild",
@@ -1842,7 +2254,28 @@
           "peer": 0,
           "opt": 23
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 23,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 23
+        }
       },
+      "execution": {
+        "risk": "red",
+        "scripts": {
+          "hooks": [
+            "postinstall"
+          ],
+          "signals": [
+            "network-access",
+            "child-process",
+            "reads-env"
+          ]
+        }
       "execution": {
         "risk": "red",
         "scripts": {
@@ -1896,7 +2329,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/aix-ppc64@unknown",
+        "name": "@esbuild/aix-ppc64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/aix-ppc64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -1947,7 +2427,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/android-arm@unknown",
+        "name": "@esbuild/android-arm",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/android-arm"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -1998,7 +2525,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/android-arm64@unknown",
+        "name": "@esbuild/android-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/android-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2049,7 +2623,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/android-x64@unknown",
+        "name": "@esbuild/android-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/android-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2066,7 +2687,6 @@
         "id": "@esbuild/darwin-arm64@0.21.5",
         "name": "@esbuild/darwin-arm64",
         "version": "0.21.5",
-        "description": "The macOS ARM 64-bit binary for esbuild, a JavaScript bundler.",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@esbuild/darwin-arm64",
@@ -2107,6 +2727,15 @@
         "introduction": "tooling",
         "tsTypes": "none"
       },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2157,7 +2786,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/darwin-x64@unknown",
+        "name": "@esbuild/darwin-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/darwin-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2208,7 +2884,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/freebsd-arm64@unknown",
+        "name": "@esbuild/freebsd-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/freebsd-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2259,7 +2982,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/freebsd-x64@unknown",
+        "name": "@esbuild/freebsd-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/freebsd-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2310,7 +3080,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-arm@unknown",
+        "name": "@esbuild/linux-arm",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-arm"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2361,7 +3178,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-arm64@unknown",
+        "name": "@esbuild/linux-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2412,7 +3276,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-ia32@unknown",
+        "name": "@esbuild/linux-ia32",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-ia32"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2463,7 +3374,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-loong64@unknown",
+        "name": "@esbuild/linux-loong64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-loong64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2514,7 +3472,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-mips64el@unknown",
+        "name": "@esbuild/linux-mips64el",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-mips64el"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2565,7 +3570,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-ppc64@unknown",
+        "name": "@esbuild/linux-ppc64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-ppc64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2616,7 +3668,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-riscv64@unknown",
+        "name": "@esbuild/linux-riscv64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-riscv64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2667,7 +3766,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-s390x@unknown",
+        "name": "@esbuild/linux-s390x",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-s390x"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2718,7 +3864,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/linux-x64@unknown",
+        "name": "@esbuild/linux-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/linux-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2769,7 +3962,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/netbsd-x64@unknown",
+        "name": "@esbuild/netbsd-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/netbsd-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2820,7 +4060,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/openbsd-x64@unknown",
+        "name": "@esbuild/openbsd-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/openbsd-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2871,7 +4158,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/sunos-x64@unknown",
+        "name": "@esbuild/sunos-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/sunos-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2922,7 +4256,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/win32-arm64@unknown",
+        "name": "@esbuild/win32-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/win32-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -2973,7 +4354,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/win32-ia32@unknown",
+        "name": "@esbuild/win32-ia32",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/win32-ia32"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3024,7 +4452,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@esbuild/win32-x64@unknown",
+        "name": "@esbuild/win32-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/win32-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3075,7 +4550,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "fsevents@unknown",
+        "name": "fsevents",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/fsevents"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 2,
         "fanOut": 0,
@@ -3126,7 +4648,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "less@unknown",
+        "name": "less",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/less"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3177,7 +4746,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "lightningcss@unknown",
+        "name": "lightningcss",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/lightningcss"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3194,7 +4810,6 @@
         "id": "postcss@8.5.6",
         "name": "postcss",
         "version": "8.5.6",
-        "description": "Tool for transforming styles with JS plugins",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/postcss",
@@ -3253,7 +4868,6 @@
         "id": "nanoid@3.3.11",
         "name": "nanoid",
         "version": "3.3.11",
-        "description": "A tiny (116 bytes), secure URL-friendly unique string ID generator",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/nanoid",
@@ -3274,10 +4888,36 @@
           "risk": "green"
         }
       },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
       "upgrade": {
+        "nodeEngine": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1",
         "nodeEngine": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1",
         "blockers": [
           "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
         ],
         "blocksNodeMajor": true
       },
@@ -3303,6 +4943,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "picocolors@1.1.1": {
@@ -3310,7 +4959,6 @@
         "id": "picocolors@1.1.1",
         "name": "picocolors",
         "version": "1.1.1",
-        "description": "The tiniest and the fastest library for terminal output formatting with ANSI colors",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/picocolors",
@@ -3356,6 +5004,15 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       }
     },
     "source-map-js@1.2.1": {
@@ -3363,7 +5020,6 @@
         "id": "source-map-js@1.2.1",
         "name": "source-map-js",
         "version": "1.2.1",
-        "description": "Generates and consumes source maps",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/source-map-js",
@@ -3421,7 +5077,6 @@
         "id": "rollup@4.56.0",
         "name": "rollup",
         "version": "4.56.0",
-        "description": "Next-generation ES module bundler",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/rollup",
@@ -3444,10 +5099,40 @@
           "risk": "green"
         }
       },
+      "compliance": {
+        "license": "MIT",
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
       "upgrade": {
+        "nodeEngine": ">=18.0.0",
         "nodeEngine": ">=18.0.0",
         "blockers": [
           "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
         ],
         "blocksNodeMajor": true
       },
@@ -3473,7 +5158,23 @@
           "peer": 0,
           "opt": 26
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 27,
+        "dependencySurface": {
+          "deps": 1,
+          "dev": 87,
+          "peer": 0,
+          "opt": 26
+        }
       },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
       "execution": {
         "risk": "amber",
         "scripts": {
@@ -3522,7 +5223,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-android-arm-eabi@unknown",
+        "name": "@rollup/rollup-android-arm-eabi",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-android-arm-eabi"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3573,7 +5321,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-android-arm64@unknown",
+        "name": "@rollup/rollup-android-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-android-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3590,7 +5385,6 @@
         "id": "@rollup/rollup-darwin-arm64@4.56.0",
         "name": "@rollup/rollup-darwin-arm64",
         "version": "4.56.0",
-        "description": "Native bindings for Rollup",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@rollup/rollup-darwin-arm64",
@@ -3641,7 +5435,19 @@
           "peer": 0,
           "opt": 0
         }
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       },
+      "execution": {
+        "risk": "amber",
+        "native": true
       "execution": {
         "risk": "amber",
         "native": true
@@ -3686,7 +5492,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-darwin-x64@unknown",
+        "name": "@rollup/rollup-darwin-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-darwin-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3737,7 +5590,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-freebsd-arm64@unknown",
+        "name": "@rollup/rollup-freebsd-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-freebsd-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3788,7 +5688,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-freebsd-x64@unknown",
+        "name": "@rollup/rollup-freebsd-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-freebsd-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3839,7 +5786,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-arm-gnueabihf@unknown",
+        "name": "@rollup/rollup-linux-arm-gnueabihf",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-arm-gnueabihf"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3890,7 +5884,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-arm-musleabihf@unknown",
+        "name": "@rollup/rollup-linux-arm-musleabihf",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-arm-musleabihf"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3941,7 +5982,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-arm64-gnu@unknown",
+        "name": "@rollup/rollup-linux-arm64-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-arm64-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -3992,7 +6080,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-arm64-musl@unknown",
+        "name": "@rollup/rollup-linux-arm64-musl",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-arm64-musl"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4043,7 +6178,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-loong64-gnu@unknown",
+        "name": "@rollup/rollup-linux-loong64-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-loong64-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4094,7 +6276,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-loong64-musl@unknown",
+        "name": "@rollup/rollup-linux-loong64-musl",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-loong64-musl"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4145,7 +6374,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-ppc64-gnu@unknown",
+        "name": "@rollup/rollup-linux-ppc64-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-ppc64-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4196,7 +6472,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-ppc64-musl@unknown",
+        "name": "@rollup/rollup-linux-ppc64-musl",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-ppc64-musl"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4247,7 +6570,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-riscv64-gnu@unknown",
+        "name": "@rollup/rollup-linux-riscv64-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-riscv64-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4298,7 +6668,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-riscv64-musl@unknown",
+        "name": "@rollup/rollup-linux-riscv64-musl",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-riscv64-musl"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4349,7 +6766,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-s390x-gnu@unknown",
+        "name": "@rollup/rollup-linux-s390x-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-s390x-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4400,7 +6864,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-x64-gnu@unknown",
+        "name": "@rollup/rollup-linux-x64-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-x64-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4451,7 +6962,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-linux-x64-musl@unknown",
+        "name": "@rollup/rollup-linux-x64-musl",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-linux-x64-musl"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4502,7 +7060,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-openbsd-x64@unknown",
+        "name": "@rollup/rollup-openbsd-x64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-openbsd-x64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4553,7 +7158,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-openharmony-arm64@unknown",
+        "name": "@rollup/rollup-openharmony-arm64",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-openharmony-arm64"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4604,7 +7256,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-win32-arm64-msvc@unknown",
+        "name": "@rollup/rollup-win32-arm64-msvc",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-win32-arm64-msvc"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4655,7 +7354,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-win32-ia32-msvc@unknown",
+        "name": "@rollup/rollup-win32-ia32-msvc",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-win32-ia32-msvc"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4706,7 +7452,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-win32-x64-gnu@unknown",
+        "name": "@rollup/rollup-win32-x64-gnu",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-win32-x64-gnu"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4757,7 +7550,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "@rollup/rollup-win32-x64-msvc@unknown",
+        "name": "@rollup/rollup-win32-x64-msvc",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-win32-x64-msvc"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4774,7 +7614,6 @@
         "id": "@types/estree@1.0.8",
         "name": "@types/estree",
         "version": "1.0.8",
-        "description": "TypeScript definitions for estree",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/@types/estree",
@@ -4812,6 +7651,15 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4862,7 +7710,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "sass-embedded@unknown",
+        "name": "sass-embedded",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/sass-embedded"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4913,7 +7808,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "sass@unknown",
+        "name": "sass",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/sass"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -4964,7 +7906,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "stylus@unknown",
+        "name": "stylus",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/stylus"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
@@ -5015,7 +8004,54 @@
         },
         "introduction": "tooling",
         "tsTypes": "unknown"
+      "package": {
+        "id": "sugarss@unknown",
+        "name": "sugarss",
+        "version": "unknown",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/sugarss"
+        }
       },
+      "compliance": {
+        "license": "unknown",
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            "vite"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependencySurface": {
+          "deps": 0,
+          "dev": 0,
+          "peer": 0,
+          "opt": 0
+        }
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
