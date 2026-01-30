@@ -137,7 +137,6 @@
         "id": "vite@5.4.21",
         "name": "vite",
         "version": "5.4.21",
-        "description": "Next generation frontend tooling",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/vite",
