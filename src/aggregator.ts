@@ -1,36 +1,38 @@
 import {
   AggregatedData,
   DependencyRecord,
-  ImportAnalysisSummary,
-  ImportGraphInfo,
-  MaintenanceInfo,
-  PackageLinks,
-  RawOutputs,
+  ExecutionHook,
+  ExecutionSignal,
+  OutdatedResult,
+  OutdatedStatus,
   Severity,
   ToolResult,
-  UsageInfo,
+  VulnerabilityAdvisory,
   VulnerabilitySummary
 } from './types';
 import {
   licenseRiskLevel,
-  maintenanceRisk,
   readPackageJson,
   readLicenseFromPackageJson,
   runCommand,
-  delay,
   vulnRiskLevel,
   getDependencyRadarVersion
 } from './utils';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 
 interface AggregateInput {
   projectPath: string;
-  maintenanceEnabled: boolean;
-  onMaintenanceProgress?: (current: number, total: number, name: string) => void;
   auditResult?: ToolResult<any>;
   npmLsResult?: ToolResult<any>;
   importGraphResult?: ToolResult<any>;
+  outdatedResult?: OutdatedResult;
+  // Optional: allow CLI to pass a merged view of workspace package.json dependencies
+  pkgOverride?: any;
+  // Map dependency name -> workspace package names where it is used/declared
+  workspaceUsage?: Map<string, string[]>;
+  workspaceEnabled: boolean;
 }
 
 interface NodeInfo {
@@ -94,46 +96,17 @@ function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any
   return Array.from(rootCauses).sort();
 }
 
-/**
- * Normalize repository URLs to browsable HTTPS format.
- * Handles: git+https://, git://, github:user/repo, git@github.com:user/repo.git
- */
-function normalizeRepoUrl(url: string): string {
-  if (!url) return url;
-  
-  // Handle shorthand: github:user/repo or user/repo
-  if (url.match(/^(github:|gitlab:|bitbucket:)?[\w-]+\/[\w.-]+$/)) {
-    const cleaned = url.replace(/^(github:|gitlab:|bitbucket:)/, '');
-    const host = url.startsWith('gitlab:') ? 'gitlab.com' 
-               : url.startsWith('bitbucket:') ? 'bitbucket.org' 
-               : 'github.com';
-    return `https://${host}/${cleaned}`;
+function formatProjectDir(projectPath: string): string {
+  const home = os.homedir();
+  const relative = path.relative(home, projectPath);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return `/${relative.split(path.sep).join('/')}`;
   }
-  
-  // Handle git+https:// or git:// prefix
-  let normalized = url.replace(/^git\+/, '').replace(/^git:\/\//, 'https://');
-  
-  // Handle git@host:user/repo.git SSH format
-  normalized = normalized.replace(/^git@([^:]+):(.+)$/, 'https://$1/$2');
-  
-  // Remove .git suffix
-  normalized = normalized.replace(/\.git$/, '');
-  
-  return normalized;
+  return projectPath;
 }
 
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
-  const pkg = await readPackageJson(input.projectPath);
-  const raw: RawOutputs = {
-    audit: input.auditResult?.data,
-    npmLs: input.npmLsResult?.data,
-    importGraph: input.importGraphResult?.data
-  };
-
-  const toolErrors: Record<string, string> = {};
-  if (input.auditResult && !input.auditResult.ok) toolErrors['npm-audit'] = input.auditResult.error || 'unknown error';
-  if (input.npmLsResult && !input.npmLsResult.ok) toolErrors['npm-ls'] = input.npmLsResult.error || 'unknown error';
-  if (input.importGraphResult && !input.importGraphResult.ok) toolErrors['import-graph'] = input.importGraphResult.error || 'unknown error';
+  const pkg = input.pkgOverride || (await readPackageJson(input.projectPath));
 
   // Get git branch
   const gitBranch = await getGitBranch(input.projectPath);
@@ -141,133 +114,146 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const nodeMap = buildNodeMap(input.npmLsResult?.data, pkg);
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
   const importGraph = normalizeImportGraph(input.importGraphResult?.data);
-  const importInfo = buildImportInfo(importGraph.files);
-  const importAnalysis = buildImportAnalysis(importGraph, pkg);
-  const packageUsageCounts = new Map(Object.entries(importAnalysis.packageHotness));
-  const maintenanceCache = new Map<string, MaintenanceInfo>();
-  const runtimeCache = new Map<string, { classification: RuntimeClass; reason: string }>();
+  const usageResult = buildUsageSummary(importGraph, input.projectPath);
+  const outdatedById = buildOutdatedMap(input.outdatedResult);
+  const outdatedUnknownNames = new Set(input.outdatedResult?.unknownNames || []);
   const packageMetaCache = new Map<string, PackageMeta>();
   const packageStatCache = new Map<string, PackageStats>();
 
-  const dependencies: DependencyRecord[] = [];
-  const licenseCache = new Map<string, { license?: string; licenseFile?: string }>();
+  const dependencies: Record<string, DependencyRecord> = {};
+  const licenseCache = new Map<string, { license?: string }>();
   const nodeEngineRanges: string[] = [];
 
   const nodes = Array.from(nodeMap.values());
-  const totalDeps = nodes.length;
-  let maintenanceIndex = 0;
+  let directCount = 0;
+  const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
 
   for (const node of nodes) {
     const direct = isDirectDependency(node.name, pkg);
+    if (direct) directCount += 1;
     const cachedLicense = licenseCache.get(node.name);
     const license = cachedLicense ||
       (await readLicenseFromPackageJson(node.name, input.projectPath)) ||
       { license: undefined };
-    if (!licenseCache.has(node.name) && (license.license || license.licenseFile)) {
+    if (!licenseCache.has(node.name) && license.license) {
       licenseCache.set(node.name, license);
     }
     const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
-    const licenseRisk = licenseRiskLevel(license.license);
-    const vulnRisk = vulnRiskLevel(vulnerabilities.counts);
-    const usage = buildUsageInfo(node.name, packageUsageCounts, pkg);
-    const maintenance = await resolveMaintenance(
-      node.name,
-      maintenanceCache,
-      input.maintenanceEnabled,
-      ++maintenanceIndex,
-      totalDeps,
-      input.onMaintenanceProgress
-    );
-    if (!maintenanceCache.has(node.name)) {
-      maintenanceCache.set(node.name, maintenance);
-    }
-
-    const maintenanceRiskLevel = maintenanceRisk(maintenance.lastPublished);
-    const runtimeData = classifyRuntime(node.key, pkg, nodeMap, runtimeCache);
+    const licenseValue = license.license || 'unknown';
+    const licenseRisk = licenseRiskLevel(licenseValue);
     
     // Calculate root causes (direct dependencies that cause this to be installed)
     const rootCauses = findRootCauses(node, nodeMap, pkg);
-    
-    // Build dependedOnBy and dependsOn lists
-    const dependedOnBy = Array.from(node.parents).map(key => {
-      const parent = nodeMap.get(key);
-      return parent ? parent.name : key.split('@')[0];
-    });
-    const dependsOn = Array.from(node.children).map(key => {
-      const child = nodeMap.get(key);
-      return child ? child.name : key.split('@')[0];
-    });
-    
+
     const packageInsights = await gatherPackageInsights(
       node.name,
       input.projectPath,
       packageMetaCache,
-      packageStatCache,
-      node.parents.size,
-      node.children.size,
-      dependedOnBy,
-      dependsOn
+      packageStatCache
     );
-    if (packageInsights.identity.nodeEngine) {
-      nodeEngineRanges.push(packageInsights.identity.nodeEngine);
+    if (packageInsights.nodeEngine) {
+      nodeEngineRanges.push(packageInsights.nodeEngine);
     }
 
-    dependencies.push({
-      name: node.name,
-      version: node.version,
-      key: node.key,
-      direct,
-      transitive: !direct,
-      depth: node.depth,
-      parents: Array.from(node.parents),
-      rootCauses,
-      license,
-      licenseRisk,
-      vulnerabilities,
-      vulnRisk,
-      maintenance,
-      maintenanceRisk: maintenanceRiskLevel,
-      usage,
-      identity: packageInsights.identity,
-      dependencySurface: packageInsights.dependencySurface,
-      sizeFootprint: packageInsights.sizeFootprint,
-      buildPlatform: packageInsights.buildPlatform,
-      moduleSystem: packageInsights.moduleSystem,
-      typescript: packageInsights.typescript,
-      graph: packageInsights.graph,
-      links: packageInsights.links,
-      importInfo,
-      runtimeClass: runtimeData.classification,
-      runtimeReason: runtimeData.reason,
-      outdated: { status: 'unknown' },
-      raw: {}
-    });
+    const scope = determineScope(node.name, direct, rootCauses, pkg);
+    const importUsage = usageResult.summary.get(node.name);
+    const runtimeImpact = usageResult.runtimeImpact.get(node.name);
+    const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
+    const origins = buildOrigins(rootCauses, input.workspaceUsage?.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
+    const execution = packageInsights.execution;
+    const id = node.key;
+    const upgrade = buildUpgradeBlock(packageInsights);
+    const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
+
+    // Group fields by reviewer question to keep the JSON readable and source-agnostic.
+    // Optional fields are only attached when meaningful to keep the payload sparse.
+    const upgradeRecord: DependencyRecord['upgrade'] = {
+      nodeEngine: packageInsights.nodeEngine,
+      ...(outdated ? { outdatedStatus: outdated.status } : {}),
+      ...(outdated?.latestVersion ? { latestVersion: outdated.latestVersion } : {}),
+      ...(upgrade?.blockers ? { blockers: upgrade.blockers } : {}),
+      ...(upgrade?.blocksNodeMajor ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {})
+    };
+
+    dependencies[id] = {
+      package: {
+        id,
+        name: node.name,
+        version: node.version,
+        deprecated: packageInsights.deprecated,
+        links: {
+          npm: `https://www.npmjs.com/package/${node.name}`,
+          ...(packageInsights.links?.repository ? { repository: packageInsights.links.repository } : {}),
+          ...(packageInsights.links?.homepage ? { homepage: packageInsights.links.homepage } : {}),
+          ...(packageInsights.links?.bugs ? { bugs: packageInsights.links.bugs } : {})
+        }
+      },
+      compliance: {
+        license: licenseValue,
+        licenseRisk
+      },
+      security: {
+        summary: {
+          critical: vulnerabilities.counts.critical,
+          high: vulnerabilities.counts.high,
+          moderate: vulnerabilities.counts.moderate,
+          low: vulnerabilities.counts.low,
+          highest: vulnerabilities.highestSeverity,
+          risk: vulnerabilities.risk
+        },
+        ...(vulnerabilities.advisories && vulnerabilities.advisories.length > 0 ? { advisories: vulnerabilities.advisories } : {})
+      },
+      upgrade: upgradeRecord,
+      usage: {
+        direct,
+        scope,
+        depth: node.depth,
+        origins,
+        ...(introduction ? { introduction } : {}),
+        ...(runtimeImpact ? { runtimeImpact } : {}),
+        ...(importUsage ? { importUsage } : {}),
+        tsTypes: packageInsights.tsTypes
+      },
+      graph: {
+        fanIn: node.parents.size,
+        fanOut: node.children.size,
+        dependencySurface: packageInsights.dependencySurface
+      },
+      ...(execution ? { execution } : {})
+    };
 
   }
 
-  dependencies.sort((a, b) => a.name.localeCompare(b.name));
-  const runtimeVersion = process.version.replace(/^v/, '');
-  const runtimeMajor = Number.parseInt(runtimeVersion.split('.')[0], 10);
   const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
+  const runtimeVersion = process.version;
+  const nodeVersion = process.versions.node;
+  const dependencyCount = nodes.length;
+  const transitiveCount = dependencyCount - directCount;
 
   return {
+    schemaVersion: '1.0',
     generatedAt: new Date().toISOString(),
-    projectPath: input.projectPath,
     dependencyRadarVersion,
-    gitBranch,
-    maintenanceEnabled: input.maintenanceEnabled,
-    environment: {
-      node: {
-        runtimeVersion,
-        runtimeMajor: Number.isNaN(runtimeMajor) ? 0 : runtimeMajor,
-        minRequiredMajor,
-        source: minRequiredMajor === undefined ? 'unknown' : 'dependency-engines'
-      }
+    git: {
+      branch: gitBranch || ''
     },
-    dependencies,
-    toolErrors,
-    raw,
-    importAnalysis
+    project: {
+      projectDir: formatProjectDir(input.projectPath)
+    },
+    environment: {
+      nodeVersion,
+      runtimeVersion,
+      minRequiredMajor: minRequiredMajor ?? 0
+    },
+    workspaces: {
+      enabled: input.workspaceEnabled
+    },
+    summary: {
+      dependencyCount,
+      directCount,
+      transitiveCount
+    },
+    dependencies
   };
 }
 
@@ -386,6 +372,150 @@ function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
   return map;
 }
 
+function buildOutdatedMap(outdatedResult?: OutdatedResult): Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }> {
+  const map = new Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }>();
+  if (!outdatedResult || !Array.isArray(outdatedResult.entries)) return map;
+  for (const entry of outdatedResult.entries) {
+    if (!entry || typeof entry.name !== 'string' || typeof entry.currentVersion !== 'string') continue;
+    const key = `${entry.name}@${entry.currentVersion}`;
+    if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
+      if (entry.latestVersion) {
+        map.set(key, { status: entry.status, latestVersion: entry.latestVersion });
+      } else {
+        map.set(key, { status: 'unknown' });
+      }
+      continue;
+    }
+    map.set(key, { status: 'unknown' });
+  }
+  return map;
+}
+
+function resolveOutdated(
+  node: NodeInfo,
+  direct: boolean,
+  outdatedById: Map<string, { status: 'patch' | 'minor' | 'major' | 'unknown'; latestVersion?: string }>,
+  unknownNames: Set<string>
+): { status: OutdatedStatus; latestVersion?: string } | undefined {
+  const entry = outdatedById.get(node.key);
+  if (entry) {
+    if (entry.status === 'patch' || entry.status === 'minor' || entry.status === 'major') {
+      if (entry.latestVersion) {
+        return { status: entry.status, latestVersion: entry.latestVersion };
+      }
+      return { status: 'unknown' };
+    }
+    return { status: 'unknown' };
+  }
+  if (direct && unknownNames.has(node.name)) {
+    return { status: 'unknown' };
+  }
+  return undefined;
+}
+
+const GHSA_ID_REGEX = /GHSA-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}/i;
+
+function extractGhsaId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const match = value.match(GHSA_ID_REGEX);
+  return match ? match[0].toUpperCase() : undefined;
+}
+
+function extractNpmAdvisoryId(url: string): string | undefined {
+  const match = url.match(/advisories\/(\d+)/i);
+  return match ? match[1] : undefined;
+}
+
+function resolveAdvisoryId(advisory: any, fallbackUrl?: string): string | undefined {
+  const ghsa =
+    extractGhsaId(advisory?.github_advisory_id) ||
+    extractGhsaId(advisory?.ghsaId) ||
+    extractGhsaId(advisory?.ghsa_id) ||
+    extractGhsaId(advisory?.source) ||
+    extractGhsaId(advisory?.id) ||
+    extractGhsaId(advisory?.url) ||
+    (fallbackUrl ? extractGhsaId(fallbackUrl) : undefined);
+  if (ghsa) return ghsa;
+  const url = typeof advisory?.url === 'string' ? advisory.url : undefined;
+  const npmId = url ? extractNpmAdvisoryId(url) : undefined;
+  if (npmId) return npmId;
+  if (advisory?.source !== undefined) return String(advisory.source);
+  if (advisory?.id !== undefined) return String(advisory.id);
+  return undefined;
+}
+
+function resolveAdvisoryUrl(advisory: any, id: string | undefined): string | undefined {
+  if (typeof advisory?.url === 'string' && advisory.url.trim()) return advisory.url.trim();
+  if (id) {
+    if (/^GHSA-/i.test(id)) return `https://github.com/advisories/${id}`;
+    if (/^\d+$/.test(id)) return `https://www.npmjs.com/advisories/${id}`;
+  }
+  return undefined;
+}
+
+function resolveFixAvailable(value: any, patchedVersions?: string): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value && typeof value === 'object') return true;
+  if (typeof patchedVersions === 'string') {
+    const trimmed = patchedVersions.trim();
+    return Boolean(trimmed && trimmed !== '<0.0.0');
+  }
+  return false;
+}
+
+function normalizeAdvisoryRange(value: any): string {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return 'unknown';
+}
+
+function buildAdvisoryFromVia(via: any, item: any): VulnerabilityAdvisory | undefined {
+  if (!via || typeof via !== 'object') return undefined;
+  const id = resolveAdvisoryId(via, via.url) || resolveAdvisoryId(item, item?.url);
+  const title = typeof via.title === 'string' && via.title.trim()
+    ? via.title.trim()
+    : typeof via.name === 'string' && via.name.trim()
+      ? via.name.trim()
+      : 'Advisory';
+  const severity: Severity = normalizeSeverity(via.severity || item?.severity);
+  const vulnerableRange = normalizeAdvisoryRange(via.range || via.vulnerable_versions || item?.range);
+  const fixAvailable = resolveFixAvailable(via.fixAvailable ?? item?.fixAvailable, via.patched_versions);
+  const url = resolveAdvisoryUrl(via, id) || resolveAdvisoryUrl(item, id);
+
+  if (!id) return undefined;
+  return {
+    id,
+    title,
+    severity,
+    vulnerableRange,
+    fixAvailable,
+    url: url || ''
+  };
+}
+
+function buildAdvisoryFromLegacy(adv: any): VulnerabilityAdvisory | undefined {
+  if (!adv || typeof adv !== 'object') return undefined;
+  const id = resolveAdvisoryId(adv, adv.url);
+  const title = typeof adv.title === 'string' && adv.title.trim()
+    ? adv.title.trim()
+    : typeof adv.module_name === 'string' && adv.module_name.trim()
+      ? adv.module_name.trim()
+      : 'Advisory';
+  const severity: Severity = normalizeSeverity(adv.severity);
+  const vulnerableRange = normalizeAdvisoryRange(adv.vulnerable_versions || adv.vulnerableRange || adv.range);
+  const fixAvailable = resolveFixAvailable(adv.fix_available, adv.patched_versions);
+  const url = resolveAdvisoryUrl(adv, id);
+
+  if (!id) return undefined;
+  return {
+    id,
+    title,
+    severity,
+    vulnerableRange,
+    fixAvailable,
+    url: url || ''
+  };
+}
+
 function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary> {
   const map = new Map<string, VulnerabilitySummary>();
   if (!auditData) return map;
@@ -397,51 +527,87 @@ function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary>
     return map.get(name)!;
   };
 
+  const advisoryKeys = new Map<string, Set<string>>();
+  const deferredViaStrings: Array<{ name: string; via: string[] }> = [];
+  const addAdvisory = (name: string, advisory: VulnerabilityAdvisory) => {
+    const entry = ensureEntry(name);
+    const key = `${advisory.id}|${advisory.vulnerableRange}`;
+    let keys = advisoryKeys.get(name);
+    if (!keys) {
+      keys = new Set<string>();
+      advisoryKeys.set(name, keys);
+    }
+    if (keys.has(key)) return;
+    keys.add(key);
+    if (!entry.advisories) entry.advisories = [];
+    entry.advisories.push(advisory);
+  };
+
+  // Advisories are disclosed findings from npm audit (not malware detection).
+  // Summary-only output loses evidence and is a data loss bug.
   if (auditData.vulnerabilities) {
     Object.values<any>(auditData.vulnerabilities).forEach((item: any) => {
       const name = item.name || 'unknown';
-      const severity: Severity = normalizeSeverity(item.severity);
-      const entry = ensureEntry(name);
-      entry.counts[severity] = (entry.counts[severity] || 0) + 1;
       const viaList = Array.isArray(item.via) ? item.via : [];
-      viaList
-        .filter((v: any) => typeof v === 'object')
-        .forEach((vul: any) => {
-          const sev: Severity = normalizeSeverity(vul.severity) || severity;
-          entry.items.push({
-            title: vul.title || item.title || vul.name || name,
-            severity: sev,
-            url: vul.url,
-            vulnerableRange: vul.range,
-            fixAvailable: item.fixAvailable,
-            paths: item.nodes
-          });
-          entry.counts[sev] = (entry.counts[sev] || 0) + 0; // already counted above
-        });
-      entry.highestSeverity = computeHighestSeverity(entry.counts);
+      let added = false;
+      for (const via of viaList) {
+        if (via && typeof via === 'object') {
+          const advisory = buildAdvisoryFromVia(via, item);
+          if (advisory) {
+            addAdvisory(name, advisory);
+            added = true;
+          }
+        }
+      }
+      const viaStrings = viaList.filter((via: unknown) => typeof via === 'string') as string[];
+      if (viaStrings.length > 0) {
+        deferredViaStrings.push({ name, via: viaStrings });
+      }
+      if (!added) {
+        const fallback = buildAdvisoryFromVia(item, item);
+        if (fallback) addAdvisory(name, fallback);
+      }
     });
   }
 
   if (auditData.advisories) {
     Object.values<any>(auditData.advisories).forEach((adv: any) => {
       const name = adv.module_name || adv.module || 'unknown';
-      const severity: Severity = normalizeSeverity(adv.severity);
-      const entry = ensureEntry(name);
-      entry.items.push({
-        title: adv.title,
-        severity,
-        url: adv.url,
-        vulnerableRange: adv.vulnerable_versions,
-        fixAvailable: adv.fix_available,
-        paths: (adv.findings || []).flatMap((f: any) => f.paths || [])
-      });
-      entry.counts[severity] = (entry.counts[severity] || 0) + 1;
-      entry.highestSeverity = computeHighestSeverity(entry.counts);
+      const advisory = buildAdvisoryFromLegacy(adv);
+      if (advisory) addAdvisory(name, advisory);
     });
   }
 
+  // One-level expansion: map string "via" references to their advisories without storing paths.
+  for (const entry of deferredViaStrings) {
+    for (const refName of entry.via) {
+      const referenced = map.get(refName);
+      if (referenced?.advisories) {
+        for (const advisory of referenced.advisories) {
+          addAdvisory(entry.name, advisory);
+        }
+      }
+    }
+  }
+
   map.forEach((entry) => {
-    entry.highestSeverity = computeHighestSeverity(entry.counts);
+    const counts = { low: 0, moderate: 0, high: 0, critical: 0 };
+    if (entry.advisories) {
+      for (const advisory of entry.advisories) {
+        counts[advisory.severity] += 1;
+      }
+    }
+    entry.counts = counts;
+    entry.highestSeverity = computeHighestSeverity(counts);
+    entry.risk = vulnRiskLevel(counts);
+    if (entry.advisories && entry.advisories.length > 0) {
+      entry.advisories.sort((a, b) => {
+        const order = { critical: 4, high: 3, moderate: 2, low: 1 };
+        const diff = order[b.severity] - order[a.severity];
+        if (diff !== 0) return diff;
+        return a.title.localeCompare(b.title);
+      });
+    }
   });
 
   return map;
@@ -458,8 +624,8 @@ function normalizeSeverity(sev: any): Severity {
 function emptyVulnSummary(): VulnerabilitySummary {
   return {
     counts: { low: 0, moderate: 0, high: 0, critical: 0 },
-    items: [],
-    highestSeverity: 'none'
+    highestSeverity: 'none',
+    risk: 'green'
   };
 }
 
@@ -472,195 +638,240 @@ function computeHighestSeverity(counts: Record<Severity, number>): Severity | 'n
 }
 
 interface ImportGraphData {
-  files: Record<string, string[]>;
   packages: Record<string, string[]>;
-  unresolvedImports: Array<{ importer: string; specifier: string }>;
+  packageCounts?: Record<string, Record<string, number>>;
 }
 
 function normalizeImportGraph(data: any): ImportGraphData {
-  if (data && typeof data === 'object' && data.files && data.packages) {
+  if (data && typeof data === 'object' && data.packages) {
     return {
-      files: data.files || {},
       packages: data.packages || {},
-      unresolvedImports: Array.isArray(data.unresolvedImports) ? data.unresolvedImports : []
+      packageCounts: data.packageCounts || {}
     };
   }
-  return { files: data || {}, packages: {}, unresolvedImports: [] };
+  return { packages: {} };
 }
 
-function buildUsageInfo(
-  name: string,
-  packageUsageCounts: Map<string, number>,
-  pkg: any
-): UsageInfo {
-  const declared = Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
-  const importedCount = packageUsageCounts.get(name) || 0;
-  if (importedCount > 0) {
-    if (declared) {
-      return {
-        status: 'imported',
-        reason: `Imported by ${importedCount} file${importedCount === 1 ? '' : 's'} (static analysis)`
-      };
+function normalizeImportPath(file: string, projectPath: string): string | undefined {
+  if (!file || typeof file !== 'string') return undefined;
+  if (file.includes('node_modules')) return undefined;
+  let relativePath = file;
+  if (path.isAbsolute(file)) {
+    relativePath = path.relative(projectPath, file);
+  }
+  if (!relativePath) return undefined;
+  const trimmed = relativePath.replace(/^[.][\\/]/, '');
+  const normalized = trimmed.replace(/\\/g, '/');
+  if (!normalized || normalized.startsWith('..')) return undefined;
+  if (normalized.includes('node_modules')) return undefined;
+  return normalized;
+}
+
+interface UsageSummary {
+  fileCount: number;
+  topFiles: string[];
+}
+
+interface UsageBuildResult {
+  summary: Map<string, UsageSummary>;
+  runtimeImpact: Map<string, DependencyRecord['usage']['runtimeImpact']>;
+}
+
+function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBuildResult {
+  const summary = new Map<string, UsageSummary>();
+  const runtimeImpact = new Map<string, DependencyRecord['usage']['runtimeImpact']>();
+  const byDep = new Map<string, Map<string, number>>();
+  const packages = graph.packages || {};
+
+  for (const [file, deps] of Object.entries(packages)) {
+    if (!Array.isArray(deps) || deps.length === 0) continue;
+    const normalizedFile = normalizeImportPath(file, projectPath);
+    if (!normalizedFile) continue;
+    const counts = graph.packageCounts?.[file] || {};
+    const uniqueDeps = new Set(deps.filter((dep) => typeof dep === 'string' && dep));
+    for (const dep of uniqueDeps) {
+      if (!byDep.has(dep)) byDep.set(dep, new Map<string, number>());
+      const fileMap = byDep.get(dep)!;
+      const count = typeof counts[dep] === 'number' ? counts[dep] : 1;
+      fileMap.set(normalizedFile, count);
     }
-    return {
-      status: 'undeclared',
-      reason: 'Imported but not declared (may rely on transitive resolution; pnpm will usually break this)'
-    };
   }
-  if (declared) {
-    return {
-      status: 'not-imported',
-      reason: 'Declared but never statically imported (may be used via tooling, scripts, or runtime plugins)'
-    };
+
+  for (const [dep, fileMap] of byDep.entries()) {
+    const entries = Array.from(fileMap.entries()).map(([file, count]) => ({
+      file,
+      count,
+      depth: file.split('/').length,
+      isTest: isTestFile(file)
+    }));
+    // Rank: prefer non-test files, then higher import counts, then closer to root.
+    entries.sort((a, b) => {
+      if (a.isTest !== b.isTest) return a.isTest ? 1 : -1;
+      if (b.count !== a.count) return b.count - a.count;
+      if (a.depth !== b.depth) return a.depth - b.depth;
+      return a.file.localeCompare(b.file);
+    });
+    summary.set(dep, {
+      fileCount: fileMap.size,
+      topFiles: entries.slice(0, 5).map((entry) => entry.file)
+    });
+    runtimeImpact.set(dep, determineRuntimeImpactFromFiles(Array.from(fileMap.keys())));
   }
-  return {
-    status: 'unknown',
-    reason: 'Not statically imported; package is likely transitive or used dynamically'
-  };
-}
 
-function buildImportAnalysis(graph: ImportGraphData, pkg: any): ImportAnalysisSummary {
-  const packageImporters = new Map<string, Set<string>>();
-
-  Object.entries(graph.packages || {}).forEach(([file, packages]) => {
-    const unique = new Set(packages || []);
-    unique.forEach((pkgName) => {
-      if (!packageImporters.has(pkgName)) packageImporters.set(pkgName, new Set<string>());
-      packageImporters.get(pkgName)!.add(file);
-    });
-  });
-
-  const packageHotness: Record<string, number> = {};
-  packageImporters.forEach((importers, name) => {
-    packageHotness[name] = importers.size;
-  });
-
-  const declared = new Set<string>([
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {})
-  ]);
-  const undeclaredImports = Array.from(packageImporters.keys())
-    .filter((name) => !declared.has(name))
-    .sort();
-
-  return {
-    staticOnly: true,
-    notes: [
-      'Import analysis is static only.',
-      'Dynamic imports, runtime plugin loading, and tooling usage are not evaluated.'
-    ],
-    packageHotness,
-    undeclaredImports,
-    unresolvedImports: graph.unresolvedImports || []
-  };
-}
-
-function buildImportInfo(graphData: any): ImportGraphInfo | undefined {
-  if (!graphData || typeof graphData !== 'object') return undefined;
-  const fanIn: Record<string, number> = {};
-  const fanOut: Record<string, number> = {};
-  Object.entries<any>(graphData).forEach(([file, deps]) => {
-    fanOut[file] = Array.isArray(deps) ? deps.length : 0;
-    (deps || []).forEach((dep: string) => {
-      fanIn[dep] = (fanIn[dep] || 0) + 1;
-    });
-  });
-  return { files: graphData, fanIn, fanOut };
+  return { summary, runtimeImpact };
 }
 
 function isDirectDependency(name: string, pkg: any): boolean {
   return Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
 }
 
-async function resolveMaintenance(
-  name: string,
-  cache: Map<string, MaintenanceInfo>,
-  maintenanceEnabled: boolean,
-  current: number,
-  total: number,
-  onProgress?: (current: number, total: number, name: string) => void
-): Promise<MaintenanceInfo> {
-  if (cache.has(name)) return cache.get(name)!;
-  if (!maintenanceEnabled) {
-    return { status: 'unknown', reason: 'maintenance checks disabled' } as MaintenanceInfo;
-  }
-  onProgress?.(current, total, name);
-  try {
-    await delay(1000);
-    const res = await runCommand('npm', ['view', name, 'time', '--json']);
-    const json = JSON.parse(res.stdout || '{}');
-    const timestamps = Object.values<string>(json || {}).filter((v) => typeof v === 'string');
-    const lastPublished = timestamps.sort().pop();
-    if (lastPublished) {
-      const risk = maintenanceRisk(lastPublished);
-      const status: MaintenanceInfo['status'] = risk === 'green' ? 'active' : risk === 'amber' ? 'quiet' : risk === 'red' ? 'stale' : 'unknown';
-      return { lastPublished, status, reason: 'npm view time' };
-    }
-    return { status: 'unknown', reason: 'npm view returned no data' } as MaintenanceInfo;
-  } catch (err: any) {
-    return { status: 'unknown', reason: 'lookup failed' } as MaintenanceInfo;
-  }
+type DependencyScope = 'runtime' | 'dev' | 'optional' | 'peer';
+
+function directScopeFromPackage(name: string, pkg: any): DependencyScope | undefined {
+  if (pkg.dependencies && pkg.dependencies[name]) return 'runtime';
+  if (pkg.devDependencies && pkg.devDependencies[name]) return 'dev';
+  if (pkg.optionalDependencies && pkg.optionalDependencies[name]) return 'optional';
+  if (pkg.peerDependencies && pkg.peerDependencies[name]) return 'peer';
+  return undefined;
 }
 
-type RuntimeClass = 'runtime' | 'build-time' | 'dev-only';
-
-function classifyRuntime(
-  nodeKey: string,
-  pkg: any,
-  map: Map<string, NodeInfo>,
-  cache: Map<string, { classification: RuntimeClass; reason: string }>
-): { classification: RuntimeClass; reason: string } {
-  const cached = cache.get(nodeKey);
-  if (cached) return cached;
-
-  const node = map.get(nodeKey);
-  if (!node) {
-    const fallback = { classification: 'build-time' as RuntimeClass, reason: 'Unknown node in dependency graph' };
-    cache.set(nodeKey, fallback);
-    return fallback;
+function determineScope(name: string, direct: boolean, rootCauses: string[], pkg: any): DependencyScope {
+  if (direct) {
+    return directScopeFromPackage(name, pkg) || 'runtime';
   }
-
-  if (pkg.dependencies && pkg.dependencies[node.name]) {
-    const result = { classification: 'runtime' as RuntimeClass, reason: 'Declared in dependencies' };
-    cache.set(nodeKey, result);
-    return result;
+  const scopes = new Set<DependencyScope>();
+  for (const root of rootCauses) {
+    const scope = directScopeFromPackage(root, pkg);
+    if (scope) scopes.add(scope);
   }
-  if (pkg.devDependencies && pkg.devDependencies[node.name]) {
-    const result = { classification: 'dev-only' as RuntimeClass, reason: 'Declared in devDependencies' };
-    cache.set(nodeKey, result);
-    return result;
+  if (scopes.has('runtime')) return 'runtime';
+  if (scopes.has('dev')) return 'dev';
+  if (scopes.has('optional')) return 'optional';
+  if (scopes.has('peer')) return 'peer';
+  return 'runtime';
+}
+
+function buildOrigins(
+  rootCauses: string[],
+  workspaceList: string[] | undefined,
+  workspaceEnabled: boolean,
+  maxTop: number
+): { rootPackageCount: number; topRootPackages: string[]; workspaces?: string[] } {
+  const origins: { rootPackageCount: number; topRootPackages: string[]; workspaces?: string[] } = {
+    rootPackageCount: rootCauses.length,
+    topRootPackages: rootCauses.slice(0, maxTop)
+  };
+  if (workspaceEnabled && workspaceList && workspaceList.length > 0) {
+    origins.workspaces = workspaceList;
   }
+  return origins;
+}
 
-  // Memoized recursion to inherit runtime class from parents; conservative for cycles.
-  const parentClasses: RuntimeClass[] = [];
-  const inProgress = cache.get(`__visiting__${nodeKey}`);
-  if (inProgress) {
-    const cycleFallback = { classification: 'build-time' as RuntimeClass, reason: 'Dependency cycle; defaulting to build-time' };
-    cache.set(nodeKey, cycleFallback);
-    return cycleFallback;
+function isTestFile(file: string): boolean {
+  return /(^|\/)(__tests__|__mocks__|test|tests)(\/|$)/.test(file) || /\.(test|spec)\./.test(file);
+}
+
+function isToolingFile(file: string): boolean {
+  return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky)[^\/]*\./.test(file);
+}
+
+function isBuildFile(file: string): boolean {
+  return /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind)[^\/]*\./.test(file);
+}
+
+function determineRuntimeImpactFromFiles(files: string[]): DependencyRecord['usage']['runtimeImpact'] {
+  const categories = new Set<'runtime' | 'build' | 'testing' | 'tooling'>();
+  for (const file of files) {
+    if (isTestFile(file)) {
+      categories.add('testing');
+    } else if (isToolingFile(file)) {
+      categories.add('tooling');
+    } else if (isBuildFile(file)) {
+      categories.add('build');
+    } else {
+      categories.add('runtime');
+    }
   }
-  cache.set(`__visiting__${nodeKey}`, { classification: 'build-time', reason: 'visiting' });
+  if (categories.size === 0) return 'runtime';
+  if (categories.size > 1) return 'mixed';
+  return Array.from(categories)[0];
+}
 
-  for (const parentKey of node.parents) {
-    const parent = map.get(parentKey);
-    if (!parent) continue;
-    const parentClass = classifyRuntime(parentKey, pkg, map, cache).classification;
-    parentClasses.push(parentClass);
-  }
+const TOOLING_PACKAGES = new Set([
+  'eslint',
+  'prettier',
+  'ts-node',
+  'typescript',
+  'babel',
+  '@babel/core',
+  'rollup',
+  'webpack',
+  'vite',
+  'parcel',
+  'swc',
+  '@swc/core',
+  'ts-jest',
+  'eslint-config-prettier',
+  'eslint-plugin-import',
+  'lint-staged',
+  'husky'
+]);
 
-  cache.delete(`__visiting__${nodeKey}`);
+const FRAMEWORK_PACKAGES = new Set([
+  'next',
+  'react-scripts',
+  '@angular/core',
+  '@angular/cli',
+  'vue',
+  'nuxt',
+  'svelte',
+  '@sveltejs/kit',
+  'gatsby',
+  'ember-cli',
+  'remix',
+  'expo'
+]);
 
-  let result: { classification: RuntimeClass; reason: string };
-  if (parentClasses.includes('runtime')) {
-    result = { classification: 'runtime', reason: 'Transitive of runtime dependency' };
-  } else if (parentClasses.includes('build-time')) {
-    result = { classification: 'build-time', reason: 'Transitive of build-time dependency' };
-  } else {
-    result = { classification: 'dev-only', reason: 'Transitive of dev-only dependency' };
-  }
+function isToolingPackage(name: string): boolean {
+  if (TOOLING_PACKAGES.has(name)) return true;
+  if (name.startsWith('@typescript-eslint/')) return true;
+  if (name.startsWith('eslint-')) return true;
+  return false;
+}
 
-  cache.set(nodeKey, result);
-  return result;
+function isFrameworkPackage(name: string): boolean {
+  return FRAMEWORK_PACKAGES.has(name);
+}
+
+// Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
+function determineIntroduction(
+  direct: boolean,
+  rootCauses: string[],
+  runtimeImpact: DependencyRecord['usage']['runtimeImpact']
+): DependencyRecord['usage']['introduction'] {
+  if (direct) return 'direct';
+  if (runtimeImpact === 'testing') return 'testing';
+  if (rootCauses.length > 0 && rootCauses.every((root) => isToolingPackage(root))) return 'tooling';
+  if (rootCauses.some((root) => isFrameworkPackage(root))) return 'framework';
+  if (rootCauses.length > 0) return 'transitive';
+  return 'unknown';
+}
+
+// Upgrade blockers derived only from local metadata (no external lookups).
+function buildUpgradeBlock(
+  insights: PackageInsights
+): { blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; blocksNodeMajor: boolean } | undefined {
+  const blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'> = [];
+  if (insights.nodeEngine) blockers.push('nodeEngine');
+  if (insights.dependencySurface.peer > 0) blockers.push('peerDependency');
+  if (insights.execution?.native) blockers.push('nativeBindings');
+  if (insights.deprecated) blockers.push('deprecated');
+
+  if (blockers.length === 0) return undefined;
+  return {
+    blocksNodeMajor: true,
+    blockers
+  };
 }
 
 interface PackageMeta {
@@ -669,111 +880,71 @@ interface PackageMeta {
 }
 
 interface PackageStats {
-  size: number;
-  files: number;
   hasDts: boolean;
   hasNativeBinary: boolean;
   hasBindingGyp: boolean;
 }
 
 interface PackageInsights {
-  identity: DependencyRecord['identity'];
-  dependencySurface: DependencyRecord['dependencySurface'];
-  sizeFootprint: DependencyRecord['sizeFootprint'];
-  buildPlatform: DependencyRecord['buildPlatform'];
-  moduleSystem: DependencyRecord['moduleSystem'];
-  typescript: DependencyRecord['typescript'];
-  graph: DependencyRecord['graph'];
-  links: PackageLinks;
+  deprecated: boolean;
+  nodeEngine: string | null;
+  dependencySurface: {
+    deps: number;
+    dev: number;
+    peer: number;
+    opt: number;
+  };
+  links?: {
+    repository?: string;
+    homepage?: string;
+    bugs?: string;
+  };
+  execution?: DependencyRecord['execution'];
+  tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
 }
 
 async function gatherPackageInsights(
   name: string,
   projectPath: string,
   metaCache: Map<string, PackageMeta>,
-  statCache: Map<string, PackageStats>,
-  fanIn: number,
-  fanOut: number,
-  dependedOnBy: string[],
-  dependsOn: string[]
+  statCache: Map<string, PackageStats>
 ): Promise<PackageInsights> {
   const meta = await loadPackageMeta(name, projectPath, metaCache);
+  if (!meta) {
+    return {
+      deprecated: false,
+      nodeEngine: null,
+      dependencySurface: { deps: 0, dev: 0, peer: 0, opt: 0 },
+      tsTypes: 'unknown'
+    };
+  }
   const pkg = meta?.pkg || {};
   const dir = meta?.dir;
   const stats = dir ? await calculatePackageStats(dir, statCache) : undefined;
 
   const dependencySurface = {
-    dependencies: Object.keys(pkg.dependencies || {}).length,
-    devDependencies: Object.keys(pkg.devDependencies || {}).length,
-    peerDependencies: Object.keys(pkg.peerDependencies || {}).length,
-    optionalDependencies: Object.keys(pkg.optionalDependencies || {}).length,
-    hasPeerDependencies: Object.keys(pkg.peerDependencies || {}).length > 0
+    deps: Object.keys(pkg.dependencies || {}).length,
+    dev: Object.keys(pkg.devDependencies || {}).length,
+    peer: Object.keys(pkg.peerDependencies || {}).length,
+    opt: Object.keys(pkg.optionalDependencies || {}).length
   };
 
   const scripts = pkg.scripts || {};
-  const identity = {
-    deprecated: Boolean(pkg.deprecated),
-    nodeEngine: typeof pkg.engines?.node === 'string' ? pkg.engines.node : null,
-    hasRepository: Boolean(pkg.repository),
-    hasFunding: Boolean(pkg.funding)
-  };
+  const deprecated = Boolean(pkg.deprecated);
+  const nodeEngine = typeof pkg.engines?.node === 'string' ? pkg.engines.node : null;
 
-  const moduleSystem = determineModuleSystem(pkg);
-  const typescript = determineTypes(pkg, stats?.hasDts || false);
-  const buildPlatform = {
-    nativeBindings: Boolean(stats?.hasNativeBinary || stats?.hasBindingGyp || scriptsContainNativeBuild(scripts)),
-    installScripts: hasInstallScripts(scripts)
-  };
-
-  const sizeFootprint = {
-    installedSize: stats?.size || 0,
-    fileCount: stats?.files || 0
-  };
-
-  const graph = {
-    fanIn,
-    fanOut,
-    dependedOnBy,
-    dependsOn
-  };
-
-  // Extract package links
-  const links: PackageLinks = {
-    npm: `https://www.npmjs.com/package/${name}`
-  };
-  
-  // Repository can be string or object with url
-  if (pkg.repository) {
-    if (typeof pkg.repository === 'string') {
-      links.repository = normalizeRepoUrl(pkg.repository);
-    } else if (pkg.repository.url) {
-      links.repository = normalizeRepoUrl(pkg.repository.url);
-    }
-  }
-  
-  // Bugs can be string or object with url
-  if (pkg.bugs) {
-    if (typeof pkg.bugs === 'string') {
-      links.bugs = pkg.bugs;
-    } else if (pkg.bugs.url) {
-      links.bugs = pkg.bugs.url;
-    }
-  }
-  
-  // Homepage is a simple string
-  if (pkg.homepage && typeof pkg.homepage === 'string') {
-    links.homepage = pkg.homepage;
-  }
+  const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
+  const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
+  const links = extractPackageLinks(pkg);
+  const execution = await deriveExecutionInfo(scripts, dir, stats);
 
   return {
-    identity,
+    deprecated,
+    nodeEngine,
     dependencySurface,
-    sizeFootprint,
-    buildPlatform,
-    moduleSystem,
-    typescript,
-    graph,
-    links
+    links,
+    execution,
+    tsTypes
   };
 }
 
@@ -795,10 +966,30 @@ async function loadPackageMeta(
   }
 }
 
+function toDefinitelyTypedPackageName(name: string): string | undefined {
+  if (name.startsWith('@types/')) return name;
+  if (name.startsWith('@')) {
+    const scoped = name.slice(1).split('/');
+    if (scoped.length < 2) return undefined;
+    return `@types/${scoped[0]}__${scoped[1]}`;
+  }
+  return `@types/${name}`;
+}
+
+async function hasDefinitelyTypedPackage(
+  name: string,
+  projectPath: string,
+  cache: Map<string, PackageMeta>
+): Promise<boolean> {
+  if (name.startsWith('@types/')) return true;
+  const typesName = toDefinitelyTypedPackageName(name);
+  if (!typesName) return false;
+  const meta = await loadPackageMeta(typesName, projectPath, cache);
+  return Boolean(meta);
+}
+
 async function calculatePackageStats(dir: string, cache: Map<string, PackageStats>): Promise<PackageStats> {
   if (cache.has(dir)) return cache.get(dir)!;
-  let size = 0;
-  let files = 0;
   let hasDts = false;
   let hasNativeBinary = false;
   let hasBindingGyp = false;
@@ -811,9 +1002,6 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
       if (entry.isDirectory()) {
         await walk(full);
       } else if (entry.isFile()) {
-        const stat = await fs.stat(full);
-        size += stat.size;
-        files += 1;
         if (entry.name.endsWith('.d.ts')) hasDts = true;
         if (entry.name.endsWith('.node')) hasNativeBinary = true;
         if (entry.name === 'binding.gyp') hasBindingGyp = true;
@@ -826,35 +1014,335 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
   } catch (err) {
     // best-effort; ignore inaccessible paths
   }
-  const result: PackageStats = { size, files, hasDts, hasNativeBinary, hasBindingGyp };
+  const result: PackageStats = { hasDts, hasNativeBinary, hasBindingGyp };
   cache.set(dir, result);
   return result;
 }
 
-function determineModuleSystem(pkg: any): DependencyRecord['moduleSystem'] {
-  const typeField = pkg.type;
-  const hasModuleField = Boolean(pkg.module);
-  const hasExports = pkg.exports !== undefined;
-  const conditionalExports = typeof pkg.exports === 'object' && pkg.exports !== null;
-
-  let format: DependencyRecord['moduleSystem']['format'] = 'unknown';
-  if (typeField === 'module') format = 'esm';
-  else if (typeField === 'commonjs') format = 'commonjs';
-  else if (hasModuleField || hasExports) format = 'dual';
-  else format = 'commonjs';
-
-  return { format, conditionalExports };
-}
-
-function determineTypes(pkg: any, hasDts: boolean): DependencyRecord['typescript'] {
+function determineTypes(
+  pkg: any,
+  hasDts: boolean,
+  hasDefinitelyTyped: boolean
+): 'bundled' | 'definitelyTyped' | 'none' {
   const hasBundled = Boolean(pkg.types || pkg.typings || hasDts);
-  return { types: hasBundled ? 'bundled' : 'none' };
+  if (hasBundled) return 'bundled';
+  if (hasDefinitelyTyped) return 'definitelyTyped';
+  return 'none';
 }
 
-function scriptsContainNativeBuild(scripts: Record<string, any>): boolean {
-  return (Object.values(scripts || {}) as any[]).some((cmd) => typeof cmd === 'string' && /node-?gyp|node-pre-gyp/.test(cmd));
+const REPO_SHORTHAND_HOSTS: Record<string, string> = {
+  github: 'github.com',
+  gitlab: 'gitlab.com',
+  bitbucket: 'bitbucket.org'
+};
+
+function normalizeUrl(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  let url = trimmed.replace(/^git\+/, '');
+
+  if (url.startsWith('ssh://')) {
+    url = url.slice('ssh://'.length);
+    if (url.startsWith('git@')) {
+      const match = url.match(/^git@([^:]+):(.+)$/);
+      if (match) {
+        url = `https://${match[1]}/${match[2]}`;
+      } else {
+        url = `https://${url}`;
+      }
+    } else {
+      url = `https://${url}`;
+    }
+  }
+
+  if (url.startsWith('git@')) {
+    const match = url.match(/^git@([^:]+):(.+)$/);
+    if (match) {
+      url = `https://${match[1]}/${match[2]}`;
+    }
+  }
+
+  const shorthand = url.match(/^(github|gitlab|bitbucket):(.+)$/i);
+  if (shorthand) {
+    const host = REPO_SHORTHAND_HOSTS[shorthand[1].toLowerCase()];
+    url = `https://${host}/${shorthand[2]}`;
+  }
+
+  if (url.startsWith('git://')) {
+    url = `https://${url.slice('git://'.length)}`;
+  }
+
+  const hashIndex = url.indexOf('#');
+  const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const cleaned = base.endsWith('.git') ? base.slice(0, -4) : base;
+
+  return cleaned + hash;
 }
 
-function hasInstallScripts(scripts: Record<string, any>): boolean {
-  return ['preinstall', 'install', 'postinstall'].some((key) => typeof scripts?.[key] === 'string' && scripts[key].trim().length > 0);
+function normalizeLinkValue(value: any): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return normalizeUrl(value);
+  if (typeof value === 'object' && typeof value.url === 'string') {
+    return normalizeUrl(value.url);
+  }
+  return undefined;
+}
+
+function extractPackageLinks(pkg: any): PackageInsights['links'] | undefined {
+  const repository = normalizeLinkValue(pkg?.repository);
+  const homepage = normalizeLinkValue(pkg?.homepage);
+  const bugs = normalizeLinkValue(pkg?.bugs);
+
+  if (!repository && !homepage && !bugs) return undefined;
+  return {
+    ...(repository ? { repository } : {}),
+    ...(homepage ? { homepage } : {}),
+    ...(bugs ? { bugs } : {})
+  };
+}
+
+const LIFECYCLE_HOOKS: ExecutionHook[] = ['preinstall', 'install', 'postinstall', 'prepare'];
+const EXECUTION_SIGNAL_ORDER: ExecutionSignal[] = [
+  'network-access',
+  'dynamic-exec',
+  'child-process',
+  'encoding',
+  'obfuscated',
+  'reads-env',
+  'reads-home',
+  'uses-ssh'
+];
+const INSTALL_SCRIPT_MAX_BYTES = 200_000;
+const COMPLEXITY_THRESHOLD = 12;
+
+function collectLifecycleScripts(
+  scripts: Record<string, any>
+): Partial<Record<ExecutionHook, string>> {
+  const lifecycle: Partial<Record<ExecutionHook, string>> = {};
+  for (const hook of LIFECYCLE_HOOKS) {
+    const cmd = scripts?.[hook];
+    if (typeof cmd === 'string' && cmd.trim().length > 0) {
+      lifecycle[hook] = cmd.trim();
+    }
+  }
+  return lifecycle;
+}
+
+function scriptsContainNativeTooling(scripts: Record<string, any>): boolean {
+  return (Object.values(scripts || {}) as any[]).some((cmd) =>
+    typeof cmd === 'string' && /node-?gyp|node-pre-gyp|prebuild/i.test(cmd)
+  );
+}
+
+function scoreLifecycleScripts(
+  lifecycleScripts: Partial<Record<ExecutionHook, string>>
+): number {
+  const commands = Object.values(lifecycleScripts).filter((cmd): cmd is string => typeof cmd === 'string');
+  const combined = commands.join(' ');
+  if (!combined) return 0;
+  const lengthScore = Math.ceil(combined.length / 40);
+  const andCount = (combined.match(/&&/g) || []).length;
+  const orCount = (combined.match(/\|\|/g) || []).length;
+  const semicolons = (combined.match(/;/g) || []).length;
+  const pipeCount = Math.max(0, (combined.match(/\|/g) || []).length - orCount * 2);
+  const inlineNodeExec = (combined.match(/\bnode\s+-[ep]\b/gi) || []).length;
+  const inlineEval = (combined.match(/\beval\s*\(/g) || []).length;
+  const inlineFunction = (combined.match(/new\s+Function\s*\(/g) || []).length;
+  return lengthScore + (andCount + orCount + semicolons + pipeCount) * 2 + (inlineNodeExec + inlineEval + inlineFunction) * 5;
+}
+
+function tokenizeCommand(command: string): string[] {
+  const tokens: string[] = [];
+  const matcher = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = matcher.exec(command))) {
+    tokens.push(match[1] ?? match[2] ?? match[3]);
+  }
+  return tokens;
+}
+
+function isNodeToken(token: string): boolean {
+  const base = path.basename(token).toLowerCase();
+  return base === 'node' || base === 'node.exe';
+}
+
+function extractNodeScriptPath(command: string): string | undefined {
+  const tokens = tokenizeCommand(command);
+  for (let i = 0; i < tokens.length; i += 1) {
+    if (!isNodeToken(tokens[i])) continue;
+    let idx = i + 1;
+    while (idx < tokens.length) {
+      const token = tokens[idx];
+      if (token === '-e' || token === '-p' || token === '--eval') {
+        return undefined;
+      }
+      if (token === '-r' || token === '--require') {
+        idx += 2;
+        continue;
+      }
+      if (token.startsWith('-')) {
+        idx += 1;
+        continue;
+      }
+      const cleaned = token.replace(/[;|&]+$/, '');
+      if (cleaned.includes('://')) return undefined;
+      if (cleaned.endsWith('.js') || cleaned.endsWith('.cjs') || cleaned.endsWith('.mjs')) {
+        return cleaned;
+      }
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function findReferencedInstallScript(
+  lifecycleScripts: Partial<Record<ExecutionHook, string>>
+): string | undefined {
+  for (const hook of LIFECYCLE_HOOKS) {
+    const command = lifecycleScripts[hook];
+    if (!command) continue;
+    const candidate = extractNodeScriptPath(command);
+    if (candidate) return candidate;
+  }
+  return undefined;
+}
+
+async function readInstallScriptFile(
+  scriptPath: string,
+  packageDir: string
+): Promise<string | undefined> {
+  const resolvedDir = path.resolve(packageDir);
+  const resolvedPath = path.resolve(resolvedDir, scriptPath);
+  if (!resolvedPath.startsWith(resolvedDir + path.sep)) return undefined;
+  try {
+    const stat = await fs.stat(resolvedPath);
+    if (!stat.isFile()) return undefined;
+    if (stat.size > INSTALL_SCRIPT_MAX_BYTES) return undefined;
+    return await fs.readFile(resolvedPath, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+function textHasAny(text: string, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function detectScriptSignals(text: string, signals: Set<ExecutionSignal>): void {
+  // Signals are derived from static text inspection only: no code execution and no import walking.
+  // They are NOT malware detection; they merely highlight review-worthy install-time behavior.
+
+  // "network-access" surfaces install scripts that fetch remote resources (review for expected downloads; does NOT imply exfiltration).
+  if (textHasAny(text, [/\bcurl\b/i, /\bwget\b/i, /https?:\/\//i, /\bfetch\s*\(/i, /\baxios\b/i, /node-fetch/i])) {
+    signals.add('network-access');
+  }
+  // "reads-env" highlights environment access (does NOT imply exfiltration).
+  if (textHasAny(text, [/\bprocess\.env\b/, /\bprintenv\b/i, /\benv\s*\|/i])) {
+    signals.add('reads-env');
+  }
+  // "reads-home" highlights access to user home paths (does NOT imply credential theft).
+  if (textHasAny(text, [/\$HOME\b/, /process\.env\.HOME\b/, /os\.homedir\s*\(/, /~\//])) {
+    signals.add('reads-home');
+  }
+  // "uses-ssh" flags access to SSH-related paths (does NOT imply key exfiltration).
+  if (textHasAny(text, [/\.ssh\b/i, /id_rsa\b/i, /known_hosts\b/i, /\.npmrc\b/i])) {
+    signals.add('uses-ssh');
+  }
+}
+
+function isObfuscated(text: string): boolean {
+  const lines = text.split(/\r?\n/);
+  let longest = 0;
+  for (const line of lines) {
+    if (line.length > longest) longest = line.length;
+    if (longest >= 4000) return true;
+  }
+  if (text.length >= 2000) {
+    const nonWhitespace = text.replace(/\s/g, '');
+    const ratio = nonWhitespace.length / text.length;
+    if (ratio > 0.9) return true;
+  }
+  return /[A-Za-z0-9+/]{800,}={0,2}/.test(text);
+}
+
+function detectFileSignals(text: string, signals: Set<ExecutionSignal>): void {
+  // Signals from a single directly-referenced JS file (no execution, no imports, no deep scanning).
+  // These are review cues only and do NOT imply malicious intent.
+  detectScriptSignals(text, signals);
+
+  // "dynamic-exec" flags dynamic code execution APIs (does NOT imply malicious behavior).
+  if (textHasAny(text, [/\beval\s*\(/, /new\s+Function\s*\(/, /\bvm\.runIn/i])) {
+    signals.add('dynamic-exec');
+  }
+  // "child-process" flags process spawning (does NOT imply abuse).
+  if (textHasAny(text, [/\bchild_process\.exec\b/, /\bspawn\s*\(/, /\bexecSync\s*\(/])) {
+    signals.add('child-process');
+  }
+  // "encoding" flags explicit encode/decode flows (does NOT imply obfuscation intent).
+  if (textHasAny(text, [/Buffer\.from\s*\(/, /\.toString\(\s*['"]base64['"]\s*\)/i, /\batob\s*\(/, /\bbtoa\s*\(/])) {
+    signals.add('encoding');
+  }
+  // "obfuscated" flags minified or opaque install-time code (does NOT imply malware).
+  if (isObfuscated(text)) {
+    signals.add('obfuscated');
+  }
+}
+
+function determineExecutionRisk(
+  hasScripts: boolean,
+  hasSignals: boolean,
+  highComplexity: boolean,
+  hooks: ExecutionHook[]
+): 'amber' | 'red' {
+  const hasInstallHook = hooks.includes('install') || hooks.includes('postinstall');
+  if (hasScripts && (hasSignals || (highComplexity && hasInstallHook))) return 'red';
+  return 'amber';
+}
+
+async function deriveExecutionInfo(
+  scripts: Record<string, any>,
+  packageDir: string | undefined,
+  stats: PackageStats | undefined
+): Promise<DependencyRecord['execution'] | undefined> {
+  const lifecycleScripts = collectLifecycleScripts(scripts);
+  const hooks = LIFECYCLE_HOOKS.filter((hook) => Boolean(lifecycleScripts[hook]));
+  const hasScripts = hooks.length > 0;
+  const hasNative = Boolean(stats?.hasNativeBinary || stats?.hasBindingGyp || scriptsContainNativeTooling(scripts));
+
+  if (!hasScripts && !hasNative) return undefined;
+
+  const signals = new Set<ExecutionSignal>();
+  const combinedScripts = hooks.map((hook) => lifecycleScripts[hook]!).join('\n');
+  if (combinedScripts) {
+    detectScriptSignals(combinedScripts, signals);
+  }
+
+  if (hasScripts && packageDir) {
+    const referencedScript = findReferencedInstallScript(lifecycleScripts);
+    if (referencedScript) {
+      const fileContent = await readInstallScriptFile(referencedScript, packageDir);
+      if (fileContent) {
+        detectFileSignals(fileContent, signals);
+      }
+    }
+  }
+
+  const complexityScore = hasScripts ? scoreLifecycleScripts(lifecycleScripts) : 0;
+  const complexity = complexityScore >= COMPLEXITY_THRESHOLD ? complexityScore : undefined;
+
+  const signalList = EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+
+  const scriptsInfo: NonNullable<DependencyRecord['execution']>['scripts'] = {
+    hooks,
+    ...(complexity !== undefined ? { complexity } : {}),
+    ...(signalList.length > 0 ? { signals: signalList } : {})
+  };
+
+  const risk = determineExecutionRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
+  const execution: DependencyRecord['execution'] = { risk };
+  // Native is surface description only; not a behavioral signal.
+  if (hasNative) execution.native = true;
+  if (hasScripts) execution.scripts = scriptsInfo;
+  return execution;
 }

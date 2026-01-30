@@ -1,0 +1,1354 @@
+{
+  "generatedAt": "2026-01-27T16:05:00.226Z",
+  "projectPath": "/Users/josephmaynard/Developer/magicaltrails",
+  "dependencyRadarVersion": "0.2.0",
+  "gitBranch": "main",
+  "maintenanceEnabled": false,
+  "environment": {
+    "node": {
+      "runtimeVersion": "23.6.0",
+      "runtimeMajor": 23,
+      "minRequiredMajor": 18,
+      "source": "dependency-engines"
+    }
+  },
+  "dependencies": [
+    {
+      "name": "@11ty/eleventy",
+      "version": "unknown",
+      "key": "@11ty/eleventy@unknown",
+      "direct": false,
+      "transitive": true,
+      "depth": 5,
+      "parents": ["colorjs.io@0.5.2"],
+      "rootCauses": [
+        "@reduxjs/toolkit",
+        "@tanstack/react-form",
+        "@types/react-redux",
+        "esbuild-sass-plugin",
+        "eslint-config-next",
+        "next",
+        "supabase",
+        "tailwind",
+        "vite"
+      ],
+      "license": {},
+      "licenseRisk": "red",
+      "vulnerabilities": {
+        "counts": { "low": 0, "moderate": 0, "high": 0, "critical": 0 },
+        "items": [],
+        "highestSeverity": "none"
+      },
+      "vulnRisk": "green",
+      "maintenance": {
+        "status": "unknown",
+        "reason": "maintenance checks disabled"
+      },
+      "maintenanceRisk": "unknown",
+      "usage": {
+        "status": "unknown",
+        "reason": "Not statically imported; package is likely transitive or used dynamically"
+      },
+      "identity": {
+        "deprecated": false,
+        "nodeEngine": null,
+        "hasRepository": false,
+        "hasFunding": false
+      },
+      "dependencySurface": {
+        "dependencies": 0,
+        "devDependencies": 0,
+        "peerDependencies": 0,
+        "optionalDependencies": 0,
+        "hasPeerDependencies": false
+      },
+      "sizeFootprint": { "installedSize": 0, "fileCount": 0 },
+      "buildPlatform": { "nativeBindings": false, "installScripts": false },
+      "moduleSystem": { "format": "commonjs", "conditionalExports": false },
+      "typescript": { "types": "none" },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "dependedOnBy": ["colorjs.io"],
+        "dependsOn": []
+      },
+      "links": { "npm": "https://www.npmjs.com/package/@11ty/eleventy" },
+      "importInfo": {
+        "files": {
+          "apps/magicaltrails.com/app/api/story-point-reorder/[storyId]/route.ts": [],
+          "apps/magicaltrails.com/app/api/story-points/[storyPointId]/route.ts": [],
+          "apps/magicaltrails.com/app/auth/confirm/route.ts": [],
+          "apps/magicaltrails.com/app/auth/error/page.tsx": [],
+          "apps/magicaltrails.com/app/auth/forgot-password/page.tsx": [],
+          "apps/magicaltrails.com/app/auth/login/page.tsx": [],
+          "apps/magicaltrails.com/app/auth/sign-up/page.tsx": [],
+          "apps/magicaltrails.com/app/auth/sign-up-success/page.tsx": [],
+          "apps/magicaltrails.com/app/auth/update-password/page.tsx": [],
+          "apps/magicaltrails.com/app/dashboard/page.tsx": [],
+          "apps/magicaltrails.com/app/dashboard/stories/[storyId]/[storyPointId]/page.tsx": [],
+          "apps/magicaltrails.com/app/dashboard/stories/[storyId]/layout.tsx": [],
+          "apps/magicaltrails.com/app/dashboard/stories/[storyId]/page.tsx": [],
+          "apps/magicaltrails.com/app/dashboard/stories/loading.tsx": [],
+          "apps/magicaltrails.com/app/layout.tsx": [
+            "apps/magicaltrails.com/app/globals.css"
+          ],
+          "apps/magicaltrails.com/app/page.tsx": [],
+          "apps/magicaltrails.com/app/profile/layout.tsx": [],
+          "apps/magicaltrails.com/app/profile/page.tsx": [],
+          "apps/magicaltrails.com/components/ErrorBoundary.tsx": [],
+          "apps/magicaltrails.com/components/GuardedLink.tsx": [],
+          "apps/magicaltrails.com/components/HTMLEditor.tsx": [],
+          "apps/magicaltrails.com/components/ImageSelector/DeleteConfirmation.tsx": [
+            "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx"
+          ],
+          "apps/magicaltrails.com/components/ImageSelector/ImageGrid.tsx": [
+            "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx"
+          ],
+          "apps/magicaltrails.com/components/ImageSelector/ImagePreview.tsx": [
+            "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx"
+          ],
+          "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx": [
+            "apps/magicaltrails.com/components/ImageSelector/DeleteConfirmation.tsx",
+            "apps/magicaltrails.com/components/ImageSelector/ImageGrid.tsx",
+            "apps/magicaltrails.com/components/ImageSelector/ImagePreview.tsx",
+            "apps/magicaltrails.com/components/ImageSelector/UploadForm.tsx"
+          ],
+          "apps/magicaltrails.com/components/ImageSelector/UploadForm.tsx": [
+            "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx"
+          ],
+          "apps/magicaltrails.com/components/Logo/LoadingScreen.tsx": [
+            "apps/magicaltrails.com/components/Logo/Logo.tsx"
+          ],
+          "apps/magicaltrails.com/components/Logo/Logo.tsx": [
+            "apps/magicaltrails.com/components/Logo/Pin.tsx",
+            "apps/magicaltrails.com/components/Logo/styles/Logo.scss"
+          ],
+          "apps/magicaltrails.com/components/Logo/Pin.tsx": [
+            "apps/magicaltrails.com/components/Logo/styles/Pin.scss"
+          ],
+          "apps/magicaltrails.com/components/QueryProvider.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/LocationPreview.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/Map.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/Map.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/GamePageEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/IFramePageEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/LocationCheckPageEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/NarrativePageEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageEditor.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/GamePageEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/IFramePageEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/LocationCheckPageEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/NarrativePageEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageRevealEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/QuestionPageEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/StarburstPageEditor.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageRevealEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/QuestionPageEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/StarburstPageEditor.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/PagePreview.tsx": [],
+          "apps/magicaltrails.com/components/StoryEditor/StoryEditor.tsx": [
+            "apps/magicaltrails.com/components/GuardedLink.tsx",
+            "apps/magicaltrails.com/components/Logo/LoadingScreen.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointEditorWrapper.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointList.tsx",
+            "apps/magicaltrails.com/components/UserDropdown/UserDropdownMenu.tsx",
+            "apps/magicaltrails.com/components/theme-switcher.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointEditor.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/LocationPreview.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/PagePreview.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointEditorWrapper.tsx",
+            "apps/magicaltrails.com/components/ui/button.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointEditorWrapper.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/StoryEditor.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointEditor.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointList.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointListLinks.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorder.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListLinks.tsx": [
+            "apps/magicaltrails.com/components/GuardedLink.tsx",
+            "apps/magicaltrails.com/components/StoryEditor/Timestamp.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorder.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorderItem.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorderItem.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/Timestamp.tsx"
+          ],
+          "apps/magicaltrails.com/components/StoryEditor/Timestamp.tsx": [],
+          "apps/magicaltrails.com/components/TrailCard.tsx": [
+            "apps/magicaltrails.com/components/StoryEditor/Timestamp.tsx"
+          ],
+          "apps/magicaltrails.com/components/UserDropdown/UserDropdown.tsx": [
+            "apps/magicaltrails.com/components/UserDropdown/UserDropdownMenu.tsx"
+          ],
+          "apps/magicaltrails.com/components/UserDropdown/UserDropdownMenu.tsx": [
+            "apps/magicaltrails.com/components/logout-button.tsx"
+          ],
+          "apps/magicaltrails.com/components/auth-button.tsx": [
+            "apps/magicaltrails.com/components/UserDropdown/UserDropdown.tsx",
+            "apps/magicaltrails.com/components/ui/button.tsx"
+          ],
+          "apps/magicaltrails.com/components/coming-soon.tsx": [],
+          "apps/magicaltrails.com/components/forgot-password-form.tsx": [],
+          "apps/magicaltrails.com/components/login-form.tsx": [],
+          "apps/magicaltrails.com/components/logout-button.tsx": [],
+          "apps/magicaltrails.com/components/nav-bar.tsx": [],
+          "apps/magicaltrails.com/components/next-logo.tsx": [],
+          "apps/magicaltrails.com/components/sign-up-form.tsx": [],
+          "apps/magicaltrails.com/components/supabase-logo.tsx": [],
+          "apps/magicaltrails.com/components/theme-switcher.tsx": [],
+          "apps/magicaltrails.com/components/ui/alert-dialog.tsx": [],
+          "apps/magicaltrails.com/components/ui/badge.tsx": [],
+          "apps/magicaltrails.com/components/ui/button.tsx": [],
+          "apps/magicaltrails.com/components/ui/card.tsx": [],
+          "apps/magicaltrails.com/components/ui/checkbox.tsx": [],
+          "apps/magicaltrails.com/components/ui/dialog.tsx": [],
+          "apps/magicaltrails.com/components/ui/dropdown-menu.tsx": [],
+          "apps/magicaltrails.com/components/ui/input.tsx": [],
+          "apps/magicaltrails.com/components/ui/label.tsx": [],
+          "apps/magicaltrails.com/components/ui/select.tsx": [],
+          "apps/magicaltrails.com/components/ui/tabs.tsx": [],
+          "apps/magicaltrails.com/components/ui/textarea.tsx": [],
+          "apps/magicaltrails.com/components/update-password-form.tsx": [],
+          "apps/magicaltrails.com/eslint.config.mjs": [],
+          "apps/magicaltrails.com/hooks/useUnsavedChangesGuard.ts": [],
+          "apps/magicaltrails.com/lib/sanitize-html.ts": [],
+          "apps/magicaltrails.com/lib/supabase/client.ts": [],
+          "apps/magicaltrails.com/lib/supabase/middleware.ts": [
+            "apps/magicaltrails.com/lib/utils.ts"
+          ],
+          "apps/magicaltrails.com/lib/supabase/server.ts": [],
+          "apps/magicaltrails.com/lib/utils.ts": [],
+          "apps/magicaltrails.com/next-env.d.ts": [
+            "apps/magicaltrails.com/.next/types/routes.d.ts"
+          ],
+          "apps/magicaltrails.com/next.config.ts": [],
+          "apps/magicaltrails.com/postcss.config.mjs": [],
+          "apps/magicaltrails.com/proxy.ts": [],
+          "apps/magicaltrails.com/utils/classNames.ts": [],
+          "apps/magicaltrails.com/utils/formatTimestampToLocaleString.ts": [],
+          "apps/magicaltrails.com/utils/mapIcon.ts": [],
+          "apps/magicaltrails.com/utils/parseLatLng.ts": [],
+          "apps/magicaltrails.io/app/(Auth)/create-account/page.tsx": [
+            "apps/magicaltrails.io/components/AuthLayout.tsx",
+            "apps/magicaltrails.io/components/SignUp.tsx"
+          ],
+          "apps/magicaltrails.io/app/(Auth)/forgotten-password/page.tsx": [
+            "apps/magicaltrails.io/components/AuthLayout.tsx",
+            "apps/magicaltrails.io/components/ForgottenPasword.tsx"
+          ],
+          "apps/magicaltrails.io/app/(Auth)/update-password/page.tsx": [
+            "apps/magicaltrails.io/components/AuthLayout.tsx",
+            "apps/magicaltrails.io/components/UpdatePasword.tsx"
+          ],
+          "apps/magicaltrails.io/app/api/auth/callback/route.ts": [
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/api/locationPoints/route.ts": [
+            "apps/magicaltrails.io/utils/generateCode.ts",
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/api/og/route.ts": [
+            "apps/magicaltrails.io/utils/posthog.ts",
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/api/point/route.ts": [
+            "apps/magicaltrails.io/utils/posthog.ts",
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/api/stories/route.ts": [
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/api/trailProgress/route.ts": [
+            "apps/magicaltrails.io/utils/posthog.ts"
+          ],
+          "apps/magicaltrails.io/app/api/trails/route.ts": [
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/dashboard/page.tsx": [
+            "apps/magicaltrails.io/components/TrailSelector/TrailSelector.tsx",
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/analytics/page.tsx": [],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/location-points/page.tsx": [
+            "apps/magicaltrails.io/app/loading/page.tsx",
+            "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMapWrapper.tsx"
+          ],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/page.tsx": [],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/print/page.tsx": [],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/settings/page.tsx": [],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/stories/[code]/page.tsx": [
+            "apps/magicaltrails.io/components/StoryEditor/StoryEditor.tsx"
+          ],
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/stories/page.tsx": [
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/dashboard/trails/layout.tsx": [
+            "apps/magicaltrails.io/components/TrailLayout.tsx"
+          ],
+          "apps/magicaltrails.io/app/layout.tsx": [
+            "apps/magicaltrails.io/components/supabase-listener.tsx",
+            "apps/magicaltrails.io/components/supabase-provider.tsx",
+            "apps/magicaltrails.io/styles/globals.css",
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/app/loading/page.tsx": [
+            "apps/magicaltrails.io/components/Logo/LoadingScreen.tsx"
+          ],
+          "apps/magicaltrails.io/app/login/page.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx"
+          ],
+          "apps/magicaltrails.io/app/page.tsx": [
+            "apps/magicaltrails.io/components/AuthLayout.tsx",
+            "apps/magicaltrails.io/components/SignIn.tsx"
+          ],
+          "apps/magicaltrails.io/app/test-story/[storyCode]/page.tsx": [
+            "apps/magicaltrails.io/components/Logo/LoadingScreen.tsx",
+            "apps/magicaltrails.io/components/TestMapWrapper.tsx"
+          ],
+          "apps/magicaltrails.io/components/AuthLayout.tsx": [],
+          "apps/magicaltrails.io/components/ConfirmModal.tsx": [],
+          "apps/magicaltrails.io/components/ForgottenPasword.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx",
+            "apps/magicaltrails.io/utils/validateEmail.ts"
+          ],
+          "apps/magicaltrails.io/components/HTMLEditior.tsx": [],
+          "apps/magicaltrails.io/components/LocationPointsMap/EditLocationPointModal.tsx": [],
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointCard.tsx": [],
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMap.tsx": [
+            "apps/magicaltrails.io/components/ConfirmModal.tsx",
+            "apps/magicaltrails.io/components/LocationPointsMap/EditLocationPointModal.tsx",
+            "apps/magicaltrails.io/components/LocationPointsMap/LocationPointCard.tsx",
+            "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMap.css",
+            "apps/magicaltrails.io/components/LocationPointsMap/Search.tsx",
+            "apps/magicaltrails.io/components/LocationPointsMap/mapIcons.ts"
+          ],
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMapWrapper.tsx": [
+            "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMap.tsx"
+          ],
+          "apps/magicaltrails.io/components/LocationPointsMap/Search.tsx": [],
+          "apps/magicaltrails.io/components/LocationPointsMap/mapIcons.ts": [],
+          "apps/magicaltrails.io/components/Logo/LoadingScreen.tsx": [
+            "apps/magicaltrails.io/components/Logo/Logo.tsx"
+          ],
+          "apps/magicaltrails.io/components/Logo/Logo.tsx": [
+            "apps/magicaltrails.io/components/Logo/Pin.tsx",
+            "apps/magicaltrails.io/components/Logo/styles/Logo.scss"
+          ],
+          "apps/magicaltrails.io/components/Logo/Pin.tsx": [
+            "apps/magicaltrails.io/components/Logo/styles/Pin.scss"
+          ],
+          "apps/magicaltrails.io/components/QRCodeWrapper.tsx": [],
+          "apps/magicaltrails.io/components/SignIn.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx"
+          ],
+          "apps/magicaltrails.io/components/SignUp.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx"
+          ],
+          "apps/magicaltrails.io/components/StoryEditor/EditStoryPointModal.tsx": [
+            "apps/magicaltrails.io/components/HTMLEditior.tsx"
+          ],
+          "apps/magicaltrails.io/components/StoryEditor/StoryEditor.tsx": [
+            "apps/magicaltrails.io/components/ConfirmModal.tsx",
+            "apps/magicaltrails.io/components/StoryEditor/EditStoryPointModal.tsx",
+            "apps/magicaltrails.io/components/StoryEditor/StoryEditor.css",
+            "apps/magicaltrails.io/components/StoryEditor/StoryPointCard.tsx"
+          ],
+          "apps/magicaltrails.io/components/StoryEditor/StoryPointCard.tsx": [],
+          "apps/magicaltrails.io/components/TestMap.tsx": [
+            "apps/magicaltrails.io/components/LocationPointsMap/mapIcons.ts",
+            "apps/magicaltrails.io/components/QRCodeWrapper.tsx",
+            "apps/magicaltrails.io/utils/hydrateStory.ts"
+          ],
+          "apps/magicaltrails.io/components/TestMapWrapper.tsx": [
+            "apps/magicaltrails.io/components/TestMap.tsx"
+          ],
+          "apps/magicaltrails.io/components/TrailLayout.tsx": [
+            "apps/magicaltrails.io/components/UserDropdown.tsx",
+            "apps/magicaltrails.io/utils/classNames.ts"
+          ],
+          "apps/magicaltrails.io/components/TrailSelector/TrailSelector.tsx": [
+            "apps/magicaltrails.io/components/HTMLEditior.tsx",
+            "apps/magicaltrails.io/components/UserDropdown.tsx"
+          ],
+          "apps/magicaltrails.io/components/UpdatePasword.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx",
+            "apps/magicaltrails.io/utils/validateEmail.ts"
+          ],
+          "apps/magicaltrails.io/components/UserDropdown.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx",
+            "apps/magicaltrails.io/utils/classNames.ts"
+          ],
+          "apps/magicaltrails.io/components/supabase-listener.tsx": [
+            "apps/magicaltrails.io/components/supabase-provider.tsx"
+          ],
+          "apps/magicaltrails.io/components/supabase-provider.tsx": [
+            "apps/magicaltrails.io/lib/database.types.ts",
+            "apps/magicaltrails.io/utils/supabase-browser.ts"
+          ],
+          "apps/magicaltrails.io/lib/database.types.ts": [],
+          "apps/magicaltrails.io/next-env.d.ts": [
+            "apps/magicaltrails.io/.next/types/routes.d.ts"
+          ],
+          "apps/magicaltrails.io/next.config.js": [],
+          "apps/magicaltrails.io/postcss.config.js": [],
+          "apps/magicaltrails.io/proxy.ts": [
+            "apps/magicaltrails.io/lib/database.types.ts"
+          ],
+          "apps/magicaltrails.io/utils/badWords.ts": [],
+          "apps/magicaltrails.io/utils/classNames.ts": [],
+          "apps/magicaltrails.io/utils/generateCode.ts": [
+            "apps/magicaltrails.io/utils/badWords.ts",
+            "apps/magicaltrails.io/utils/supabase-server.ts"
+          ],
+          "apps/magicaltrails.io/utils/hydrateStory.ts": [],
+          "apps/magicaltrails.io/utils/posthog.ts": [],
+          "apps/magicaltrails.io/utils/supabase-browser.ts": [
+            "apps/magicaltrails.io/lib/database.types.ts"
+          ],
+          "apps/magicaltrails.io/utils/supabase-server.ts": [
+            "apps/magicaltrails.io/lib/database.types.ts"
+          ],
+          "apps/magicaltrails.io/utils/supabase.ts": [],
+          "apps/magicaltrails.io/utils/validateEmail.ts": [],
+          "apps/mgtrl.co/src/@types/modern-react-qr-reader/index.d.ts": [],
+          "apps/mgtrl.co/src/App.tsx": [
+            "apps/mgtrl.co/src/AppRouter.tsx",
+            "apps/mgtrl.co/src/store/index.ts"
+          ],
+          "apps/mgtrl.co/src/AppRouter.tsx": [
+            "apps/mgtrl.co/src/components/CodeInput/index.ts",
+            "apps/mgtrl.co/src/components/GDPR/PrivacyPolicy.tsx",
+            "apps/mgtrl.co/src/components/Loading/index.ts",
+            "apps/mgtrl.co/src/components/Modal/Modal.tsx",
+            "apps/mgtrl.co/src/components/Scanner/index.ts",
+            "apps/mgtrl.co/src/components/StartScreen/index.ts",
+            "apps/mgtrl.co/src/components/Trail/index.ts",
+            "apps/mgtrl.co/src/components/TrailLoader/index.ts",
+            "apps/mgtrl.co/src/store/ui/index.ts",
+            "apps/mgtrl.co/src/utils/debounce.ts",
+            "apps/mgtrl.co/src/utils/get-screen-properties.ts"
+          ],
+          "apps/mgtrl.co/src/components/Buttons/Button.tsx": [
+            "apps/mgtrl.co/src/components/Buttons/styles/index.scss",
+            "apps/mgtrl.co/src/components/SVGIcon/SVGIcon.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Buttons/IconButton.tsx": [
+            "apps/mgtrl.co/src/components/Buttons/styles/index.scss",
+            "apps/mgtrl.co/src/components/SVGIcon/SVGIcon.tsx"
+          ],
+          "apps/mgtrl.co/src/components/CodeInput/AuthCode.tsx": [],
+          "apps/mgtrl.co/src/components/CodeInput/CodeInput.tsx": [
+            "apps/mgtrl.co/src/components/Buttons/Button.tsx",
+            "apps/mgtrl.co/src/components/CodeInput/AuthCode.tsx",
+            "apps/mgtrl.co/src/components/CodeInput/styles/index.scss",
+            "apps/mgtrl.co/src/utils/getCode.ts"
+          ],
+          "apps/mgtrl.co/src/components/CodeInput/index.ts": [
+            "apps/mgtrl.co/src/components/CodeInput/CodeInput.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Directions/Directions.tsx": [
+            "apps/mgtrl.co/src/store/index.ts"
+          ],
+          "apps/mgtrl.co/src/components/GDPR/EmailLink.tsx": [],
+          "apps/mgtrl.co/src/components/GDPR/GDPR.tsx": [
+            "apps/mgtrl.co/src/components/Loading/Logo.tsx",
+            "apps/mgtrl.co/src/utils/localStorage.ts"
+          ],
+          "apps/mgtrl.co/src/components/GDPR/InAppBrowserWarning.tsx": [
+            "apps/mgtrl.co/src/components/Loading/Logo.tsx"
+          ],
+          "apps/mgtrl.co/src/components/GDPR/LocationPermission.tsx": [
+            "apps/mgtrl.co/src/components/Loading/Logo.tsx",
+            "apps/mgtrl.co/src/utils/requestLocationAccess.ts"
+          ],
+          "apps/mgtrl.co/src/components/GDPR/PrivacyPolicy.tsx": [
+            "apps/mgtrl.co/src/components/GDPR/EmailLink.tsx"
+          ],
+          "apps/mgtrl.co/src/components/HelpScreen/HelpScreen.tsx": [],
+          "apps/mgtrl.co/src/components/Loading/Loading.tsx": [
+            "apps/mgtrl.co/src/components/Loading/Logo.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Loading/Logo.tsx": [
+            "apps/mgtrl.co/src/components/Loading/Pin.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Loading/Pin.tsx": [],
+          "apps/mgtrl.co/src/components/Loading/index.ts": [
+            "apps/mgtrl.co/src/components/Loading/Loading.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Modal/Modal.tsx": [
+            "apps/mgtrl.co/src/components/Modal/Portal.tsx",
+            "apps/mgtrl.co/src/components/Modal/styles/index.scss",
+            "apps/mgtrl.co/src/store/index.ts"
+          ],
+          "apps/mgtrl.co/src/components/Modal/Portal.tsx": [],
+          "apps/mgtrl.co/src/components/ModalRouter/ModalRouter.tsx": [
+            "apps/mgtrl.co/src/components/CodeInput/index.ts",
+            "apps/mgtrl.co/src/components/Directions/Directions.tsx",
+            "apps/mgtrl.co/src/components/Modal/Modal.tsx",
+            "apps/mgtrl.co/src/components/Pages/Pages.tsx",
+            "apps/mgtrl.co/src/components/Scanner/index.ts"
+          ],
+          "apps/mgtrl.co/src/components/Pages/Pages.tsx": [
+            "apps/mgtrl.co/src/components/Loading/index.ts",
+            "apps/mgtrl.co/src/store/index.ts",
+            "apps/mgtrl.co/src/store/trail/index.ts",
+            "apps/mgtrl.co/src/utils/compareImages.ts",
+            "apps/mgtrl.co/src/utils/trailProgress.ts"
+          ],
+          "apps/mgtrl.co/src/components/QRCodeWrapper/QRCodeWrapper.tsx": [
+            "apps/mgtrl.co/src/components/QRCodeWrapper/styles/index.scss"
+          ],
+          "apps/mgtrl.co/src/components/SVGIcon/SVGIcon.tsx": [
+            "apps/mgtrl.co/src/components/SVGIcon/styles/index.scss"
+          ],
+          "apps/mgtrl.co/src/components/Scanner/Scanner.tsx": [
+            "apps/mgtrl.co/src/components/QRCodeWrapper/QRCodeWrapper.tsx",
+            "apps/mgtrl.co/src/utils/getCode.ts"
+          ],
+          "apps/mgtrl.co/src/components/Scanner/index.ts": [
+            "apps/mgtrl.co/src/components/Scanner/Scanner.tsx"
+          ],
+          "apps/mgtrl.co/src/components/StartScreen/StartScreen.tsx": [
+            "apps/mgtrl.co/src/components/Loading/Logo.tsx",
+            "apps/mgtrl.co/src/components/StartScreen/styles/index.scss"
+          ],
+          "apps/mgtrl.co/src/components/StartScreen/index.ts": [
+            "apps/mgtrl.co/src/components/StartScreen/StartScreen.tsx"
+          ],
+          "apps/mgtrl.co/src/components/ThreeJS/SnowParticles.tsx": [],
+          "apps/mgtrl.co/src/components/ThreeJS/ThreeJS.tsx": [
+            "apps/mgtrl.co/src/components/ThreeJS/SnowParticles.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Trail/ImageOverlay.tsx": [
+            "apps/mgtrl.co/src/components/Trail/TrailMap.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Trail/MapButtons.tsx": [],
+          "apps/mgtrl.co/src/components/Trail/Trail.tsx": [
+            "apps/mgtrl.co/src/components/GDPR/GDPR.tsx",
+            "apps/mgtrl.co/src/components/GDPR/InAppBrowserWarning.tsx",
+            "apps/mgtrl.co/src/components/Loading/index.ts",
+            "apps/mgtrl.co/src/components/ModalRouter/ModalRouter.tsx",
+            "apps/mgtrl.co/src/components/Trail/MapButtons.tsx",
+            "apps/mgtrl.co/src/components/Trail/TrailFooter.tsx",
+            "apps/mgtrl.co/src/components/Trail/TrailMap.tsx",
+            "apps/mgtrl.co/src/components/Trail/TrailMenu.tsx",
+            "apps/mgtrl.co/src/components/Trail/icon.ts",
+            "apps/mgtrl.co/src/components/Trail/styles/index.scss",
+            "apps/mgtrl.co/src/components/TrailPoints/index.ts",
+            "apps/mgtrl.co/src/store/index.ts",
+            "apps/mgtrl.co/src/store/trail/index.ts",
+            "apps/mgtrl.co/src/utils/getCode.ts",
+            "apps/mgtrl.co/src/utils/preloadImages.ts"
+          ],
+          "apps/mgtrl.co/src/components/Trail/TrailFooter.tsx": [
+            "apps/mgtrl.co/src/components/SVGIcon/SVGIcon.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Trail/TrailMap.tsx": [
+            "apps/mgtrl.co/src/components/Trail/icon.ts"
+          ],
+          "apps/mgtrl.co/src/components/Trail/TrailMenu.tsx": [
+            "apps/mgtrl.co/src/components/Trail/TrailMenuDialog.tsx"
+          ],
+          "apps/mgtrl.co/src/components/Trail/TrailMenuDialog.tsx": [
+            "apps/mgtrl.co/src/components/GDPR/EmailLink.tsx",
+            "apps/mgtrl.co/src/components/HelpScreen/HelpScreen.tsx",
+            "apps/mgtrl.co/src/components/Loading/Logo.tsx",
+            "apps/mgtrl.co/src/utils/localStorage.ts"
+          ],
+          "apps/mgtrl.co/src/components/Trail/icon.ts": [],
+          "apps/mgtrl.co/src/components/Trail/index.ts": [
+            "apps/mgtrl.co/src/components/Trail/Trail.tsx"
+          ],
+          "apps/mgtrl.co/src/components/TrailLoader/TrailLoader.tsx": [
+            "apps/mgtrl.co/src/components/Loading/index.ts",
+            "apps/mgtrl.co/src/utils/getCode.ts"
+          ],
+          "apps/mgtrl.co/src/components/TrailLoader/index.ts": [
+            "apps/mgtrl.co/src/components/TrailLoader/TrailLoader.tsx"
+          ],
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPointItem.tsx": [
+            "apps/mgtrl.co/src/components/TrailPoints/TrailPointItemIcon.tsx",
+            "apps/mgtrl.co/src/utils/useIntersectionObserver.ts"
+          ],
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPointItemIcon.tsx": [],
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPoints.tsx": [
+            "apps/mgtrl.co/src/components/TrailPoints/TrailPointItem.tsx",
+            "apps/mgtrl.co/src/components/TrailPoints/styles/index.scss"
+          ],
+          "apps/mgtrl.co/src/components/TrailPoints/index.ts": [
+            "apps/mgtrl.co/src/components/TrailPoints/TrailPoints.tsx"
+          ],
+          "apps/mgtrl.co/src/hooks/use-user-location.ts": [],
+          "apps/mgtrl.co/src/index.tsx": [
+            "apps/mgtrl.co/src/App.tsx",
+            "apps/mgtrl.co/src/styles/index.scss",
+            "apps/mgtrl.co/src/styles/tailwind-base.css"
+          ],
+          "apps/mgtrl.co/src/mock-data/mockTrail.ts": [
+            "apps/mgtrl.co/src/types/types.ts"
+          ],
+          "apps/mgtrl.co/src/reportWebVitals.ts": [],
+          "apps/mgtrl.co/src/setupTests.ts": [],
+          "apps/mgtrl.co/src/store/index.ts": [
+            "apps/mgtrl.co/src/store/trail/index.ts",
+            "apps/mgtrl.co/src/store/ui/index.ts"
+          ],
+          "apps/mgtrl.co/src/store/trail/index.ts": [
+            "apps/mgtrl.co/src/store/trail/types.ts",
+            "apps/mgtrl.co/src/utils/hydrateStory.ts",
+            "apps/mgtrl.co/src/utils/localStorage.ts",
+            "apps/mgtrl.co/src/utils/set-story-points-status.ts",
+            "apps/mgtrl.co/src/utils/trailProgress.ts"
+          ],
+          "apps/mgtrl.co/src/store/trail/types.ts": [
+            "apps/mgtrl.co/src/utils/localStorage.ts"
+          ],
+          "apps/mgtrl.co/src/store/ui/index.ts": [
+            "apps/mgtrl.co/src/store/ui/types.ts",
+            "apps/mgtrl.co/src/utils/isLikelyInAppBrowser.ts",
+            "apps/mgtrl.co/src/utils/localStorage.ts"
+          ],
+          "apps/mgtrl.co/src/store/ui/types.ts": [],
+          "apps/mgtrl.co/src/sw.ts": [],
+          "apps/mgtrl.co/src/types/types.ts": [],
+          "apps/mgtrl.co/src/utils/colour-utils.ts": [],
+          "apps/mgtrl.co/src/utils/compareImages.ts": [],
+          "apps/mgtrl.co/src/utils/css-variable-utils.ts": [],
+          "apps/mgtrl.co/src/utils/debounce.ts": [],
+          "apps/mgtrl.co/src/utils/generateUUID.ts": [],
+          "apps/mgtrl.co/src/utils/get-screen-properties.ts": [],
+          "apps/mgtrl.co/src/utils/getCode.ts": [
+            "apps/mgtrl.co/src/store/index.ts",
+            "apps/mgtrl.co/src/store/trail/index.ts",
+            "apps/mgtrl.co/src/utils/localStorage.ts"
+          ],
+          "apps/mgtrl.co/src/utils/getPaginationData.ts": [],
+          "apps/mgtrl.co/src/utils/haversineDistance.ts": [],
+          "apps/mgtrl.co/src/utils/hydrateStory.ts": [
+            "apps/mgtrl.co/src/utils/set-story-points-status.ts",
+            "apps/mgtrl.co/src/utils/uniqueId.ts"
+          ],
+          "apps/mgtrl.co/src/utils/index.ts": [
+            "apps/mgtrl.co/src/utils/haversineDistance.ts",
+            "apps/mgtrl.co/src/utils/requestLocationAccess.ts"
+          ],
+          "apps/mgtrl.co/src/utils/isLikelyInAppBrowser.ts": [],
+          "apps/mgtrl.co/src/utils/localStorage.ts": [],
+          "apps/mgtrl.co/src/utils/map-utils.ts": [],
+          "apps/mgtrl.co/src/utils/parseCoordinate.ts": [],
+          "apps/mgtrl.co/src/utils/preloadImages.ts": [],
+          "apps/mgtrl.co/src/utils/question-utils.ts": [],
+          "apps/mgtrl.co/src/utils/requestLocationAccess.ts": [],
+          "apps/mgtrl.co/src/utils/set-story-points-status.ts": [],
+          "apps/mgtrl.co/src/utils/trailProgress.ts": [
+            "apps/mgtrl.co/src/store/index.ts"
+          ],
+          "apps/mgtrl.co/src/utils/uniqueId.ts": [],
+          "apps/mgtrl.co/src/utils/useIntersectionObserver.ts": [],
+          "apps/mgtrl.co/src/utils/useMount.ts": [],
+          "apps/mgtrl.co/src/vite-env.d.ts": [],
+          "packages/magical-trails/src/custom.d.ts": [],
+          "packages/magical-trails/src/index.ts": [
+            "packages/magical-trails/src/mockData/mockTrail.ts",
+            "packages/magical-trails/src/typeGuards/typeGuards.ts",
+            "packages/magical-trails/src/zodSchemas/nominatimLocationSchema.ts",
+            "packages/magical-trails/src/zodSchemas/pages.ts",
+            "packages/magical-trails/src/zodSchemas/points.ts",
+            "packages/magical-trails/src/zodSchemas/trailSchema.ts"
+          ],
+          "packages/magical-trails/src/mockData/mockTrail.ts": [
+            "packages/magical-trails/src/zodSchemas/trailSchema.ts"
+          ],
+          "packages/magical-trails/src/typeGuards/typeGuards.ts": [
+            "packages/magical-trails/src/zodSchemas/pages.ts",
+            "packages/magical-trails/src/zodSchemas/trailSchema.ts"
+          ],
+          "packages/magical-trails/src/types.d.ts": [],
+          "packages/magical-trails/src/zodSchemas/nominatimLocationSchema.ts": [],
+          "packages/magical-trails/src/zodSchemas/pages.ts": [],
+          "packages/magical-trails/src/zodSchemas/points.ts": [],
+          "packages/magical-trails/src/zodSchemas/trailSchema.ts": [
+            "packages/magical-trails/src/zodSchemas/pages.ts",
+            "packages/magical-trails/src/zodSchemas/points.ts"
+          ],
+          "packages/magical-trails-assets/index.ts": [
+            "packages/magical-trails-assets/images/magical-trails-logo.svg",
+            "packages/magical-trails-assets/images/marker-icon-disabled.svg",
+            "packages/magical-trails-assets/images/marker-icon-geofenced-dot.svg",
+            "packages/magical-trails-assets/images/marker-icon-question.svg",
+            "packages/magical-trails-assets/images/marker-icon-scanned.svg",
+            "packages/magical-trails-assets/images/marker-icon.svg"
+          ],
+          "packages/magical-trails-assets/types.d.ts": [],
+          "packages/magical-trails-react/src/components/BackgroundWrapper.tsx": [],
+          "packages/magical-trails-react/src/components/ErrorBoundary.tsx": [],
+          "packages/magical-trails-react/src/components/HTMLBlock.tsx": [],
+          "packages/magical-trails-react/src/components/HeroIcon.tsx": [],
+          "packages/magical-trails-react/src/components/Instructions.tsx": [
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx"
+          ],
+          "packages/magical-trails-react/src/components/OutsideClickHandler.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/DecoderRing.tsx": [
+            "packages/magical-trails-react/src/components/Instructions.tsx",
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/EncodedMessage.tsx",
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/RotatableCircle.tsx",
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/emojiSets.ts",
+            "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/EncodedMessage.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/RotatableCircle.tsx": [
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/DecoderRing.tsx",
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/Segment.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/Segment.tsx": [
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/DecoderRing.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/emojiSets.ts": [],
+          "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx": [
+            "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/IFrame.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/ImageSliceMatcher.tsx": [
+            "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/Layout01.tsx": [
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx",
+            "packages/magical-trails-react/src/components/Pages/SnowCanvas.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/LocationCheck.tsx": [
+            "packages/magical-trails-react/src/components/BackgroundWrapper.tsx",
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx",
+            "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx",
+            "packages/magical-trails-react/src/components/PermissionsDialog.tsx",
+            "packages/magical-trails-react/src/components/SkipDialog.tsx",
+            "packages/magical-trails-react/src/utils/haversineDistance.ts",
+            "packages/magical-trails-react/src/utils/usePermissionStatuses.ts"
+          ],
+          "packages/magical-trails-react/src/components/Pages/PageRenderer.tsx": [
+            "packages/magical-trails-react/src/components/Pages/DecoderRing/DecoderRing.tsx",
+            "packages/magical-trails-react/src/components/Pages/IFrame.tsx",
+            "packages/magical-trails-react/src/components/Pages/ImageSliceMatcher.tsx",
+            "packages/magical-trails-react/src/components/Pages/Layout01.tsx",
+            "packages/magical-trails-react/src/components/Pages/LocationCheck.tsx",
+            "packages/magical-trails-react/src/components/Pages/Pagination.tsx",
+            "packages/magical-trails-react/src/components/Pages/Question.tsx",
+            "packages/magical-trails-react/src/components/Pages/Reveal01.tsx",
+            "packages/magical-trails-react/src/components/Pages/SlidingTilePuzzle.tsx",
+            "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx",
+            "packages/magical-trails-react/src/components/Pages/Starburst.tsx",
+            "packages/magical-trails-react/src/components/Pages/TapTheThing.tsx",
+            "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatch.tsx",
+            "packages/magical-trails-react/src/components/Pages/styles/index.scss",
+            "packages/magical-trails-react/src/hooks/useDebouncedSize.ts",
+            "packages/magical-trails-react/src/utils/getPaginationData.ts"
+          ],
+          "packages/magical-trails-react/src/components/Pages/Pagination.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/Question.tsx": [
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx",
+            "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx",
+            "packages/magical-trails-react/src/utils/question-utils.ts"
+          ],
+          "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/Reveal01.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/SlidingTilePuzzle.tsx": [
+            "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/SnapChase/HUD.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx": [
+            "packages/magical-trails-react/src/components/BackgroundWrapper.tsx",
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx",
+            "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx",
+            "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChaseAR.tsx",
+            "packages/magical-trails-react/src/components/PermissionsDialog.tsx",
+            "packages/magical-trails-react/src/components/SkipDialog.tsx",
+            "packages/magical-trails-react/src/utils/permissions.ts",
+            "packages/magical-trails-react/src/utils/usePermissionStatuses.ts"
+          ],
+          "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChaseAR.tsx": [
+            "packages/magical-trails-react/src/components/Pages/SnapChase/HUD.tsx",
+            "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx",
+            "packages/magical-trails-react/src/components/Pages/SnapChase/useCameraVideo.ts"
+          ],
+          "packages/magical-trails-react/src/components/Pages/SnapChase/index.ts": [
+            "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/SnapChase/useCameraVideo.ts": [],
+          "packages/magical-trails-react/src/components/Pages/SnowCanvas.tsx": [],
+          "packages/magical-trails-react/src/components/Pages/Starburst.tsx": [
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/TapTheThing.tsx": [
+            "packages/magical-trails-react/src/components/Instructions.tsx",
+            "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/PhotoScanner.tsx": [
+            "packages/magical-trails-react/src/components/Pages/VisionMatch/PhotoScanner.css"
+          ],
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatch.tsx": [
+            "packages/magical-trails-react/src/components/HTMLBlock.tsx",
+            "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx",
+            "packages/magical-trails-react/src/components/Pages/VisionMatch/PhotoScanner.tsx",
+            "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatchInstructions.tsx"
+          ],
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatchInstructions.tsx": [],
+          "packages/magical-trails-react/src/components/PermissionsDialog.tsx": [
+            "packages/magical-trails-react/src/utils/permissions.ts",
+            "packages/magical-trails-react/src/utils/usePermissionStatuses.ts"
+          ],
+          "packages/magical-trails-react/src/components/SVGIcon.tsx": [],
+          "packages/magical-trails-react/src/components/SkipDialog.tsx": [],
+          "packages/magical-trails-react/src/hooks/useDebouncedSize.ts": [],
+          "packages/magical-trails-react/src/hooks/useScreenProperties.ts": [],
+          "packages/magical-trails-react/src/index.ts": [
+            "packages/magical-trails-react/src/components/ErrorBoundary.tsx",
+            "packages/magical-trails-react/src/components/HeroIcon.tsx",
+            "packages/magical-trails-react/src/components/OutsideClickHandler.tsx",
+            "packages/magical-trails-react/src/components/Pages/PageRenderer.tsx",
+            "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx",
+            "packages/magical-trails-react/src/components/SVGIcon.tsx",
+            "packages/magical-trails-react/src/hooks/useDebouncedSize.ts",
+            "packages/magical-trails-react/src/hooks/useScreenProperties.ts",
+            "packages/magical-trails-react/src/styles.ts"
+          ],
+          "packages/magical-trails-react/src/styles.ts": [
+            "packages/magical-trails-react/src/components/Pages/styles/index.scss"
+          ],
+          "packages/magical-trails-react/src/utils/getPaginationData.ts": [],
+          "packages/magical-trails-react/src/utils/haversineDistance.ts": [],
+          "packages/magical-trails-react/src/utils/permissions.ts": [],
+          "packages/magical-trails-react/src/utils/question-utils.ts": [],
+          "packages/magical-trails-react/src/utils/usePermissionStatuses.ts": [
+            "packages/magical-trails-react/src/utils/permissions.ts"
+          ]
+        },
+        "fanIn": {
+          "apps/magicaltrails.com/app/globals.css": 1,
+          "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx": 4,
+          "apps/magicaltrails.com/components/ImageSelector/DeleteConfirmation.tsx": 1,
+          "apps/magicaltrails.com/components/ImageSelector/ImageGrid.tsx": 1,
+          "apps/magicaltrails.com/components/ImageSelector/ImagePreview.tsx": 1,
+          "apps/magicaltrails.com/components/ImageSelector/UploadForm.tsx": 1,
+          "apps/magicaltrails.com/components/Logo/Logo.tsx": 1,
+          "apps/magicaltrails.com/components/Logo/Pin.tsx": 1,
+          "apps/magicaltrails.com/components/Logo/styles/Logo.scss": 1,
+          "apps/magicaltrails.com/components/Logo/styles/Pin.scss": 1,
+          "apps/magicaltrails.com/components/StoryEditor/Map.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/GamePageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/IFramePageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/LocationCheckPageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/NarrativePageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageRevealEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/QuestionPageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/StarburstPageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/GuardedLink.tsx": 2,
+          "apps/magicaltrails.com/components/Logo/LoadingScreen.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointEditorWrapper.tsx": 2,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointList.tsx": 1,
+          "apps/magicaltrails.com/components/UserDropdown/UserDropdownMenu.tsx": 2,
+          "apps/magicaltrails.com/components/theme-switcher.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/LocationPreview.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/PagePreview.tsx": 1,
+          "apps/magicaltrails.com/components/ui/button.tsx": 2,
+          "apps/magicaltrails.com/components/StoryEditor/StoryEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointEditor.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListLinks.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorder.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/Timestamp.tsx": 3,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorderItem.tsx": 1,
+          "apps/magicaltrails.com/components/logout-button.tsx": 1,
+          "apps/magicaltrails.com/components/UserDropdown/UserDropdown.tsx": 1,
+          "apps/magicaltrails.com/lib/utils.ts": 1,
+          "apps/magicaltrails.com/.next/types/routes.d.ts": 1,
+          "apps/magicaltrails.io/components/AuthLayout.tsx": 4,
+          "apps/magicaltrails.io/components/SignUp.tsx": 1,
+          "apps/magicaltrails.io/components/ForgottenPasword.tsx": 1,
+          "apps/magicaltrails.io/components/UpdatePasword.tsx": 1,
+          "apps/magicaltrails.io/utils/supabase-server.ts": 10,
+          "apps/magicaltrails.io/utils/generateCode.ts": 1,
+          "apps/magicaltrails.io/utils/posthog.ts": 3,
+          "apps/magicaltrails.io/components/TrailSelector/TrailSelector.tsx": 1,
+          "apps/magicaltrails.io/app/loading/page.tsx": 1,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMapWrapper.tsx": 1,
+          "apps/magicaltrails.io/components/StoryEditor/StoryEditor.tsx": 1,
+          "apps/magicaltrails.io/components/TrailLayout.tsx": 1,
+          "apps/magicaltrails.io/components/supabase-listener.tsx": 1,
+          "apps/magicaltrails.io/components/supabase-provider.tsx": 8,
+          "apps/magicaltrails.io/styles/globals.css": 1,
+          "apps/magicaltrails.io/components/Logo/LoadingScreen.tsx": 2,
+          "apps/magicaltrails.io/components/SignIn.tsx": 1,
+          "apps/magicaltrails.io/components/TestMapWrapper.tsx": 1,
+          "apps/magicaltrails.io/utils/validateEmail.ts": 2,
+          "apps/magicaltrails.io/components/ConfirmModal.tsx": 2,
+          "apps/magicaltrails.io/components/LocationPointsMap/EditLocationPointModal.tsx": 1,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointCard.tsx": 1,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMap.css": 1,
+          "apps/magicaltrails.io/components/LocationPointsMap/Search.tsx": 1,
+          "apps/magicaltrails.io/components/LocationPointsMap/mapIcons.ts": 2,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMap.tsx": 1,
+          "apps/magicaltrails.io/components/Logo/Logo.tsx": 1,
+          "apps/magicaltrails.io/components/Logo/Pin.tsx": 1,
+          "apps/magicaltrails.io/components/Logo/styles/Logo.scss": 1,
+          "apps/magicaltrails.io/components/Logo/styles/Pin.scss": 1,
+          "apps/magicaltrails.io/components/HTMLEditior.tsx": 2,
+          "apps/magicaltrails.io/components/StoryEditor/EditStoryPointModal.tsx": 1,
+          "apps/magicaltrails.io/components/StoryEditor/StoryEditor.css": 1,
+          "apps/magicaltrails.io/components/StoryEditor/StoryPointCard.tsx": 1,
+          "apps/magicaltrails.io/components/QRCodeWrapper.tsx": 1,
+          "apps/magicaltrails.io/utils/hydrateStory.ts": 1,
+          "apps/magicaltrails.io/components/TestMap.tsx": 1,
+          "apps/magicaltrails.io/components/UserDropdown.tsx": 2,
+          "apps/magicaltrails.io/utils/classNames.ts": 2,
+          "apps/magicaltrails.io/lib/database.types.ts": 4,
+          "apps/magicaltrails.io/utils/supabase-browser.ts": 1,
+          "apps/magicaltrails.io/.next/types/routes.d.ts": 1,
+          "apps/magicaltrails.io/utils/badWords.ts": 1,
+          "apps/mgtrl.co/src/AppRouter.tsx": 1,
+          "apps/mgtrl.co/src/store/index.ts": 7,
+          "apps/mgtrl.co/src/components/CodeInput/index.ts": 2,
+          "apps/mgtrl.co/src/components/GDPR/PrivacyPolicy.tsx": 1,
+          "apps/mgtrl.co/src/components/Loading/index.ts": 4,
+          "apps/mgtrl.co/src/components/Modal/Modal.tsx": 2,
+          "apps/mgtrl.co/src/components/Scanner/index.ts": 2,
+          "apps/mgtrl.co/src/components/StartScreen/index.ts": 1,
+          "apps/mgtrl.co/src/components/Trail/index.ts": 1,
+          "apps/mgtrl.co/src/components/TrailLoader/index.ts": 1,
+          "apps/mgtrl.co/src/store/ui/index.ts": 2,
+          "apps/mgtrl.co/src/utils/debounce.ts": 1,
+          "apps/mgtrl.co/src/utils/get-screen-properties.ts": 1,
+          "apps/mgtrl.co/src/components/Buttons/styles/index.scss": 2,
+          "apps/mgtrl.co/src/components/SVGIcon/SVGIcon.tsx": 3,
+          "apps/mgtrl.co/src/components/Buttons/Button.tsx": 1,
+          "apps/mgtrl.co/src/components/CodeInput/AuthCode.tsx": 1,
+          "apps/mgtrl.co/src/components/CodeInput/styles/index.scss": 1,
+          "apps/mgtrl.co/src/utils/getCode.ts": 4,
+          "apps/mgtrl.co/src/components/CodeInput/CodeInput.tsx": 1,
+          "apps/mgtrl.co/src/components/Loading/Logo.tsx": 6,
+          "apps/mgtrl.co/src/utils/localStorage.ts": 6,
+          "apps/mgtrl.co/src/utils/requestLocationAccess.ts": 2,
+          "apps/mgtrl.co/src/components/GDPR/EmailLink.tsx": 2,
+          "apps/mgtrl.co/src/components/Loading/Pin.tsx": 1,
+          "apps/mgtrl.co/src/components/Loading/Loading.tsx": 1,
+          "apps/mgtrl.co/src/components/Modal/Portal.tsx": 1,
+          "apps/mgtrl.co/src/components/Modal/styles/index.scss": 1,
+          "apps/mgtrl.co/src/components/Directions/Directions.tsx": 1,
+          "apps/mgtrl.co/src/components/Pages/Pages.tsx": 1,
+          "apps/mgtrl.co/src/store/trail/index.ts": 4,
+          "apps/mgtrl.co/src/utils/compareImages.ts": 1,
+          "apps/mgtrl.co/src/utils/trailProgress.ts": 2,
+          "apps/mgtrl.co/src/components/QRCodeWrapper/styles/index.scss": 1,
+          "apps/mgtrl.co/src/components/SVGIcon/styles/index.scss": 1,
+          "apps/mgtrl.co/src/components/QRCodeWrapper/QRCodeWrapper.tsx": 1,
+          "apps/mgtrl.co/src/components/Scanner/Scanner.tsx": 1,
+          "apps/mgtrl.co/src/components/StartScreen/styles/index.scss": 1,
+          "apps/mgtrl.co/src/components/StartScreen/StartScreen.tsx": 1,
+          "apps/mgtrl.co/src/components/ThreeJS/SnowParticles.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailMap.tsx": 2,
+          "apps/mgtrl.co/src/components/GDPR/GDPR.tsx": 1,
+          "apps/mgtrl.co/src/components/GDPR/InAppBrowserWarning.tsx": 1,
+          "apps/mgtrl.co/src/components/ModalRouter/ModalRouter.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/MapButtons.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailFooter.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailMenu.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/icon.ts": 2,
+          "apps/mgtrl.co/src/components/Trail/styles/index.scss": 1,
+          "apps/mgtrl.co/src/components/TrailPoints/index.ts": 1,
+          "apps/mgtrl.co/src/utils/preloadImages.ts": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailMenuDialog.tsx": 1,
+          "apps/mgtrl.co/src/components/HelpScreen/HelpScreen.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/Trail.tsx": 1,
+          "apps/mgtrl.co/src/components/TrailLoader/TrailLoader.tsx": 1,
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPointItemIcon.tsx": 1,
+          "apps/mgtrl.co/src/utils/useIntersectionObserver.ts": 1,
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPointItem.tsx": 1,
+          "apps/mgtrl.co/src/components/TrailPoints/styles/index.scss": 1,
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPoints.tsx": 1,
+          "apps/mgtrl.co/src/App.tsx": 1,
+          "apps/mgtrl.co/src/styles/index.scss": 1,
+          "apps/mgtrl.co/src/styles/tailwind-base.css": 1,
+          "apps/mgtrl.co/src/types/types.ts": 1,
+          "apps/mgtrl.co/src/store/trail/types.ts": 1,
+          "apps/mgtrl.co/src/utils/hydrateStory.ts": 1,
+          "apps/mgtrl.co/src/utils/set-story-points-status.ts": 2,
+          "apps/mgtrl.co/src/store/ui/types.ts": 1,
+          "apps/mgtrl.co/src/utils/isLikelyInAppBrowser.ts": 1,
+          "apps/mgtrl.co/src/utils/uniqueId.ts": 1,
+          "apps/mgtrl.co/src/utils/haversineDistance.ts": 1,
+          "packages/magical-trails/src/mockData/mockTrail.ts": 1,
+          "packages/magical-trails/src/typeGuards/typeGuards.ts": 1,
+          "packages/magical-trails/src/zodSchemas/nominatimLocationSchema.ts": 1,
+          "packages/magical-trails/src/zodSchemas/pages.ts": 3,
+          "packages/magical-trails/src/zodSchemas/points.ts": 2,
+          "packages/magical-trails/src/zodSchemas/trailSchema.ts": 3,
+          "packages/magical-trails-assets/images/magical-trails-logo.svg": 1,
+          "packages/magical-trails-assets/images/marker-icon-disabled.svg": 1,
+          "packages/magical-trails-assets/images/marker-icon-geofenced-dot.svg": 1,
+          "packages/magical-trails-assets/images/marker-icon-question.svg": 1,
+          "packages/magical-trails-assets/images/marker-icon-scanned.svg": 1,
+          "packages/magical-trails-assets/images/marker-icon.svg": 1,
+          "packages/magical-trails-react/src/components/HTMLBlock.tsx": 7,
+          "packages/magical-trails-react/src/components/Instructions.tsx": 2,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/EncodedMessage.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/RotatableCircle.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/emojiSets.ts": 1,
+          "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx": 4,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/DecoderRing.tsx": 3,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/Segment.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx": 5,
+          "packages/magical-trails-react/src/components/Pages/SnowCanvas.tsx": 1,
+          "packages/magical-trails-react/src/components/BackgroundWrapper.tsx": 2,
+          "packages/magical-trails-react/src/components/PermissionsDialog.tsx": 2,
+          "packages/magical-trails-react/src/components/SkipDialog.tsx": 2,
+          "packages/magical-trails-react/src/utils/haversineDistance.ts": 1,
+          "packages/magical-trails-react/src/utils/usePermissionStatuses.ts": 3,
+          "packages/magical-trails-react/src/components/Pages/IFrame.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/ImageSliceMatcher.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/Layout01.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/LocationCheck.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/Pagination.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/Question.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/Reveal01.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/SlidingTilePuzzle.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx": 4,
+          "packages/magical-trails-react/src/components/Pages/Starburst.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/TapTheThing.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatch.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/styles/index.scss": 2,
+          "packages/magical-trails-react/src/hooks/useDebouncedSize.ts": 2,
+          "packages/magical-trails-react/src/utils/getPaginationData.ts": 1,
+          "packages/magical-trails-react/src/utils/question-utils.ts": 1,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChaseAR.tsx": 1,
+          "packages/magical-trails-react/src/utils/permissions.ts": 3,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/HUD.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/useCameraVideo.ts": 1,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/PhotoScanner.css": 1,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/PhotoScanner.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatchInstructions.tsx": 1,
+          "packages/magical-trails-react/src/components/ErrorBoundary.tsx": 1,
+          "packages/magical-trails-react/src/components/HeroIcon.tsx": 1,
+          "packages/magical-trails-react/src/components/OutsideClickHandler.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/PageRenderer.tsx": 1,
+          "packages/magical-trails-react/src/components/SVGIcon.tsx": 1,
+          "packages/magical-trails-react/src/hooks/useScreenProperties.ts": 1,
+          "packages/magical-trails-react/src/styles.ts": 1
+        },
+        "fanOut": {
+          "apps/magicaltrails.com/app/api/story-point-reorder/[storyId]/route.ts": 0,
+          "apps/magicaltrails.com/app/api/story-points/[storyPointId]/route.ts": 0,
+          "apps/magicaltrails.com/app/auth/confirm/route.ts": 0,
+          "apps/magicaltrails.com/app/auth/error/page.tsx": 0,
+          "apps/magicaltrails.com/app/auth/forgot-password/page.tsx": 0,
+          "apps/magicaltrails.com/app/auth/login/page.tsx": 0,
+          "apps/magicaltrails.com/app/auth/sign-up/page.tsx": 0,
+          "apps/magicaltrails.com/app/auth/sign-up-success/page.tsx": 0,
+          "apps/magicaltrails.com/app/auth/update-password/page.tsx": 0,
+          "apps/magicaltrails.com/app/dashboard/page.tsx": 0,
+          "apps/magicaltrails.com/app/dashboard/stories/[storyId]/[storyPointId]/page.tsx": 0,
+          "apps/magicaltrails.com/app/dashboard/stories/[storyId]/layout.tsx": 0,
+          "apps/magicaltrails.com/app/dashboard/stories/[storyId]/page.tsx": 0,
+          "apps/magicaltrails.com/app/dashboard/stories/loading.tsx": 0,
+          "apps/magicaltrails.com/app/layout.tsx": 1,
+          "apps/magicaltrails.com/app/page.tsx": 0,
+          "apps/magicaltrails.com/app/profile/layout.tsx": 0,
+          "apps/magicaltrails.com/app/profile/page.tsx": 0,
+          "apps/magicaltrails.com/components/ErrorBoundary.tsx": 0,
+          "apps/magicaltrails.com/components/GuardedLink.tsx": 0,
+          "apps/magicaltrails.com/components/HTMLEditor.tsx": 0,
+          "apps/magicaltrails.com/components/ImageSelector/DeleteConfirmation.tsx": 1,
+          "apps/magicaltrails.com/components/ImageSelector/ImageGrid.tsx": 1,
+          "apps/magicaltrails.com/components/ImageSelector/ImagePreview.tsx": 1,
+          "apps/magicaltrails.com/components/ImageSelector/ImageSelector.tsx": 4,
+          "apps/magicaltrails.com/components/ImageSelector/UploadForm.tsx": 1,
+          "apps/magicaltrails.com/components/Logo/LoadingScreen.tsx": 1,
+          "apps/magicaltrails.com/components/Logo/Logo.tsx": 2,
+          "apps/magicaltrails.com/components/Logo/Pin.tsx": 1,
+          "apps/magicaltrails.com/components/QueryProvider.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/LocationPreview.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/Map.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/GamePageEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/IFramePageEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/LocationCheckPageEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/NarrativePageEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageEditor.tsx": 7,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/PageRevealEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/QuestionPageEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PageEditor/StarburstPageEditor.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/PagePreview.tsx": 0,
+          "apps/magicaltrails.com/components/StoryEditor/StoryEditor.tsx": 6,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointEditor.tsx": 5,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointEditorWrapper.tsx": 2,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointList.tsx": 2,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListLinks.tsx": 2,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorder.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/StoryPointListReorderItem.tsx": 1,
+          "apps/magicaltrails.com/components/StoryEditor/Timestamp.tsx": 0,
+          "apps/magicaltrails.com/components/TrailCard.tsx": 1,
+          "apps/magicaltrails.com/components/UserDropdown/UserDropdown.tsx": 1,
+          "apps/magicaltrails.com/components/UserDropdown/UserDropdownMenu.tsx": 1,
+          "apps/magicaltrails.com/components/auth-button.tsx": 2,
+          "apps/magicaltrails.com/components/coming-soon.tsx": 0,
+          "apps/magicaltrails.com/components/forgot-password-form.tsx": 0,
+          "apps/magicaltrails.com/components/login-form.tsx": 0,
+          "apps/magicaltrails.com/components/logout-button.tsx": 0,
+          "apps/magicaltrails.com/components/nav-bar.tsx": 0,
+          "apps/magicaltrails.com/components/next-logo.tsx": 0,
+          "apps/magicaltrails.com/components/sign-up-form.tsx": 0,
+          "apps/magicaltrails.com/components/supabase-logo.tsx": 0,
+          "apps/magicaltrails.com/components/theme-switcher.tsx": 0,
+          "apps/magicaltrails.com/components/ui/alert-dialog.tsx": 0,
+          "apps/magicaltrails.com/components/ui/badge.tsx": 0,
+          "apps/magicaltrails.com/components/ui/button.tsx": 0,
+          "apps/magicaltrails.com/components/ui/card.tsx": 0,
+          "apps/magicaltrails.com/components/ui/checkbox.tsx": 0,
+          "apps/magicaltrails.com/components/ui/dialog.tsx": 0,
+          "apps/magicaltrails.com/components/ui/dropdown-menu.tsx": 0,
+          "apps/magicaltrails.com/components/ui/input.tsx": 0,
+          "apps/magicaltrails.com/components/ui/label.tsx": 0,
+          "apps/magicaltrails.com/components/ui/select.tsx": 0,
+          "apps/magicaltrails.com/components/ui/tabs.tsx": 0,
+          "apps/magicaltrails.com/components/ui/textarea.tsx": 0,
+          "apps/magicaltrails.com/components/update-password-form.tsx": 0,
+          "apps/magicaltrails.com/eslint.config.mjs": 0,
+          "apps/magicaltrails.com/hooks/useUnsavedChangesGuard.ts": 0,
+          "apps/magicaltrails.com/lib/sanitize-html.ts": 0,
+          "apps/magicaltrails.com/lib/supabase/client.ts": 0,
+          "apps/magicaltrails.com/lib/supabase/middleware.ts": 1,
+          "apps/magicaltrails.com/lib/supabase/server.ts": 0,
+          "apps/magicaltrails.com/lib/utils.ts": 0,
+          "apps/magicaltrails.com/next-env.d.ts": 1,
+          "apps/magicaltrails.com/next.config.ts": 0,
+          "apps/magicaltrails.com/postcss.config.mjs": 0,
+          "apps/magicaltrails.com/proxy.ts": 0,
+          "apps/magicaltrails.com/utils/classNames.ts": 0,
+          "apps/magicaltrails.com/utils/formatTimestampToLocaleString.ts": 0,
+          "apps/magicaltrails.com/utils/mapIcon.ts": 0,
+          "apps/magicaltrails.com/utils/parseLatLng.ts": 0,
+          "apps/magicaltrails.io/app/(Auth)/create-account/page.tsx": 2,
+          "apps/magicaltrails.io/app/(Auth)/forgotten-password/page.tsx": 2,
+          "apps/magicaltrails.io/app/(Auth)/update-password/page.tsx": 2,
+          "apps/magicaltrails.io/app/api/auth/callback/route.ts": 1,
+          "apps/magicaltrails.io/app/api/locationPoints/route.ts": 2,
+          "apps/magicaltrails.io/app/api/og/route.ts": 2,
+          "apps/magicaltrails.io/app/api/point/route.ts": 2,
+          "apps/magicaltrails.io/app/api/stories/route.ts": 1,
+          "apps/magicaltrails.io/app/api/trailProgress/route.ts": 1,
+          "apps/magicaltrails.io/app/api/trails/route.ts": 1,
+          "apps/magicaltrails.io/app/dashboard/page.tsx": 2,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/analytics/page.tsx": 0,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/location-points/page.tsx": 2,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/page.tsx": 0,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/print/page.tsx": 0,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/settings/page.tsx": 0,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/stories/[code]/page.tsx": 1,
+          "apps/magicaltrails.io/app/dashboard/trails/[trailId]/stories/page.tsx": 1,
+          "apps/magicaltrails.io/app/dashboard/trails/layout.tsx": 1,
+          "apps/magicaltrails.io/app/layout.tsx": 4,
+          "apps/magicaltrails.io/app/loading/page.tsx": 1,
+          "apps/magicaltrails.io/app/login/page.tsx": 1,
+          "apps/magicaltrails.io/app/page.tsx": 2,
+          "apps/magicaltrails.io/app/test-story/[storyCode]/page.tsx": 2,
+          "apps/magicaltrails.io/components/AuthLayout.tsx": 0,
+          "apps/magicaltrails.io/components/ConfirmModal.tsx": 0,
+          "apps/magicaltrails.io/components/ForgottenPasword.tsx": 2,
+          "apps/magicaltrails.io/components/HTMLEditior.tsx": 0,
+          "apps/magicaltrails.io/components/LocationPointsMap/EditLocationPointModal.tsx": 0,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointCard.tsx": 0,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMap.tsx": 6,
+          "apps/magicaltrails.io/components/LocationPointsMap/LocationPointsMapWrapper.tsx": 1,
+          "apps/magicaltrails.io/components/LocationPointsMap/Search.tsx": 0,
+          "apps/magicaltrails.io/components/LocationPointsMap/mapIcons.ts": 0,
+          "apps/magicaltrails.io/components/Logo/LoadingScreen.tsx": 1,
+          "apps/magicaltrails.io/components/Logo/Logo.tsx": 2,
+          "apps/magicaltrails.io/components/Logo/Pin.tsx": 1,
+          "apps/magicaltrails.io/components/QRCodeWrapper.tsx": 0,
+          "apps/magicaltrails.io/components/SignIn.tsx": 1,
+          "apps/magicaltrails.io/components/SignUp.tsx": 1,
+          "apps/magicaltrails.io/components/StoryEditor/EditStoryPointModal.tsx": 1,
+          "apps/magicaltrails.io/components/StoryEditor/StoryEditor.tsx": 4,
+          "apps/magicaltrails.io/components/StoryEditor/StoryPointCard.tsx": 0,
+          "apps/magicaltrails.io/components/TestMap.tsx": 3,
+          "apps/magicaltrails.io/components/TestMapWrapper.tsx": 1,
+          "apps/magicaltrails.io/components/TrailLayout.tsx": 2,
+          "apps/magicaltrails.io/components/TrailSelector/TrailSelector.tsx": 2,
+          "apps/magicaltrails.io/components/UpdatePasword.tsx": 2,
+          "apps/magicaltrails.io/components/UserDropdown.tsx": 2,
+          "apps/magicaltrails.io/components/supabase-listener.tsx": 1,
+          "apps/magicaltrails.io/components/supabase-provider.tsx": 2,
+          "apps/magicaltrails.io/lib/database.types.ts": 0,
+          "apps/magicaltrails.io/next-env.d.ts": 1,
+          "apps/magicaltrails.io/next.config.js": 0,
+          "apps/magicaltrails.io/postcss.config.js": 0,
+          "apps/magicaltrails.io/proxy.ts": 1,
+          "apps/magicaltrails.io/utils/badWords.ts": 0,
+          "apps/magicaltrails.io/utils/classNames.ts": 0,
+          "apps/magicaltrails.io/utils/generateCode.ts": 2,
+          "apps/magicaltrails.io/utils/hydrateStory.ts": 0,
+          "apps/magicaltrails.io/utils/posthog.ts": 0,
+          "apps/magicaltrails.io/utils/supabase-browser.ts": 1,
+          "apps/magicaltrails.io/utils/supabase-server.ts": 1,
+          "apps/magicaltrails.io/utils/supabase.ts": 0,
+          "apps/magicaltrails.io/utils/validateEmail.ts": 0,
+          "apps/mgtrl.co/src/@types/modern-react-qr-reader/index.d.ts": 0,
+          "apps/mgtrl.co/src/App.tsx": 2,
+          "apps/mgtrl.co/src/AppRouter.tsx": 11,
+          "apps/mgtrl.co/src/components/Buttons/Button.tsx": 2,
+          "apps/mgtrl.co/src/components/Buttons/IconButton.tsx": 2,
+          "apps/mgtrl.co/src/components/CodeInput/AuthCode.tsx": 0,
+          "apps/mgtrl.co/src/components/CodeInput/CodeInput.tsx": 4,
+          "apps/mgtrl.co/src/components/CodeInput/index.ts": 1,
+          "apps/mgtrl.co/src/components/Directions/Directions.tsx": 1,
+          "apps/mgtrl.co/src/components/GDPR/EmailLink.tsx": 0,
+          "apps/mgtrl.co/src/components/GDPR/GDPR.tsx": 2,
+          "apps/mgtrl.co/src/components/GDPR/InAppBrowserWarning.tsx": 1,
+          "apps/mgtrl.co/src/components/GDPR/LocationPermission.tsx": 2,
+          "apps/mgtrl.co/src/components/GDPR/PrivacyPolicy.tsx": 1,
+          "apps/mgtrl.co/src/components/HelpScreen/HelpScreen.tsx": 0,
+          "apps/mgtrl.co/src/components/Loading/Loading.tsx": 1,
+          "apps/mgtrl.co/src/components/Loading/Logo.tsx": 1,
+          "apps/mgtrl.co/src/components/Loading/Pin.tsx": 0,
+          "apps/mgtrl.co/src/components/Loading/index.ts": 1,
+          "apps/mgtrl.co/src/components/Modal/Modal.tsx": 3,
+          "apps/mgtrl.co/src/components/Modal/Portal.tsx": 0,
+          "apps/mgtrl.co/src/components/ModalRouter/ModalRouter.tsx": 5,
+          "apps/mgtrl.co/src/components/Pages/Pages.tsx": 5,
+          "apps/mgtrl.co/src/components/QRCodeWrapper/QRCodeWrapper.tsx": 1,
+          "apps/mgtrl.co/src/components/SVGIcon/SVGIcon.tsx": 1,
+          "apps/mgtrl.co/src/components/Scanner/Scanner.tsx": 2,
+          "apps/mgtrl.co/src/components/Scanner/index.ts": 1,
+          "apps/mgtrl.co/src/components/StartScreen/StartScreen.tsx": 2,
+          "apps/mgtrl.co/src/components/StartScreen/index.ts": 1,
+          "apps/mgtrl.co/src/components/ThreeJS/SnowParticles.tsx": 0,
+          "apps/mgtrl.co/src/components/ThreeJS/ThreeJS.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/ImageOverlay.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/MapButtons.tsx": 0,
+          "apps/mgtrl.co/src/components/Trail/Trail.tsx": 15,
+          "apps/mgtrl.co/src/components/Trail/TrailFooter.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailMap.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailMenu.tsx": 1,
+          "apps/mgtrl.co/src/components/Trail/TrailMenuDialog.tsx": 4,
+          "apps/mgtrl.co/src/components/Trail/icon.ts": 0,
+          "apps/mgtrl.co/src/components/Trail/index.ts": 1,
+          "apps/mgtrl.co/src/components/TrailLoader/TrailLoader.tsx": 2,
+          "apps/mgtrl.co/src/components/TrailLoader/index.ts": 1,
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPointItem.tsx": 2,
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPointItemIcon.tsx": 0,
+          "apps/mgtrl.co/src/components/TrailPoints/TrailPoints.tsx": 2,
+          "apps/mgtrl.co/src/components/TrailPoints/index.ts": 1,
+          "apps/mgtrl.co/src/hooks/use-user-location.ts": 0,
+          "apps/mgtrl.co/src/index.tsx": 3,
+          "apps/mgtrl.co/src/mock-data/mockTrail.ts": 1,
+          "apps/mgtrl.co/src/reportWebVitals.ts": 0,
+          "apps/mgtrl.co/src/setupTests.ts": 0,
+          "apps/mgtrl.co/src/store/index.ts": 2,
+          "apps/mgtrl.co/src/store/trail/index.ts": 5,
+          "apps/mgtrl.co/src/store/trail/types.ts": 1,
+          "apps/mgtrl.co/src/store/ui/index.ts": 3,
+          "apps/mgtrl.co/src/store/ui/types.ts": 0,
+          "apps/mgtrl.co/src/sw.ts": 0,
+          "apps/mgtrl.co/src/types/types.ts": 0,
+          "apps/mgtrl.co/src/utils/colour-utils.ts": 0,
+          "apps/mgtrl.co/src/utils/compareImages.ts": 0,
+          "apps/mgtrl.co/src/utils/css-variable-utils.ts": 0,
+          "apps/mgtrl.co/src/utils/debounce.ts": 0,
+          "apps/mgtrl.co/src/utils/generateUUID.ts": 0,
+          "apps/mgtrl.co/src/utils/get-screen-properties.ts": 0,
+          "apps/mgtrl.co/src/utils/getCode.ts": 3,
+          "apps/mgtrl.co/src/utils/getPaginationData.ts": 0,
+          "apps/mgtrl.co/src/utils/haversineDistance.ts": 0,
+          "apps/mgtrl.co/src/utils/hydrateStory.ts": 2,
+          "apps/mgtrl.co/src/utils/index.ts": 2,
+          "apps/mgtrl.co/src/utils/isLikelyInAppBrowser.ts": 0,
+          "apps/mgtrl.co/src/utils/localStorage.ts": 0,
+          "apps/mgtrl.co/src/utils/map-utils.ts": 0,
+          "apps/mgtrl.co/src/utils/parseCoordinate.ts": 0,
+          "apps/mgtrl.co/src/utils/preloadImages.ts": 0,
+          "apps/mgtrl.co/src/utils/question-utils.ts": 0,
+          "apps/mgtrl.co/src/utils/requestLocationAccess.ts": 0,
+          "apps/mgtrl.co/src/utils/set-story-points-status.ts": 0,
+          "apps/mgtrl.co/src/utils/trailProgress.ts": 1,
+          "apps/mgtrl.co/src/utils/uniqueId.ts": 0,
+          "apps/mgtrl.co/src/utils/useIntersectionObserver.ts": 0,
+          "apps/mgtrl.co/src/utils/useMount.ts": 0,
+          "apps/mgtrl.co/src/vite-env.d.ts": 0,
+          "packages/magical-trails/src/custom.d.ts": 0,
+          "packages/magical-trails/src/index.ts": 6,
+          "packages/magical-trails/src/mockData/mockTrail.ts": 1,
+          "packages/magical-trails/src/typeGuards/typeGuards.ts": 2,
+          "packages/magical-trails/src/types.d.ts": 0,
+          "packages/magical-trails/src/zodSchemas/nominatimLocationSchema.ts": 0,
+          "packages/magical-trails/src/zodSchemas/pages.ts": 0,
+          "packages/magical-trails/src/zodSchemas/points.ts": 0,
+          "packages/magical-trails/src/zodSchemas/trailSchema.ts": 2,
+          "packages/magical-trails-assets/index.ts": 6,
+          "packages/magical-trails-assets/types.d.ts": 0,
+          "packages/magical-trails-react/src/components/BackgroundWrapper.tsx": 0,
+          "packages/magical-trails-react/src/components/ErrorBoundary.tsx": 0,
+          "packages/magical-trails-react/src/components/HTMLBlock.tsx": 0,
+          "packages/magical-trails-react/src/components/HeroIcon.tsx": 0,
+          "packages/magical-trails-react/src/components/Instructions.tsx": 1,
+          "packages/magical-trails-react/src/components/OutsideClickHandler.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/DecoderRing.tsx": 5,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/EncodedMessage.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/RotatableCircle.tsx": 2,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/Segment.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/DecoderRing/emojiSets.ts": 0,
+          "packages/magical-trails-react/src/components/Pages/GameCompleteModal.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/IFrame.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/ImageSliceMatcher.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/Layout01.tsx": 2,
+          "packages/magical-trails-react/src/components/Pages/LocationCheck.tsx": 7,
+          "packages/magical-trails-react/src/components/Pages/PageRenderer.tsx": 16,
+          "packages/magical-trails-react/src/components/Pages/Pagination.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/Question.tsx": 3,
+          "packages/magical-trails-react/src/components/Pages/QuestionCard.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/Reveal01.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/SlidingTilePuzzle.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/HUD.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChase.tsx": 8,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/SnapChaseAR.tsx": 3,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/index.ts": 1,
+          "packages/magical-trails-react/src/components/Pages/SnapChase/useCameraVideo.ts": 0,
+          "packages/magical-trails-react/src/components/Pages/SnowCanvas.tsx": 0,
+          "packages/magical-trails-react/src/components/Pages/Starburst.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/TapTheThing.tsx": 2,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/PhotoScanner.tsx": 1,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatch.tsx": 4,
+          "packages/magical-trails-react/src/components/Pages/VisionMatch/VisionMatchInstructions.tsx": 0,
+          "packages/magical-trails-react/src/components/PermissionsDialog.tsx": 2,
+          "packages/magical-trails-react/src/components/SVGIcon.tsx": 0,
+          "packages/magical-trails-react/src/components/SkipDialog.tsx": 0,
+          "packages/magical-trails-react/src/hooks/useDebouncedSize.ts": 0,
+          "packages/magical-trails-react/src/hooks/useScreenProperties.ts": 0,
+          "packages/magical-trails-react/src/index.ts": 9,
+          "packages/magical-trails-react/src/styles.ts": 1,
+          "packages/magical-trails-react/src/utils/getPaginationData.ts": 0,
+          "packages/magical-trails-react/src/utils/haversineDistance.ts": 0,
+          "packages/magical-trails-react/src/utils/permissions.ts": 0,
+          "packages/magical-trails-react/src/utils/question-utils.ts": 0,
+          "packages/magical-trails-react/src/utils/usePermissionStatuses.ts": 1
+        }
+      },
+      "runtimeClass": "runtime",
+      "runtimeReason": "Transitive of runtime dependency",
+      "outdated": { "status": "unknown" },
+      "raw": {
+        "workspacePackages": [
+          "magical-trails",
+          "magical-trails-assets",
+          "magical-trails-react",
+          "magicaltrails.com",
+          "magicaltrails.io",
+          "mgtrl.co"
+        ]
+      }
+    }
+  ]
+}

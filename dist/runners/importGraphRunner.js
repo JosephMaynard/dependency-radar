@@ -19,6 +19,7 @@ async function runImportGraph(projectPath, tempDir) {
         const files = await collectSourceFiles(entry);
         const fileGraph = {};
         const packageGraph = {};
+        const packageCounts = {};
         const unresolvedImports = [];
         for (const file of files) {
             const rel = normalizePath(projectPath, file);
@@ -27,9 +28,10 @@ async function runImportGraph(projectPath, tempDir) {
             const resolved = await resolveImports(imports, path_1.default.dirname(file), projectPath);
             fileGraph[rel] = resolved.files;
             packageGraph[rel] = resolved.packages;
+            packageCounts[rel] = resolved.packageCounts;
             unresolvedImports.push(...resolved.unresolved.map((spec) => ({ importer: rel, specifier: spec })));
         }
-        const output = { files: fileGraph, packages: packageGraph, unresolvedImports };
+        const output = { files: fileGraph, packages: packageGraph, packageCounts, unresolvedImports };
         await (0, utils_1.writeJsonFile)(targetFile, output);
         return { ok: true, data: output, file: targetFile };
     }
@@ -62,7 +64,7 @@ async function collectSourceFiles(rootDir) {
     return files;
 }
 function extractImports(content) {
-    const matches = new Set();
+    const matches = [];
     const patterns = [
         /\bimport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
         /\bexport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
@@ -73,14 +75,15 @@ function extractImports(content) {
         let match;
         while ((match = pattern.exec(content)) !== null) {
             if (match[1])
-                matches.add(match[1]);
+                matches.push(match[1]);
         }
     }
-    return Array.from(matches);
+    return matches;
 }
 async function resolveImports(specifiers, fileDir, projectPath) {
     const resolvedFiles = [];
     const resolvedPackages = [];
+    const packageCounts = {};
     const unresolved = [];
     for (const spec of specifiers) {
         if (isBuiltinModule(spec))
@@ -95,12 +98,15 @@ async function resolveImports(specifiers, fileDir, projectPath) {
             }
         }
         else {
-            resolvedPackages.push(toPackageName(spec));
+            const pkgName = toPackageName(spec);
+            resolvedPackages.push(pkgName);
+            packageCounts[pkgName] = (packageCounts[pkgName] || 0) + 1;
         }
     }
     return {
         files: uniqSorted(resolvedFiles),
         packages: uniqSorted(resolvedPackages),
+        packageCounts,
         unresolved: uniqSorted(unresolved)
     };
 }

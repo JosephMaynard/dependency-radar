@@ -99,27 +99,122 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  generatedAt: string;
-  projectPath: string;
-  gitBranch?: string;
-  dependencyRadarVersion?: string;
-  maintenanceEnabled: boolean;
+  schemaVersion: '1.0'; // Report schema version for compatibility checks
+  generatedAt: string; // ISO timestamp when the scan finished
+  dependencyRadarVersion: string; // CLI version that produced the report
+  git: {
+    branch: string; // Git branch name, empty when unavailable/detached
+  };
+  project: {
+    projectDir: string; // Project path relative to the user's home directory (e.g. /Developer/app)
+  };
   environment: {
-    node: {
-      runtimeVersion: string;
-      runtimeMajor: number;
-      minRequiredMajor?: number;
-      source: 'dependency-engines' | 'project-engines' | 'unknown';
+    nodeVersion: string; // Node.js version from process.versions.node
+    runtimeVersion: string; // Node.js runtime version from process.version
+    minRequiredMajor: number; // Strictest Node major required by dependency engines (0 if unknown)
+  };
+  workspaces: {
+    enabled: boolean; // True when the scan used workspace aggregation
+  };
+  summary: {
+    dependencyCount: number; // Total dependencies in the graph
+    directCount: number; // Dependencies listed in package.json
+    transitiveCount: number; // Dependencies pulled in by other dependencies
+  };
+  dependencies: Record<string, DependencyRecord>; // Keyed by name@version
+}
+
+export interface DependencyRecord {
+  package: {
+    id: string; // Stable identifier in the form name@version
+    name: string; // Package name from npm metadata
+    version: string; // Installed version from npm ls
+    deprecated: boolean; // True if the package.json has a deprecated flag
+    links: {
+      npm: string; // npm package page URL
+      repository?: string; // Repository URL (if present)
+      homepage?: string; // Homepage URL (if present)
+      bugs?: string; // Issue tracker URL (if present)
     };
   };
-  dependencies: DependencyRecord[];
-  toolErrors: Record<string, string>;
-  raw: RawOutputs;
-  importAnalysis?: ImportAnalysisSummary;
+  compliance: {
+    license: string; // License string read from the installed package.json
+    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from license string
+  };
+  security: {
+    summary: {
+      critical: number; // npm audit counts for critical issues
+      high: number; // npm audit counts for high issues
+      moderate: number; // npm audit counts for moderate issues
+      low: number; // npm audit counts for low issues
+      highest: 'low' | 'moderate' | 'high' | 'critical' | 'none'; // Highest severity present
+      risk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
+    };
+    advisories?: Array<{
+      id: string; // GHSA identifier
+      title: string; // Human-readable advisory title
+      severity: 'low' | 'moderate' | 'high' | 'critical';
+      vulnerableRange: string; // Semver range
+      fixAvailable: boolean; // True if npm audit indicates a fix exists
+      url: string; // Advisory URL
+    }>;
+  };
+  upgrade: {
+    nodeEngine: string | null; // engines.node from the package.json (if present)
+    outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (if present)
+    latestVersion?: string; // npm latest version (present only when status is not current)
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; // Reasons for upgrade friction
+    blocksNodeMajor?: boolean; // True if local signals indicate a node major bump is risky
+  };
+  usage: {
+    direct: boolean; // True if declared in package.json (dependencies/devDependencies/etc.)
+    scope: 'runtime' | 'dev' | 'optional' | 'peer'; // Scope inferred from the declaring root package(s)
+    depth: number; // Minimum dependency tree depth observed in npm ls
+    origins: {
+      rootPackageCount: number; // Number of direct roots that introduce this dependency
+      topRootPackages: string[]; // Up to 10 root package names that cause installation
+      workspaces?: string[]; // Workspace packages that declare/use this dependency
+    };
+    introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown'; // Heuristic for why the dependency exists
+    runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed'; // Heuristic based on import locations
+    importUsage?: {
+      fileCount: number; // Number of project files importing this package (import graph)
+      topFiles: string[]; // Top import locations (bounded to 5)
+    };
+    tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown'; // TypeScript type availability
+  };
+  graph: {
+    fanIn: number; // Number of packages that depend on this package
+    fanOut: number; // Number of packages this package depends on
+    dependencySurface: {
+      deps: number; // Count of production dependencies declared by this package
+      dev: number; // Count of dev dependencies declared by this package
+      peer: number; // Count of peer dependencies declared by this package
+      opt: number; // Count of optional dependencies declared by this package
+    };
+  };
+  execution?: {
+    risk: 'amber' | 'red'; // Install-time risk (green implied when absent)
+    native?: true; // True if native bindings or build tooling are detected
+    scripts?: {
+      hooks: Array<'preinstall' | 'install' | 'postinstall' | 'prepare'>; // Lifecycle hooks detected
+      complexity?: number; // Heuristic complexity (stored only when high)
+      signals?: Array<
+        | 'network-access'
+        | 'dynamic-exec'
+        | 'child-process'
+        | 'encoding'
+        | 'obfuscated'
+        | 'reads-env'
+        | 'reads-home'
+        | 'uses-ssh'
+      >; // Review-worthy install-time signals (sparse)
+    };
+  };
 }
 ```
 
-For full details on `DependencyRecord`, `RawOutputs`, and related types, see `src/types.ts`.
+For full details and any future changes, see `src/types.ts`.
 
 ## Development
 
@@ -149,4 +244,3 @@ This opens the report UI in your browser with sample data covering all dependenc
 - `report-ui/sample-data.json` – Sample data for development
 - `report-ui/types.ts` – Client-side TypeScript types
 - `src/report-assets.ts` – Auto-generated file with bundled CSS/JS (do not edit directly)
-

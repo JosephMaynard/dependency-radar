@@ -1,91 +1,118 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
+export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
 
-export interface VulnerabilityItem {
+export interface VulnerabilityAdvisory {
+  id: string;
   title: string;
   severity: Severity;
-  url?: string;
-  vulnerableRange?: string;
-  fixAvailable?: string | boolean;
-  paths?: string[];
+  vulnerableRange: string;
+  fixAvailable: boolean;
+  url: string;
 }
 
 export interface VulnerabilitySummary {
   counts: Record<Severity, number>;
-  items: VulnerabilityItem[];
   highestSeverity: Severity | 'none';
+  risk: 'green' | 'amber' | 'red';
+  advisories?: VulnerabilityAdvisory[];
 }
 
-export interface LicenseInfo {
-  license?: string;
-  licenseFile?: string;
+export interface DependencySurface {
+  deps: number;
+  dev: number;
+  peer: number;
+  opt: number;
 }
 
-export interface MaintenanceInfo {
-  lastPublished?: string;
-  status: 'active' | 'quiet' | 'stale' | 'unknown';
-  reason: string;
+export interface DependencyOrigins {
+  rootPackageCount: number;
+  topRootPackages: string[];
+  workspaces?: string[];
 }
 
-export interface UsageInfo {
-  status: 'imported' | 'not-imported' | 'undeclared' | 'unknown';
-  reason: string;
+export type ExecutionHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
+export type ExecutionSignal =
+  | 'network-access'
+  | 'dynamic-exec'
+  | 'child-process'
+  | 'encoding'
+  | 'obfuscated'
+  | 'reads-env'
+  | 'reads-home'
+  | 'uses-ssh';
+
+// Sparse install-time execution signals only; absence means "nothing runs automatically".
+// Signals are behavioral hints, not malware classification, and no code is executed.
+export interface DependencyExecutionInfo {
+  risk: 'amber' | 'red';
+  // Native compilation/tooling surface only (not a behavioral signal).
+  native?: true;
+  scripts?: {
+    hooks: ExecutionHook[];
+    complexity?: number;
+    signals?: ExecutionSignal[];
+  };
 }
 
-export interface OutdatedInfo {
-  status: 'unknown' | 'available' | 'up-to-date';
-  current?: string;
-  wanted?: string;
-  latest?: string;
-}
-
-export interface ImportGraphInfo {
-  files: Record<string, string[]>;
-  fanIn?: Record<string, number>;
-  fanOut?: Record<string, number>;
-}
-
-export interface PackageLinks {
-  npm: string;
-  repository?: string;
-  bugs?: string;
-  homepage?: string;
-}
-
+// Grouped by human review questions (what it is, security, usage, graph impact, execution).
 export interface DependencyRecord {
-  name: string;
-  version: string;
-  key: string;
-  direct: boolean;
-  transitive: boolean;
-  depth: number;
-  parents: string[];
-  rootCauses: string[];
-  license: LicenseInfo;
-  licenseRisk: 'green' | 'amber' | 'red';
-  vulnerabilities: VulnerabilitySummary;
-  vulnRisk: 'green' | 'amber' | 'red';
-  maintenance: MaintenanceInfo;
-  maintenanceRisk: 'green' | 'amber' | 'red' | 'unknown';
-  usage: UsageInfo;
-  identity: IdentityMetadata;
-  dependencySurface: DependencySurface;
-  sizeFootprint: SizeFootprint;
-  buildPlatform: BuildPlatformInfo;
-  moduleSystem: ModuleSystemInfo;
-  typescript: TypeSupportInfo;
-  graph: GraphShape;
-  links: PackageLinks;
-  importInfo?: ImportGraphInfo;
-  runtimeClass: 'runtime' | 'build-time' | 'dev-only';
-  runtimeReason: string;
-  outdated: OutdatedInfo;
-  raw?: any;
-}
-
-export interface RawOutputs {
-  audit?: any;
-  npmLs?: any;
-  importGraph?: any;
+  package: {
+    id: string;
+    name: string;
+    version: string;
+    deprecated: boolean;
+    links: {
+      npm: string;
+      repository?: string;
+      homepage?: string;
+      bugs?: string;
+    };
+  };
+  compliance: {
+    license: string;
+    licenseRisk: 'green' | 'amber' | 'red';
+  };
+  security: {
+    // Summary answers "is this risky?" while advisories answer "why is this risky?"
+    // Advisories are disclosed findings; dropping them is a data loss bug.
+    summary: {
+      critical: number;
+      high: number;
+      moderate: number;
+      low: number;
+      highest: Severity | 'none';
+      risk: 'green' | 'amber' | 'red';
+    };
+    advisories?: VulnerabilityAdvisory[];
+  };
+  upgrade: {
+    nodeEngine: string | null;
+    outdatedStatus?: OutdatedStatus;
+    latestVersion?: string;
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+    blocksNodeMajor?: boolean;
+  };
+  // Usage answers why this dependency exists and where it shows up in the project.
+  usage: {
+    direct: boolean;
+    scope: 'runtime' | 'dev' | 'optional' | 'peer';
+    depth: number;
+    origins: DependencyOrigins;
+    introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
+    runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
+    importUsage?: {
+      fileCount: number;
+      topFiles: string[];
+    };
+    tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
+  };
+  // Graph answers blast-radius questions (who depends on it, and what it pulls in).
+  graph: {
+    fanIn: number;
+    fanOut: number;
+    dependencySurface: DependencySurface;
+  };
+  execution?: DependencyExecutionInfo;
 }
 
 export interface ToolResult<T> {
@@ -95,77 +122,42 @@ export interface ToolResult<T> {
   file?: string;
 }
 
+export interface OutdatedEntry {
+  name: string;
+  currentVersion: string;
+  status: Exclude<OutdatedStatus, 'current'>;
+  latestVersion?: string;
+}
+
+export interface OutdatedResult {
+  entries: OutdatedEntry[];
+  unknownNames: string[];
+}
+
 export interface AggregatedData {
+  schemaVersion: '1.0';
   generatedAt: string;
-  projectPath: string;
-  gitBranch?: string;
-  dependencyRadarVersion?: string;
-  maintenanceEnabled: boolean;
-  environment: EnvironmentInfo;
-  dependencies: DependencyRecord[];
-  toolErrors: Record<string, string>;
-  raw: RawOutputs;
-  importAnalysis?: ImportAnalysisSummary;
-}
-
-export interface EnvironmentInfo {
-  node: NodeEnvironmentInfo;
-}
-
-export interface NodeEnvironmentInfo {
-  runtimeVersion: string;
-  runtimeMajor: number;
-  minRequiredMajor?: number;
-  source: 'dependency-engines' | 'project-engines' | 'unknown';
-}
-
-export interface IdentityMetadata {
-  deprecated: boolean;
-  nodeEngine: string | null;
-  hasRepository: boolean;
-  hasFunding: boolean;
-}
-
-export interface DependencySurface {
-  dependencies: number;
-  devDependencies: number;
-  peerDependencies: number;
-  optionalDependencies: number;
-  hasPeerDependencies: boolean;
-}
-
-export interface SizeFootprint {
-  installedSize: number;
-  fileCount: number;
-}
-
-export interface BuildPlatformInfo {
-  nativeBindings: boolean;
-  installScripts: boolean;
-}
-
-export interface ModuleSystemInfo {
-  format: 'commonjs' | 'esm' | 'dual' | 'unknown';
-  conditionalExports: boolean;
-}
-
-export interface TypeSupportInfo {
-  types: 'none' | 'bundled';
-}
-
-export interface GraphShape {
-  fanIn: number;
-  fanOut: number;
-  dependedOnBy: string[];
-  dependsOn: string[];
-}
-
-export interface ImportAnalysisSummary {
-  staticOnly: boolean;
-  notes: string[];
-  packageHotness: Record<string, number>;
-  undeclaredImports: string[];
-  unresolvedImports: Array<{ importer: string; specifier: string }>;
+  dependencyRadarVersion: string;
+  git: {
+    branch: string;
+  };
+  project: {
+    projectDir: string;
+  };
+  environment: {
+    nodeVersion: string;
+    runtimeVersion: string;
+    minRequiredMajor: number;
+  };
+  workspaces: {
+    enabled: boolean;
+  };
+  summary: {
+    dependencyCount: number;
+    directCount: number;
+    transitiveCount: number;
+  };
+  dependencies: Record<string, DependencyRecord>;
 }
 
 export interface ScanOptions {

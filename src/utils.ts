@@ -37,9 +37,6 @@ export function runCommand(
   });
 }
 
-export function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export function getDependencyRadarVersion(): string {
   try {
@@ -115,17 +112,6 @@ export function vulnRiskLevel(counts: Record<string, number>): 'green' | 'amber'
   if (high > 0 || critical > 0) return 'red';
   if (low > 0 || moderate > 0) return 'amber';
   return 'green';
-}
-
-export function maintenanceRisk(lastPublished?: string): 'green' | 'amber' | 'red' | 'unknown' {
-  if (!lastPublished) return 'unknown';
-  const last = new Date(lastPublished).getTime();
-  if (Number.isNaN(last)) return 'unknown';
-  const now = Date.now();
-  const months = (now - last) / (1000 * 60 * 60 * 24 * 30);
-  if (months <= 12) return 'green';
-  if (months <= 36) return 'amber';
-  return 'red';
 }
 
 export async function readLicenseFromPackageJson(
