@@ -424,7 +424,7 @@ function renderDep(dep: DependencyRecord): string {
 
   const overviewSection = renderSection(
     'Overview',
-    'Human summary and key context',
+    'Summary and key context',
     microSummaryHtml + workspaceListHtml + keyContextHtml + importTopFilesHtml
   );
 
@@ -473,7 +473,7 @@ function renderDep(dep: DependencyRecord): string {
   if (dep.upgrade.latestVersion) {
     currencyItems.push(renderKvItem('Latest version (latestVersion)', dep.upgrade.latestVersion));
   }
-  const currencyBlock = renderSubsection('Currency', '<div class="kv-grid">' + currencyItems.join('') + '</div>');
+  const currencyBlock = renderSubsection('Version', '<div class="kv-grid">' + currencyItems.join('') + '</div>');
 
   const deprecatedBlock = dep.package.deprecated
     ? renderSubsection('Deprecated', '<div class="kv-grid">' + renderKvItem('Deprecated (deprecated)', 'Yes', 'Declared by the package author.') + '</div>', undefined, 'warning')
@@ -523,14 +523,14 @@ function renderDep(dep: DependencyRecord): string {
     currencyBlock + deprecatedBlock + constraintBlock + blastRadiusBlock + blockers + dependencySurfaceBlock
   );
 
-  const technicalItems = [
-    renderKvItem('Package id (id)', dep.package.id)
-  ];
-  const technicalSection = renderSection(
-    'Technical Details',
-    'Additional factual details',
-    '<div class="kv-grid">' + technicalItems.join('') + '</div>'
-  );
+  // const technicalItems = [
+  //   renderKvItem('Package id (id)', dep.package.id)
+  // ];
+  // const technicalSection = renderSection(
+  //   'Technical Details',
+  //   'Additional factual details',
+  //   '<div class="kv-grid">' + technicalItems.join('') + '</div>'
+  // );
 
   return [
     '<details class="dep-card" data-risk="' + highestRisk + '">',
@@ -540,7 +540,7 @@ function renderDep(dep: DependencyRecord): string {
     overviewSection,
     riskSection,
     upgradeSection,
-    technicalSection,
+    // technicalSection,
     '<details class="raw-data-toggle"><summary>View raw data</summary><pre>' + escapeHtml(rawJson) + '</pre></details>',
     '</div>',
     '</details>'

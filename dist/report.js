@@ -19,13 +19,18 @@ function buildHtml(data) {
     let formattedDate = data.generatedAt;
     try {
         const date = new Date(data.generatedAt);
-        formattedDate = new Intl.DateTimeFormat(undefined, {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).format(date);
+        if (Number.isNaN(date.getTime())) {
+            // Keep the original if parsing fails
+        }
+        else {
+            formattedDate = new Intl.DateTimeFormat(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
     }
     catch {
         // Keep the original if parsing fails
