@@ -224,6 +224,11 @@ ${CSS_CONTENT}
     <div class="results-summary" id="results-summary"></div>
     <div id="dependency-list" class="dependency-grid"></div>
   </main>
+
+  <footer class="report-footer">
+    <p><strong>About this report</strong></p>
+    <p>Dependency Radar does not perform malware scanning or security auditing. It surfaces factual signals from dependency metadata, known vulnerabilities (npm audit), dependency graphs, and install-time behaviour to support informed review.</p>
+  </footer>
   
   <script type="application/json" id="radar-data">${json}</script>
   <script>
