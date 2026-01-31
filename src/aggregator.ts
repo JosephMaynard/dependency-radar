@@ -180,6 +180,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         id,
         name: node.name,
         version: node.version,
+        ...(packageInsights.description ? { description: packageInsights.description } : {}),
         deprecated: packageInsights.deprecated,
         links: {
           npm: `https://www.npmjs.com/package/${node.name}`,
@@ -888,6 +889,7 @@ interface PackageStats {
 interface PackageInsights {
   deprecated: boolean;
   nodeEngine: string | null;
+  description?: string;
   dependencySurface: {
     deps: number;
     dev: number;
@@ -932,6 +934,9 @@ async function gatherPackageInsights(
   const scripts = pkg.scripts || {};
   const deprecated = Boolean(pkg.deprecated);
   const nodeEngine = typeof pkg.engines?.node === 'string' ? pkg.engines.node : null;
+  const description = typeof pkg.description === 'string' && pkg.description.trim()
+    ? pkg.description.trim()
+    : undefined;
 
   const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
   const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
@@ -941,6 +946,7 @@ async function gatherPackageInsights(
   return {
     deprecated,
     nodeEngine,
+    description,
     dependencySurface,
     links,
     execution,

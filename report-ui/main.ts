@@ -393,6 +393,9 @@ function renderDep(dep: DependencyRecord): string {
     dep.usage.direct ? 'Direct dependency' : 'Indirect dependency (transitive)',
     'Scope: ' + scopeLabel(dep.usage.scope)
   ];
+  if (dep.package.description) {
+    microLines.unshift('Description: ' + dep.package.description);
+  }
   if (dep.usage.origins.workspaces?.length) {
     microLines.push('Used in ' + dep.usage.origins.workspaces.length + ' workspaces');
   }
