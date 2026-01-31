@@ -159,6 +159,12 @@ function renderKvItem(label: string, value: string | number, hint?: string): str
   return html;
 }
 
+function renderRiskValue(value: string | number, risk: 'green' | 'amber' | 'red'): string {
+  return '<span class="kv-value risk-value"><span class="risk-dot ' + risk + '"></span>' +
+    escapeHtml(String(value)) +
+    '</span>';
+}
+
 function renderKvItemHtml(label: string, valueHtml: string, hint?: string): string {
   let html = '<div class="kv-item">';
   html += '<span class="kv-label">' + escapeHtml(label) + '</span>';
@@ -434,16 +440,14 @@ function renderDep(dep: DependencyRecord): string {
   const licenseBlock = renderSubsection(
     'License',
     '<div class="kv-grid">' + [
-      renderKvItem('License', licenseText),
-      renderKvItem('License risk (licenseRisk)', titleCaseValue(dep.compliance.licenseRisk))
+      renderKvItemHtml('License', renderRiskValue(licenseText, dep.compliance.licenseRisk))
     ].join('') + '</div>'
   );
 
   const vulnTotal = securitySummary.critical + securitySummary.high + securitySummary.moderate + securitySummary.low;
   const vulnSummaryItems = [
-    renderKvItem('Known vulnerabilities', vulnTotal === 0 ? 'None' : String(vulnTotal)),
+    renderKvItemHtml('Known vulnerabilities', renderRiskValue(vulnTotal === 0 ? 'None' : String(vulnTotal), securitySummary.risk)),
     renderKvItem('Highest severity', securitySummary.highest === 'none' ? 'None' : titleCaseValue(securitySummary.highest)),
-    renderKvItem('Overall vulnerability risk (vulnRisk)', titleCaseValue(securitySummary.risk))
   ];
   const vulnBreakdown = vulnTotal > 0
     ? '<div class="kv-grid kv-grid-tight">' + [

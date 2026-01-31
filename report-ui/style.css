@@ -803,6 +803,24 @@ details[open] .expand-icon {
   word-break: break-word;
 }
 
+.risk-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.risk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gray);
+  flex-shrink: 0;
+}
+
+.risk-dot.green { background: var(--green); }
+.risk-dot.amber { background: var(--amber); }
+.risk-dot.red { background: var(--red); }
+
 .kv-hint {
   font-size: 11px;
   color: var(--text-muted);
