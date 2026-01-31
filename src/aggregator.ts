@@ -32,6 +32,8 @@ interface AggregateInput {
   pkgOverride?: any;
   // Map dependency name -> workspace package names where it is used/declared
   workspaceUsage?: Map<string, string[]>;
+  // Paths to resolve dependency package.json from (workspace package roots, etc.)
+  resolvePaths?: string[];
   workspaceEnabled: boolean;
 }
 
@@ -118,6 +120,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const outdatedById = buildOutdatedMap(input.outdatedResult);
   const outdatedUnknownNames = new Set(input.outdatedResult?.unknownNames || []);
   const packageMetaCache = new Map<string, PackageMeta>();
+  const resolvePaths = input.resolvePaths && input.resolvePaths.length > 0
+    ? input.resolvePaths
+    : [input.projectPath];
   const packageStatCache = new Map<string, PackageStats>();
 
   const dependencies: Record<string, DependencyRecord> = {};
@@ -147,7 +152,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
     const packageInsights = await gatherPackageInsights(
       node.name,
-      input.projectPath,
+      resolvePaths,
       packageMetaCache,
       packageStatCache
     );
@@ -907,11 +912,11 @@ interface PackageInsights {
 
 async function gatherPackageInsights(
   name: string,
-  projectPath: string,
+  resolvePaths: string[],
   metaCache: Map<string, PackageMeta>,
   statCache: Map<string, PackageStats>
 ): Promise<PackageInsights> {
-  const meta = await loadPackageMeta(name, projectPath, metaCache);
+  const meta = await loadPackageMeta(name, resolvePaths, metaCache);
   if (!meta) {
     return {
       deprecated: false,
@@ -938,7 +943,7 @@ async function gatherPackageInsights(
     ? pkg.description.trim()
     : undefined;
 
-  const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
+  const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, resolvePaths, metaCache);
   const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
   const links = extractPackageLinks(pkg);
   const execution = await deriveExecutionInfo(scripts, dir, stats);
@@ -956,12 +961,12 @@ async function gatherPackageInsights(
 
 async function loadPackageMeta(
   name: string,
-  projectPath: string,
+  resolvePaths: string[],
   cache: Map<string, PackageMeta>
 ): Promise<PackageMeta | undefined> {
   if (cache.has(name)) return cache.get(name);
   try {
-    const pkgJsonPath = require.resolve(path.join(name, 'package.json'), { paths: [projectPath] });
+    const pkgJsonPath = require.resolve(path.join(name, 'package.json'), { paths: resolvePaths });
     const pkgRaw = await fs.readFile(pkgJsonPath, 'utf8');
     const pkg = JSON.parse(pkgRaw);
     const meta = { pkg, dir: path.dirname(pkgJsonPath) };
@@ -984,13 +989,13 @@ function toDefinitelyTypedPackageName(name: string): string | undefined {
 
 async function hasDefinitelyTypedPackage(
   name: string,
-  projectPath: string,
+  resolvePaths: string[],
   cache: Map<string, PackageMeta>
 ): Promise<boolean> {
   if (name.startsWith('@types/')) return true;
   const typesName = toDefinitelyTypedPackageName(name);
   if (!typesName) return false;
-  const meta = await loadPackageMeta(typesName, projectPath, cache);
+  const meta = await loadPackageMeta(typesName, resolvePaths, cache);
   return Boolean(meta);
 }
 

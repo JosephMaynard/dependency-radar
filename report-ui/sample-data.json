@@ -17,9 +17,9 @@
     "enabled": false
   },
   "summary": {
-    "dependencyCount": 2,
-    "directCount": 1,
-    "transitiveCount": 1
+    "dependencyCount": 4,
+    "directCount": 2,
+    "transitiveCount": 2
   },
   "dependencies": {
     "chalk@5.3.0": {

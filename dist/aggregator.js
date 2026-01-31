@@ -75,6 +75,9 @@ async function aggregateData(input) {
     const outdatedById = buildOutdatedMap(input.outdatedResult);
     const outdatedUnknownNames = new Set(((_d = input.outdatedResult) === null || _d === void 0 ? void 0 : _d.unknownNames) || []);
     const packageMetaCache = new Map();
+    const resolvePaths = input.resolvePaths && input.resolvePaths.length > 0
+        ? input.resolvePaths
+        : [input.projectPath];
     const packageStatCache = new Map();
     const dependencies = {};
     const licenseCache = new Map();
@@ -98,7 +101,7 @@ async function aggregateData(input) {
         const licenseRisk = (0, utils_1.licenseRiskLevel)(licenseValue);
         // Calculate root causes (direct dependencies that cause this to be installed)
         const rootCauses = findRootCauses(node, nodeMap, pkg);
-        const packageInsights = await gatherPackageInsights(node.name, input.projectPath, packageMetaCache, packageStatCache);
+        const packageInsights = await gatherPackageInsights(node.name, resolvePaths, packageMetaCache, packageStatCache);
         if (packageInsights.nodeEngine) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
         }
@@ -816,9 +819,9 @@ function buildUpgradeBlock(insights) {
         blockers
     };
 }
-async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
+async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
     var _a;
-    const meta = await loadPackageMeta(name, projectPath, metaCache);
+    const meta = await loadPackageMeta(name, resolvePaths, metaCache);
     if (!meta) {
         return {
             deprecated: false,
@@ -842,7 +845,7 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
     const description = typeof pkg.description === 'string' && pkg.description.trim()
         ? pkg.description.trim()
         : undefined;
-    const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, projectPath, metaCache);
+    const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, resolvePaths, metaCache);
     const tsTypes = determineTypes(pkg, (stats === null || stats === void 0 ? void 0 : stats.hasDts) || false, hasDefinitelyTyped);
     const links = extractPackageLinks(pkg);
     const execution = await deriveExecutionInfo(scripts, dir, stats);
@@ -856,11 +859,11 @@ async function gatherPackageInsights(name, projectPath, metaCache, statCache) {
         tsTypes
     };
 }
-async function loadPackageMeta(name, projectPath, cache) {
+async function loadPackageMeta(name, resolvePaths, cache) {
     if (cache.has(name))
         return cache.get(name);
     try {
-        const pkgJsonPath = require.resolve(path_1.default.join(name, 'package.json'), { paths: [projectPath] });
+        const pkgJsonPath = require.resolve(path_1.default.join(name, 'package.json'), { paths: resolvePaths });
         const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
         const pkg = JSON.parse(pkgRaw);
         const meta = { pkg, dir: path_1.default.dirname(pkgJsonPath) };
@@ -882,13 +885,13 @@ function toDefinitelyTypedPackageName(name) {
     }
     return `@types/${name}`;
 }
-async function hasDefinitelyTypedPackage(name, projectPath, cache) {
+async function hasDefinitelyTypedPackage(name, resolvePaths, cache) {
     if (name.startsWith('@types/'))
         return true;
     const typesName = toDefinitelyTypedPackageName(name);
     if (!typesName)
         return false;
-    const meta = await loadPackageMeta(typesName, projectPath, cache);
+    const meta = await loadPackageMeta(typesName, resolvePaths, cache);
     return Boolean(meta);
 }
 async function calculatePackageStats(dir, cache) {

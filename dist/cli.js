@@ -580,6 +580,7 @@ async function run() {
             outdatedResult,
             pkgOverride: mergedPkgForAggregator,
             workspaceUsage,
+            resolvePaths: [projectPath, ...packagePaths.filter((p) => p !== projectPath)],
             workspaceEnabled: workspace.type !== 'none',
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
