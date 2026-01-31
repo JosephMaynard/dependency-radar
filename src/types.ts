@@ -60,6 +60,7 @@ export interface DependencyRecord {
     id: string;
     name: string;
     version: string;
+    description?: string;
     deprecated: boolean;
     links: {
       npm: string;
