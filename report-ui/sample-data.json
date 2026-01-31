@@ -27,6 +27,7 @@
         "id": "chalk@5.3.0",
         "name": "chalk",
         "version": "5.3.0",
+        "description": "Terminal string styling for Node.js",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/chalk"
@@ -136,6 +137,7 @@
         "id": "vite@5.4.21",
         "name": "vite",
         "version": "5.4.21",
+        "description": "Next generation frontend tooling",
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/vite",

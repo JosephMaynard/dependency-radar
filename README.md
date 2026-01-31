@@ -129,6 +129,7 @@ export interface DependencyRecord {
     id: string; // Stable identifier in the form name@version
     name: string; // Package name from npm metadata
     version: string; // Installed version from npm ls
+    description?: string; // Description from the installed package.json (if present)
     deprecated: boolean; // True if the package.json has a deprecated flag
     links: {
       npm: string; // npm package page URL
