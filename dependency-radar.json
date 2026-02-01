@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-01-31T16:49:02.391Z",
+  "generatedAt": "2026-01-31T19:22:15.526Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
-    "branch": "feat/add-description"
+    "branch": "master"
   },
   "project": {
     "projectDir": "/Developer/dependency-radar"

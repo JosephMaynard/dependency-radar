@@ -114,12 +114,43 @@ export function vulnRiskLevel(counts: Record<string, number>): 'green' | 'amber'
   return 'green';
 }
 
+export async function resolvePackageJsonPath(
+  pkgName: string,
+  resolvePaths: string[]
+): Promise<string | undefined> {
+  try {
+    const direct = require.resolve(path.join(pkgName, 'package.json'), { paths: resolvePaths });
+    if (direct) return direct;
+  } catch {
+    // fall through to entry resolution
+  }
+
+  let entryPath: string | undefined;
+  try {
+    entryPath = require.resolve(pkgName, { paths: resolvePaths });
+  } catch {
+    return undefined;
+  }
+
+  let current = path.dirname(entryPath);
+  const root = path.parse(current).root;
+  while (true) {
+    const candidate = path.join(current, 'package.json');
+    if (await pathExists(candidate)) return candidate;
+    const parent = path.dirname(current);
+    if (parent === current || parent === root) break;
+    current = parent;
+  }
+  return undefined;
+}
+
 export async function readLicenseFromPackageJson(
   pkgName: string,
-  projectPath: string
+  resolvePaths: string[]
 ): Promise<{ license?: string; licenseFile?: string } | undefined> {
   try {
-    const pkgJsonPath = require.resolve(path.join(pkgName, 'package.json'), { paths: [projectPath] });
+    const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths);
+    if (!pkgJsonPath) return undefined;
     const pkgRaw = await fsp.readFile(pkgJsonPath, 'utf8');
     const pkg = JSON.parse(pkgRaw);
     const license = pkg.license || (Array.isArray(pkg.licenses) ? pkg.licenses.map((l: any) => (typeof l === 'string' ? l : l?.type)).filter(Boolean).join(' OR ') : undefined);

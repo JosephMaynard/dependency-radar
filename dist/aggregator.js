@@ -91,7 +91,7 @@ async function aggregateData(input) {
             directCount += 1;
         const cachedLicense = licenseCache.get(node.name);
         const license = cachedLicense ||
-            (await (0, utils_1.readLicenseFromPackageJson)(node.name, input.projectPath)) ||
+            (await (0, utils_1.readLicenseFromPackageJson)(node.name, resolvePaths)) ||
             { license: undefined };
         if (!licenseCache.has(node.name) && license.license) {
             licenseCache.set(node.name, license);
@@ -863,7 +863,9 @@ async function loadPackageMeta(name, resolvePaths, cache) {
     if (cache.has(name))
         return cache.get(name);
     try {
-        const pkgJsonPath = require.resolve(path_1.default.join(name, 'package.json'), { paths: resolvePaths });
+        const pkgJsonPath = await (0, utils_1.resolvePackageJsonPath)(name, resolvePaths);
+        if (!pkgJsonPath)
+            return undefined;
         const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
         const pkg = JSON.parse(pkgRaw);
         const meta = { pkg, dir: path_1.default.dirname(pkgJsonPath) };
