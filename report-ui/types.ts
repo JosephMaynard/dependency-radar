@@ -66,7 +66,7 @@ export interface DependencyRecord {
     origins: {
       workspaces?: string[];
       rootPackageCount: number;
-      topRootPackages: string[];
+      topRootPackages: Array<{ name: string; version: string } | string>;
     };
     introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
     runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';

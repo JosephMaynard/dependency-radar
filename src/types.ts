@@ -26,7 +26,7 @@ export interface DependencySurface {
 
 export interface DependencyOrigins {
   rootPackageCount: number;
-  topRootPackages: string[];
+  topRootPackages: Array<{ name: string; version: string }>;
   workspaces?: string[];
 }
 
