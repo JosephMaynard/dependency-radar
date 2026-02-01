@@ -16,7 +16,8 @@ import {
   readLicenseFromPackageJson,
   runCommand,
   vulnRiskLevel,
-  getDependencyRadarVersion
+  getDependencyRadarVersion,
+  resolvePackageJsonPath
 } from './utils';
 import fs from 'fs/promises';
 import path from 'path';
@@ -138,7 +139,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     if (direct) directCount += 1;
     const cachedLicense = licenseCache.get(node.name);
     const license = cachedLicense ||
-      (await readLicenseFromPackageJson(node.name, input.projectPath)) ||
+      (await readLicenseFromPackageJson(node.name, resolvePaths)) ||
       { license: undefined };
     if (!licenseCache.has(node.name) && license.license) {
       licenseCache.set(node.name, license);
@@ -966,7 +967,8 @@ async function loadPackageMeta(
 ): Promise<PackageMeta | undefined> {
   if (cache.has(name)) return cache.get(name);
   try {
-    const pkgJsonPath = require.resolve(path.join(name, 'package.json'), { paths: resolvePaths });
+    const pkgJsonPath = await resolvePackageJsonPath(name, resolvePaths);
+    if (!pkgJsonPath) return undefined;
     const pkgRaw = await fs.readFile(pkgJsonPath, 'utf8');
     const pkg = JSON.parse(pkgRaw);
     const meta = { pkg, dir: path.dirname(pkgJsonPath) };

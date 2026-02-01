@@ -14,6 +14,7 @@ exports.readPackageJson = readPackageJson;
 exports.findBin = findBin;
 exports.licenseRiskLevel = licenseRiskLevel;
 exports.vulnRiskLevel = vulnRiskLevel;
+exports.resolvePackageJsonPath = resolvePackageJsonPath;
 exports.readLicenseFromPackageJson = readLicenseFromPackageJson;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
@@ -113,9 +114,40 @@ function vulnRiskLevel(counts) {
         return 'amber';
     return 'green';
 }
-async function readLicenseFromPackageJson(pkgName, projectPath) {
+async function resolvePackageJsonPath(pkgName, resolvePaths) {
     try {
-        const pkgJsonPath = require.resolve(path_1.default.join(pkgName, 'package.json'), { paths: [projectPath] });
+        const direct = require.resolve(path_1.default.join(pkgName, 'package.json'), { paths: resolvePaths });
+        if (direct)
+            return direct;
+    }
+    catch {
+        // fall through to entry resolution
+    }
+    let entryPath;
+    try {
+        entryPath = require.resolve(pkgName, { paths: resolvePaths });
+    }
+    catch {
+        return undefined;
+    }
+    let current = path_1.default.dirname(entryPath);
+    const root = path_1.default.parse(current).root;
+    while (true) {
+        const candidate = path_1.default.join(current, 'package.json');
+        if (await pathExists(candidate))
+            return candidate;
+        const parent = path_1.default.dirname(current);
+        if (parent === current || parent === root)
+            break;
+        current = parent;
+    }
+    return undefined;
+}
+async function readLicenseFromPackageJson(pkgName, resolvePaths) {
+    try {
+        const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths);
+        if (!pkgJsonPath)
+            return undefined;
         const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
         const pkg = JSON.parse(pkgRaw);
         const license = pkg.license || (Array.isArray(pkg.licenses) ? pkg.licenses.map((l) => (typeof l === 'string' ? l : l === null || l === void 0 ? void 0 : l.type)).filter(Boolean).join(' OR ') : undefined);
