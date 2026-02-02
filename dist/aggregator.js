@@ -171,11 +171,10 @@ async function aggregateData(input) {
                 ...(importUsage ? { importUsage } : {}),
                 tsTypes: packageInsights.tsTypes
             },
-            ...(subDeps ? { subDeps } : {}),
             graph: {
                 fanIn: node.parents.size,
                 fanOut: node.children.size,
-                dependencySurface: packageInsights.dependencySurface
+                ...(subDeps ? { subDeps } : {})
             },
             ...(execution ? { execution } : {})
         };
@@ -835,7 +834,7 @@ function buildUpgradeBlock(insights) {
     const blockers = [];
     if (insights.nodeEngine)
         blockers.push('nodeEngine');
-    if (insights.dependencySurface.peer > 0)
+    if (Object.keys(insights.declaredDependencies.peer).length > 0)
         blockers.push('peerDependency');
     if ((_a = insights.execution) === null || _a === void 0 ? void 0 : _a.native)
         blockers.push('nativeBindings');
@@ -855,7 +854,6 @@ async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
         return {
             deprecated: false,
             nodeEngine: null,
-            dependencySurface: { deps: 0, dev: 0, peer: 0, opt: 0 },
             declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
             tsTypes: 'unknown'
         };
@@ -863,12 +861,6 @@ async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
     const pkg = (meta === null || meta === void 0 ? void 0 : meta.pkg) || {};
     const dir = meta === null || meta === void 0 ? void 0 : meta.dir;
     const stats = dir ? await calculatePackageStats(dir, statCache) : undefined;
-    const dependencySurface = {
-        deps: Object.keys(pkg.dependencies || {}).length,
-        dev: Object.keys(pkg.devDependencies || {}).length,
-        peer: Object.keys(pkg.peerDependencies || {}).length,
-        opt: Object.keys(pkg.optionalDependencies || {}).length
-    };
     const declaredDependencies = {
         dep: normalizeDeclaredDeps(pkg.dependencies),
         dev: normalizeDeclaredDeps(pkg.devDependencies),
@@ -889,7 +881,6 @@ async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
         deprecated,
         nodeEngine,
         description,
-        dependencySurface,
         declaredDependencies,
         links,
         execution,

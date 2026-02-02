@@ -78,20 +78,14 @@ export interface DependencyRecord {
     };
     tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
   };
-  subDeps?: {
-    dep?: Record<string, [string, string | null]>;
-    dev?: Record<string, [string, string | null]>;
-    opt?: Record<string, [string, string | null]>;
-    peer?: Record<string, [string, string | null]>;
-  };
   graph: {
     fanIn: number;
     fanOut: number;
-    dependencySurface: {
-      deps: number;
-      dev: number;
-      peer: number;
-      opt: number;
+    subDeps?: {
+      dep?: Record<string, [string, string | null]>;
+      dev?: Record<string, [string, string | null]>;
+      opt?: Record<string, [string, string | null]>;
+      peer?: Record<string, [string, string | null]>;
     };
   };
   execution?: {

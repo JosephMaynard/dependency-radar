@@ -187,11 +187,14 @@ export interface DependencyRecord {
   graph: {
     fanIn: number; // Number of packages that depend on this package
     fanOut: number; // Number of packages this package depends on
-    dependencySurface: {
-      deps: number; // Count of production dependencies declared by this package
-      dev: number; // Count of dev dependencies declared by this package
-      peer: number; // Count of peer dependencies declared by this package
-      opt: number; // Count of optional dependencies declared by this package
+    subDeps?: {
+      // Declared outgoing dependency edges; values are tuples.
+      // tuple[0] = declared version range, tuple[1] = resolved dependency id or null if not installed.
+      // Only installed dependencies have full dependency records in the top-level list.
+      dep?: Record<string, [string, string | null]>; // Declared runtime deps
+      dev?: Record<string, [string, string | null]>; // Declared dev deps
+      peer?: Record<string, [string, string | null]>; // Declared peer deps
+      opt?: Record<string, [string, string | null]>; // Declared optional deps
     };
   };
   execution?: {

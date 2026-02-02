@@ -17,13 +17,6 @@ export interface VulnerabilitySummary {
   advisories?: VulnerabilityAdvisory[];
 }
 
-export interface DependencySurface {
-  deps: number;
-  dev: number;
-  peer: number;
-  opt: number;
-}
-
 export interface DependencyOrigins {
   rootPackageCount: number;
   topRootPackages: Array<{ name: string; version: string }>;
@@ -118,12 +111,11 @@ export interface DependencyRecord {
     };
     tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
   };
-  subDeps?: SubDependencyMap;
   // Graph answers blast-radius questions (who depends on it, and what it pulls in).
   graph: {
     fanIn: number;
     fanOut: number;
-    dependencySurface: DependencySurface;
+    subDeps?: SubDependencyMap;
   };
   execution?: DependencyExecutionInfo;
 }

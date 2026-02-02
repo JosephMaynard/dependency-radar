@@ -238,11 +238,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         ...(importUsage ? { importUsage } : {}),
         tsTypes: packageInsights.tsTypes
       },
-      ...(subDeps ? { subDeps } : {}),
       graph: {
         fanIn: node.parents.size,
         fanOut: node.children.size,
-        dependencySurface: packageInsights.dependencySurface
+        ...(subDeps ? { subDeps } : {})
       },
       ...(execution ? { execution } : {})
     };
@@ -773,9 +772,9 @@ function determineScope(name: string, direct: boolean, rootCauses: RootPackageRe
 function buildSubDeps(
   declared: PackageInsights['declaredDependencies'],
   node: NodeInfo
-): NonNullable<DependencyRecord['subDeps']> | undefined {
-  const out: NonNullable<DependencyRecord['subDeps']> = {};
-  const entries: Array<[keyof PackageInsights['declaredDependencies'], keyof NonNullable<DependencyRecord['subDeps']>]> = [
+): NonNullable<DependencyRecord['graph']['subDeps']> | undefined {
+  const out: NonNullable<DependencyRecord['graph']['subDeps']> = {};
+  const entries: Array<[keyof PackageInsights['declaredDependencies'], keyof NonNullable<DependencyRecord['graph']['subDeps']>]> = [
     ['dep', 'dep'],
     ['dev', 'dev'],
     ['opt', 'opt'],
@@ -917,7 +916,7 @@ function buildUpgradeBlock(
 ): { blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; blocksNodeMajor: boolean } | undefined {
   const blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'> = [];
   if (insights.nodeEngine) blockers.push('nodeEngine');
-  if (insights.dependencySurface.peer > 0) blockers.push('peerDependency');
+  if (Object.keys(insights.declaredDependencies.peer).length > 0) blockers.push('peerDependency');
   if (insights.execution?.native) blockers.push('nativeBindings');
   if (insights.deprecated) blockers.push('deprecated');
 
@@ -943,12 +942,6 @@ interface PackageInsights {
   deprecated: boolean;
   nodeEngine: string | null;
   description?: string;
-  dependencySurface: {
-    deps: number;
-    dev: number;
-    peer: number;
-    opt: number;
-  };
   declaredDependencies: {
     dep: Record<string, string>;
     dev: Record<string, string>;
@@ -975,7 +968,6 @@ async function gatherPackageInsights(
     return {
       deprecated: false,
       nodeEngine: null,
-      dependencySurface: { deps: 0, dev: 0, peer: 0, opt: 0 },
       declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
       tsTypes: 'unknown'
     };
@@ -983,13 +975,6 @@ async function gatherPackageInsights(
   const pkg = meta?.pkg || {};
   const dir = meta?.dir;
   const stats = dir ? await calculatePackageStats(dir, statCache) : undefined;
-
-  const dependencySurface = {
-    deps: Object.keys(pkg.dependencies || {}).length,
-    dev: Object.keys(pkg.devDependencies || {}).length,
-    peer: Object.keys(pkg.peerDependencies || {}).length,
-    opt: Object.keys(pkg.optionalDependencies || {}).length
-  };
   const declaredDependencies = {
     dep: normalizeDeclaredDeps(pkg.dependencies),
     dev: normalizeDeclaredDeps(pkg.devDependencies),
@@ -1013,7 +998,6 @@ async function gatherPackageInsights(
     deprecated,
     nodeEngine,
     description,
-    dependencySurface,
     declaredDependencies,
     links,
     execution,

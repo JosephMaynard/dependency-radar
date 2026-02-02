@@ -285,23 +285,29 @@ function renderDetailList(title: string, items: string[] | undefined, maxShow: n
   return html;
 }
 
-function extractVersionFromId(name: string, id: string): string | undefined {
-  const prefix = `${name}@`;
-  if (id.startsWith(prefix)) return id.slice(prefix.length);
-  const lastAt = id.lastIndexOf('@');
-  if (lastAt <= 0) return undefined;
-  return id.slice(lastAt + 1);
-}
-
 function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<string>): string {
-  const subDeps = dep.subDeps;
+  const subDeps = dep.graph.subDeps;
   if (!subDeps) return '';
-  const groups: Array<{ title: string; key: keyof NonNullable<DependencyRecord['subDeps']>; optional?: boolean; peer?: boolean }> = [
+  const groups: Array<{ title: string; key: keyof NonNullable<DependencyRecord['graph']['subDeps']> }> = [
     { title: 'Dependencies', key: 'dep' },
-    { title: 'Dev Dependencies', key: 'dev' },
-    { title: 'Optional Dependencies', key: 'opt', optional: true },
-    { title: 'Peer Dependencies', key: 'peer', peer: true }
+    { title: 'Optional', key: 'opt' },
+    { title: 'Peer', key: 'peer' },
+    { title: 'Dev Dependencies', key: 'dev' }
   ];
+
+  let total = 0;
+  let installed = 0;
+  for (const group of groups) {
+    const items = subDeps[group.key];
+    if (!items) continue;
+    for (const entry of Object.values(items)) {
+      total += 1;
+      if (entry[1]) installed += 1;
+    }
+  }
+  if (total === 0) return '';
+  const missing = total - installed;
+  const summary = '<div class="declared-summary">Total: ' + total + ' • Installed: ' + installed + ' • Not installed: ' + missing + '</div>';
 
   const sections = groups.map((group) => {
     const items = subDeps[group.key];
@@ -309,25 +315,23 @@ function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<str
     const rows = Object.entries(items)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([name, [range, resolvedId]]) => {
-        const optionalTag = group.optional ? '<span class="declared-tag">Optional</span>' : '';
-        const nameCell = '<div class="declared-name">' + escapeHtml(name) + optionalTag + '</div>';
+        const nameCell = '<div class="declared-name">' + escapeHtml(name) + '</div>';
         const rangeCell = '<div class="declared-range">' + escapeHtml(range) + '</div>';
         const statusCell = resolvedId
           ? renderInstalledStatus(resolvedId, linkableKeys)
           : '<span class="status-pill missing">Not installed</span>';
-        const resolvedVersion = group.peer && resolvedId
-          ? extractVersionFromId(name, resolvedId)
-          : undefined;
-        const resolvedCell = group.peer
-          ? '<div class="declared-resolved">' + (resolvedVersion ? 'Resolved ' + escapeHtml(resolvedVersion) : '') + '</div>'
-          : '<div class="declared-resolved"></div>';
-        return '<div class="declared-row">' + nameCell + rangeCell + statusCell + resolvedCell + '</div>';
+        return '<div class="declared-row">' + nameCell + rangeCell + statusCell + '</div>';
       });
-    return renderSubsection(group.title, '<div class="declared-table">' + rows.join('') + '</div>');
+    const count = Object.keys(items).length;
+    return [
+      '<details class="declared-group">',
+      '<summary class="declared-group-summary">' + escapeHtml(group.title) + ' <span class="declared-count">(' + count + ')</span></summary>',
+      '<div class="declared-table">' + rows.join('') + '</div>',
+      '</details>'
+    ].join('');
   }).filter(Boolean);
 
-  if (sections.length === 0) return '';
-  const body = '<div class="declared-deps">' + sections.join('') + '</div>';
+  const body = summary + '<div class="declared-deps">' + sections.join('') + '</div>';
   return renderSection('Declared Dependencies', 'Dependencies declared by this package', body);
 }
 
@@ -591,7 +595,6 @@ function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): str
     'Summary and key context',
     microSummaryHtml + workspaceListHtml + keyContextHtml + importTopFilesHtml
   );
-  const declaredSection = renderDeclaredDependencies(dep, linkableKeys);
 
   const licenseBlock = renderSubsection(
     'License',
@@ -670,28 +673,19 @@ function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): str
       '</ul></div>'
     : '';
 
-  const dependencySurfaceBlock = renderSubsection(
-    'Declared dependency surface (dependencySurface)',
-    '<div class="kv-grid">' + [
-      renderKvItem('Production deps (deps)', dep.graph.dependencySurface.deps),
-      renderKvItem('Dev deps (dev)', dep.graph.dependencySurface.dev),
-      renderKvItem('Peer deps (peer)', dep.graph.dependencySurface.peer),
-      renderKvItem('Optional deps (opt)', dep.graph.dependencySurface.opt)
-    ].join('') + '</div>'
-  );
-
   const upgradeSection = renderSection(
     'Upgrade & Change Impact',
     'Currency, constraints, and blast radius',
-    currencyBlock + deprecatedBlock + constraintBlock + blastRadiusBlock + blockers + dependencySurfaceBlock
+    currencyBlock + deprecatedBlock + constraintBlock + blastRadiusBlock + blockers
   );
+  const declaredSection = renderDeclaredDependencies(dep, linkableKeys);
 
   return [
     renderPackageLinks(links),
     overviewSection,
-    declaredSection,
     riskSection,
     upgradeSection,
+    declaredSection,
     '<details class="raw-data-toggle"><summary>View raw data</summary>' +
       '<div class="raw-data-pane">' +
         '<pre>' + escapeHtml(rawJson) + '</pre>' +
