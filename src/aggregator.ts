@@ -45,6 +45,7 @@ interface NodeInfo {
   depth: number;
   parents: Set<string>;
   children: Set<string>;
+  childByName: Map<string, string>;
   dev?: boolean;
 }
 
@@ -120,7 +121,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   // Get git branch
   const gitBranch = await getGitBranch(input.projectPath);
 
-  const nodeMap = buildNodeMap(input.npmLsResult?.data, pkg);
+  const nodeMap = buildNodeMap(input.npmLsResult?.data);
   const vulnMap = parseVulnerabilities(input.auditResult?.data);
   const importGraph = normalizeImportGraph(input.importGraphResult?.data);
   const usageResult = buildUsageSummary(importGraph, input.projectPath);
@@ -139,6 +140,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const nodes = Array.from(nodeMap.values());
   let directCount = 0;
   const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
+  const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
 
   for (const node of nodes) {
     const direct = isDirectDependency(node.name, pkg);
@@ -171,11 +173,20 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const importUsage = usageResult.summary.get(node.name);
     const runtimeImpact = usageResult.runtimeImpact.get(node.name);
     const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
-    const origins = buildOrigins(rootCauses, input.workspaceUsage?.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
+    const parentIds = Array.from(node.parents).sort();
+    const origins = buildOrigins(
+      rootCauses,
+      parentIds,
+      input.workspaceUsage?.get(node.name),
+      input.workspaceEnabled,
+      MAX_TOP_ROOT_PACKAGES,
+      MAX_TOP_PARENT_PACKAGES
+    );
     const execution = packageInsights.execution;
     const id = node.key;
     const upgrade = buildUpgradeBlock(packageInsights);
     const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
+    const subDeps = buildSubDeps(packageInsights.declaredDependencies, node);
 
     // Group fields by reviewer question to keep the JSON readable and source-agnostic.
     // Optional fields are only attached when meaningful to keep the payload sparse.
@@ -227,6 +238,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         ...(importUsage ? { importUsage } : {}),
         tsTypes: packageInsights.tsTypes
       },
+      ...(subDeps ? { subDeps } : {}),
       graph: {
         fanIn: node.parents.size,
         fanOut: node.children.size,
@@ -244,7 +256,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const transitiveCount = dependencyCount - directCount;
 
   return {
-    schemaVersion: '1.0',
+    schemaVersion: '1.1',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
@@ -327,7 +339,7 @@ function parseMajorFromToken(token: string): number | undefined {
   return Number.isNaN(major) ? undefined : major;
 }
 
-function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
+function buildNodeMap(lsData: any): Map<string, NodeInfo> {
   const map = new Map<string, NodeInfo>();
 
   const traverse = (node: any, depth: number, parentKey?: string, providedName?: string) => {
@@ -343,6 +355,7 @@ function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
         depth,
         parents: new Set(parentKey ? [parentKey] : []),
         children: new Set<string>(),
+        childByName: new Map<string, string>(),
         dev: node.dev
       });
     } else {
@@ -351,6 +364,7 @@ function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
       if (parentKey) existing.parents.add(parentKey);
       if (existing.dev === undefined && node.dev !== undefined) existing.dev = node.dev;
       if (!existing.children) existing.children = new Set<string>();
+      if (!existing.childByName) existing.childByName = new Map<string, string>();
     }
     if (node.dependencies && typeof node.dependencies === 'object') {
       Object.entries<any>(node.dependencies).forEach(([depName, child]: [string, any]) => {
@@ -359,6 +373,7 @@ function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
         const current = map.get(key);
         if (current) {
           current.children.add(childKey);
+          current.childByName.set(depName, childKey);
         }
         traverse(child, depth + 1, key, depName);
       });
@@ -367,19 +382,6 @@ function buildNodeMap(lsData: any, pkg: any): Map<string, NodeInfo> {
 
   if (lsData && lsData.dependencies) {
     Object.entries<any>(lsData.dependencies).forEach(([depName, child]: [string, any]) => traverse(child, 1, undefined, depName));
-  } else {
-    const deps = Object.keys(pkg.dependencies || {});
-    const devDeps = Object.keys(pkg.devDependencies || {});
-    deps.forEach((name) => {
-      const version = pkg.dependencies[name];
-      const key = `${name}@${version}`;
-      map.set(key, { name, version, key, depth: 1, parents: new Set(), children: new Set(), dev: false });
-    });
-    devDeps.forEach((name) => {
-      const version = pkg.devDependencies[name];
-      const key = `${name}@${version}`;
-      map.set(key, { name, version, key, depth: 1, parents: new Set(), children: new Set(), dev: true });
-    });
   }
 
   return map;
@@ -735,7 +737,11 @@ function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBu
 }
 
 function isDirectDependency(name: string, pkg: any): boolean {
-  return Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
+  return Boolean(
+    (pkg.dependencies && pkg.dependencies[name]) ||
+    (pkg.devDependencies && pkg.devDependencies[name]) ||
+    (pkg.optionalDependencies && pkg.optionalDependencies[name])
+  );
 }
 
 type DependencyScope = 'runtime' | 'dev' | 'optional' | 'peer';
@@ -764,15 +770,49 @@ function determineScope(name: string, direct: boolean, rootCauses: RootPackageRe
   return 'runtime';
 }
 
+function buildSubDeps(
+  declared: PackageInsights['declaredDependencies'],
+  node: NodeInfo
+): NonNullable<DependencyRecord['subDeps']> | undefined {
+  const out: NonNullable<DependencyRecord['subDeps']> = {};
+  const entries: Array<[keyof PackageInsights['declaredDependencies'], keyof NonNullable<DependencyRecord['subDeps']>]> = [
+    ['dep', 'dep'],
+    ['dev', 'dev'],
+    ['opt', 'opt'],
+    ['peer', 'peer']
+  ];
+
+  for (const [declaredKey, outKey] of entries) {
+    const group = declared[declaredKey];
+    const names = Object.keys(group);
+    if (names.length === 0) continue;
+    const bucket: Record<string, [string, string | null]> = {};
+    for (const name of names.sort()) {
+      const range = group[name];
+      const resolved = node.childByName.get(name) || null;
+      bucket[name] = [range, resolved];
+    }
+    if (Object.keys(bucket).length > 0) {
+      out[outKey] = bucket;
+    }
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function buildOrigins(
   rootCauses: RootPackageRef[],
+  parentIds: string[],
   workspaceList: string[] | undefined,
   workspaceEnabled: boolean,
-  maxTop: number
-): { rootPackageCount: number; topRootPackages: RootPackageRef[]; workspaces?: string[] } {
-  const origins: { rootPackageCount: number; topRootPackages: RootPackageRef[]; workspaces?: string[] } = {
+  maxTopRoots: number,
+  maxTopParents: number
+): { rootPackageCount: number; topRootPackages: RootPackageRef[]; parentPackageCount: number; topParentPackages: string[]; workspaces?: string[] } {
+  const origins: { rootPackageCount: number; topRootPackages: RootPackageRef[]; parentPackageCount: number; topParentPackages: string[]; workspaces?: string[] } = {
     rootPackageCount: rootCauses.length,
-    topRootPackages: rootCauses.slice(0, maxTop)
+    topRootPackages: rootCauses.slice(0, maxTopRoots),
+    parentPackageCount: parentIds.length,
+    topParentPackages: parentIds.slice(0, maxTopParents)
   };
   if (workspaceEnabled && workspaceList && workspaceList.length > 0) {
     origins.workspaces = workspaceList;
@@ -909,6 +949,12 @@ interface PackageInsights {
     peer: number;
     opt: number;
   };
+  declaredDependencies: {
+    dep: Record<string, string>;
+    dev: Record<string, string>;
+    peer: Record<string, string>;
+    opt: Record<string, string>;
+  };
   links?: {
     repository?: string;
     homepage?: string;
@@ -930,6 +976,7 @@ async function gatherPackageInsights(
       deprecated: false,
       nodeEngine: null,
       dependencySurface: { deps: 0, dev: 0, peer: 0, opt: 0 },
+      declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
       tsTypes: 'unknown'
     };
   }
@@ -942,6 +989,12 @@ async function gatherPackageInsights(
     dev: Object.keys(pkg.devDependencies || {}).length,
     peer: Object.keys(pkg.peerDependencies || {}).length,
     opt: Object.keys(pkg.optionalDependencies || {}).length
+  };
+  const declaredDependencies = {
+    dep: normalizeDeclaredDeps(pkg.dependencies),
+    dev: normalizeDeclaredDeps(pkg.devDependencies),
+    peer: normalizeDeclaredDeps(pkg.peerDependencies),
+    opt: normalizeDeclaredDeps(pkg.optionalDependencies)
   };
 
   const scripts = pkg.scripts || {};
@@ -961,10 +1014,22 @@ async function gatherPackageInsights(
     nodeEngine,
     description,
     dependencySurface,
+    declaredDependencies,
     links,
     execution,
     tsTypes
   };
+}
+
+function normalizeDeclaredDeps(source: any): Record<string, string> {
+  if (!source || typeof source !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [name, range] of Object.entries<any>(source)) {
+    if (typeof name !== 'string' || !name.trim()) continue;
+    if (typeof range !== 'string' || !range.trim()) continue;
+    out[name] = range.trim();
+  }
+  return out;
 }
 
 async function loadPackageMeta(

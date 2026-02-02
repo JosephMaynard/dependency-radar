@@ -12,6 +12,7 @@ import { ensureDir, removeDir } from './utils';
 
 // Workspace detection and helpers
 type WorkspaceType = 'pnpm' | 'npm' | 'yarn' | 'none';
+type PackageManager = 'npm' | 'pnpm' | 'yarn';
 
 interface WorkspaceDiscovery {
   type: WorkspaceType;
@@ -99,6 +100,7 @@ async function readJsonFile(filePath: string): Promise<any | undefined> {
 async function detectWorkspace(projectPath: string): Promise<WorkspaceDiscovery> {
   const rootPkgPath = path.join(projectPath, 'package.json');
   const rootPkg = await readJsonFile(rootPkgPath);
+  const inferredManager = inferPackageManager(rootPkg);
 
   const pnpmWorkspacePath = path.join(projectPath, 'pnpm-workspace.yaml');
   const hasPnpmWorkspace = await pathExists(pnpmWorkspacePath);
@@ -133,7 +135,7 @@ async function detectWorkspace(projectPath: string): Promise<WorkspaceDiscovery>
 
   // npm/yarn workspaces
   if (type === 'none' && rootPkg && rootPkg.workspaces) {
-    type = 'npm';
+    type = inferredManager || 'npm';
     if (Array.isArray(rootPkg.workspaces)) patterns = rootPkg.workspaces;
     else if (Array.isArray(rootPkg.workspaces.packages)) patterns = rootPkg.workspaces.packages;
 
@@ -182,6 +184,31 @@ async function detectWorkspace(projectPath: string): Promise<WorkspaceDiscovery>
   return { type, packagePaths: packagePaths.sort() };
 }
 
+function inferPackageManager(rootPkg: any): PackageManager | undefined {
+  const raw = typeof rootPkg?.packageManager === 'string' ? rootPkg.packageManager.trim() : '';
+  if (!raw) return undefined;
+  if (raw.startsWith('pnpm@') || raw === 'pnpm') return 'pnpm';
+  if (raw.startsWith('yarn@') || raw === 'yarn') return 'yarn';
+  if (raw.startsWith('npm@') || raw === 'npm') return 'npm';
+  return undefined;
+}
+
+async function detectPackageManager(projectPath: string, rootPkg: any, workspaceType: WorkspaceType): Promise<PackageManager> {
+  const inferred = inferPackageManager(rootPkg);
+  if (inferred) return inferred;
+  if (workspaceType === 'pnpm' || workspaceType === 'yarn') return workspaceType;
+  const yarnrc = path.join(projectPath, '.yarnrc.yml');
+  if (await pathExists(yarnrc)) {
+    const y = await fs.readFile(yarnrc, 'utf8');
+    if (/nodeLinker\s*:\s*pnp/.test(y)) {
+      return 'yarn';
+    }
+  }
+  if (await pathExists(path.join(projectPath, 'node_modules', '.pnpm'))) return 'pnpm';
+  if (await pathExists(path.join(projectPath, 'node_modules', '.yarn-state.yml'))) return 'yarn';
+  return 'npm';
+}
+
 async function readWorkspacePackageMeta(rootPath: string, packagePaths: string[]): Promise<Array<{ path: string; name: string; pkg: any }>> {
   const out: Array<{ path: string; name: string; pkg: any }> = [];
   for (const p of packagePaths) {
@@ -193,12 +220,14 @@ async function readWorkspacePackageMeta(rootPath: string, packagePaths: string[]
 }
 
 function mergeDepsFromWorkspace(pkgs: Array<{ pkg: any }>): any {
-  const merged: any = { dependencies: {}, devDependencies: {} };
+  const merged: any = { dependencies: {}, devDependencies: {}, optionalDependencies: {} };
   for (const entry of pkgs) {
     const deps = entry.pkg?.dependencies || {};
     const dev = entry.pkg?.devDependencies || {};
+    const opt = entry.pkg?.optionalDependencies || {};
     Object.assign(merged.dependencies, deps);
     Object.assign(merged.devDependencies, dev);
+    Object.assign(merged.optionalDependencies, opt);
   }
   return merged;
 }
@@ -393,7 +422,7 @@ function mergeImportGraphs(rootPath: string, packageMetas: Array<{ path: string;
   return { files, packages, packageCounts, unresolvedImports };
 }
 
-function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>, npmLsDatas: Array<any | undefined>): Map<string, string[]> {
+function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>, dependencyGraphs: Array<any | undefined>): Map<string, string[]> {
   const usage = new Map<string, Set<string>>();
 
   const add = (depName: string, pkgName: string) => {
@@ -407,8 +436,12 @@ function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>,
     const pkgName = meta.name;
     const deps = meta.pkg?.dependencies || {};
     const dev = meta.pkg?.devDependencies || {};
+    const opt = meta.pkg?.optionalDependencies || {};
+    const peer = meta.pkg?.peerDependencies || {};
     Object.keys(deps).forEach((d) => add(d, pkgName));
     Object.keys(dev).forEach((d) => add(d, pkgName));
+    Object.keys(opt).forEach((d) => add(d, pkgName));
+    Object.keys(peer).forEach((d) => add(d, pkgName));
   }
 
   // From npm ls trees (transitives)
@@ -425,8 +458,8 @@ function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>,
     }
   };
 
-  for (let i = 0; i < npmLsDatas.length; i++) {
-    const data = npmLsDatas[i];
+  for (let i = 0; i < dependencyGraphs.length; i++) {
+    const data = dependencyGraphs[i];
     const meta = packageMetas[i];
     if (!data || typeof data !== 'object') continue;
     const deps = data.dependencies;
@@ -445,13 +478,13 @@ function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>,
   return out;
 }
 
-function buildCombinedNpmLs(rootPath: string, packageMetas: Array<{ path: string; name: string; pkg: any }>, npmLsDatas: Array<any | undefined>): any {
+function buildCombinedDependencyGraph(rootPath: string, packageMetas: Array<{ path: string; name: string; pkg: any }>, dependencyGraphs: Array<any | undefined>): any {
   // Build a synthetic root with each workspace package as a top-level node.
   // This avoids object-key collisions for normal packages and preserves per-package roots.
   const dependencies: Record<string, any> = {};
 
-  for (let i = 0; i < npmLsDatas.length; i++) {
-    const data = npmLsDatas[i];
+  for (let i = 0; i < dependencyGraphs.length; i++) {
+    const data = dependencyGraphs[i];
     const meta = packageMetas[i];
     if (!meta) continue;
     const version = typeof meta.pkg?.version === 'string' ? meta.pkg.version : 'workspace';
@@ -559,6 +592,20 @@ async function run(): Promise<void> {
     process.exit(1);
     return;
   }
+  const rootPkg = await readJsonFile(path.join(projectPath, 'package.json'));
+  const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
+  if (packageManager === 'yarn') {
+    const yarnrc = path.join(projectPath, '.yarnrc.yml');
+    if (await pathExists(yarnrc)) {
+      const y = await fs.readFile(yarnrc, 'utf8');
+      if (/nodeLinker\s*:\s*pnp/.test(y)) {
+        console.error('Yarn Plug\'n\'Play (nodeLinker: pnp) detected. This is not supported yet.');
+        console.error('Switch to nodeLinker: node-modules or run in a non-PnP environment.');
+        process.exit(1);
+        return;
+      }
+    }
+  }
 
   const packagePaths = workspace.packagePaths;
   const workspaceLabel = workspace.type === 'none' ? 'Single project' : `${workspace.type.toUpperCase()} workspace`;
@@ -579,7 +626,7 @@ async function run(): Promise<void> {
       await ensureDir(pkgTempDir);
       const [a, l, ig, o] = await Promise.all([
         opts.audit ? runNpmAudit(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
-        runNpmLs(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
+        runNpmLs(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
         runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
         runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
       ]);
@@ -590,15 +637,15 @@ async function run(): Promise<void> {
     }
 
     const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
-    const mergedLsData = workspace.type === 'none'
+    const mergedGraphData = workspace.type === 'none'
       ? (perPackageLs[0] && perPackageLs[0].ok ? perPackageLs[0].data : undefined)
-      : buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+      : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
     const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
     const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
     const outdatedResult = mergeOutdatedResults(packageMetas, perPackageOutdated);
 
     const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
-    const npmLsResult = { ok: true, data: mergedLsData };
+    const npmLsResult = { ok: true, data: mergedGraphData };
     const importGraphResult = { ok: true, data: mergedImportGraphData };
 
     // Build a merged package.json view for aggregator direct-dep checks.
