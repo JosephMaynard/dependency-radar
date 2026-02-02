@@ -231,6 +231,15 @@ function renderRootPackageList(
   return html;
 }
 
+function renderLoadingPlaceholder(): string {
+  // Minimal placeholder to show intentional loading while details render lazily.
+  return [
+    '<div class="dep-loading" role="presentation">',
+      '<div class="dep-loading-bar"></div>',
+    '</div>'
+  ].join('');
+}
+
 function renderDetailList(title: string, items: string[] | undefined, maxShow: number, className?: string): string {
   if (!items || items.length === 0) return '';
   const shown = items.slice(0, maxShow);
@@ -741,8 +750,14 @@ async function init(): Promise<void> {
     if (!detailsBody || detailsBody.dataset.rendered === 'true') return;
     const dep = depByKey.get(depKey);
     if (!dep) return;
-    detailsBody.innerHTML = renderDepDetails(dep, linkableKeys);
-    detailsBody.dataset.rendered = 'true';
+    detailsBody.setAttribute('aria-busy', 'true');
+    detailsBody.innerHTML = renderLoadingPlaceholder();
+    // Defer heavy render so the placeholder paints first.
+    requestAnimationFrame(() => {
+      detailsBody.innerHTML = renderDepDetails(dep, linkableKeys);
+      detailsBody.dataset.rendered = 'true';
+      detailsBody.removeAttribute('aria-busy');
+    });
   }
 
   async function copyRawJson(button: HTMLButtonElement): Promise<void> {
