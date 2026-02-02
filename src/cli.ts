@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import path from 'path';
+import { exec } from 'child_process';
+import { platform } from 'os';
 import { aggregateData } from './aggregator';
 import { runImportGraph } from './runners/importGraphRunner';
 import { runNpmAudit } from './runners/npmAudit';
@@ -509,6 +511,7 @@ interface CliOptions {
   keepTemp: boolean;
   audit: boolean;
   json: boolean;
+  open: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -518,7 +521,8 @@ function parseArgs(argv: string[]): CliOptions {
     out: 'dependency-radar.html',
     keepTemp: false,
     audit: true,
-    json: false
+    json: false,
+    open: false
   };
 
   const args = [...argv];
@@ -534,6 +538,7 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg === '--keep-temp') opts.keepTemp = true;
     else if (arg === '--no-audit') opts.audit = false;
     else if (arg === '--json') opts.json = true;
+    else if (arg === '--open') opts.open = true;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -554,7 +559,31 @@ Options:
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
   --no-audit         Skip npm audit (useful for offline scans)
+  --open             Open the generated report using the system default
 `);
+}
+
+function openInBrowser(filePath: string): void {
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  let command: string;
+
+  switch (platform()) {
+    case 'darwin':
+      command = `open "${normalizedPath}"`;
+      break;
+    case 'win32':
+      command = `start "" "${normalizedPath}"`;
+      break;
+    default:
+      command = `command -v xdg-open >/dev/null 2>&1 && xdg-open "${normalizedPath}"`;
+      break;
+  }
+
+  exec(command, (err) => {
+    if (err) {
+      console.warn('Could not open report:', err.message);
+    }
+  });
 }
 
 async function run(): Promise<void> {
@@ -684,6 +713,13 @@ async function run(): Promise<void> {
     }
     stopSpinner(true);
     console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
+    const isCI = process.env.CI === 'true';
+    if (opts.open && !isCI) {
+      console.log(`↗ Opening ${path.basename(outputPath)} using system default…`);
+      openInBrowser(outputPath);
+    } else if (opts.open && isCI) {
+      console.log('Skipping auto-open in CI environment.');
+    }
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
   } catch (err: any) {

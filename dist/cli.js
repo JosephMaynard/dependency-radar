@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const path_1 = __importDefault(require("path"));
+const child_process_1 = require("child_process");
+const os_1 = require("os");
 const aggregator_1 = require("./aggregator");
 const importGraphRunner_1 = require("./runners/importGraphRunner");
 const npmAudit_1 = require("./runners/npmAudit");
@@ -492,7 +494,8 @@ function parseArgs(argv) {
         out: 'dependency-radar.html',
         keepTemp: false,
         audit: true,
-        json: false
+        json: false,
+        open: false
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith('-')) {
@@ -512,6 +515,8 @@ function parseArgs(argv) {
             opts.audit = false;
         else if (arg === '--json')
             opts.json = true;
+        else if (arg === '--open')
+            opts.open = true;
         else if (arg === '--help' || arg === '-h') {
             printHelp();
             process.exit(0);
@@ -530,7 +535,28 @@ Options:
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
   --no-audit         Skip npm audit (useful for offline scans)
+  --open             Open the generated report using the system default
 `);
+}
+function openInBrowser(filePath) {
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    let command;
+    switch ((0, os_1.platform)()) {
+        case 'darwin':
+            command = `open "${normalizedPath}"`;
+            break;
+        case 'win32':
+            command = `start "" "${normalizedPath}"`;
+            break;
+        default:
+            command = `command -v xdg-open >/dev/null 2>&1 && xdg-open "${normalizedPath}"`;
+            break;
+    }
+    (0, child_process_1.exec)(command, (err) => {
+        if (err) {
+            console.warn('Could not open report:', err.message);
+        }
+    });
 }
 async function run() {
     const opts = parseArgs(process.argv.slice(2));
@@ -648,6 +674,14 @@ async function run() {
         }
         stopSpinner(true);
         console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
+        const isCI = process.env.CI === 'true';
+        if (opts.open && !isCI) {
+            console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default…`);
+            openInBrowser(outputPath);
+        }
+        else if (opts.open && isCI) {
+            console.log('Skipping auto-open in CI environment.');
+        }
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
     }
