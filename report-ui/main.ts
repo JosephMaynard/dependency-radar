@@ -729,9 +729,9 @@ async function init(): Promise<void> {
   allDependencies.forEach((dep) => {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
-  const linkableKeys = new Set(depByKey.keys());
   const openDepKeys = new Set<string>();
   const depElementsByKey = new Map<string, HTMLDetailsElement>();
+  let currentLinkableKeys = new Set<string>();
   const copyAnnouncer = (() => {
     const existing = document.getElementById('copy-announcer');
     if (existing) return existing;
@@ -754,7 +754,7 @@ async function init(): Promise<void> {
     detailsBody.innerHTML = renderLoadingPlaceholder();
     // Defer heavy render so the placeholder paints first.
     requestAnimationFrame(() => {
-      detailsBody.innerHTML = renderDepDetails(dep, linkableKeys);
+    detailsBody.innerHTML = renderDepDetails(dep, currentLinkableKeys);
       detailsBody.dataset.rendered = 'true';
       detailsBody.removeAttribute('aria-busy');
     });
@@ -840,6 +840,7 @@ async function init(): Promise<void> {
   function renderList(): void {
     const filtered = applyFilters();
     const deps = sortDeps(filtered);
+    currentLinkableKeys = new Set(deps.map((dep) => getDepKey(dep.package.name, dep.package.version)));
     
     const totalCount = report.summary?.dependencyCount || allDependencies.length;
     summaryEl.innerHTML = 'Showing <strong>' + deps.length + '</strong> of <strong>' + totalCount + '</strong> dependencies';
