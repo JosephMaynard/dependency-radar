@@ -56,7 +56,12 @@
         "depth": 1,
         "origins": {
           "rootPackageCount": 1,
-          "topRootPackages": ["chalk"]
+          "topRootPackages": [
+            {
+              "name": "chalk",
+              "version": "5.3.0"
+            }
+          ]
         },
         "tsTypes": "bundled"
       },
@@ -117,7 +122,12 @@
         "depth": 2,
         "origins": {
           "rootPackageCount": 1,
-          "topRootPackages": ["chalk"]
+          "topRootPackages": [
+            {
+              "name": "chalk",
+              "version": "5.3.0"
+            }
+          ]
         },
         "tsTypes": "none"
       },
@@ -182,7 +192,12 @@
         "depth": 1,
         "origins": {
           "rootPackageCount": 1,
-          "topRootPackages": ["vite"]
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ]
         },
         "introduction": "direct",
         "tsTypes": "bundled"
@@ -247,7 +262,10 @@
         "origins": {
           "rootPackageCount": 1,
           "topRootPackages": [
-            "vite"
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
           ]
         },
         "introduction": "tooling",

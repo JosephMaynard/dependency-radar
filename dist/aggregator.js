@@ -27,10 +27,10 @@ async function getGitBranch(projectPath) {
 function findRootCauses(node, nodeMap, pkg) {
     // If it's a direct dependency, it's its own root cause
     if (isDirectDependency(node.name, pkg)) {
-        return [node.name];
+        return [{ name: node.name, version: node.version }];
     }
     // BFS up the parent chain to find all direct dependencies that lead to this
-    const rootCauses = new Set();
+    const rootCauses = new Map();
     const visited = new Set();
     const queue = [...node.parents];
     while (queue.length > 0) {
@@ -42,7 +42,7 @@ function findRootCauses(node, nodeMap, pkg) {
         if (!parent)
             continue;
         if (isDirectDependency(parent.name, pkg)) {
-            rootCauses.add(parent.name);
+            rootCauses.set(parent.key, { name: parent.name, version: parent.version });
         }
         else {
             // Keep going up the chain
@@ -53,7 +53,12 @@ function findRootCauses(node, nodeMap, pkg) {
             }
         }
     }
-    return Array.from(rootCauses).sort();
+    return Array.from(rootCauses.values()).sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0)
+            return nameCompare;
+        return a.version.localeCompare(b.version);
+    });
 }
 function formatProjectDir(projectPath) {
     const home = os_1.default.homedir();
@@ -686,7 +691,7 @@ function determineScope(name, direct, rootCauses, pkg) {
     }
     const scopes = new Set();
     for (const root of rootCauses) {
-        const scope = directScopeFromPackage(root, pkg);
+        const scope = directScopeFromPackage(root.name, pkg);
         if (scope)
             scopes.add(scope);
     }
@@ -788,15 +793,16 @@ function isFrameworkPackage(name) {
 }
 // Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
 function determineIntroduction(direct, rootCauses, runtimeImpact) {
+    const rootNames = rootCauses.map((root) => root.name);
     if (direct)
         return 'direct';
     if (runtimeImpact === 'testing')
         return 'testing';
-    if (rootCauses.length > 0 && rootCauses.every((root) => isToolingPackage(root)))
+    if (rootNames.length > 0 && rootNames.every((root) => isToolingPackage(root)))
         return 'tooling';
-    if (rootCauses.some((root) => isFrameworkPackage(root)))
+    if (rootNames.some((root) => isFrameworkPackage(root)))
         return 'framework';
-    if (rootCauses.length > 0)
+    if (rootNames.length > 0)
         return 'transitive';
     return 'unknown';
 }

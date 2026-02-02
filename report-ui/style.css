@@ -1045,17 +1045,122 @@ details[open] .expand-icon {
   padding: 8px 0;
 }
 
-.raw-data-toggle pre {
-  margin: 8px 0 0 0;
-  padding: 12px;
+.raw-data-pane {
+  margin-top: 8px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
+  max-height: 300px;
+  overflow: auto;
+}
+
+.raw-data-pane pre {
+  margin: 0;
+  padding: 12px 12px 44px;
+  background: transparent;
+  border: none;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-secondary);
-  overflow-x: auto;
-  max-height: 300px;
+  white-space: pre;
+  overflow: visible;
+}
+
+.copy-json-btn {
+  position: sticky;
+  bottom: 8px;
+  align-self: flex-end;
+  margin: 0 8px 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.raw-data-toggle:not([open]) .copy-json-btn {
+  display: none;
+}
+
+.copy-json-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.copy-json-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.copy-json-btn.copied {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.dep-loading {
+  padding: 2rem 0;
+}
+
+.dep-loading-bar {
+  position: relative;
+  height: 0.25rem;
+  background: var(--border-color);
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.dep-loading-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: var(--accent);
+  animation: dep-loading 1.2s ease-in-out infinite;
+}
+
+@keyframes dep-loading {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.package-tag-link {
+  text-decoration: none;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.package-tag-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.package-tag-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Empty state */

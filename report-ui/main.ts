@@ -189,6 +189,57 @@ function renderPackageList(packages: string[] | undefined, maxShow: number): str
   return html;
 }
 
+function getDepKey(name: string, version: string): string {
+  return name + '@' + version;
+}
+
+function getDepDomId(depKey: string): string {
+  return 'dep-' + encodeURIComponent(depKey).replace(/%/g, '_');
+}
+
+function renderRootPackageList(
+  packages: Array<{ name: string; version: string } | string> | undefined,
+  maxShow: number,
+  linkableKeys: Set<string>
+): string {
+  if (!packages || packages.length === 0) return '<span class="kv-value">None</span>';
+  const shown = packages.slice(0, maxShow);
+  const remaining = packages.length - maxShow;
+  let html = '<div class="package-list">';
+  shown.forEach((pkg) => {
+    if (typeof pkg === 'string') {
+      html += '<span class="package-tag">' + escapeHtml(pkg) + '</span>';
+      return;
+    }
+    const depKey = getDepKey(pkg.name, pkg.version);
+    const label = pkg.name + '@' + pkg.version;
+    if (!linkableKeys.has(depKey)) {
+      html += '<span class="package-tag">' + escapeHtml(label) + '</span>';
+      return;
+    }
+    html += '<a class="package-tag package-tag-link root-package-link" href="#' +
+      escapeHtml(getDepDomId(depKey)) +
+      '" data-dep-key="' + escapeHtml(depKey) +
+      '" aria-label="Jump to dependency ' + escapeHtml(label) + '">' +
+      escapeHtml(label) +
+      '</a>';
+  });
+  if (remaining > 0) {
+    html += '<span class="package-tag">+' + remaining + ' more</span>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderLoadingPlaceholder(): string {
+  // Minimal placeholder to show intentional loading while details render lazily.
+  return [
+    '<div class="dep-loading" role="presentation">',
+      '<div class="dep-loading-bar"></div>',
+    '</div>'
+  ].join('');
+}
+
 function renderDetailList(title: string, items: string[] | undefined, maxShow: number, className?: string): string {
   if (!items || items.length === 0) return '';
   const shown = items.slice(0, maxShow);
@@ -215,10 +266,6 @@ function renderSection(title: string, desc: string | undefined, bodyHtml: string
   html += bodyHtml;
   html += '</div>';
   return html;
-}
-
-function renderKvSection(title: string, desc: string | undefined, items: string[]): string {
-  return renderSection(title, desc, '<div class="kv-grid">' + items.join('') + '</div>');
 }
 
 function renderSubsection(title: string, bodyHtml: string, desc?: string, className?: string): string {
@@ -360,7 +407,8 @@ function renderDep(dep: DependencyRecord): string {
   const licenseCategory = getLicenseCategory(licenseText);
   const highestRisk = getHighestRisk(securitySummary, dep.compliance.licenseRisk);
   const severity = highestSeverity(securitySummary);
-  const links = resolveLinks(dep);
+  const depKey = getDepKey(dep.package.name, dep.package.version);
+  const domId = getDepDomId(depKey);
 
   const licenseCategoryDisplay: Record<LicenseCategory, { text: string; class: string }> = {
     permissive: { text: 'Permissive', class: 'green' },
@@ -393,6 +441,19 @@ function renderDep(dep: DependencyRecord): string {
     '</summary>'
   ].join('');
 
+  return [
+    '<details class="dep-card" data-risk="' + highestRisk + '" data-dep-key="' + escapeHtml(depKey) + '" id="' + escapeHtml(domId) + '">',
+    summary,
+    '<div class="dep-details" data-rendered="false"></div>',
+    '</details>'
+  ].join('');
+}
+
+function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): string {
+  const normalizedSecurity = normalizeSecurity(dep);
+  const securitySummary = normalizedSecurity.summary;
+  const licenseText = dep.compliance.license || 'Unknown';
+  const links = resolveLinks(dep);
   const rawJson = JSON.stringify(dep, null, 2);
 
   const microLines: string[] = [
@@ -423,7 +484,10 @@ function renderDep(dep: DependencyRecord): string {
   const keyContextItems = [
     dep.usage.runtimeImpact ? renderKvItem('Runtime impact (runtimeImpact)', runtimeImpactLabel(dep.usage.runtimeImpact)) : '',
     renderKvItem('Dependency depth', dep.usage.depth),
-    renderKvItemHtml('Introduced via root packages (topRootPackages)', renderPackageList(dep.usage.origins.topRootPackages, 8)),
+    renderKvItemHtml(
+      'Introduced via root packages (topRootPackages)',
+      renderRootPackageList(dep.usage.origins.topRootPackages, 8, linkableKeys)
+    ),
     renderKvItem('Direct roots (rootPackageCount)', dep.usage.origins.rootPackageCount),
     renderKvItem('TypeScript types (tsTypes)', tsTypesLabel(dep.usage.tsTypes))
   ].filter(Boolean);
@@ -530,26 +594,16 @@ function renderDep(dep: DependencyRecord): string {
     currencyBlock + deprecatedBlock + constraintBlock + blastRadiusBlock + blockers + dependencySurfaceBlock
   );
 
-  // const technicalItems = [
-  //   renderKvItem('Package id (id)', dep.package.id)
-  // ];
-  // const technicalSection = renderSection(
-  //   'Technical Details',
-  //   'Additional factual details',
-  //   '<div class="kv-grid">' + technicalItems.join('') + '</div>'
-  // );
-
   return [
-    '<details class="dep-card" data-risk="' + highestRisk + '">',
-    summary,
-    '<div class="dep-details">',
     renderPackageLinks(links),
     overviewSection,
     riskSection,
     upgradeSection,
-    // technicalSection,
-    '<details class="raw-data-toggle"><summary>View raw data</summary><pre>' + escapeHtml(rawJson) + '</pre></details>',
-    '</div>',
+    '<details class="raw-data-toggle"><summary>View raw data</summary>' +
+      '<div class="raw-data-pane">' +
+        '<pre>' + escapeHtml(rawJson) + '</pre>' +
+        '<button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button>' +
+      '</div>' +
     '</details>'
   ].join('');
 }
@@ -671,6 +725,73 @@ async function init(): Promise<void> {
   });
   
   const allDependencies = Object.values(report.dependencies || {});
+  const depByKey = new Map<string, DependencyRecord>();
+  allDependencies.forEach((dep) => {
+    depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
+  });
+  const openDepKeys = new Set<string>();
+  const depElementsByKey = new Map<string, HTMLDetailsElement>();
+  let currentLinkableKeys = new Set<string>();
+  const copyAnnouncer = (() => {
+    const existing = document.getElementById('copy-announcer');
+    if (existing) return existing;
+    const announcer = document.createElement('div');
+    announcer.id = 'copy-announcer';
+    announcer.className = 'sr-only';
+    announcer.setAttribute('aria-live', 'polite');
+    document.body.appendChild(announcer);
+    return announcer;
+  })();
+
+  function ensureDepDetailsRendered(detailsEl: HTMLDetailsElement): void {
+    const depKey = detailsEl.dataset.depKey;
+    if (!depKey) return;
+    const detailsBody = detailsEl.querySelector<HTMLElement>('.dep-details');
+    if (!detailsBody || detailsBody.dataset.rendered === 'true') return;
+    const dep = depByKey.get(depKey);
+    if (!dep) return;
+    detailsBody.setAttribute('aria-busy', 'true');
+    detailsBody.innerHTML = renderLoadingPlaceholder();
+    // Defer heavy render so the placeholder paints first.
+    requestAnimationFrame(() => {
+    detailsBody.innerHTML = renderDepDetails(dep, currentLinkableKeys);
+      detailsBody.dataset.rendered = 'true';
+      detailsBody.removeAttribute('aria-busy');
+    });
+  }
+
+  async function copyRawJson(button: HTMLButtonElement): Promise<void> {
+    const rawDetails = button.closest('.raw-data-toggle');
+    const pre = rawDetails?.querySelector('pre');
+    const json = pre?.textContent ?? '';
+    if (!json) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(json);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = json;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      const originalLabel = button.dataset.label || button.textContent || 'Copy JSON';
+      button.dataset.label = originalLabel;
+      button.textContent = 'Copied';
+      button.classList.add('copied');
+      copyAnnouncer.textContent = 'Copied JSON to clipboard.';
+      window.setTimeout(() => {
+        button.textContent = originalLabel;
+        button.classList.remove('copied');
+      }, 1500);
+    } catch {
+      copyAnnouncer.textContent = 'Copy failed.';
+    }
+  }
 
   function applyFilters(): DependencyRecord[] {
     const term = (controls.search.value || '').toLowerCase();
@@ -719,6 +840,7 @@ async function init(): Promise<void> {
   function renderList(): void {
     const filtered = applyFilters();
     const deps = sortDeps(filtered);
+    currentLinkableKeys = new Set(deps.map((dep) => getDepKey(dep.package.name, dep.package.version)));
     
     const totalCount = report.summary?.dependencyCount || allDependencies.length;
     summaryEl.innerHTML = 'Showing <strong>' + deps.length + '</strong> of <strong>' + totalCount + '</strong> dependencies';
@@ -729,6 +851,17 @@ async function init(): Promise<void> {
     }
     
     container.innerHTML = deps.map(renderDep).join('');
+    depElementsByKey.clear();
+    container.querySelectorAll<HTMLDetailsElement>('details.dep-card').forEach((detailsEl) => {
+      const depKey = detailsEl.dataset.depKey;
+      if (depKey) depElementsByKey.set(depKey, detailsEl);
+    });
+    openDepKeys.forEach((depKey) => {
+      const detailsEl = depElementsByKey.get(depKey);
+      if (!detailsEl) return;
+      if (!detailsEl.open) detailsEl.open = true;
+      ensureDepDetailsRendered(detailsEl);
+    });
   }
   
   // Event listeners
@@ -741,6 +874,58 @@ async function init(): Promise<void> {
     if (!ctrl) return;
     ctrl.addEventListener('input', renderList);
     ctrl.addEventListener('change', renderList);
+  });
+
+  function activateRootPackageLink(target: HTMLElement): void {
+    const depKey = target.getAttribute('data-dep-key');
+    if (!depKey) return;
+    const detailsEl = depElementsByKey.get(depKey);
+    if (!detailsEl) return;
+    openDepKeys.add(depKey);
+    if (!detailsEl.open) detailsEl.open = true;
+    ensureDepDetailsRendered(detailsEl);
+    detailsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const summary = detailsEl.querySelector<HTMLElement>('summary');
+    if (summary) summary.focus({ preventScroll: true });
+  }
+
+  container.addEventListener('toggle', (event) => {
+    const target = event.target as HTMLElement;
+    if (!(target instanceof HTMLDetailsElement)) return;
+    if (!target.classList.contains('dep-card')) return;
+    const depKey = target.dataset.depKey;
+    if (!depKey) return;
+    if (target.open) {
+      openDepKeys.add(depKey);
+      ensureDepDetailsRendered(target);
+    } else {
+      openDepKeys.delete(depKey);
+    }
+  }, true);
+
+  container.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const rootLink = target.closest('.root-package-link') as HTMLElement | null;
+    if (rootLink) {
+      event.preventDefault();
+      activateRootPackageLink(rootLink);
+      return;
+    }
+    const copyButton = target.closest('.copy-json-btn') as HTMLButtonElement | null;
+    if (copyButton) {
+      event.preventDefault();
+      void copyRawJson(copyButton);
+    }
+  });
+
+  container.addEventListener('keydown', (event) => {
+    const target = event.target as HTMLElement;
+    const rootLink = target.closest('.root-package-link') as HTMLElement | null;
+    if (!rootLink) return;
+    if (event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      activateRootPackageLink(rootLink);
+    }
   });
   
   renderList();

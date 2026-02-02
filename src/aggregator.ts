@@ -65,14 +65,16 @@ async function getGitBranch(projectPath: string): Promise<string | undefined> {
 }
 
 
-function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any): string[] {
+type RootPackageRef = { name: string; version: string };
+
+function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any): RootPackageRef[] {
   // If it's a direct dependency, it's its own root cause
   if (isDirectDependency(node.name, pkg)) {
-    return [node.name];
+    return [{ name: node.name, version: node.version }];
   }
   
   // BFS up the parent chain to find all direct dependencies that lead to this
-  const rootCauses = new Set<string>();
+  const rootCauses = new Map<string, RootPackageRef>();
   const visited = new Set<string>();
   const queue = [...node.parents];
   
@@ -85,7 +87,7 @@ function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any
     if (!parent) continue;
     
     if (isDirectDependency(parent.name, pkg)) {
-      rootCauses.add(parent.name);
+      rootCauses.set(parent.key, { name: parent.name, version: parent.version });
     } else {
       // Keep going up the chain
       for (const grandparent of parent.parents) {
@@ -96,7 +98,11 @@ function findRootCauses(node: NodeInfo, nodeMap: Map<string, NodeInfo>, pkg: any
     }
   }
   
-  return Array.from(rootCauses).sort();
+  return Array.from(rootCauses.values()).sort((a, b) => {
+    const nameCompare = a.name.localeCompare(b.name);
+    if (nameCompare !== 0) return nameCompare;
+    return a.version.localeCompare(b.version);
+  });
 }
 
 function formatProjectDir(projectPath: string): string {
@@ -742,13 +748,13 @@ function directScopeFromPackage(name: string, pkg: any): DependencyScope | undef
   return undefined;
 }
 
-function determineScope(name: string, direct: boolean, rootCauses: string[], pkg: any): DependencyScope {
+function determineScope(name: string, direct: boolean, rootCauses: RootPackageRef[], pkg: any): DependencyScope {
   if (direct) {
     return directScopeFromPackage(name, pkg) || 'runtime';
   }
   const scopes = new Set<DependencyScope>();
   for (const root of rootCauses) {
-    const scope = directScopeFromPackage(root, pkg);
+    const scope = directScopeFromPackage(root.name, pkg);
     if (scope) scopes.add(scope);
   }
   if (scopes.has('runtime')) return 'runtime';
@@ -759,12 +765,12 @@ function determineScope(name: string, direct: boolean, rootCauses: string[], pkg
 }
 
 function buildOrigins(
-  rootCauses: string[],
+  rootCauses: RootPackageRef[],
   workspaceList: string[] | undefined,
   workspaceEnabled: boolean,
   maxTop: number
-): { rootPackageCount: number; topRootPackages: string[]; workspaces?: string[] } {
-  const origins: { rootPackageCount: number; topRootPackages: string[]; workspaces?: string[] } = {
+): { rootPackageCount: number; topRootPackages: RootPackageRef[]; workspaces?: string[] } {
+  const origins: { rootPackageCount: number; topRootPackages: RootPackageRef[]; workspaces?: string[] } = {
     rootPackageCount: rootCauses.length,
     topRootPackages: rootCauses.slice(0, maxTop)
   };
@@ -853,14 +859,15 @@ function isFrameworkPackage(name: string): boolean {
 // Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
 function determineIntroduction(
   direct: boolean,
-  rootCauses: string[],
+  rootCauses: RootPackageRef[],
   runtimeImpact: DependencyRecord['usage']['runtimeImpact']
 ): DependencyRecord['usage']['introduction'] {
+  const rootNames = rootCauses.map((root) => root.name);
   if (direct) return 'direct';
   if (runtimeImpact === 'testing') return 'testing';
-  if (rootCauses.length > 0 && rootCauses.every((root) => isToolingPackage(root))) return 'tooling';
-  if (rootCauses.some((root) => isFrameworkPackage(root))) return 'framework';
-  if (rootCauses.length > 0) return 'transitive';
+  if (rootNames.length > 0 && rootNames.every((root) => isToolingPackage(root))) return 'tooling';
+  if (rootNames.some((root) => isFrameworkPackage(root))) return 'framework';
+  if (rootNames.length > 0) return 'transitive';
   return 'unknown';
 }
 
