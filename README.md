@@ -53,10 +53,10 @@ Keep the temporary `.dependency-radar` folder for debugging raw tool outputs:
 npx dependency-radar --keep-temp
 ```
 
-Skip `npm audit` (useful for offline scans):
+Skip `npm audit` and `npm outdated` (useful for offline scans):
 
 ```bash
-npx dependency-radar --no-audit
+npx dependency-radar --offline
 ```
 
 Output JSON instead of HTML report:
@@ -81,7 +81,7 @@ npx dependency-radar --help
 
 - The target project must have node_modules installed (run npm install first).
 - The scan is local-first and does not upload your code or dependencies anywhere.
-- `npm audit` performs registry lookups; use `--no-audit` for offline-only scans.
+- `npm audit` and `npm outdated` perform registry lookups; use `--offline` for offline-only scans.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
 - If a tool fails, its section is marked as unavailable, but the report is still generated.

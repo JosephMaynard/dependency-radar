@@ -494,6 +494,7 @@ function parseArgs(argv) {
         out: 'dependency-radar.html',
         keepTemp: false,
         audit: true,
+        outdated: true,
         json: false,
         open: false
     };
@@ -511,8 +512,10 @@ function parseArgs(argv) {
             opts.out = args.shift();
         else if (arg === '--keep-temp')
             opts.keepTemp = true;
-        else if (arg === '--no-audit')
+        else if (arg === '--offline') {
             opts.audit = false;
+            opts.outdated = false;
+        }
         else if (arg === '--json')
             opts.json = true;
         else if (arg === '--open')
@@ -534,7 +537,7 @@ Options:
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
-  --no-audit         Skip npm audit (useful for offline scans)
+  --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default
 `);
 }
@@ -624,7 +627,7 @@ async function run() {
                 opts.audit ? (0, npmAudit_1.runNpmAudit)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
-                (0, npmOutdated_1.runNpmOutdated)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) }))
+                opts.outdated ? (0, npmOutdated_1.runNpmOutdated)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined)
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
@@ -673,17 +676,17 @@ async function run() {
             await (0, report_1.renderReport)(aggregated, outputPath);
         }
         stopSpinner(true);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
         console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
         const isCI = process.env.CI === 'true';
         if (opts.open && !isCI) {
-            console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default…`);
+            console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
             openInBrowser(outputPath);
         }
         else if (opts.open && isCI) {
             console.log('Skipping auto-open in CI environment.');
         }
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
     }
     catch (err) {
         stopSpinner(false);

@@ -510,6 +510,7 @@ interface CliOptions {
   out: string;
   keepTemp: boolean;
   audit: boolean;
+  outdated: boolean;
   json: boolean;
   open: boolean;
 }
@@ -521,6 +522,7 @@ function parseArgs(argv: string[]): CliOptions {
     out: 'dependency-radar.html',
     keepTemp: false,
     audit: true,
+    outdated: true,
     json: false,
     open: false
   };
@@ -536,7 +538,10 @@ function parseArgs(argv: string[]): CliOptions {
     if (arg === '--project' && args[0]) opts.project = args.shift()!;
     else if (arg === '--out' && args[0]) opts.out = args.shift()!;
     else if (arg === '--keep-temp') opts.keepTemp = true;
-    else if (arg === '--no-audit') opts.audit = false;
+    else if (arg === '--offline') {
+      opts.audit = false;
+      opts.outdated = false;
+    }
     else if (arg === '--json') opts.json = true;
     else if (arg === '--open') opts.open = true;
     else if (arg === '--help' || arg === '-h') {
@@ -558,7 +563,7 @@ Options:
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
-  --no-audit         Skip npm audit (useful for offline scans)
+  --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default
 `);
 }
@@ -657,7 +662,7 @@ async function run(): Promise<void> {
         opts.audit ? runNpmAudit(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
         runNpmLs(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
         runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
-        runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
+        opts.outdated ? runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined)
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
@@ -712,16 +717,16 @@ async function run(): Promise<void> {
       await renderReport(aggregated, outputPath);
     }
     stopSpinner(true);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
     console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
     const isCI = process.env.CI === 'true';
     if (opts.open && !isCI) {
-      console.log(`↗ Opening ${path.basename(outputPath)} using system default…`);
+      console.log(`↗ Opening ${path.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
       openInBrowser(outputPath);
     } else if (opts.open && isCI) {
       console.log('Skipping auto-open in CI environment.');
     }
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
   } catch (err: any) {
     stopSpinner(false);
     console.error('Failed to generate report:', err);
