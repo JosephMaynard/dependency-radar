@@ -173,7 +173,9 @@ export interface DependencyRecord {
     depth: number; // Minimum dependency tree depth observed in npm ls
     origins: {
       rootPackageCount: number; // Number of direct roots that introduce this dependency
-      topRootPackages: string[]; // Up to 10 root package names that cause installation
+      topRootPackages: Array<{ name: string; version: string }>; // Up to 10 root packages (name/version)
+      parentPackageCount: number; // Number of direct parents
+      topParentPackages: string[]; // Up to 5 direct parent ids (name@version)
       workspaces?: string[]; // Workspace packages that declare/use this dependency
     };
     introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown'; // Heuristic for why the dependency exists
