@@ -667,6 +667,9 @@ async function run() {
     const rootPkg = await readJsonFile(path_1.default.join(projectPath, 'package.json'));
     const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
     const scanManager = await detectScanManager(projectPath, packageManager);
+    const packageManagerField = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === 'string'
+        ? rootPkg.packageManager.trim()
+        : undefined;
     const [npmVersion, pnpmVersion, yarnVersion] = await Promise.all([
         getToolVersion('npm', projectPath),
         getToolVersion('pnpm', projectPath),
@@ -696,7 +699,11 @@ async function run() {
     }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === 'none' ? 'Single project' : `${workspace.type.toUpperCase()} workspace`;
-    const stopSpinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
+    console.log(`✔ ${workspaceLabel} detected`);
+    if (workspace.type !== 'none' && scanManager !== workspace.type) {
+        console.log(`✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`);
+    }
+    const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
         // Run tools per package for best coverage.
@@ -706,6 +713,7 @@ async function run() {
         const perPackageImportGraph = [];
         const perPackageOutdated = [];
         for (const meta of packageMetas) {
+            spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
             const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
             await (0, utils_1.ensureDir)(pkgTempDir);
             const [a, l, ig, o] = await Promise.all([
@@ -720,6 +728,24 @@ async function run() {
             perPackageLs.push(l);
             perPackageImportGraph.push(ig);
             perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
+        }
+        if (opts.audit) {
+            const auditOk = perPackageAudit.every((r) => r && r.ok);
+            if (auditOk) {
+                spinner.log(`✔ ${scanManager.toUpperCase()} audit data collected`);
+            }
+            else {
+                spinner.log(`✖ ${scanManager.toUpperCase()} audit data unavailable`);
+            }
+        }
+        if (opts.outdated) {
+            const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
+            if (outdatedOk) {
+                spinner.log(`✔ ${scanManager.toUpperCase()} outdated data collected`);
+            }
+            else {
+                spinner.log(`✖ ${scanManager.toUpperCase()} outdated data unavailable`);
+            }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedGraphData = workspace.type === 'none'
@@ -737,7 +763,7 @@ async function run() {
         const lsFailure = perPackageLs.find((r) => r && !r.ok);
         const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
         if (auditFailure) {
-            console.warn(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
+            spinner.log(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
         }
         if (lsFailure || importFailure) {
             const err = lsFailure || importFailure;
@@ -757,6 +783,10 @@ async function run() {
             workspacePackageCount: packagePaths.length,
             packageManager: scanManager,
             packageManagerVersion,
+            packageManagerField,
+            platform: process.platform,
+            arch: process.arch,
+            ci: process.env.CI === 'true',
             ...(toolVersions ? { toolVersions } : {})
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
@@ -770,10 +800,10 @@ async function run() {
         else {
             await (0, report_1.renderReport)(aggregated, outputPath);
         }
-        stopSpinner(true);
+        spinner.stop(true);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
+        console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
+        console.log(`✔ ${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
         const isCI = process.env.CI === 'true';
         if (opts.open && !isCI) {
             console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
@@ -784,7 +814,7 @@ async function run() {
         }
     }
     catch (err) {
-        stopSpinner(false);
+        spinner.stop(false);
         console.error('Failed to generate report:', err);
         process.exit(1);
     }
@@ -793,7 +823,7 @@ async function run() {
             await (0, utils_1.removeDir)(tempDir);
         }
         else {
-            console.log(`Temporary data kept at ${tempDir}`);
+            console.log(`✔ Temporary data kept at ${tempDir}`);
         }
     }
     // Always show CTA as the last output
@@ -804,17 +834,33 @@ run();
 function startSpinner(text) {
     const frames = ['|', '/', '-', '\\'];
     let i = 0;
-    process.stdout.write(`${frames[i]} ${text}`);
+    let currentText = text;
+    process.stdout.write(`${frames[i]} ${currentText}`);
     const timer = setInterval(() => {
         i = (i + 1) % frames.length;
-        process.stdout.write(`\r${frames[i]} ${text}`);
+        process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
     }, 120);
     let stopped = false;
-    return (success = true) => {
+    const stop = (success = true) => {
         if (stopped)
             return;
         stopped = true;
         clearInterval(timer);
-        process.stdout.write(`\r${success ? '✔' : '✖'} ${text}\n`);
+        process.stdout.write(`\r\x1b[K${success ? '✔' : '✖'} ${currentText}\n`);
     };
+    const update = (nextText) => {
+        if (stopped)
+            return;
+        currentText = nextText;
+        process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
+    };
+    const log = (line) => {
+        if (stopped) {
+            process.stdout.write(`${line}\n`);
+            return;
+        }
+        process.stdout.write(`\r\x1b[K${line}\n`);
+        process.stdout.write(`${frames[i]} ${currentText}`);
+    };
+    return { stop, update, log };
 }

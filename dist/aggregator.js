@@ -198,6 +198,10 @@ async function aggregateData(input) {
             nodeVersion,
             runtimeVersion,
             minRequiredMajor: minRequiredMajor !== null && minRequiredMajor !== void 0 ? minRequiredMajor : 0,
+            ...(input.platform ? { platform: input.platform } : {}),
+            ...(input.arch ? { arch: input.arch } : {}),
+            ...(typeof input.ci === 'boolean' ? { ci: input.ci } : {}),
+            ...(input.packageManagerField ? { packageManagerField: input.packageManagerField } : {}),
             ...(input.packageManager ? { packageManager: input.packageManager } : {}),
             ...(input.packageManagerVersion ? { packageManagerVersion: input.packageManagerVersion } : {}),
             ...(input.toolVersions ? { toolVersions: input.toolVersions } : {})

@@ -154,6 +154,10 @@ export interface AggregatedData {
     nodeVersion: string;
     runtimeVersion: string;
     minRequiredMajor: number;
+    platform?: string;
+    arch?: string;
+    ci?: boolean;
+    packageManagerField?: string;
     packageManager?: PackageManager;
     packageManagerVersion?: string;
     toolVersions?: {

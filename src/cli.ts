@@ -39,6 +39,10 @@ function normalizeSlashes(p: string): string {
   return p.split(path.sep).join('/');
 }
 
+function isCI(): boolean {
+  return process.env.CI === 'true' || process.env.CI === 'TRUE' || process.env.CI === '1'
+}
+
 async function listDirs(parent: string): Promise<string[]> {
   const entries = await fs.readdir(parent, { withFileTypes: true }).catch(() => [] as any);
   return (entries as any[])
@@ -693,6 +697,9 @@ async function run(): Promise<void> {
   const rootPkg = await readJsonFile(path.join(projectPath, 'package.json'));
   const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
   const scanManager = await detectScanManager(projectPath, packageManager);
+  const packageManagerField = typeof rootPkg?.packageManager === 'string'
+    ? rootPkg.packageManager.trim()
+    : undefined;
   const [npmVersion, pnpmVersion, yarnVersion] = await Promise.all([
     getToolVersion('npm', projectPath),
     getToolVersion('pnpm', projectPath),
@@ -723,7 +730,11 @@ async function run(): Promise<void> {
 
   const packagePaths = workspace.packagePaths;
   const workspaceLabel = workspace.type === 'none' ? 'Single project' : `${workspace.type.toUpperCase()} workspace`;
-  const stopSpinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
+  console.log(`✔ ${workspaceLabel} detected`);
+  if (workspace.type !== 'none' && scanManager !== workspace.type) {
+    console.log(`✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`);
+  }
+  const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
   try {
     await ensureDir(tempDir);
 
@@ -736,6 +747,7 @@ async function run(): Promise<void> {
     const perPackageOutdated: OutdatedAttempt[] = [];
 
     for (const meta of packageMetas) {
+      spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
       const pkgTempDir = path.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
       await ensureDir(pkgTempDir);
       const [a, l, ig, o] = await Promise.all([
@@ -750,6 +762,23 @@ async function run(): Promise<void> {
       perPackageLs.push(l);
       perPackageImportGraph.push(ig);
       perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
+    }
+
+    if (opts.audit) {
+      const auditOk = perPackageAudit.every((r) => r && r.ok);
+      if (auditOk) {
+        spinner.log(`✔ ${scanManager.toUpperCase()} audit data collected`);
+      } else {
+        spinner.log(`✖ ${scanManager.toUpperCase()} audit data unavailable`);
+      }
+    }
+    if (opts.outdated) {
+      const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
+      if (outdatedOk) {
+        spinner.log(`✔ ${scanManager.toUpperCase()} outdated data collected`);
+      } else {
+        spinner.log(`✖ ${scanManager.toUpperCase()} outdated data unavailable`);
+      }
     }
 
     const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
@@ -771,7 +800,7 @@ async function run(): Promise<void> {
     const lsFailure = perPackageLs.find((r) => r && !r.ok);
     const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
     if (auditFailure) {
-      console.warn(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
+      spinner.log(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
     }
     if (lsFailure || importFailure) {
       const err = lsFailure || importFailure;
@@ -792,6 +821,10 @@ async function run(): Promise<void> {
       workspacePackageCount: packagePaths.length,
       packageManager: scanManager,
       packageManagerVersion,
+      packageManagerField,
+      platform: process.platform,
+      arch: process.arch,
+      ci: isCI(),
       ...(toolVersions ? { toolVersions } : {})
     });
     dependencyCount = Object.keys(aggregated.dependencies).length;
@@ -806,27 +839,27 @@ async function run(): Promise<void> {
     } else {
       await renderReport(aggregated, outputPath);
     }
-    stopSpinner(true);
+    spinner.stop(true);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-    console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
-    const isCI = process.env.CI === 'true';
-    if (opts.open && !isCI) {
-      console.log(`↗ Opening ${path.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
-      openInBrowser(outputPath);
-    } else if (opts.open && isCI) {
-      console.log('Skipping auto-open in CI environment.');
-    }
+    console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
+    console.log(`✔ ${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
   } catch (err: any) {
-    stopSpinner(false);
+    spinner.stop(false);
     console.error('Failed to generate report:', err);
     process.exit(1);
   } finally {
     if (!opts.keepTemp) {
       await removeDir(tempDir);
     } else {
-      console.log(`Temporary data kept at ${tempDir}`);
+      console.log(`✔ Temporary data kept at ${tempDir}`);
     }
+  }
+
+  if (opts.open && !isCI()) {
+    console.log(`↗ Opening ${path.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
+    openInBrowser(outputPath);
+  } else if (opts.open && isCI()) {
+    console.log('✖ Skipping auto-open in CI environment.');
   }
   
   // Always show CTA as the last output
@@ -838,21 +871,39 @@ async function run(): Promise<void> {
 
 run();
 
-function startSpinner(text: string): (success?: boolean) => void {
+function startSpinner(text: string): { stop: (success?: boolean) => void; update: (nextText: string) => void; log: (line: string) => void } {
   const frames = ['|', '/', '-', '\\'];
   let i = 0;
-  process.stdout.write(`${frames[i]} ${text}`);
+  let currentText = text;
+  process.stdout.write(`${frames[i]} ${currentText}`);
   const timer = setInterval(() => {
     i = (i + 1) % frames.length;
-    process.stdout.write(`\r${frames[i]} ${text}`);
+    process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
   }, 120);
 
   let stopped = false;
 
-  return (success = true) => {
+  const stop = (success = true) => {
     if (stopped) return;
     stopped = true;
     clearInterval(timer);
-    process.stdout.write(`\r${success ? '✔' : '✖'} ${text}\n`);
+    process.stdout.write(`\r\x1b[K${success ? '✔' : '✖'} ${currentText}\n`);
   };
+
+  const update = (nextText: string) => {
+    if (stopped) return;
+    currentText = nextText;
+    process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
+  };
+
+  const log = (line: string) => {
+    if (stopped) {
+      process.stdout.write(`${line}\n`);
+      return;
+    }
+    process.stdout.write(`\r\x1b[K${line}\n`);
+    process.stdout.write(`${frames[i]} ${currentText}`);
+  };
+
+  return { stop, update, log };
 }
