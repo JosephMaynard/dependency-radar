@@ -669,7 +669,10 @@ async function run(): Promise<void> {
         opts.audit ? runNpmAudit(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
         runNpmLs(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
         runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
-        opts.outdated ? runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined)
+        // TODO: Add pnpm/yarn-specific outdated runners to avoid npm-only assumptions.
+        opts.outdated && packageManager === 'npm'
+          ? runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
+          : Promise.resolve(undefined)
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
