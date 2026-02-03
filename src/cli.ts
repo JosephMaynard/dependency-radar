@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from 'path';
-import { spawn } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 import { platform } from 'os';
 import { aggregateData } from './aggregator';
 import { runImportGraph } from './runners/importGraphRunner';
@@ -578,7 +578,7 @@ Options:
 
 function openInBrowser(filePath: string): void {
   const normalizedPath = filePath.replace(/\\/g, '/');
-  let child;
+  let child: ChildProcess;
 
   switch (platform()) {
     case 'darwin':
