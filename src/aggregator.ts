@@ -5,6 +5,7 @@ import {
   ExecutionSignal,
   OutdatedResult,
   OutdatedStatus,
+  PackageManager,
   Severity,
   ToolResult,
   VulnerabilityAdvisory,
@@ -36,9 +37,9 @@ interface AggregateInput {
   // Paths to resolve dependency package.json from (workspace package roots, etc.)
   resolvePaths?: string[];
   workspaceEnabled: boolean;
-  workspaceType?: 'npm' | 'pnpm' | 'yarn' | 'none';
+  workspaceType?: PackageManager | 'none';
   workspacePackageCount?: number;
-  packageManager?: 'npm' | 'pnpm' | 'yarn';
+  packageManager?: PackageManager;
   packageManagerVersion?: string;
   packageManagerField?: string;
   platform?: string;
