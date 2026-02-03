@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const path_1 = __importDefault(require("path"));
+const child_process_1 = require("child_process");
+const os_1 = require("os");
 const aggregator_1 = require("./aggregator");
 const importGraphRunner_1 = require("./runners/importGraphRunner");
 const npmAudit_1 = require("./runners/npmAudit");
@@ -88,6 +90,7 @@ async function readJsonFile(filePath) {
 async function detectWorkspace(projectPath) {
     const rootPkgPath = path_1.default.join(projectPath, 'package.json');
     const rootPkg = await readJsonFile(rootPkgPath);
+    const inferredManager = inferPackageManager(rootPkg);
     const pnpmWorkspacePath = path_1.default.join(projectPath, 'pnpm-workspace.yaml');
     const hasPnpmWorkspace = await pathExists(pnpmWorkspacePath);
     let type = 'none';
@@ -120,7 +123,7 @@ async function detectWorkspace(projectPath) {
     }
     // npm/yarn workspaces
     if (type === 'none' && rootPkg && rootPkg.workspaces) {
-        type = 'npm';
+        type = inferredManager || 'npm';
         if (Array.isArray(rootPkg.workspaces))
             patterns = rootPkg.workspaces;
         else if (Array.isArray(rootPkg.workspaces.packages))
@@ -164,6 +167,37 @@ async function detectWorkspace(projectPath) {
     }
     return { type, packagePaths: packagePaths.sort() };
 }
+function inferPackageManager(rootPkg) {
+    const raw = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === 'string' ? rootPkg.packageManager.trim() : '';
+    if (!raw)
+        return undefined;
+    if (raw.startsWith('pnpm@') || raw === 'pnpm')
+        return 'pnpm';
+    if (raw.startsWith('yarn@') || raw === 'yarn')
+        return 'yarn';
+    if (raw.startsWith('npm@') || raw === 'npm')
+        return 'npm';
+    return undefined;
+}
+async function detectPackageManager(projectPath, rootPkg, workspaceType) {
+    const inferred = inferPackageManager(rootPkg);
+    if (inferred)
+        return inferred;
+    if (workspaceType === 'pnpm' || workspaceType === 'yarn')
+        return workspaceType;
+    const yarnrc = path_1.default.join(projectPath, '.yarnrc.yml');
+    if (await pathExists(yarnrc)) {
+        const y = await promises_1.default.readFile(yarnrc, 'utf8');
+        if (/nodeLinker\s*:\s*pnp/.test(y)) {
+            return 'yarn';
+        }
+    }
+    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.pnpm')))
+        return 'pnpm';
+    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.yarn-state.yml')))
+        return 'yarn';
+    return 'npm';
+}
 async function readWorkspacePackageMeta(rootPath, packagePaths) {
     const out = [];
     for (const p of packagePaths) {
@@ -174,13 +208,15 @@ async function readWorkspacePackageMeta(rootPath, packagePaths) {
     return out;
 }
 function mergeDepsFromWorkspace(pkgs) {
-    var _a, _b;
-    const merged = { dependencies: {}, devDependencies: {} };
+    var _a, _b, _c;
+    const merged = { dependencies: {}, devDependencies: {}, optionalDependencies: {} };
     for (const entry of pkgs) {
         const deps = ((_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
         const dev = ((_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
+        const opt = ((_c = entry.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
         Object.assign(merged.dependencies, deps);
         Object.assign(merged.devDependencies, dev);
+        Object.assign(merged.optionalDependencies, opt);
     }
     return merged;
 }
@@ -373,8 +409,8 @@ function mergeImportGraphs(rootPath, packageMetas, graphs) {
     }
     return { files, packages, packageCounts, unresolvedImports };
 }
-function buildWorkspaceUsageMap(packageMetas, npmLsDatas) {
-    var _a, _b;
+function buildWorkspaceUsageMap(packageMetas, dependencyGraphs) {
+    var _a, _b, _c, _d;
     const usage = new Map();
     const add = (depName, pkgName) => {
         if (!depName)
@@ -388,8 +424,20 @@ function buildWorkspaceUsageMap(packageMetas, npmLsDatas) {
         const pkgName = meta.name;
         const deps = ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
         const dev = ((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
-        Object.keys(deps).forEach((d) => add(d, pkgName));
-        Object.keys(dev).forEach((d) => add(d, pkgName));
+        const opt = ((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
+        const peer = ((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies) || {};
+        Object.keys(deps).forEach((d) => {
+            add(d, pkgName);
+        });
+        Object.keys(dev).forEach((d) => {
+            add(d, pkgName);
+        });
+        Object.keys(opt).forEach((d) => {
+            add(d, pkgName);
+        });
+        Object.keys(peer).forEach((d) => {
+            add(d, pkgName);
+        });
     }
     // From npm ls trees (transitives)
     const walk = (node, pkgName) => {
@@ -406,8 +454,8 @@ function buildWorkspaceUsageMap(packageMetas, npmLsDatas) {
             }
         }
     };
-    for (let i = 0; i < npmLsDatas.length; i++) {
-        const data = npmLsDatas[i];
+    for (let i = 0; i < dependencyGraphs.length; i++) {
+        const data = dependencyGraphs[i];
         const meta = packageMetas[i];
         if (!data || typeof data !== 'object')
             continue;
@@ -425,13 +473,13 @@ function buildWorkspaceUsageMap(packageMetas, npmLsDatas) {
     }
     return out;
 }
-function buildCombinedNpmLs(rootPath, packageMetas, npmLsDatas) {
+function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) {
     var _a;
     // Build a synthetic root with each workspace package as a top-level node.
     // This avoids object-key collisions for normal packages and preserves per-package roots.
     const dependencies = {};
-    for (let i = 0; i < npmLsDatas.length; i++) {
-        const data = npmLsDatas[i];
+    for (let i = 0; i < dependencyGraphs.length; i++) {
+        const data = dependencyGraphs[i];
         const meta = packageMetas[i];
         if (!meta)
             continue;
@@ -454,7 +502,9 @@ function parseArgs(argv) {
         out: 'dependency-radar.html',
         keepTemp: false,
         audit: true,
-        json: false
+        outdated: true,
+        json: false,
+        open: false
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith('-')) {
@@ -470,10 +520,14 @@ function parseArgs(argv) {
             opts.out = args.shift();
         else if (arg === '--keep-temp')
             opts.keepTemp = true;
-        else if (arg === '--no-audit')
+        else if (arg === '--offline') {
             opts.audit = false;
+            opts.outdated = false;
+        }
         else if (arg === '--json')
             opts.json = true;
+        else if (arg === '--open')
+            opts.open = true;
         else if (arg === '--help' || arg === '-h') {
             printHelp();
             process.exit(0);
@@ -491,8 +545,28 @@ Options:
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
-  --no-audit         Skip npm audit (useful for offline scans)
+  --offline          Skip npm audit and npm outdated (useful for offline scans)
+  --open             Open the generated report using the system default application
 `);
+}
+function openInBrowser(filePath) {
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    let child;
+    switch ((0, os_1.platform)()) {
+        case 'darwin':
+            child = (0, child_process_1.spawn)('open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
+            break;
+        case 'win32':
+            child = (0, child_process_1.spawn)('cmd', ['/c', 'start', '', normalizedPath], { stdio: 'ignore', shell: false, detached: true });
+            break;
+        default:
+            child = (0, child_process_1.spawn)('xdg-open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
+            break;
+    }
+    child.on('error', (err) => {
+        console.warn('Could not open report:', err.message);
+    });
+    child.unref();
 }
 async function run() {
     const opts = parseArgs(process.argv.slice(2));
@@ -528,6 +602,20 @@ async function run() {
         process.exit(1);
         return;
     }
+    const rootPkg = await readJsonFile(path_1.default.join(projectPath, 'package.json'));
+    const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
+    if (packageManager === 'yarn') {
+        const yarnrc = path_1.default.join(projectPath, '.yarnrc.yml');
+        if (await pathExists(yarnrc)) {
+            const y = await promises_1.default.readFile(yarnrc, 'utf8');
+            if (/nodeLinker\s*:\s*pnp/.test(y)) {
+                console.error('Yarn Plug\'n\'Play (nodeLinker: pnp) detected. This is not supported yet.');
+                console.error('Switch to nodeLinker: node-modules or run in a non-PnP environment.');
+                process.exit(1);
+                return;
+            }
+        }
+    }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === 'none' ? 'Single project' : `${workspace.type.toUpperCase()} workspace`;
     const stopSpinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
@@ -544,9 +632,9 @@ async function run() {
             await (0, utils_1.ensureDir)(pkgTempDir);
             const [a, l, ig, o] = await Promise.all([
                 opts.audit ? (0, npmAudit_1.runNpmAudit)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined),
-                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
+                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
-                (0, npmOutdated_1.runNpmOutdated)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) }))
+                opts.outdated ? (0, npmOutdated_1.runNpmOutdated)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined)
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
@@ -554,14 +642,14 @@ async function run() {
             perPackageOutdated.push(o);
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
-        const mergedLsData = workspace.type === 'none'
+        const mergedGraphData = workspace.type === 'none'
             ? (perPackageLs[0] && perPackageLs[0].ok ? perPackageLs[0].data : undefined)
-            : buildCombinedNpmLs(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+            : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
         const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const outdatedResult = mergeOutdatedResults(packageMetas, perPackageOutdated);
         const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
-        const npmLsResult = { ok: true, data: mergedLsData };
+        const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
         // Build a merged package.json view for aggregator direct-dep checks.
         const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas);
@@ -595,9 +683,17 @@ async function run() {
             await (0, report_1.renderReport)(aggregated, outputPath);
         }
         stopSpinner(true);
-        console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
+        console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
+        const isCI = process.env.CI === 'true';
+        if (opts.open && !isCI) {
+            console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
+            openInBrowser(outputPath);
+        }
+        else if (opts.open && isCI) {
+            console.log('Skipping auto-open in CI environment.');
+        }
     }
     catch (err) {
         stopSpinner(false);

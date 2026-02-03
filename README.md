@@ -53,16 +53,22 @@ Keep the temporary `.dependency-radar` folder for debugging raw tool outputs:
 npx dependency-radar --keep-temp
 ```
 
-Skip `npm audit` (useful for offline scans):
+Skip `npm audit` and `npm outdated` (useful for offline scans):
 
 ```bash
-npx dependency-radar --no-audit
+npx dependency-radar --offline
 ```
 
 Output JSON instead of HTML report:
 
 ```bash
 npx dependency-radar --json
+```
+
+Open the generated report using the system default:
+
+```bash
+npx dependency-radar --open
 ```
 
 Show options:
@@ -81,7 +87,7 @@ npx dependency-radar --help
 
 - The target project must have node_modules installed (run npm install first).
 - The scan is local-first and does not upload your code or dependencies anywhere.
-- `npm audit` performs registry lookups; use `--no-audit` for offline-only scans.
+- `npm audit` and `npm outdated` perform registry lookups; use `--offline` for offline-only scans.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
 - If a tool fails, its section is marked as unavailable, but the report is still generated.
@@ -173,7 +179,9 @@ export interface DependencyRecord {
     depth: number; // Minimum dependency tree depth observed in npm ls
     origins: {
       rootPackageCount: number; // Number of direct roots that introduce this dependency
-      topRootPackages: string[]; // Up to 10 root package names that cause installation
+      topRootPackages: Array<{ name: string; version: string }>; // Up to 10 root packages (name/version)
+      parentPackageCount: number; // Number of direct parents
+      topParentPackages: string[]; // Up to 5 direct parent ids (name@version)
       workspaces?: string[]; // Workspace packages that declare/use this dependency
     };
     introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown'; // Heuristic for why the dependency exists
@@ -187,11 +195,14 @@ export interface DependencyRecord {
   graph: {
     fanIn: number; // Number of packages that depend on this package
     fanOut: number; // Number of packages this package depends on
-    dependencySurface: {
-      deps: number; // Count of production dependencies declared by this package
-      dev: number; // Count of dev dependencies declared by this package
-      peer: number; // Count of peer dependencies declared by this package
-      opt: number; // Count of optional dependencies declared by this package
+    subDeps?: {
+      // Declared outgoing dependency edges; values are tuples.
+      // tuple[0] = declared version range, tuple[1] = resolved dependency id or null if not installed.
+      // Only installed dependencies have full dependency records in the top-level list.
+      dep?: Record<string, [string, string | null]>; // Declared runtime deps
+      dev?: Record<string, [string, string | null]>; // Declared dev deps
+      peer?: Record<string, [string, string | null]>; // Declared peer deps
+      opt?: Record<string, [string, string | null]>; // Declared optional deps
     };
   };
   execution?: {

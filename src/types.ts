@@ -17,17 +17,21 @@ export interface VulnerabilitySummary {
   advisories?: VulnerabilityAdvisory[];
 }
 
-export interface DependencySurface {
-  deps: number;
-  dev: number;
-  peer: number;
-  opt: number;
-}
-
 export interface DependencyOrigins {
   rootPackageCount: number;
   topRootPackages: Array<{ name: string; version: string }>;
+  parentPackageCount: number;
+  topParentPackages: string[];
   workspaces?: string[];
+}
+
+export type SubDependencyEntry = [string, string | null];
+
+export interface SubDependencyMap {
+  dep?: Record<string, SubDependencyEntry>;
+  dev?: Record<string, SubDependencyEntry>;
+  opt?: Record<string, SubDependencyEntry>;
+  peer?: Record<string, SubDependencyEntry>;
 }
 
 export type ExecutionHook = 'preinstall' | 'install' | 'postinstall' | 'prepare';
@@ -111,7 +115,7 @@ export interface DependencyRecord {
   graph: {
     fanIn: number;
     fanOut: number;
-    dependencySurface: DependencySurface;
+    subDeps?: SubDependencyMap;
   };
   execution?: DependencyExecutionInfo;
 }
@@ -136,7 +140,7 @@ export interface OutdatedResult {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.0';
+  schemaVersion: '1.1';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

@@ -1,7 +1,7 @@
 {
   "@types/node": {
     "current": "20.19.30",
-    "wanted": "20.19.30",
+    "wanted": "20.19.31",
     "latest": "25.2.0",
     "dependent": "dependency-radar",
     "location": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@types/node",

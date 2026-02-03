@@ -73,7 +73,7 @@ async function aggregateData(input) {
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
-    const nodeMap = buildNodeMap((_a = input.npmLsResult) === null || _a === void 0 ? void 0 : _a.data, pkg);
+    const nodeMap = buildNodeMap((_a = input.npmLsResult) === null || _a === void 0 ? void 0 : _a.data);
     const vulnMap = parseVulnerabilities((_b = input.auditResult) === null || _b === void 0 ? void 0 : _b.data);
     const importGraph = normalizeImportGraph((_c = input.importGraphResult) === null || _c === void 0 ? void 0 : _c.data);
     const usageResult = buildUsageSummary(importGraph, input.projectPath);
@@ -90,6 +90,7 @@ async function aggregateData(input) {
     const nodes = Array.from(nodeMap.values());
     let directCount = 0;
     const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
+    const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
     for (const node of nodes) {
         const direct = isDirectDependency(node.name, pkg);
         if (direct)
@@ -114,11 +115,13 @@ async function aggregateData(input) {
         const importUsage = usageResult.summary.get(node.name);
         const runtimeImpact = usageResult.runtimeImpact.get(node.name);
         const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
-        const origins = buildOrigins(rootCauses, (_e = input.workspaceUsage) === null || _e === void 0 ? void 0 : _e.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES);
+        const parentIds = Array.from(node.parents).sort();
+        const origins = buildOrigins(rootCauses, parentIds, (_e = input.workspaceUsage) === null || _e === void 0 ? void 0 : _e.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES, MAX_TOP_PARENT_PACKAGES);
         const execution = packageInsights.execution;
         const id = node.key;
         const upgrade = buildUpgradeBlock(packageInsights);
         const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
+        const subDeps = buildSubDeps(packageInsights.declaredDependencies, node);
         // Group fields by reviewer question to keep the JSON readable and source-agnostic.
         // Optional fields are only attached when meaningful to keep the payload sparse.
         const upgradeRecord = {
@@ -171,7 +174,7 @@ async function aggregateData(input) {
             graph: {
                 fanIn: node.parents.size,
                 fanOut: node.children.size,
-                dependencySurface: packageInsights.dependencySurface
+                ...(subDeps ? { subDeps } : {})
             },
             ...(execution ? { execution } : {})
         };
@@ -182,7 +185,7 @@ async function aggregateData(input) {
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
     return {
-        schemaVersion: '1.0',
+        schemaVersion: '1.1',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
@@ -269,7 +272,7 @@ function parseMajorFromToken(token) {
     const major = Number.parseInt(match[1], 10);
     return Number.isNaN(major) ? undefined : major;
 }
-function buildNodeMap(lsData, pkg) {
+function buildNodeMap(lsData) {
     const map = new Map();
     const traverse = (node, depth, parentKey, providedName) => {
         const nodeName = (node === null || node === void 0 ? void 0 : node.name) || providedName;
@@ -285,6 +288,7 @@ function buildNodeMap(lsData, pkg) {
                 depth,
                 parents: new Set(parentKey ? [parentKey] : []),
                 children: new Set(),
+                childByName: new Map(),
                 dev: node.dev
             });
         }
@@ -297,6 +301,8 @@ function buildNodeMap(lsData, pkg) {
                 existing.dev = node.dev;
             if (!existing.children)
                 existing.children = new Set();
+            if (!existing.childByName)
+                existing.childByName = new Map();
         }
         if (node.dependencies && typeof node.dependencies === 'object') {
             Object.entries(node.dependencies).forEach(([depName, child]) => {
@@ -305,6 +311,7 @@ function buildNodeMap(lsData, pkg) {
                 const current = map.get(key);
                 if (current) {
                     current.children.add(childKey);
+                    current.childByName.set(depName, childKey);
                 }
                 traverse(child, depth + 1, key, depName);
             });
@@ -312,20 +319,6 @@ function buildNodeMap(lsData, pkg) {
     };
     if (lsData && lsData.dependencies) {
         Object.entries(lsData.dependencies).forEach(([depName, child]) => traverse(child, 1, undefined, depName));
-    }
-    else {
-        const deps = Object.keys(pkg.dependencies || {});
-        const devDeps = Object.keys(pkg.devDependencies || {});
-        deps.forEach((name) => {
-            const version = pkg.dependencies[name];
-            const key = `${name}@${version}`;
-            map.set(key, { name, version, key, depth: 1, parents: new Set(), children: new Set(), dev: false });
-        });
-        devDeps.forEach((name) => {
-            const version = pkg.devDependencies[name];
-            const key = `${name}@${version}`;
-            map.set(key, { name, version, key, depth: 1, parents: new Set(), children: new Set(), dev: true });
-        });
     }
     return map;
 }
@@ -672,7 +665,9 @@ function buildUsageSummary(graph, projectPath) {
     return { summary, runtimeImpact };
 }
 function isDirectDependency(name, pkg) {
-    return Boolean((pkg.dependencies && pkg.dependencies[name]) || (pkg.devDependencies && pkg.devDependencies[name]));
+    return Boolean((pkg.dependencies && pkg.dependencies[name]) ||
+        (pkg.devDependencies && pkg.devDependencies[name]) ||
+        (pkg.optionalDependencies && pkg.optionalDependencies[name]));
 }
 function directScopeFromPackage(name, pkg) {
     if (pkg.dependencies && pkg.dependencies[name])
@@ -705,10 +700,37 @@ function determineScope(name, direct, rootCauses, pkg) {
         return 'peer';
     return 'runtime';
 }
-function buildOrigins(rootCauses, workspaceList, workspaceEnabled, maxTop) {
+function buildSubDeps(declared, node) {
+    const out = {};
+    const entries = [
+        ['dep', 'dep'],
+        ['dev', 'dev'],
+        ['opt', 'opt'],
+        ['peer', 'peer']
+    ];
+    for (const [declaredKey, outKey] of entries) {
+        const group = declared[declaredKey];
+        const names = Object.keys(group);
+        if (names.length === 0)
+            continue;
+        const bucket = {};
+        for (const name of names.sort()) {
+            const range = group[name];
+            const resolved = node.childByName.get(name) || null;
+            bucket[name] = [range, resolved];
+        }
+        if (Object.keys(bucket).length > 0) {
+            out[outKey] = bucket;
+        }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+}
+function buildOrigins(rootCauses, parentIds, workspaceList, workspaceEnabled, maxTopRoots, maxTopParents) {
     const origins = {
         rootPackageCount: rootCauses.length,
-        topRootPackages: rootCauses.slice(0, maxTop)
+        topRootPackages: rootCauses.slice(0, maxTopRoots),
+        parentPackageCount: parentIds.length,
+        topParentPackages: parentIds.slice(0, maxTopParents)
     };
     if (workspaceEnabled && workspaceList && workspaceList.length > 0) {
         origins.workspaces = workspaceList;
@@ -812,7 +834,7 @@ function buildUpgradeBlock(insights) {
     const blockers = [];
     if (insights.nodeEngine)
         blockers.push('nodeEngine');
-    if (insights.dependencySurface.peer > 0)
+    if (Object.keys(insights.declaredDependencies.peer).length > 0)
         blockers.push('peerDependency');
     if ((_a = insights.execution) === null || _a === void 0 ? void 0 : _a.native)
         blockers.push('nativeBindings');
@@ -832,18 +854,18 @@ async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
         return {
             deprecated: false,
             nodeEngine: null,
-            dependencySurface: { deps: 0, dev: 0, peer: 0, opt: 0 },
+            declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
             tsTypes: 'unknown'
         };
     }
     const pkg = (meta === null || meta === void 0 ? void 0 : meta.pkg) || {};
     const dir = meta === null || meta === void 0 ? void 0 : meta.dir;
     const stats = dir ? await calculatePackageStats(dir, statCache) : undefined;
-    const dependencySurface = {
-        deps: Object.keys(pkg.dependencies || {}).length,
-        dev: Object.keys(pkg.devDependencies || {}).length,
-        peer: Object.keys(pkg.peerDependencies || {}).length,
-        opt: Object.keys(pkg.optionalDependencies || {}).length
+    const declaredDependencies = {
+        dep: normalizeDeclaredDeps(pkg.dependencies),
+        dev: normalizeDeclaredDeps(pkg.devDependencies),
+        peer: normalizeDeclaredDeps(pkg.peerDependencies),
+        opt: normalizeDeclaredDeps(pkg.optionalDependencies)
     };
     const scripts = pkg.scripts || {};
     const deprecated = Boolean(pkg.deprecated);
@@ -859,11 +881,24 @@ async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
         deprecated,
         nodeEngine,
         description,
-        dependencySurface,
+        declaredDependencies,
         links,
         execution,
         tsTypes
     };
+}
+function normalizeDeclaredDeps(source) {
+    if (!source || typeof source !== 'object')
+        return {};
+    const out = {};
+    for (const [name, range] of Object.entries(source)) {
+        if (typeof name !== 'string' || !name.trim())
+            continue;
+        if (typeof range !== 'string' || !range.trim())
+            continue;
+        out[name] = range.trim();
+    }
+    return out;
 }
 async function loadPackageMeta(name, resolvePaths, cache) {
     if (cache.has(name))

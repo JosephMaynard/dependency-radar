@@ -67,6 +67,8 @@ export interface DependencyRecord {
       workspaces?: string[];
       rootPackageCount: number;
       topRootPackages: Array<{ name: string; version: string } | string>;
+      parentPackageCount: number;
+      topParentPackages: string[];
     };
     introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';
     runtimeImpact?: 'runtime' | 'build' | 'testing' | 'tooling' | 'mixed';
@@ -79,11 +81,11 @@ export interface DependencyRecord {
   graph: {
     fanIn: number;
     fanOut: number;
-    dependencySurface: {
-      deps: number;
-      dev: number;
-      peer: number;
-      opt: number;
+    subDeps?: {
+      dep?: Record<string, [string, string | null]>;
+      dev?: Record<string, [string, string | null]>;
+      opt?: Record<string, [string, string | null]>;
+      peer?: Record<string, [string, string | null]>;
     };
   };
   execution?: {
@@ -98,7 +100,7 @@ export interface DependencyRecord {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.0';
+  schemaVersion: '1.1';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

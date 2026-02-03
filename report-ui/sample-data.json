@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "generatedAt": "2026-01-28T00:00:00.000Z",
   "dependencyRadarVersion": "0.0.0",
   "git": {
@@ -61,19 +61,15 @@
               "name": "chalk",
               "version": "5.3.0"
             }
-          ]
+          ],
+          "parentPackageCount": 0,
+          "topParentPackages": []
         },
         "tsTypes": "bundled"
       },
       "graph": {
         "fanIn": 0,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "ansi-styles@6.2.1": {
@@ -127,19 +123,15 @@
               "name": "chalk",
               "version": "5.3.0"
             }
-          ]
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": ["chalk@5.3.0"]
         },
         "tsTypes": "none"
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "vite@5.4.21": {
@@ -197,7 +189,9 @@
               "name": "vite",
               "version": "5.4.21"
             }
-          ]
+          ],
+          "parentPackageCount": 0,
+          "topParentPackages": []
         },
         "introduction": "direct",
         "tsTypes": "bundled"
@@ -205,11 +199,19 @@
       "graph": {
         "fanIn": 0,
         "fanOut": 12,
-        "dependencySurface": {
-          "deps": 3,
-          "dev": 59,
-          "peer": 8,
-          "opt": 1
+        "subDeps": {
+          "dep": {
+            "esbuild": ["^0.21.0", "esbuild@0.21.5"]
+          },
+          "dev": {
+            "@types/node": ["^20.0.0", null]
+          },
+          "peer": {
+            "sass": ["^1.63.0", null]
+          },
+          "opt": {
+            "fsevents": ["~2.3.3", null]
+          }
         }
       }
     },
@@ -266,7 +268,9 @@
               "name": "vite",
               "version": "5.4.21"
             }
-          ]
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": ["vite@5.4.21"]
         },
         "introduction": "tooling",
         "tsTypes": "bundled"
@@ -274,11 +278,12 @@
       "graph": {
         "fanIn": 1,
         "fanOut": 23,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 23
+        "subDeps": {
+          "opt": {
+            "@esbuild/darwin-arm64": ["0.21.5", "@esbuild/darwin-arm64@0.21.5"],
+            "@esbuild/linux-x64": ["0.21.5", null],
+            "@esbuild/win32-x64": ["0.21.5", null]
+          }
         }
       },
       "execution": {
