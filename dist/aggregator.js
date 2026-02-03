@@ -185,7 +185,7 @@ async function aggregateData(input) {
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
     return {
-        schemaVersion: '1.1',
+        schemaVersion: '1.2',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
@@ -197,10 +197,21 @@ async function aggregateData(input) {
         environment: {
             nodeVersion,
             runtimeVersion,
-            minRequiredMajor: minRequiredMajor !== null && minRequiredMajor !== void 0 ? minRequiredMajor : 0
+            minRequiredMajor: minRequiredMajor !== null && minRequiredMajor !== void 0 ? minRequiredMajor : 0,
+            ...(input.platform ? { platform: input.platform } : {}),
+            ...(input.arch ? { arch: input.arch } : {}),
+            ...(typeof input.ci === 'boolean' ? { ci: input.ci } : {}),
+            ...(input.packageManagerField ? { packageManagerField: input.packageManagerField } : {}),
+            ...(input.packageManager ? { packageManager: input.packageManager } : {}),
+            ...(input.packageManagerVersion ? { packageManagerVersion: input.packageManagerVersion } : {}),
+            ...(input.toolVersions ? { toolVersions: input.toolVersions } : {})
         },
         workspaces: {
-            enabled: input.workspaceEnabled
+            enabled: input.workspaceEnabled,
+            ...(input.workspaceType ? { type: input.workspaceType } : {}),
+            ...(typeof input.workspacePackageCount === 'number'
+                ? { packageCount: input.workspacePackageCount }
+                : {})
         },
         summary: {
             dependencyCount,

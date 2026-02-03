@@ -87,6 +87,26 @@ async function readJsonFile(filePath) {
         return undefined;
     }
 }
+async function getToolVersion(tool, cwd) {
+    try {
+        const result = await (0, utils_1.runCommand)(tool, ['--version'], { cwd });
+        const raw = (result.stdout || '').trim();
+        if (!raw)
+            return undefined;
+        return raw.split(/\s+/)[0];
+    }
+    catch {
+        return undefined;
+    }
+}
+function compactToolVersions(versions) {
+    const out = {};
+    for (const [key, value] of Object.entries(versions)) {
+        if (value)
+            out[key] = value;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+}
 async function detectWorkspace(projectPath) {
     const rootPkgPath = path_1.default.join(projectPath, 'package.json');
     const rootPkg = await readJsonFile(rootPkgPath);
@@ -198,6 +218,21 @@ async function detectPackageManager(projectPath, rootPkg, workspaceType) {
         return 'yarn';
     return 'npm';
 }
+async function detectScanManager(projectPath, fallback) {
+    if (await pathExists(path_1.default.join(projectPath, 'pnpm-lock.yaml')))
+        return 'pnpm';
+    if (await pathExists(path_1.default.join(projectPath, 'yarn.lock')))
+        return 'yarn';
+    if (await pathExists(path_1.default.join(projectPath, 'package-lock.json')) ||
+        await pathExists(path_1.default.join(projectPath, 'npm-shrinkwrap.json'))) {
+        return 'npm';
+    }
+    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.pnpm')))
+        return 'pnpm';
+    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.yarn-state.yml')))
+        return 'yarn';
+    return fallback;
+}
 async function readWorkspacePackageMeta(rootPath, packagePaths) {
     const out = [];
     for (const p of packagePaths) {
@@ -271,6 +306,33 @@ function parseOutdatedData(data, unknownNames) {
     const entries = [];
     if (!data || typeof data !== 'object')
         return entries;
+    if (Array.isArray(data)) {
+        for (const entry of data) {
+            if (!entry || typeof entry !== 'object')
+                continue;
+            const name = typeof entry.name === 'string' ? entry.name : undefined;
+            const current = typeof entry.current === 'string' ? entry.current : '';
+            const latest = typeof entry.latest === 'string' ? entry.latest : undefined;
+            const type = typeof entry.type === 'string' ? entry.type.toLowerCase() : '';
+            if (!name || !current)
+                continue;
+            let status = 'unknown';
+            if (type === 'patch' || type === 'minor' || type === 'major') {
+                status = type;
+            }
+            else if (latest) {
+                status = classifyOutdated(current, latest);
+            }
+            if (status === 'current')
+                continue;
+            if (status === 'major' || status === 'minor' || status === 'patch') {
+                entries.push({ name, currentVersion: current, status, latestVersion: latest });
+                continue;
+            }
+            entries.push({ name, currentVersion: current, status: 'unknown' });
+        }
+        return entries;
+    }
     for (const [name, info] of Object.entries(data)) {
         if (!info || typeof info !== 'object') {
             unknownNames.add(name);
@@ -336,15 +398,15 @@ function classifyOutdated(current, latest) {
         return 'patch';
     return 'current';
 }
-function mergeOutdatedResults(packageMetas, results) {
+function mergeOutdatedResults(results) {
     const entries = [];
     const unknownNames = new Set();
     for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const meta = packageMetas[i];
+        const attempt = results[i];
+        if (!attempt.attempted)
+            continue;
+        const result = attempt.result;
         if (!result || !result.ok || !result.data || typeof result.data !== 'object') {
-            const declared = collectDeclaredDeps(meta === null || meta === void 0 ? void 0 : meta.pkg);
-            declared.forEach((name) => unknownNames.add(name));
             continue;
         }
         entries.push(...parseOutdatedData(result.data, unknownNames));
@@ -604,6 +666,25 @@ async function run() {
     }
     const rootPkg = await readJsonFile(path_1.default.join(projectPath, 'package.json'));
     const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
+    const scanManager = await detectScanManager(projectPath, packageManager);
+    const packageManagerField = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === 'string'
+        ? rootPkg.packageManager.trim()
+        : undefined;
+    const [npmVersion, pnpmVersion, yarnVersion] = await Promise.all([
+        getToolVersion('npm', projectPath),
+        getToolVersion('pnpm', projectPath),
+        getToolVersion('yarn', projectPath)
+    ]);
+    const toolVersions = compactToolVersions({
+        npm: npmVersion,
+        pnpm: pnpmVersion,
+        yarn: yarnVersion
+    });
+    const packageManagerVersion = scanManager === 'npm'
+        ? npmVersion
+        : scanManager === 'pnpm'
+            ? pnpmVersion
+            : yarnVersion;
     if (packageManager === 'yarn') {
         const yarnrc = path_1.default.join(projectPath, '.yarnrc.yml');
         if (await pathExists(yarnrc)) {
@@ -618,7 +699,11 @@ async function run() {
     }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === 'none' ? 'Single project' : `${workspace.type.toUpperCase()} workspace`;
-    const stopSpinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
+    console.log(`✔ ${workspaceLabel} detected`);
+    if (workspace.type !== 'none' && scanManager !== workspace.type) {
+        console.log(`✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`);
+    }
+    const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
         // Run tools per package for best coverage.
@@ -628,18 +713,39 @@ async function run() {
         const perPackageImportGraph = [];
         const perPackageOutdated = [];
         for (const meta of packageMetas) {
+            spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
             const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
             await (0, utils_1.ensureDir)(pkgTempDir);
             const [a, l, ig, o] = await Promise.all([
-                opts.audit ? (0, npmAudit_1.runNpmAudit)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined),
-                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) })),
+                opts.audit ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined),
+                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
-                opts.outdated ? (0, npmOutdated_1.runNpmOutdated)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined)
+                opts.outdated
+                    ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) }))
+                    : Promise.resolve(undefined)
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
             perPackageImportGraph.push(ig);
-            perPackageOutdated.push(o);
+            perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
+        }
+        if (opts.audit) {
+            const auditOk = perPackageAudit.every((r) => r && r.ok);
+            if (auditOk) {
+                spinner.log(`✔ ${scanManager.toUpperCase()} audit data collected`);
+            }
+            else {
+                spinner.log(`✖ ${scanManager.toUpperCase()} audit data unavailable`);
+            }
+        }
+        if (opts.outdated) {
+            const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
+            if (outdatedOk) {
+                spinner.log(`✔ ${scanManager.toUpperCase()} outdated data collected`);
+            }
+            else {
+                spinner.log(`✖ ${scanManager.toUpperCase()} outdated data unavailable`);
+            }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedGraphData = workspace.type === 'none'
@@ -647,7 +753,7 @@ async function run() {
             : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
         const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
-        const outdatedResult = mergeOutdatedResults(packageMetas, perPackageOutdated);
+        const outdatedResult = mergeOutdatedResults(perPackageOutdated);
         const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
         const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
@@ -656,8 +762,11 @@ async function run() {
         const auditFailure = opts.audit ? perPackageAudit.find((r) => r && !r.ok) : undefined;
         const lsFailure = perPackageLs.find((r) => r && !r.ok);
         const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
-        if (auditFailure || lsFailure || importFailure) {
-            const err = auditFailure || lsFailure || importFailure;
+        if (auditFailure) {
+            spinner.log(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
+        }
+        if (lsFailure || importFailure) {
+            const err = lsFailure || importFailure;
             throw new Error((err === null || err === void 0 ? void 0 : err.error) || 'Tool execution failed');
         }
         const aggregated = await (0, aggregator_1.aggregateData)({
@@ -670,6 +779,15 @@ async function run() {
             workspaceUsage,
             resolvePaths: [projectPath, ...packagePaths.filter((p) => p !== projectPath)],
             workspaceEnabled: workspace.type !== 'none',
+            workspaceType: workspace.type,
+            workspacePackageCount: packagePaths.length,
+            packageManager: scanManager,
+            packageManagerVersion,
+            packageManagerField,
+            platform: process.platform,
+            arch: process.arch,
+            ci: process.env.CI === 'true',
+            ...(toolVersions ? { toolVersions } : {})
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
         if (workspace.type !== 'none') {
@@ -682,10 +800,10 @@ async function run() {
         else {
             await (0, report_1.renderReport)(aggregated, outputPath);
         }
-        stopSpinner(true);
+        spinner.stop(true);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        console.log(`${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
+        console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
+        console.log(`✔ ${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
         const isCI = process.env.CI === 'true';
         if (opts.open && !isCI) {
             console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
@@ -696,7 +814,7 @@ async function run() {
         }
     }
     catch (err) {
-        stopSpinner(false);
+        spinner.stop(false);
         console.error('Failed to generate report:', err);
         process.exit(1);
     }
@@ -705,7 +823,7 @@ async function run() {
             await (0, utils_1.removeDir)(tempDir);
         }
         else {
-            console.log(`Temporary data kept at ${tempDir}`);
+            console.log(`✔ Temporary data kept at ${tempDir}`);
         }
     }
     // Always show CTA as the last output
@@ -716,17 +834,33 @@ run();
 function startSpinner(text) {
     const frames = ['|', '/', '-', '\\'];
     let i = 0;
-    process.stdout.write(`${frames[i]} ${text}`);
+    let currentText = text;
+    process.stdout.write(`${frames[i]} ${currentText}`);
     const timer = setInterval(() => {
         i = (i + 1) % frames.length;
-        process.stdout.write(`\r${frames[i]} ${text}`);
+        process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
     }, 120);
     let stopped = false;
-    return (success = true) => {
+    const stop = (success = true) => {
         if (stopped)
             return;
         stopped = true;
         clearInterval(timer);
-        process.stdout.write(`\r${success ? '✔' : '✖'} ${text}\n`);
+        process.stdout.write(`\r\x1b[K${success ? '✔' : '✖'} ${currentText}\n`);
     };
+    const update = (nextText) => {
+        if (stopped)
+            return;
+        currentText = nextText;
+        process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
+    };
+    const log = (line) => {
+        if (stopped) {
+            process.stdout.write(`${line}\n`);
+            return;
+        }
+        process.stdout.write(`\r\x1b[K${line}\n`);
+        process.stdout.write(`${frames[i]} ${currentText}`);
+    };
+    return { stop, update, log };
 }

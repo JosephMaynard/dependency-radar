@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "1.1",
-  "generatedAt": "2026-02-03T10:10:20.305Z",
+  "schemaVersion": "1.2",
+  "generatedAt": "2026-02-03T16:54:33.978Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
-    "branch": "feat/better-handling-of-sub-dependencies"
+    "branch": "feat/audit-in-pnpm-and-yarn"
   },
   "project": {
     "projectDir": "/Developer/dependency-radar"
@@ -11,10 +11,22 @@
   "environment": {
     "nodeVersion": "23.6.0",
     "runtimeVersion": "v23.6.0",
-    "minRequiredMajor": 18
+    "minRequiredMajor": 18,
+    "platform": "darwin",
+    "arch": "arm64",
+    "ci": false,
+    "packageManagerField": "pnpm@9.5.0+sha512.140036830124618d624a2187b50d04289d5a087f326c9edfc0ccd733d76c4f52c3a313d4fc148794a2a9d81553016004e6742e8cf850670268a7387fc220c903",
+    "packageManager": "npm",
+    "packageManagerVersion": "10.9.2",
+    "toolVersions": {
+      "npm": "10.9.2",
+      "pnpm": "9.5.0"
+    }
   },
   "workspaces": {
-    "enabled": false
+    "enabled": false,
+    "type": "none",
+    "packageCount": 1
   },
   "summary": {
     "dependencyCount": 38,

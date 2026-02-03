@@ -5,6 +5,7 @@ import {
   ExecutionSignal,
   OutdatedResult,
   OutdatedStatus,
+  PackageManager,
   Severity,
   ToolResult,
   VulnerabilityAdvisory,
@@ -36,6 +37,19 @@ interface AggregateInput {
   // Paths to resolve dependency package.json from (workspace package roots, etc.)
   resolvePaths?: string[];
   workspaceEnabled: boolean;
+  workspaceType?: PackageManager | 'none';
+  workspacePackageCount?: number;
+  packageManager?: PackageManager;
+  packageManagerVersion?: string;
+  packageManagerField?: string;
+  platform?: string;
+  arch?: string;
+  ci?: boolean;
+  toolVersions?: {
+    npm?: string;
+    pnpm?: string;
+    yarn?: string;
+  };
 }
 
 interface NodeInfo {
@@ -255,7 +269,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const transitiveCount = dependencyCount - directCount;
 
   return {
-    schemaVersion: '1.1',
+    schemaVersion: '1.2',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
@@ -267,10 +281,21 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     environment: {
       nodeVersion,
       runtimeVersion,
-      minRequiredMajor: minRequiredMajor ?? 0
+      minRequiredMajor: minRequiredMajor ?? 0,
+      ...(input.platform ? { platform: input.platform } : {}),
+      ...(input.arch ? { arch: input.arch } : {}),
+      ...(typeof input.ci === 'boolean' ? { ci: input.ci } : {}),
+      ...(input.packageManagerField ? { packageManagerField: input.packageManagerField } : {}),
+      ...(input.packageManager ? { packageManager: input.packageManager } : {}),
+      ...(input.packageManagerVersion ? { packageManagerVersion: input.packageManagerVersion } : {}),
+      ...(input.toolVersions ? { toolVersions: input.toolVersions } : {})
     },
     workspaces: {
-      enabled: input.workspaceEnabled
+      enabled: input.workspaceEnabled,
+      ...(input.workspaceType ? { type: input.workspaceType } : {}),
+      ...(typeof input.workspacePackageCount === 'number'
+        ? { packageCount: input.workspacePackageCount }
+        : {})
     },
     summary: {
       dependencyCount,

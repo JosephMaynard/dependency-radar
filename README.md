@@ -105,7 +105,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.0'; // Report schema version for compatibility checks
+  schemaVersion: '1.2'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -118,9 +118,22 @@ export interface AggregatedData {
     nodeVersion: string; // Node.js version from process.versions.node
     runtimeVersion: string; // Node.js runtime version from process.version
     minRequiredMajor: number; // Strictest Node major required by dependency engines (0 if unknown)
+    platform?: string; // OS platform (process.platform)
+    arch?: string; // CPU architecture (process.arch)
+    ci?: boolean; // True when running in CI (process.env.CI === 'true')
+    packageManagerField?: string; // package.json packageManager field (e.g. pnpm@9.1.0)
+    packageManager?: 'npm' | 'pnpm' | 'yarn'; // Package manager used to scan
+    packageManagerVersion?: string; // Version of the package manager used to scan
+    toolVersions?: {
+      npm?: string;
+      pnpm?: string;
+      yarn?: string;
+    };
   };
   workspaces: {
     enabled: boolean; // True when the scan used workspace aggregation
+    type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace type if detected
+    packageCount?: number; // Number of workspace packages scanned
   };
   summary: {
     dependencyCount: number; // Total dependencies in the graph
@@ -227,6 +240,9 @@ export interface DependencyRecord {
 ```
 
 For full details and any future changes, see `src/types.ts`.
+
+Environment data includes Node.js version, OS platform, CPU architecture, and package manager versions.
+No personal information, usernames, paths, or environment variables are collected.
 
 ## Development
 

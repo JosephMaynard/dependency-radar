@@ -1,5 +1,6 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
+export type PackageManager = 'npm' | 'pnpm' | 'yarn';
 
 export interface VulnerabilityAdvisory {
   id: string;
@@ -140,7 +141,7 @@ export interface OutdatedResult {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.1';
+  schemaVersion: '1.2';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -153,9 +154,22 @@ export interface AggregatedData {
     nodeVersion: string;
     runtimeVersion: string;
     minRequiredMajor: number;
+    platform?: string;
+    arch?: string;
+    ci?: boolean;
+    packageManagerField?: string;
+    packageManager?: PackageManager;
+    packageManagerVersion?: string;
+    toolVersions?: {
+      npm?: string;
+      pnpm?: string;
+      yarn?: string;
+    };
   };
   workspaces: {
     enabled: boolean;
+    type?: PackageManager | 'none';
+    packageCount?: number;
   };
   summary: {
     dependencyCount: number;
