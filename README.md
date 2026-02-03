@@ -65,6 +65,12 @@ Output JSON instead of HTML report:
 npx dependency-radar --json
 ```
 
+Open the generated report using the system default:
+
+```bash
+npx dependency-radar --open
+```
+
 Show options:
 
 ```bash

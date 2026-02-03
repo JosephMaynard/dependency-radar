@@ -572,7 +572,7 @@ Options:
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
-  --open             Open the generated report using the system default
+  --open             Open the generated report using the system default application
 `);
 }
 

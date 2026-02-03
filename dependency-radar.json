@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1",
-  "generatedAt": "2026-02-03T09:49:13.426Z",
+  "generatedAt": "2026-02-03T10:10:20.305Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
     "branch": "feat/better-handling-of-sub-dependencies"
