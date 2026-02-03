@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import path from 'path';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { platform } from 'os';
 import { aggregateData } from './aggregator';
 import { runImportGraph } from './runners/importGraphRunner';
@@ -440,10 +440,18 @@ function buildWorkspaceUsageMap(packageMetas: Array<{ name: string; pkg: any }>,
     const dev = meta.pkg?.devDependencies || {};
     const opt = meta.pkg?.optionalDependencies || {};
     const peer = meta.pkg?.peerDependencies || {};
-    Object.keys(deps).forEach((d) => add(d, pkgName));
-    Object.keys(dev).forEach((d) => add(d, pkgName));
-    Object.keys(opt).forEach((d) => add(d, pkgName));
-    Object.keys(peer).forEach((d) => add(d, pkgName));
+    Object.keys(deps).forEach((d) => {
+      add(d, pkgName);
+    });
+    Object.keys(dev).forEach((d) => {
+      add(d, pkgName);
+    });
+    Object.keys(opt).forEach((d) => {
+      add(d, pkgName);
+    });
+    Object.keys(peer).forEach((d) => {
+      add(d, pkgName);
+    });
   }
 
   // From npm ls trees (transitives)
@@ -570,25 +578,24 @@ Options:
 
 function openInBrowser(filePath: string): void {
   const normalizedPath = filePath.replace(/\\/g, '/');
-  let command: string;
+  let child;
 
   switch (platform()) {
     case 'darwin':
-      command = `open "${normalizedPath}"`;
+      child = spawn('open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
       break;
     case 'win32':
-      command = `start "" "${normalizedPath}"`;
+      child = spawn('cmd', ['/c', 'start', '', normalizedPath], { stdio: 'ignore', shell: false, detached: true });
       break;
     default:
-      command = `command -v xdg-open >/dev/null 2>&1 && xdg-open "${normalizedPath}"`;
+      child = spawn('xdg-open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
       break;
   }
 
-  exec(command, (err) => {
-    if (err) {
-      console.warn('Could not open report:', err.message);
-    }
+  child.on('error', (err) => {
+    console.warn('Could not open report:', err.message);
   });
+  child.unref();
 }
 
 async function run(): Promise<void> {
