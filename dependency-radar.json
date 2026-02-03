@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1",
-  "generatedAt": "2026-02-02T19:03:25.149Z",
+  "generatedAt": "2026-02-03T09:49:13.426Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
     "branch": "feat/better-handling-of-sub-dependencies"
@@ -75,22 +75,16 @@
         "introduction": "direct",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "undici-types": [
-            "~6.21.0",
-            "undici-types@6.21.0"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 2,
         "fanOut": 1,
-        "dependencySurface": {
-          "deps": 1,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "undici-types": [
+              "~6.21.0",
+              "undici-types@6.21.0"
+            ]
+          }
         }
       }
     },
@@ -147,13 +141,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "terser@5.46.0": {
@@ -210,76 +198,70 @@
         "introduction": "direct",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@jridgewell/source-map": [
-            "^0.3.3",
-            "@jridgewell/source-map@0.3.11"
-          ],
-          "acorn": [
-            "^8.15.0",
-            "acorn@8.15.0"
-          ],
-          "commander": [
-            "^2.20.0",
-            "commander@2.20.3"
-          ],
-          "source-map-support": [
-            "~0.5.20",
-            "source-map-support@0.5.21"
-          ]
-        },
-        "dev": {
-          "@ls-lint/ls-lint": [
-            "^1.11.2",
-            null
-          ],
-          "astring": [
-            "^1.8.5",
-            null
-          ],
-          "eslint": [
-            "^7.32.0",
-            null
-          ],
-          "eslump": [
-            "^3.0.0",
-            null
-          ],
-          "esm": [
-            "^3.2.25",
-            null
-          ],
-          "mocha": [
-            "^9.2.0",
-            null
-          ],
-          "pre-commit": [
-            "^1.2.2",
-            null
-          ],
-          "rollup": [
-            "^2.79.2",
-            null
-          ],
-          "semver": [
-            "^7.5.1",
-            null
-          ],
-          "source-map": [
-            "~0.8.0-beta.0",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 4,
-        "dependencySurface": {
-          "deps": 4,
-          "dev": 10,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@jridgewell/source-map": [
+              "^0.3.3",
+              "@jridgewell/source-map@0.3.11"
+            ],
+            "acorn": [
+              "^8.15.0",
+              "acorn@8.15.0"
+            ],
+            "commander": [
+              "^2.20.0",
+              "commander@2.20.3"
+            ],
+            "source-map-support": [
+              "~0.5.20",
+              "source-map-support@0.5.21"
+            ]
+          },
+          "dev": {
+            "@ls-lint/ls-lint": [
+              "^1.11.2",
+              null
+            ],
+            "astring": [
+              "^1.8.5",
+              null
+            ],
+            "eslint": [
+              "^7.32.0",
+              null
+            ],
+            "eslump": [
+              "^3.0.0",
+              null
+            ],
+            "esm": [
+              "^3.2.25",
+              null
+            ],
+            "mocha": [
+              "^9.2.0",
+              null
+            ],
+            "pre-commit": [
+              "^1.2.2",
+              null
+            ],
+            "rollup": [
+              "^2.79.2",
+              null
+            ],
+            "semver": [
+              "^7.5.1",
+              null
+            ],
+            "source-map": [
+              "~0.8.0-beta.0",
+              null
+            ]
+          }
         }
       },
       "execution": {
@@ -341,26 +323,20 @@
         "introduction": "transitive",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@jridgewell/gen-mapping": [
-            "^0.3.5",
-            "@jridgewell/gen-mapping@0.3.13"
-          ],
-          "@jridgewell/trace-mapping": [
-            "^0.3.25",
-            "@jridgewell/trace-mapping@0.3.31"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
-        "dependencySurface": {
-          "deps": 2,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@jridgewell/gen-mapping": [
+              "^0.3.5",
+              "@jridgewell/gen-mapping@0.3.13"
+            ],
+            "@jridgewell/trace-mapping": [
+              "^0.3.25",
+              "@jridgewell/trace-mapping@0.3.31"
+            ]
+          }
         }
       }
     },
@@ -414,26 +390,20 @@
         "introduction": "transitive",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@jridgewell/sourcemap-codec": [
-            "^1.5.0",
-            "@jridgewell/sourcemap-codec@1.5.5"
-          ],
-          "@jridgewell/trace-mapping": [
-            "^0.3.24",
-            "@jridgewell/trace-mapping@0.3.31"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
-        "dependencySurface": {
-          "deps": 2,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@jridgewell/sourcemap-codec": [
+              "^1.5.0",
+              "@jridgewell/sourcemap-codec@1.5.5"
+            ],
+            "@jridgewell/trace-mapping": [
+              "^0.3.24",
+              "@jridgewell/trace-mapping@0.3.31"
+            ]
+          }
         }
       }
     },
@@ -495,13 +465,7 @@
       },
       "graph": {
         "fanIn": 3,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "@jridgewell/trace-mapping@0.3.31": {
@@ -555,26 +519,20 @@
         "introduction": "transitive",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@jridgewell/resolve-uri": [
-            "^3.1.0",
-            "@jridgewell/resolve-uri@3.1.2"
-          ],
-          "@jridgewell/sourcemap-codec": [
-            "^1.4.14",
-            "@jridgewell/sourcemap-codec@1.5.5"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 2,
         "fanOut": 2,
-        "dependencySurface": {
-          "deps": 2,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@jridgewell/resolve-uri": [
+              "^3.1.0",
+              "@jridgewell/resolve-uri@3.1.2"
+            ],
+            "@jridgewell/sourcemap-codec": [
+              "^1.4.14",
+              "@jridgewell/sourcemap-codec@1.5.5"
+            ]
+          }
         }
       }
     },
@@ -636,66 +594,60 @@
         "introduction": "transitive",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "@jridgewell/resolve-uri-latest": [
-            "npm:@jridgewell/resolve-uri@*",
-            null
-          ],
-          "@rollup/plugin-typescript": [
-            "8.3.0",
-            null
-          ],
-          "@typescript-eslint/eslint-plugin": [
-            "5.10.0",
-            null
-          ],
-          "@typescript-eslint/parser": [
-            "5.10.0",
-            null
-          ],
-          "c8": [
-            "7.11.0",
-            null
-          ],
-          "eslint": [
-            "8.7.0",
-            null
-          ],
-          "eslint-config-prettier": [
-            "8.3.0",
-            null
-          ],
-          "mocha": [
-            "9.2.0",
-            null
-          ],
-          "npm-run-all": [
-            "4.1.5",
-            null
-          ],
-          "prettier": [
-            "2.5.1",
-            null
-          ],
-          "rollup": [
-            "2.66.0",
-            null
-          ],
-          "typescript": [
-            "4.5.5",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 2,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 12,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "@jridgewell/resolve-uri-latest": [
+              "npm:@jridgewell/resolve-uri@*",
+              null
+            ],
+            "@rollup/plugin-typescript": [
+              "8.3.0",
+              null
+            ],
+            "@typescript-eslint/eslint-plugin": [
+              "5.10.0",
+              null
+            ],
+            "@typescript-eslint/parser": [
+              "5.10.0",
+              null
+            ],
+            "c8": [
+              "7.11.0",
+              null
+            ],
+            "eslint": [
+              "8.7.0",
+              null
+            ],
+            "eslint-config-prettier": [
+              "8.3.0",
+              null
+            ],
+            "mocha": [
+              "9.2.0",
+              null
+            ],
+            "npm-run-all": [
+              "4.1.5",
+              null
+            ],
+            "prettier": [
+              "2.5.1",
+              null
+            ],
+            "rollup": [
+              "2.66.0",
+              null
+            ],
+            "typescript": [
+              "4.5.5",
+              null
+            ]
+          }
         }
       }
     },
@@ -761,13 +713,7 @@
       },
       "graph": {
         "fanIn": 3,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       },
       "execution": {
         "risk": "amber",
@@ -827,46 +773,40 @@
         "introduction": "transitive",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "@types/node": [
-            "^12.7.8",
-            null
-          ],
-          "eslint": [
-            "^6.4.0",
-            null
-          ],
-          "should": [
-            "^13.2.3",
-            null
-          ],
-          "sinon": [
-            "^7.5.0",
-            null
-          ],
-          "standard": [
-            "^14.3.1",
-            null
-          ],
-          "ts-node": [
-            "^8.4.1",
-            null
-          ],
-          "typescript": [
-            "^3.6.3",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 7,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "@types/node": [
+              "^12.7.8",
+              null
+            ],
+            "eslint": [
+              "^6.4.0",
+              null
+            ],
+            "should": [
+              "^13.2.3",
+              null
+            ],
+            "sinon": [
+              "^7.5.0",
+              null
+            ],
+            "standard": [
+              "^14.3.1",
+              null
+            ],
+            "ts-node": [
+              "^8.4.1",
+              null
+            ],
+            "typescript": [
+              "^3.6.3",
+              null
+            ]
+          }
         }
       }
     },
@@ -920,48 +860,42 @@
         "introduction": "transitive",
         "tsTypes": "none"
       },
-      "subDeps": {
-        "dep": {
-          "buffer-from": [
-            "^1.0.0",
-            "buffer-from@1.1.2"
-          ],
-          "source-map": [
-            "^0.6.0",
-            "source-map@0.6.1"
-          ]
-        },
-        "dev": {
-          "browserify": [
-            "^4.2.3",
-            null
-          ],
-          "coffeescript": [
-            "^1.12.7",
-            null
-          ],
-          "http-server": [
-            "^0.11.1",
-            null
-          ],
-          "mocha": [
-            "^3.5.3",
-            null
-          ],
-          "webpack": [
-            "^1.15.0",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
-        "dependencySurface": {
-          "deps": 2,
-          "dev": 5,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "buffer-from": [
+              "^1.0.0",
+              "buffer-from@1.1.2"
+            ],
+            "source-map": [
+              "^0.6.0",
+              "source-map@0.6.1"
+            ]
+          },
+          "dev": {
+            "browserify": [
+              "^4.2.3",
+              null
+            ],
+            "coffeescript": [
+              "^1.12.7",
+              null
+            ],
+            "http-server": [
+              "^0.11.1",
+              null
+            ],
+            "mocha": [
+              "^3.5.3",
+              null
+            ],
+            "webpack": [
+              "^1.15.0",
+              null
+            ]
+          }
         }
       }
     },
@@ -1013,22 +947,16 @@
         "introduction": "transitive",
         "tsTypes": "none"
       },
-      "subDeps": {
-        "dev": {
-          "standard": [
-            "^12.0.1",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 1,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "standard": [
+              "^12.0.1",
+              null
+            ]
+          }
         }
       }
     },
@@ -1086,26 +1014,20 @@
         "introduction": "transitive",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "doctoc": [
-            "^0.15.0",
-            null
-          ],
-          "webpack": [
-            "^1.12.0",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 2,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "doctoc": [
+              "^0.15.0",
+              null
+            ],
+            "webpack": [
+              "^1.12.0",
+              null
+            ]
+          }
         }
       }
     },
@@ -1162,214 +1084,208 @@
         "introduction": "direct",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@cspotcode/source-map-support": [
-            "^0.8.0",
-            "@cspotcode/source-map-support@0.8.1"
-          ],
-          "@tsconfig/node10": [
-            "^1.0.7",
-            "@tsconfig/node10@1.0.12"
-          ],
-          "@tsconfig/node12": [
-            "^1.0.7",
-            "@tsconfig/node12@1.0.11"
-          ],
-          "@tsconfig/node14": [
-            "^1.0.0",
-            "@tsconfig/node14@1.0.3"
-          ],
-          "@tsconfig/node16": [
-            "^1.0.2",
-            "@tsconfig/node16@1.0.4"
-          ],
-          "acorn": [
-            "^8.4.1",
-            "acorn@8.15.0"
-          ],
-          "acorn-walk": [
-            "^8.1.1",
-            "acorn-walk@8.3.4"
-          ],
-          "arg": [
-            "^4.1.0",
-            "arg@4.1.3"
-          ],
-          "create-require": [
-            "^1.1.0",
-            "create-require@1.1.1"
-          ],
-          "diff": [
-            "^4.0.1",
-            "diff@4.0.4"
-          ],
-          "make-error": [
-            "^1.1.1",
-            "make-error@1.3.6"
-          ],
-          "v8-compile-cache-lib": [
-            "^3.0.1",
-            "v8-compile-cache-lib@3.0.1"
-          ],
-          "yn": [
-            "3.1.1",
-            "yn@3.1.1"
-          ]
-        },
-        "dev": {
-          "@microsoft/api-extractor": [
-            "^7.19.4",
-            null
-          ],
-          "@swc/core": [
-            "^1.3.100",
-            null
-          ],
-          "@swc/wasm": [
-            "^1.3.100",
-            null
-          ],
-          "@types/diff": [
-            "^4.0.2",
-            null
-          ],
-          "@types/lodash": [
-            "^4.14.151",
-            null
-          ],
-          "@types/node": [
-            "13.13.5",
-            "@types/node@20.19.30"
-          ],
-          "@types/proper-lockfile": [
-            "^4.1.2",
-            null
-          ],
-          "@types/proxyquire": [
-            "^1.3.28",
-            null
-          ],
-          "@types/react": [
-            "^16.14.19",
-            null
-          ],
-          "@types/rimraf": [
-            "^3.0.0",
-            null
-          ],
-          "@types/semver": [
-            "^7.1.0",
-            null
-          ],
-          "@yarnpkg/fslib": [
-            "^2.4.0",
-            null
-          ],
-          "ava": [
-            "^3.15.0",
-            null
-          ],
-          "axios": [
-            "^0.21.1",
-            null
-          ],
-          "dprint": [
-            "^0.25.0",
-            null
-          ],
-          "expect": [
-            "^27.0.2",
-            null
-          ],
-          "get-stream": [
-            "^6.0.0",
-            null
-          ],
-          "lodash": [
-            "^4.17.15",
-            null
-          ],
-          "ntypescript": [
-            "^1.201507091536.1",
-            null
-          ],
-          "nyc": [
-            "^15.0.1",
-            null
-          ],
-          "outdent": [
-            "^0.8.0",
-            null
-          ],
-          "proper-lockfile": [
-            "^4.1.2",
-            null
-          ],
-          "proxyquire": [
-            "^2.0.0",
-            null
-          ],
-          "react": [
-            "^16.14.0",
-            null
-          ],
-          "rimraf": [
-            "^3.0.0",
-            null
-          ],
-          "semver": [
-            "^7.1.3",
-            null
-          ],
-          "throat": [
-            "^6.0.1",
-            null
-          ],
-          "typedoc": [
-            "^0.22.10",
-            null
-          ],
-          "typescript": [
-            "4.7.4",
-            "typescript@5.9.3"
-          ],
-          "typescript-json-schema": [
-            "^0.53.0",
-            null
-          ],
-          "util.promisify": [
-            "^1.0.1",
-            null
-          ]
-        },
-        "peer": {
-          "@swc/core": [
-            ">=1.2.50",
-            null
-          ],
-          "@swc/wasm": [
-            ">=1.2.50",
-            null
-          ],
-          "@types/node": [
-            "*",
-            "@types/node@20.19.30"
-          ],
-          "typescript": [
-            ">=2.7",
-            "typescript@5.9.3"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 0,
         "fanOut": 15,
-        "dependencySurface": {
-          "deps": 13,
-          "dev": 31,
-          "peer": 4,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@cspotcode/source-map-support": [
+              "^0.8.0",
+              "@cspotcode/source-map-support@0.8.1"
+            ],
+            "@tsconfig/node10": [
+              "^1.0.7",
+              "@tsconfig/node10@1.0.12"
+            ],
+            "@tsconfig/node12": [
+              "^1.0.7",
+              "@tsconfig/node12@1.0.11"
+            ],
+            "@tsconfig/node14": [
+              "^1.0.0",
+              "@tsconfig/node14@1.0.3"
+            ],
+            "@tsconfig/node16": [
+              "^1.0.2",
+              "@tsconfig/node16@1.0.4"
+            ],
+            "acorn": [
+              "^8.4.1",
+              "acorn@8.15.0"
+            ],
+            "acorn-walk": [
+              "^8.1.1",
+              "acorn-walk@8.3.4"
+            ],
+            "arg": [
+              "^4.1.0",
+              "arg@4.1.3"
+            ],
+            "create-require": [
+              "^1.1.0",
+              "create-require@1.1.1"
+            ],
+            "diff": [
+              "^4.0.1",
+              "diff@4.0.4"
+            ],
+            "make-error": [
+              "^1.1.1",
+              "make-error@1.3.6"
+            ],
+            "v8-compile-cache-lib": [
+              "^3.0.1",
+              "v8-compile-cache-lib@3.0.1"
+            ],
+            "yn": [
+              "3.1.1",
+              "yn@3.1.1"
+            ]
+          },
+          "dev": {
+            "@microsoft/api-extractor": [
+              "^7.19.4",
+              null
+            ],
+            "@swc/core": [
+              "^1.3.100",
+              null
+            ],
+            "@swc/wasm": [
+              "^1.3.100",
+              null
+            ],
+            "@types/diff": [
+              "^4.0.2",
+              null
+            ],
+            "@types/lodash": [
+              "^4.14.151",
+              null
+            ],
+            "@types/node": [
+              "13.13.5",
+              "@types/node@20.19.30"
+            ],
+            "@types/proper-lockfile": [
+              "^4.1.2",
+              null
+            ],
+            "@types/proxyquire": [
+              "^1.3.28",
+              null
+            ],
+            "@types/react": [
+              "^16.14.19",
+              null
+            ],
+            "@types/rimraf": [
+              "^3.0.0",
+              null
+            ],
+            "@types/semver": [
+              "^7.1.0",
+              null
+            ],
+            "@yarnpkg/fslib": [
+              "^2.4.0",
+              null
+            ],
+            "ava": [
+              "^3.15.0",
+              null
+            ],
+            "axios": [
+              "^0.21.1",
+              null
+            ],
+            "dprint": [
+              "^0.25.0",
+              null
+            ],
+            "expect": [
+              "^27.0.2",
+              null
+            ],
+            "get-stream": [
+              "^6.0.0",
+              null
+            ],
+            "lodash": [
+              "^4.17.15",
+              null
+            ],
+            "ntypescript": [
+              "^1.201507091536.1",
+              null
+            ],
+            "nyc": [
+              "^15.0.1",
+              null
+            ],
+            "outdent": [
+              "^0.8.0",
+              null
+            ],
+            "proper-lockfile": [
+              "^4.1.2",
+              null
+            ],
+            "proxyquire": [
+              "^2.0.0",
+              null
+            ],
+            "react": [
+              "^16.14.0",
+              null
+            ],
+            "rimraf": [
+              "^3.0.0",
+              null
+            ],
+            "semver": [
+              "^7.1.3",
+              null
+            ],
+            "throat": [
+              "^6.0.1",
+              null
+            ],
+            "typedoc": [
+              "^0.22.10",
+              null
+            ],
+            "typescript": [
+              "4.7.4",
+              "typescript@5.9.3"
+            ],
+            "typescript-json-schema": [
+              "^0.53.0",
+              null
+            ],
+            "util.promisify": [
+              "^1.0.1",
+              null
+            ]
+          },
+          "peer": {
+            "@swc/core": [
+              ">=1.2.50",
+              null
+            ],
+            "@swc/wasm": [
+              ">=1.2.50",
+              null
+            ],
+            "@types/node": [
+              "*",
+              "@types/node@20.19.30"
+            ],
+            "typescript": [
+              ">=2.7",
+              "typescript@5.9.3"
+            ]
+          }
         }
       },
       "execution": {
@@ -1435,60 +1351,54 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@jridgewell/trace-mapping": [
-            "0.3.9",
-            "@jridgewell/trace-mapping@0.3.9"
-          ]
-        },
-        "dev": {
-          "@types/lodash": [
-            "^4.14.182",
-            null
-          ],
-          "browserify": [
-            "^4.2.3",
-            null
-          ],
-          "coffeescript": [
-            "^1.12.7",
-            null
-          ],
-          "http-server": [
-            "^0.11.1",
-            null
-          ],
-          "lodash": [
-            "^4.17.21",
-            null
-          ],
-          "mocha": [
-            "^3.5.3",
-            null
-          ],
-          "semver": [
-            "^7.3.7",
-            null
-          ],
-          "source-map": [
-            "0.6.1",
-            null
-          ],
-          "webpack": [
-            "^1.15.0",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 1,
-        "dependencySurface": {
-          "deps": 1,
-          "dev": 9,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@jridgewell/trace-mapping": [
+              "0.3.9",
+              "@jridgewell/trace-mapping@0.3.9"
+            ]
+          },
+          "dev": {
+            "@types/lodash": [
+              "^4.14.182",
+              null
+            ],
+            "browserify": [
+              "^4.2.3",
+              null
+            ],
+            "coffeescript": [
+              "^1.12.7",
+              null
+            ],
+            "http-server": [
+              "^0.11.1",
+              null
+            ],
+            "lodash": [
+              "^4.17.21",
+              null
+            ],
+            "mocha": [
+              "^3.5.3",
+              null
+            ],
+            "semver": [
+              "^7.3.7",
+              null
+            ],
+            "source-map": [
+              "0.6.1",
+              null
+            ],
+            "webpack": [
+              "^1.15.0",
+              null
+            ]
+          }
         }
       }
     },
@@ -1542,26 +1452,20 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@jridgewell/resolve-uri": [
-            "^3.1.0",
-            "@jridgewell/resolve-uri@3.1.2"
-          ],
-          "@jridgewell/sourcemap-codec": [
-            "^1.4.14",
-            "@jridgewell/sourcemap-codec@1.5.5"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
-        "dependencySurface": {
-          "deps": 2,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "@jridgewell/resolve-uri": [
+              "^3.1.0",
+              "@jridgewell/resolve-uri@3.1.2"
+            ],
+            "@jridgewell/sourcemap-codec": [
+              "^1.4.14",
+              "@jridgewell/sourcemap-codec@1.5.5"
+            ]
+          }
         }
       }
     },
@@ -1616,13 +1520,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "@tsconfig/node12@1.0.11": {
@@ -1676,13 +1574,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "@tsconfig/node14@1.0.3": {
@@ -1736,13 +1628,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "@tsconfig/node16@1.0.4": {
@@ -1796,13 +1682,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "acorn-walk@8.3.4": {
@@ -1859,22 +1739,16 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "acorn": [
-            "^8.11.0",
-            "acorn@8.15.0"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 1,
-        "dependencySurface": {
-          "deps": 1,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "acorn": [
+              "^8.11.0",
+              "acorn@8.15.0"
+            ]
+          }
         }
       },
       "execution": {
@@ -1935,30 +1809,24 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "chai": [
-            "^4.1.1",
-            null
-          ],
-          "jest": [
-            "^20.0.4",
-            null
-          ],
-          "xo": [
-            "^0.18.2",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 3,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "chai": [
+              "^4.1.1",
+              null
+            ],
+            "jest": [
+              "^20.0.4",
+              null
+            ],
+            "xo": [
+              "^0.18.2",
+              null
+            ]
+          }
         }
       }
     },
@@ -2011,34 +1879,28 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "@nuxtjs/eslint-config": [
-            "latest",
-            null
-          ],
-          "eslint": [
-            "latest",
-            null
-          ],
-          "standard-version": [
-            "latest",
-            null
-          ],
-          "tap": [
-            "latest",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 4,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "@nuxtjs/eslint-config": [
+              "latest",
+              null
+            ],
+            "eslint": [
+              "latest",
+              null
+            ],
+            "standard-version": [
+              "latest",
+              null
+            ],
+            "tap": [
+              "latest",
+              null
+            ]
+          }
         }
       }
     },
@@ -2096,170 +1958,164 @@
         "introduction": "tooling",
         "tsTypes": "none"
       },
-      "subDeps": {
-        "dev": {
-          "@babel/cli": [
-            "^7.2.3",
-            null
-          ],
-          "@babel/core": [
-            "^7.2.2",
-            null
-          ],
-          "@babel/plugin-transform-modules-commonjs": [
-            "^7.2.0",
-            null
-          ],
-          "@babel/preset-env": [
-            "^7.2.3",
-            null
-          ],
-          "@babel/register": [
-            "^7.0.0",
-            null
-          ],
-          "babel-eslint": [
-            "^10.0.1",
-            null
-          ],
-          "babel-loader": [
-            "^8.0.5",
-            null
-          ],
-          "chai": [
-            "^4.2.0",
-            null
-          ],
-          "colors": [
-            "^1.3.3",
-            null
-          ],
-          "eslint": [
-            "^5.12.0",
-            null
-          ],
-          "grunt": [
-            "^1.0.3",
-            null
-          ],
-          "grunt-babel": [
-            "^8.0.0",
-            null
-          ],
-          "grunt-clean": [
-            "^0.4.0",
-            null
-          ],
-          "grunt-cli": [
-            "^1.3.2",
-            null
-          ],
-          "grunt-contrib-clean": [
-            "^2.0.0",
-            null
-          ],
-          "grunt-contrib-copy": [
-            "^1.0.0",
-            null
-          ],
-          "grunt-contrib-uglify": [
-            "^4.0.0",
-            null
-          ],
-          "grunt-contrib-watch": [
-            "^1.1.0",
-            null
-          ],
-          "grunt-eslint": [
-            "^21.0.0",
-            null
-          ],
-          "grunt-exec": [
-            "^3.0.0",
-            null
-          ],
-          "grunt-karma": [
-            "^3.0.1",
-            null
-          ],
-          "grunt-mocha-istanbul": [
-            "^5.0.2",
-            null
-          ],
-          "grunt-mocha-test": [
-            "^0.13.3",
-            null
-          ],
-          "grunt-webpack": [
-            "^3.1.3",
-            null
-          ],
-          "istanbul": [
-            "github:kpdecker/istanbul",
-            null
-          ],
-          "karma": [
-            "^3.1.4",
-            null
-          ],
-          "karma-chrome-launcher": [
-            "^2.2.0",
-            null
-          ],
-          "karma-mocha": [
-            "^1.3.0",
-            null
-          ],
-          "karma-mocha-reporter": [
-            "^2.0.0",
-            null
-          ],
-          "karma-sauce-launcher": [
-            "^2.0.2",
-            null
-          ],
-          "karma-sourcemap-loader": [
-            "^0.3.6",
-            null
-          ],
-          "karma-webpack": [
-            "^3.0.5",
-            null
-          ],
-          "mocha": [
-            "^5.2.0",
-            null
-          ],
-          "rollup": [
-            "^1.0.2",
-            null
-          ],
-          "rollup-plugin-babel": [
-            "^4.2.0",
-            null
-          ],
-          "semver": [
-            "^5.6.0",
-            null
-          ],
-          "webpack": [
-            "^4.28.3",
-            null
-          ],
-          "webpack-dev-server": [
-            "^3.1.14",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 38,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "@babel/cli": [
+              "^7.2.3",
+              null
+            ],
+            "@babel/core": [
+              "^7.2.2",
+              null
+            ],
+            "@babel/plugin-transform-modules-commonjs": [
+              "^7.2.0",
+              null
+            ],
+            "@babel/preset-env": [
+              "^7.2.3",
+              null
+            ],
+            "@babel/register": [
+              "^7.0.0",
+              null
+            ],
+            "babel-eslint": [
+              "^10.0.1",
+              null
+            ],
+            "babel-loader": [
+              "^8.0.5",
+              null
+            ],
+            "chai": [
+              "^4.2.0",
+              null
+            ],
+            "colors": [
+              "^1.3.3",
+              null
+            ],
+            "eslint": [
+              "^5.12.0",
+              null
+            ],
+            "grunt": [
+              "^1.0.3",
+              null
+            ],
+            "grunt-babel": [
+              "^8.0.0",
+              null
+            ],
+            "grunt-clean": [
+              "^0.4.0",
+              null
+            ],
+            "grunt-cli": [
+              "^1.3.2",
+              null
+            ],
+            "grunt-contrib-clean": [
+              "^2.0.0",
+              null
+            ],
+            "grunt-contrib-copy": [
+              "^1.0.0",
+              null
+            ],
+            "grunt-contrib-uglify": [
+              "^4.0.0",
+              null
+            ],
+            "grunt-contrib-watch": [
+              "^1.1.0",
+              null
+            ],
+            "grunt-eslint": [
+              "^21.0.0",
+              null
+            ],
+            "grunt-exec": [
+              "^3.0.0",
+              null
+            ],
+            "grunt-karma": [
+              "^3.0.1",
+              null
+            ],
+            "grunt-mocha-istanbul": [
+              "^5.0.2",
+              null
+            ],
+            "grunt-mocha-test": [
+              "^0.13.3",
+              null
+            ],
+            "grunt-webpack": [
+              "^3.1.3",
+              null
+            ],
+            "istanbul": [
+              "github:kpdecker/istanbul",
+              null
+            ],
+            "karma": [
+              "^3.1.4",
+              null
+            ],
+            "karma-chrome-launcher": [
+              "^2.2.0",
+              null
+            ],
+            "karma-mocha": [
+              "^1.3.0",
+              null
+            ],
+            "karma-mocha-reporter": [
+              "^2.0.0",
+              null
+            ],
+            "karma-sauce-launcher": [
+              "^2.0.2",
+              null
+            ],
+            "karma-sourcemap-loader": [
+              "^0.3.6",
+              null
+            ],
+            "karma-webpack": [
+              "^3.0.5",
+              null
+            ],
+            "mocha": [
+              "^5.2.0",
+              null
+            ],
+            "rollup": [
+              "^1.0.2",
+              null
+            ],
+            "rollup-plugin-babel": [
+              "^4.2.0",
+              null
+            ],
+            "semver": [
+              "^5.6.0",
+              null
+            ],
+            "webpack": [
+              "^4.28.3",
+              null
+            ],
+            "webpack-dev-server": [
+              "^3.1.14",
+              null
+            ]
+          }
         }
       }
     },
@@ -2314,66 +2170,60 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "browserify": [
-            "^16.2.3",
-            null
-          ],
-          "eslint": [
-            "^6.5.1",
-            null
-          ],
-          "eslint-config-prettier": [
-            "^6.4.0",
-            null
-          ],
-          "eslint-config-standard": [
-            "^14.1.0",
-            null
-          ],
-          "eslint-plugin-import": [
-            "^2.14.0",
-            null
-          ],
-          "eslint-plugin-node": [
-            "^10.0.0",
-            null
-          ],
-          "eslint-plugin-promise": [
-            "^4.0.1",
-            null
-          ],
-          "eslint-plugin-standard": [
-            "^4.0.0",
-            null
-          ],
-          "husky": [
-            "^3.0.9",
-            null
-          ],
-          "jest": [
-            "^24",
-            null
-          ],
-          "prettier": [
-            "^1.14.3",
-            null
-          ],
-          "uglify-js": [
-            "^3.3.2",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 12,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "browserify": [
+              "^16.2.3",
+              null
+            ],
+            "eslint": [
+              "^6.5.1",
+              null
+            ],
+            "eslint-config-prettier": [
+              "^6.4.0",
+              null
+            ],
+            "eslint-config-standard": [
+              "^14.1.0",
+              null
+            ],
+            "eslint-plugin-import": [
+              "^2.14.0",
+              null
+            ],
+            "eslint-plugin-node": [
+              "^10.0.0",
+              null
+            ],
+            "eslint-plugin-promise": [
+              "^4.0.1",
+              null
+            ],
+            "eslint-plugin-standard": [
+              "^4.0.0",
+              null
+            ],
+            "husky": [
+              "^3.0.9",
+              null
+            ],
+            "jest": [
+              "^24",
+              null
+            ],
+            "prettier": [
+              "^1.14.3",
+              null
+            ],
+            "uglify-js": [
+              "^3.3.2",
+              null
+            ]
+          }
         }
       }
     },
@@ -2432,194 +2282,188 @@
         "introduction": "direct",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "@dprint/formatter": [
-            "^0.4.1",
-            null
-          ],
-          "@dprint/typescript": [
-            "0.93.4",
-            null
-          ],
-          "@esfx/canceltoken": [
-            "^1.0.0",
-            null
-          ],
-          "@eslint/js": [
-            "^9.20.0",
-            null
-          ],
-          "@octokit/rest": [
-            "^21.1.1",
-            null
-          ],
-          "@types/chai": [
-            "^4.3.20",
-            null
-          ],
-          "@types/diff": [
-            "^7.0.1",
-            null
-          ],
-          "@types/minimist": [
-            "^1.2.5",
-            null
-          ],
-          "@types/mocha": [
-            "^10.0.10",
-            null
-          ],
-          "@types/ms": [
-            "^0.7.34",
-            null
-          ],
-          "@types/node": [
-            "latest",
-            null
-          ],
-          "@types/source-map-support": [
-            "^0.5.10",
-            null
-          ],
-          "@types/which": [
-            "^3.0.4",
-            null
-          ],
-          "@typescript-eslint/rule-tester": [
-            "^8.24.1",
-            null
-          ],
-          "@typescript-eslint/type-utils": [
-            "^8.24.1",
-            null
-          ],
-          "@typescript-eslint/utils": [
-            "^8.24.1",
-            null
-          ],
-          "azure-devops-node-api": [
-            "^14.1.0",
-            null
-          ],
-          "c8": [
-            "^10.1.3",
-            null
-          ],
-          "chai": [
-            "^4.5.0",
-            null
-          ],
-          "chokidar": [
-            "^4.0.3",
-            null
-          ],
-          "diff": [
-            "^7.0.0",
-            null
-          ],
-          "dprint": [
-            "^0.49.0",
-            null
-          ],
-          "esbuild": [
-            "^0.25.0",
-            null
-          ],
-          "eslint": [
-            "^9.20.1",
-            null
-          ],
-          "eslint-formatter-autolinkable-stylish": [
-            "^1.4.0",
-            null
-          ],
-          "eslint-plugin-regexp": [
-            "^2.7.0",
-            null
-          ],
-          "fast-xml-parser": [
-            "^4.5.2",
-            null
-          ],
-          "glob": [
-            "^10.4.5",
-            null
-          ],
-          "globals": [
-            "^15.15.0",
-            null
-          ],
-          "hereby": [
-            "^1.10.0",
-            null
-          ],
-          "jsonc-parser": [
-            "^3.3.1",
-            null
-          ],
-          "knip": [
-            "^5.44.4",
-            null
-          ],
-          "minimist": [
-            "^1.2.8",
-            null
-          ],
-          "mocha": [
-            "^10.8.2",
-            null
-          ],
-          "mocha-fivemat-progress-reporter": [
-            "^0.1.0",
-            null
-          ],
-          "monocart-coverage-reports": [
-            "^2.12.1",
-            null
-          ],
-          "ms": [
-            "^2.1.3",
-            null
-          ],
-          "picocolors": [
-            "^1.1.1",
-            null
-          ],
-          "playwright": [
-            "^1.50.1",
-            null
-          ],
-          "source-map-support": [
-            "^0.5.21",
-            null
-          ],
-          "tslib": [
-            "^2.8.1",
-            null
-          ],
-          "typescript": [
-            "^5.7.3",
-            null
-          ],
-          "typescript-eslint": [
-            "^8.24.1",
-            null
-          ],
-          "which": [
-            "^3.0.1",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 44,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "@dprint/formatter": [
+              "^0.4.1",
+              null
+            ],
+            "@dprint/typescript": [
+              "0.93.4",
+              null
+            ],
+            "@esfx/canceltoken": [
+              "^1.0.0",
+              null
+            ],
+            "@eslint/js": [
+              "^9.20.0",
+              null
+            ],
+            "@octokit/rest": [
+              "^21.1.1",
+              null
+            ],
+            "@types/chai": [
+              "^4.3.20",
+              null
+            ],
+            "@types/diff": [
+              "^7.0.1",
+              null
+            ],
+            "@types/minimist": [
+              "^1.2.5",
+              null
+            ],
+            "@types/mocha": [
+              "^10.0.10",
+              null
+            ],
+            "@types/ms": [
+              "^0.7.34",
+              null
+            ],
+            "@types/node": [
+              "latest",
+              null
+            ],
+            "@types/source-map-support": [
+              "^0.5.10",
+              null
+            ],
+            "@types/which": [
+              "^3.0.4",
+              null
+            ],
+            "@typescript-eslint/rule-tester": [
+              "^8.24.1",
+              null
+            ],
+            "@typescript-eslint/type-utils": [
+              "^8.24.1",
+              null
+            ],
+            "@typescript-eslint/utils": [
+              "^8.24.1",
+              null
+            ],
+            "azure-devops-node-api": [
+              "^14.1.0",
+              null
+            ],
+            "c8": [
+              "^10.1.3",
+              null
+            ],
+            "chai": [
+              "^4.5.0",
+              null
+            ],
+            "chokidar": [
+              "^4.0.3",
+              null
+            ],
+            "diff": [
+              "^7.0.0",
+              null
+            ],
+            "dprint": [
+              "^0.49.0",
+              null
+            ],
+            "esbuild": [
+              "^0.25.0",
+              null
+            ],
+            "eslint": [
+              "^9.20.1",
+              null
+            ],
+            "eslint-formatter-autolinkable-stylish": [
+              "^1.4.0",
+              null
+            ],
+            "eslint-plugin-regexp": [
+              "^2.7.0",
+              null
+            ],
+            "fast-xml-parser": [
+              "^4.5.2",
+              null
+            ],
+            "glob": [
+              "^10.4.5",
+              null
+            ],
+            "globals": [
+              "^15.15.0",
+              null
+            ],
+            "hereby": [
+              "^1.10.0",
+              null
+            ],
+            "jsonc-parser": [
+              "^3.3.1",
+              null
+            ],
+            "knip": [
+              "^5.44.4",
+              null
+            ],
+            "minimist": [
+              "^1.2.8",
+              null
+            ],
+            "mocha": [
+              "^10.8.2",
+              null
+            ],
+            "mocha-fivemat-progress-reporter": [
+              "^0.1.0",
+              null
+            ],
+            "monocart-coverage-reports": [
+              "^2.12.1",
+              null
+            ],
+            "ms": [
+              "^2.1.3",
+              null
+            ],
+            "picocolors": [
+              "^1.1.1",
+              null
+            ],
+            "playwright": [
+              "^1.50.1",
+              null
+            ],
+            "source-map-support": [
+              "^0.5.21",
+              null
+            ],
+            "tslib": [
+              "^2.8.1",
+              null
+            ],
+            "typescript": [
+              "^5.7.3",
+              null
+            ],
+            "typescript-eslint": [
+              "^8.24.1",
+              null
+            ],
+            "which": [
+              "^3.0.1",
+              null
+            ]
+          }
         }
       }
     },
@@ -2672,54 +2516,48 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "babel-core": [
-            "6.26.3",
-            null
-          ],
-          "eslint": [
-            "^7.12.1",
-            null
-          ],
-          "flow-parser": [
-            "0.136.0",
-            null
-          ],
-          "rimraf": [
-            "^2.5.4",
-            null
-          ],
-          "rxjs": [
-            "6.6.3",
-            null
-          ],
-          "semver": [
-            "^5.3.0",
-            null
-          ],
-          "tap": [
-            "^9.0.0",
-            null
-          ],
-          "temp": [
-            "^0.8.3",
-            null
-          ],
-          "yarn": [
-            "1.22.10",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 9,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "babel-core": [
+              "6.26.3",
+              null
+            ],
+            "eslint": [
+              "^7.12.1",
+              null
+            ],
+            "flow-parser": [
+              "0.136.0",
+              null
+            ],
+            "rimraf": [
+              "^2.5.4",
+              null
+            ],
+            "rxjs": [
+              "6.6.3",
+              null
+            ],
+            "semver": [
+              "^5.3.0",
+              null
+            ],
+            "tap": [
+              "^9.0.0",
+              null
+            ],
+            "temp": [
+              "^0.8.3",
+              null
+            ],
+            "yarn": [
+              "1.22.10",
+              null
+            ]
+          }
         }
       }
     },
@@ -2776,30 +2614,24 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "ava": [
-            "^1.4.1",
-            null
-          ],
-          "tsd": [
-            "^0.7.2",
-            null
-          ],
-          "xo": [
-            "^0.24.0",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 3,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "ava": [
+              "^1.4.1",
+              null
+            ],
+            "tsd": [
+              "^0.7.2",
+              null
+            ],
+            "xo": [
+              "^0.24.0",
+              null
+            ]
+          }
         }
       }
     },
@@ -2869,308 +2701,302 @@
         "introduction": "direct",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "esbuild": [
-            "^0.21.3",
-            "esbuild@0.21.5"
-          ],
-          "postcss": [
-            "^8.4.43",
-            "postcss@8.5.6"
-          ],
-          "rollup": [
-            "^4.20.0",
-            "rollup@4.56.0"
-          ]
-        },
-        "dev": {
-          "@ampproject/remapping": [
-            "^2.3.0",
-            null
-          ],
-          "@babel/parser": [
-            "^7.25.6",
-            null
-          ],
-          "@jridgewell/trace-mapping": [
-            "^0.3.25",
-            null
-          ],
-          "@polka/compression": [
-            "^1.0.0-next.25",
-            null
-          ],
-          "@rollup/plugin-alias": [
-            "^5.1.0",
-            null
-          ],
-          "@rollup/plugin-commonjs": [
-            "^26.0.1",
-            null
-          ],
-          "@rollup/plugin-dynamic-import-vars": [
-            "^2.1.2",
-            null
-          ],
-          "@rollup/plugin-json": [
-            "^6.1.0",
-            null
-          ],
-          "@rollup/plugin-node-resolve": [
-            "15.2.3",
-            null
-          ],
-          "@rollup/pluginutils": [
-            "^5.1.0",
-            null
-          ],
-          "@types/escape-html": [
-            "^1.0.4",
-            null
-          ],
-          "@types/pnpapi": [
-            "^0.0.5",
-            null
-          ],
-          "artichokie": [
-            "^0.2.1",
-            null
-          ],
-          "cac": [
-            "^6.7.14",
-            null
-          ],
-          "chokidar": [
-            "^3.6.0",
-            null
-          ],
-          "connect": [
-            "^3.7.0",
-            null
-          ],
-          "convert-source-map": [
-            "^2.0.0",
-            null
-          ],
-          "cors": [
-            "^2.8.5",
-            null
-          ],
-          "cross-spawn": [
-            "^7.0.3",
-            null
-          ],
-          "debug": [
-            "^4.3.6",
-            null
-          ],
-          "dep-types": [
-            "link:./src/types",
-            null
-          ],
-          "dotenv": [
-            "^16.4.5",
-            null
-          ],
-          "dotenv-expand": [
-            "^11.0.6",
-            null
-          ],
-          "es-module-lexer": [
-            "^1.5.4",
-            null
-          ],
-          "escape-html": [
-            "^1.0.3",
-            null
-          ],
-          "estree-walker": [
-            "^3.0.3",
-            null
-          ],
-          "etag": [
-            "^1.8.1",
-            null
-          ],
-          "fast-glob": [
-            "^3.3.2",
-            null
-          ],
-          "http-proxy": [
-            "^1.18.1",
-            null
-          ],
-          "launch-editor-middleware": [
-            "^2.9.1",
-            null
-          ],
-          "lightningcss": [
-            "^1.26.0",
-            null
-          ],
-          "magic-string": [
-            "^0.30.11",
-            null
-          ],
-          "micromatch": [
-            "^4.0.8",
-            null
-          ],
-          "mlly": [
-            "^1.7.1",
-            null
-          ],
-          "mrmime": [
-            "^2.0.0",
-            null
-          ],
-          "open": [
-            "^8.4.2",
-            null
-          ],
-          "parse5": [
-            "^7.1.2",
-            null
-          ],
-          "pathe": [
-            "^1.1.2",
-            null
-          ],
-          "periscopic": [
-            "^4.0.2",
-            null
-          ],
-          "picocolors": [
-            "^1.0.1",
-            null
-          ],
-          "picomatch": [
-            "^2.3.1",
-            null
-          ],
-          "postcss-import": [
-            "^16.1.0",
-            null
-          ],
-          "postcss-load-config": [
-            "^4.0.2",
-            null
-          ],
-          "postcss-modules": [
-            "^6.0.0",
-            null
-          ],
-          "resolve.exports": [
-            "^2.0.2",
-            null
-          ],
-          "rollup-plugin-dts": [
-            "^6.1.1",
-            null
-          ],
-          "rollup-plugin-esbuild": [
-            "^6.1.1",
-            null
-          ],
-          "rollup-plugin-license": [
-            "^3.5.2",
-            null
-          ],
-          "sass": [
-            "^1.77.8",
-            null
-          ],
-          "sass-embedded": [
-            "^1.77.8",
-            null
-          ],
-          "sirv": [
-            "^2.0.4",
-            null
-          ],
-          "source-map-support": [
-            "^0.5.21",
-            null
-          ],
-          "strip-ansi": [
-            "^7.1.0",
-            null
-          ],
-          "strip-literal": [
-            "^2.1.0",
-            null
-          ],
-          "tsconfck": [
-            "^3.1.4",
-            null
-          ],
-          "tslib": [
-            "^2.7.0",
-            null
-          ],
-          "types": [
-            "link:./types",
-            null
-          ],
-          "ufo": [
-            "^1.5.4",
-            null
-          ],
-          "ws": [
-            "^8.18.0",
-            null
-          ]
-        },
-        "opt": {
-          "fsevents": [
-            "~2.3.3",
-            null
-          ]
-        },
-        "peer": {
-          "@types/node": [
-            "^18.0.0 || >=20.0.0",
-            "@types/node@20.19.30"
-          ],
-          "less": [
-            "*",
-            null
-          ],
-          "lightningcss": [
-            "^1.21.0",
-            null
-          ],
-          "sass": [
-            "*",
-            null
-          ],
-          "sass-embedded": [
-            "*",
-            null
-          ],
-          "stylus": [
-            "*",
-            null
-          ],
-          "sugarss": [
-            "*",
-            null
-          ],
-          "terser": [
-            "^5.4.0",
-            "terser@5.46.0"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 0,
         "fanOut": 5,
-        "dependencySurface": {
-          "deps": 3,
-          "dev": 59,
-          "peer": 8,
-          "opt": 1
+        "subDeps": {
+          "dep": {
+            "esbuild": [
+              "^0.21.3",
+              "esbuild@0.21.5"
+            ],
+            "postcss": [
+              "^8.4.43",
+              "postcss@8.5.6"
+            ],
+            "rollup": [
+              "^4.20.0",
+              "rollup@4.56.0"
+            ]
+          },
+          "dev": {
+            "@ampproject/remapping": [
+              "^2.3.0",
+              null
+            ],
+            "@babel/parser": [
+              "^7.25.6",
+              null
+            ],
+            "@jridgewell/trace-mapping": [
+              "^0.3.25",
+              null
+            ],
+            "@polka/compression": [
+              "^1.0.0-next.25",
+              null
+            ],
+            "@rollup/plugin-alias": [
+              "^5.1.0",
+              null
+            ],
+            "@rollup/plugin-commonjs": [
+              "^26.0.1",
+              null
+            ],
+            "@rollup/plugin-dynamic-import-vars": [
+              "^2.1.2",
+              null
+            ],
+            "@rollup/plugin-json": [
+              "^6.1.0",
+              null
+            ],
+            "@rollup/plugin-node-resolve": [
+              "15.2.3",
+              null
+            ],
+            "@rollup/pluginutils": [
+              "^5.1.0",
+              null
+            ],
+            "@types/escape-html": [
+              "^1.0.4",
+              null
+            ],
+            "@types/pnpapi": [
+              "^0.0.5",
+              null
+            ],
+            "artichokie": [
+              "^0.2.1",
+              null
+            ],
+            "cac": [
+              "^6.7.14",
+              null
+            ],
+            "chokidar": [
+              "^3.6.0",
+              null
+            ],
+            "connect": [
+              "^3.7.0",
+              null
+            ],
+            "convert-source-map": [
+              "^2.0.0",
+              null
+            ],
+            "cors": [
+              "^2.8.5",
+              null
+            ],
+            "cross-spawn": [
+              "^7.0.3",
+              null
+            ],
+            "debug": [
+              "^4.3.6",
+              null
+            ],
+            "dep-types": [
+              "link:./src/types",
+              null
+            ],
+            "dotenv": [
+              "^16.4.5",
+              null
+            ],
+            "dotenv-expand": [
+              "^11.0.6",
+              null
+            ],
+            "es-module-lexer": [
+              "^1.5.4",
+              null
+            ],
+            "escape-html": [
+              "^1.0.3",
+              null
+            ],
+            "estree-walker": [
+              "^3.0.3",
+              null
+            ],
+            "etag": [
+              "^1.8.1",
+              null
+            ],
+            "fast-glob": [
+              "^3.3.2",
+              null
+            ],
+            "http-proxy": [
+              "^1.18.1",
+              null
+            ],
+            "launch-editor-middleware": [
+              "^2.9.1",
+              null
+            ],
+            "lightningcss": [
+              "^1.26.0",
+              null
+            ],
+            "magic-string": [
+              "^0.30.11",
+              null
+            ],
+            "micromatch": [
+              "^4.0.8",
+              null
+            ],
+            "mlly": [
+              "^1.7.1",
+              null
+            ],
+            "mrmime": [
+              "^2.0.0",
+              null
+            ],
+            "open": [
+              "^8.4.2",
+              null
+            ],
+            "parse5": [
+              "^7.1.2",
+              null
+            ],
+            "pathe": [
+              "^1.1.2",
+              null
+            ],
+            "periscopic": [
+              "^4.0.2",
+              null
+            ],
+            "picocolors": [
+              "^1.0.1",
+              null
+            ],
+            "picomatch": [
+              "^2.3.1",
+              null
+            ],
+            "postcss-import": [
+              "^16.1.0",
+              null
+            ],
+            "postcss-load-config": [
+              "^4.0.2",
+              null
+            ],
+            "postcss-modules": [
+              "^6.0.0",
+              null
+            ],
+            "resolve.exports": [
+              "^2.0.2",
+              null
+            ],
+            "rollup-plugin-dts": [
+              "^6.1.1",
+              null
+            ],
+            "rollup-plugin-esbuild": [
+              "^6.1.1",
+              null
+            ],
+            "rollup-plugin-license": [
+              "^3.5.2",
+              null
+            ],
+            "sass": [
+              "^1.77.8",
+              null
+            ],
+            "sass-embedded": [
+              "^1.77.8",
+              null
+            ],
+            "sirv": [
+              "^2.0.4",
+              null
+            ],
+            "source-map-support": [
+              "^0.5.21",
+              null
+            ],
+            "strip-ansi": [
+              "^7.1.0",
+              null
+            ],
+            "strip-literal": [
+              "^2.1.0",
+              null
+            ],
+            "tsconfck": [
+              "^3.1.4",
+              null
+            ],
+            "tslib": [
+              "^2.7.0",
+              null
+            ],
+            "types": [
+              "link:./types",
+              null
+            ],
+            "ufo": [
+              "^1.5.4",
+              null
+            ],
+            "ws": [
+              "^8.18.0",
+              null
+            ]
+          },
+          "opt": {
+            "fsevents": [
+              "~2.3.3",
+              null
+            ]
+          },
+          "peer": {
+            "@types/node": [
+              "^18.0.0 || >=20.0.0",
+              "@types/node@20.19.30"
+            ],
+            "less": [
+              "*",
+              null
+            ],
+            "lightningcss": [
+              "^1.21.0",
+              null
+            ],
+            "sass": [
+              "*",
+              null
+            ],
+            "sass-embedded": [
+              "*",
+              null
+            ],
+            "stylus": [
+              "*",
+              null
+            ],
+            "sugarss": [
+              "*",
+              null
+            ],
+            "terser": [
+              "^5.4.0",
+              "terser@5.46.0"
+            ]
+          }
         }
       }
     },
@@ -3237,110 +3063,104 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "opt": {
-          "@esbuild/aix-ppc64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/android-arm": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/android-arm64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/android-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/darwin-arm64": [
-            "0.21.5",
-            "@esbuild/darwin-arm64@0.21.5"
-          ],
-          "@esbuild/darwin-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/freebsd-arm64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/freebsd-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-arm": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-arm64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-ia32": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-loong64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-mips64el": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-ppc64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-riscv64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-s390x": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/linux-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/netbsd-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/openbsd-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/sunos-x64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/win32-arm64": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/win32-ia32": [
-            "0.21.5",
-            null
-          ],
-          "@esbuild/win32-x64": [
-            "0.21.5",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 1,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 23
+        "subDeps": {
+          "opt": {
+            "@esbuild/aix-ppc64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/android-arm": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/android-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/android-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/darwin-arm64": [
+              "0.21.5",
+              "@esbuild/darwin-arm64@0.21.5"
+            ],
+            "@esbuild/darwin-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/freebsd-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/freebsd-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-arm": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-ia32": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-loong64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-mips64el": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-ppc64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-riscv64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-s390x": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/netbsd-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/openbsd-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/sunos-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/win32-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/win32-ia32": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/win32-x64": [
+              "0.21.5",
+              null
+            ]
+          }
         }
       },
       "execution": {
@@ -3412,13 +3232,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "postcss@8.5.6": {
@@ -3476,30 +3290,24 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "nanoid": [
-            "^3.3.11",
-            "nanoid@3.3.11"
-          ],
-          "picocolors": [
-            "^1.1.1",
-            "picocolors@1.1.1"
-          ],
-          "source-map-js": [
-            "^1.2.1",
-            "source-map-js@1.2.1"
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 3,
-        "dependencySurface": {
-          "deps": 3,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dep": {
+            "nanoid": [
+              "^3.3.11",
+              "nanoid@3.3.11"
+            ],
+            "picocolors": [
+              "^1.1.1",
+              "picocolors@1.1.1"
+            ],
+            "source-map-js": [
+              "^1.2.1",
+              "source-map-js@1.2.1"
+            ]
+          }
         }
       }
     },
@@ -3558,13 +3366,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "picocolors@1.1.1": {
@@ -3618,13 +3420,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     },
     "source-map-js@1.2.1": {
@@ -3681,30 +3477,24 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dev": {
-          "clean-publish": [
-            "^3.1.0",
-            null
-          ],
-          "doctoc": [
-            "^0.15.0",
-            null
-          ],
-          "webpack": [
-            "^1.12.0",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 3,
-          "peer": 0,
-          "opt": 0
+        "subDeps": {
+          "dev": {
+            "clean-publish": [
+              "^3.1.0",
+              null
+            ],
+            "doctoc": [
+              "^0.15.0",
+              null
+            ],
+            "webpack": [
+              "^1.12.0",
+              null
+            ]
+          }
         }
       }
     },
@@ -3763,478 +3553,472 @@
         "introduction": "tooling",
         "tsTypes": "bundled"
       },
-      "subDeps": {
-        "dep": {
-          "@types/estree": [
-            "1.0.8",
-            "@types/estree@1.0.8"
-          ]
-        },
-        "dev": {
-          "@codemirror/commands": [
-            "^6.10.1",
-            null
-          ],
-          "@codemirror/lang-javascript": [
-            "^6.2.4",
-            null
-          ],
-          "@codemirror/language": [
-            "^6.12.1",
-            null
-          ],
-          "@codemirror/search": [
-            "^6.6.0",
-            null
-          ],
-          "@codemirror/state": [
-            "^6.5.3",
-            null
-          ],
-          "@codemirror/view": [
-            "^6.39.10",
-            null
-          ],
-          "@eslint/js": [
-            "^9.39.2",
-            null
-          ],
-          "@inquirer/prompts": [
-            "^7.10.1",
-            null
-          ],
-          "@jridgewell/sourcemap-codec": [
-            "^1.5.5",
-            null
-          ],
-          "@mermaid-js/mermaid-cli": [
-            "^11.12.0",
-            null
-          ],
-          "@napi-rs/cli": [
-            "3.4.1",
-            null
-          ],
-          "@rollup/plugin-alias": [
-            "^6.0.0",
-            null
-          ],
-          "@rollup/plugin-buble": [
-            "^1.0.3",
-            null
-          ],
-          "@rollup/plugin-commonjs": [
-            "^29.0.0",
-            null
-          ],
-          "@rollup/plugin-json": [
-            "^6.1.0",
-            null
-          ],
-          "@rollup/plugin-node-resolve": [
-            "^16.0.3",
-            null
-          ],
-          "@rollup/plugin-replace": [
-            "^6.0.3",
-            null
-          ],
-          "@rollup/plugin-terser": [
-            "^0.4.4",
-            null
-          ],
-          "@rollup/plugin-typescript": [
-            "^12.3.0",
-            null
-          ],
-          "@rollup/pluginutils": [
-            "^5.3.0",
-            null
-          ],
-          "@shikijs/vitepress-twoslash": [
-            "^3.21.0",
-            null
-          ],
-          "@types/mocha": [
-            "^10.0.10",
-            null
-          ],
-          "@types/node": [
-            "^20.19.28",
-            null
-          ],
-          "@types/picomatch": [
-            "^4.0.2",
-            null
-          ],
-          "@types/semver": [
-            "^7.7.1",
-            null
-          ],
-          "@types/yargs-parser": [
-            "^21.0.3",
-            null
-          ],
-          "@vue/language-server": [
-            "^3.2.2",
-            null
-          ],
-          "acorn": [
-            "^8.15.0",
-            null
-          ],
-          "acorn-import-assertions": [
-            "^1.9.0",
-            null
-          ],
-          "acorn-jsx": [
-            "^5.3.2",
-            null
-          ],
-          "buble": [
-            "^0.20.0",
-            null
-          ],
-          "builtin-modules": [
-            "^5.0.0",
-            null
-          ],
-          "chokidar": [
-            "^3.6.0",
-            null
-          ],
-          "concurrently": [
-            "^9.2.1",
-            null
-          ],
-          "core-js": [
-            "3.38.1",
-            null
-          ],
-          "cross-env": [
-            "^10.1.0",
-            null
-          ],
-          "date-time": [
-            "^4.0.0",
-            null
-          ],
-          "es5-shim": [
-            "^4.6.7",
-            null
-          ],
-          "es6-shim": [
-            "^0.35.8",
-            null
-          ],
-          "eslint": [
-            "^9.39.2",
-            null
-          ],
-          "eslint-config-prettier": [
-            "^10.1.8",
-            null
-          ],
-          "eslint-plugin-prettier": [
-            "^5.5.4",
-            null
-          ],
-          "eslint-plugin-unicorn": [
-            "^62.0.0",
-            null
-          ],
-          "eslint-plugin-vue": [
-            "^10.6.2",
-            null
-          ],
-          "fixturify": [
-            "^3.0.0",
-            null
-          ],
-          "flru": [
-            "^1.0.2",
-            null
-          ],
-          "fs-extra": [
-            "^11.3.3",
-            null
-          ],
-          "github-api": [
-            "^3.4.0",
-            null
-          ],
-          "globals": [
-            "^17.0.0",
-            null
-          ],
-          "husky": [
-            "^9.1.7",
-            null
-          ],
-          "is-reference": [
-            "^3.0.3",
-            null
-          ],
-          "lint-staged": [
-            "^16.2.7",
-            null
-          ],
-          "locate-character": [
-            "^3.0.0",
-            null
-          ],
-          "magic-string": [
-            "^0.30.21",
-            null
-          ],
-          "memfs": [
-            "^4.51.1",
-            null
-          ],
-          "mocha": [
-            "^11.7.5",
-            null
-          ],
-          "nodemon": [
-            "^3.1.11",
-            null
-          ],
-          "npm-audit-resolver": [
-            "^3.0.0-RC.0",
-            null
-          ],
-          "nyc": [
-            "^17.1.0",
-            null
-          ],
-          "patch-package": [
-            "^8.0.1",
-            null
-          ],
-          "picocolors": [
-            "^1.1.1",
-            null
-          ],
-          "picomatch": [
-            "^4.0.3",
-            null
-          ],
-          "pinia": [
-            "^3.0.4",
-            null
-          ],
-          "prettier": [
-            "^3.7.4",
-            null
-          ],
-          "prettier-plugin-organize-imports": [
-            "^4.3.0",
-            null
-          ],
-          "pretty-bytes": [
-            "^7.1.0",
-            null
-          ],
-          "pretty-ms": [
-            "^9.3.0",
-            null
-          ],
-          "requirejs": [
-            "^2.3.8",
-            null
-          ],
-          "rollup": [
-            "^4.55.1",
-            null
-          ],
-          "rollup-plugin-license": [
-            "^3.6.0",
-            null
-          ],
-          "semver": [
-            "^7.7.3",
-            null
-          ],
-          "shx": [
-            "^0.4.0",
-            null
-          ],
-          "signal-exit": [
-            "^4.1.0",
-            null
-          ],
-          "source-map": [
-            "^0.7.6",
-            null
-          ],
-          "source-map-support": [
-            "^0.5.21",
-            null
-          ],
-          "systemjs": [
-            "^6.15.1",
-            null
-          ],
-          "terser": [
-            "^5.44.1",
-            null
-          ],
-          "tslib": [
-            "^2.8.1",
-            null
-          ],
-          "typescript": [
-            "^5.9.3",
-            null
-          ],
-          "typescript-eslint": [
-            "^8.53.0",
-            null
-          ],
-          "vite": [
-            "^7.3.1",
-            null
-          ],
-          "vitepress": [
-            "^1.6.4",
-            null
-          ],
-          "vue": [
-            "^3.5.26",
-            null
-          ],
-          "vue-eslint-parser": [
-            "^10.2.0",
-            null
-          ],
-          "vue-tsc": [
-            "^3.2.2",
-            null
-          ],
-          "wasm-pack": [
-            "^0.13.1",
-            null
-          ],
-          "yargs-parser": [
-            "^21.1.1",
-            null
-          ]
-        },
-        "opt": {
-          "@rollup/rollup-android-arm-eabi": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-android-arm64": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-darwin-arm64": [
-            "4.56.0",
-            "@rollup/rollup-darwin-arm64@4.56.0"
-          ],
-          "@rollup/rollup-darwin-x64": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-freebsd-arm64": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-freebsd-x64": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-arm-gnueabihf": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-arm-musleabihf": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-arm64-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-arm64-musl": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-loong64-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-loong64-musl": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-ppc64-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-ppc64-musl": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-riscv64-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-riscv64-musl": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-s390x-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-x64-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-linux-x64-musl": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-openbsd-x64": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-openharmony-arm64": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-win32-arm64-msvc": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-win32-ia32-msvc": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-win32-x64-gnu": [
-            "4.56.0",
-            null
-          ],
-          "@rollup/rollup-win32-x64-msvc": [
-            "4.56.0",
-            null
-          ],
-          "fsevents": [
-            "~2.3.2",
-            null
-          ]
-        }
-      },
       "graph": {
         "fanIn": 1,
         "fanOut": 2,
-        "dependencySurface": {
-          "deps": 1,
-          "dev": 87,
-          "peer": 0,
-          "opt": 26
+        "subDeps": {
+          "dep": {
+            "@types/estree": [
+              "1.0.8",
+              "@types/estree@1.0.8"
+            ]
+          },
+          "dev": {
+            "@codemirror/commands": [
+              "^6.10.1",
+              null
+            ],
+            "@codemirror/lang-javascript": [
+              "^6.2.4",
+              null
+            ],
+            "@codemirror/language": [
+              "^6.12.1",
+              null
+            ],
+            "@codemirror/search": [
+              "^6.6.0",
+              null
+            ],
+            "@codemirror/state": [
+              "^6.5.3",
+              null
+            ],
+            "@codemirror/view": [
+              "^6.39.10",
+              null
+            ],
+            "@eslint/js": [
+              "^9.39.2",
+              null
+            ],
+            "@inquirer/prompts": [
+              "^7.10.1",
+              null
+            ],
+            "@jridgewell/sourcemap-codec": [
+              "^1.5.5",
+              null
+            ],
+            "@mermaid-js/mermaid-cli": [
+              "^11.12.0",
+              null
+            ],
+            "@napi-rs/cli": [
+              "3.4.1",
+              null
+            ],
+            "@rollup/plugin-alias": [
+              "^6.0.0",
+              null
+            ],
+            "@rollup/plugin-buble": [
+              "^1.0.3",
+              null
+            ],
+            "@rollup/plugin-commonjs": [
+              "^29.0.0",
+              null
+            ],
+            "@rollup/plugin-json": [
+              "^6.1.0",
+              null
+            ],
+            "@rollup/plugin-node-resolve": [
+              "^16.0.3",
+              null
+            ],
+            "@rollup/plugin-replace": [
+              "^6.0.3",
+              null
+            ],
+            "@rollup/plugin-terser": [
+              "^0.4.4",
+              null
+            ],
+            "@rollup/plugin-typescript": [
+              "^12.3.0",
+              null
+            ],
+            "@rollup/pluginutils": [
+              "^5.3.0",
+              null
+            ],
+            "@shikijs/vitepress-twoslash": [
+              "^3.21.0",
+              null
+            ],
+            "@types/mocha": [
+              "^10.0.10",
+              null
+            ],
+            "@types/node": [
+              "^20.19.28",
+              null
+            ],
+            "@types/picomatch": [
+              "^4.0.2",
+              null
+            ],
+            "@types/semver": [
+              "^7.7.1",
+              null
+            ],
+            "@types/yargs-parser": [
+              "^21.0.3",
+              null
+            ],
+            "@vue/language-server": [
+              "^3.2.2",
+              null
+            ],
+            "acorn": [
+              "^8.15.0",
+              null
+            ],
+            "acorn-import-assertions": [
+              "^1.9.0",
+              null
+            ],
+            "acorn-jsx": [
+              "^5.3.2",
+              null
+            ],
+            "buble": [
+              "^0.20.0",
+              null
+            ],
+            "builtin-modules": [
+              "^5.0.0",
+              null
+            ],
+            "chokidar": [
+              "^3.6.0",
+              null
+            ],
+            "concurrently": [
+              "^9.2.1",
+              null
+            ],
+            "core-js": [
+              "3.38.1",
+              null
+            ],
+            "cross-env": [
+              "^10.1.0",
+              null
+            ],
+            "date-time": [
+              "^4.0.0",
+              null
+            ],
+            "es5-shim": [
+              "^4.6.7",
+              null
+            ],
+            "es6-shim": [
+              "^0.35.8",
+              null
+            ],
+            "eslint": [
+              "^9.39.2",
+              null
+            ],
+            "eslint-config-prettier": [
+              "^10.1.8",
+              null
+            ],
+            "eslint-plugin-prettier": [
+              "^5.5.4",
+              null
+            ],
+            "eslint-plugin-unicorn": [
+              "^62.0.0",
+              null
+            ],
+            "eslint-plugin-vue": [
+              "^10.6.2",
+              null
+            ],
+            "fixturify": [
+              "^3.0.0",
+              null
+            ],
+            "flru": [
+              "^1.0.2",
+              null
+            ],
+            "fs-extra": [
+              "^11.3.3",
+              null
+            ],
+            "github-api": [
+              "^3.4.0",
+              null
+            ],
+            "globals": [
+              "^17.0.0",
+              null
+            ],
+            "husky": [
+              "^9.1.7",
+              null
+            ],
+            "is-reference": [
+              "^3.0.3",
+              null
+            ],
+            "lint-staged": [
+              "^16.2.7",
+              null
+            ],
+            "locate-character": [
+              "^3.0.0",
+              null
+            ],
+            "magic-string": [
+              "^0.30.21",
+              null
+            ],
+            "memfs": [
+              "^4.51.1",
+              null
+            ],
+            "mocha": [
+              "^11.7.5",
+              null
+            ],
+            "nodemon": [
+              "^3.1.11",
+              null
+            ],
+            "npm-audit-resolver": [
+              "^3.0.0-RC.0",
+              null
+            ],
+            "nyc": [
+              "^17.1.0",
+              null
+            ],
+            "patch-package": [
+              "^8.0.1",
+              null
+            ],
+            "picocolors": [
+              "^1.1.1",
+              null
+            ],
+            "picomatch": [
+              "^4.0.3",
+              null
+            ],
+            "pinia": [
+              "^3.0.4",
+              null
+            ],
+            "prettier": [
+              "^3.7.4",
+              null
+            ],
+            "prettier-plugin-organize-imports": [
+              "^4.3.0",
+              null
+            ],
+            "pretty-bytes": [
+              "^7.1.0",
+              null
+            ],
+            "pretty-ms": [
+              "^9.3.0",
+              null
+            ],
+            "requirejs": [
+              "^2.3.8",
+              null
+            ],
+            "rollup": [
+              "^4.55.1",
+              null
+            ],
+            "rollup-plugin-license": [
+              "^3.6.0",
+              null
+            ],
+            "semver": [
+              "^7.7.3",
+              null
+            ],
+            "shx": [
+              "^0.4.0",
+              null
+            ],
+            "signal-exit": [
+              "^4.1.0",
+              null
+            ],
+            "source-map": [
+              "^0.7.6",
+              null
+            ],
+            "source-map-support": [
+              "^0.5.21",
+              null
+            ],
+            "systemjs": [
+              "^6.15.1",
+              null
+            ],
+            "terser": [
+              "^5.44.1",
+              null
+            ],
+            "tslib": [
+              "^2.8.1",
+              null
+            ],
+            "typescript": [
+              "^5.9.3",
+              null
+            ],
+            "typescript-eslint": [
+              "^8.53.0",
+              null
+            ],
+            "vite": [
+              "^7.3.1",
+              null
+            ],
+            "vitepress": [
+              "^1.6.4",
+              null
+            ],
+            "vue": [
+              "^3.5.26",
+              null
+            ],
+            "vue-eslint-parser": [
+              "^10.2.0",
+              null
+            ],
+            "vue-tsc": [
+              "^3.2.2",
+              null
+            ],
+            "wasm-pack": [
+              "^0.13.1",
+              null
+            ],
+            "yargs-parser": [
+              "^21.1.1",
+              null
+            ]
+          },
+          "opt": {
+            "@rollup/rollup-android-arm-eabi": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-android-arm64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-darwin-arm64": [
+              "4.56.0",
+              "@rollup/rollup-darwin-arm64@4.56.0"
+            ],
+            "@rollup/rollup-darwin-x64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-freebsd-arm64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-freebsd-x64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm-gnueabihf": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm-musleabihf": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-loong64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-loong64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-ppc64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-ppc64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-riscv64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-riscv64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-s390x-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-x64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-x64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-openbsd-x64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-openharmony-arm64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-arm64-msvc": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-ia32-msvc": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-x64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-x64-msvc": [
+              "4.56.0",
+              null
+            ],
+            "fsevents": [
+              "~2.3.2",
+              null
+            ]
+          }
         }
       },
       "execution": {
@@ -4302,13 +4086,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       },
       "execution": {
         "risk": "amber",
@@ -4367,13 +4145,7 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 0,
-        "dependencySurface": {
-          "deps": 0,
-          "dev": 0,
-          "peer": 0,
-          "opt": 0
-        }
+        "fanOut": 0
       }
     }
   }

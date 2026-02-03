@@ -426,10 +426,18 @@ function buildWorkspaceUsageMap(packageMetas, dependencyGraphs) {
         const dev = ((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
         const opt = ((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
         const peer = ((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies) || {};
-        Object.keys(deps).forEach((d) => add(d, pkgName));
-        Object.keys(dev).forEach((d) => add(d, pkgName));
-        Object.keys(opt).forEach((d) => add(d, pkgName));
-        Object.keys(peer).forEach((d) => add(d, pkgName));
+        Object.keys(deps).forEach((d) => {
+            add(d, pkgName);
+        });
+        Object.keys(dev).forEach((d) => {
+            add(d, pkgName);
+        });
+        Object.keys(opt).forEach((d) => {
+            add(d, pkgName);
+        });
+        Object.keys(peer).forEach((d) => {
+            add(d, pkgName);
+        });
     }
     // From npm ls trees (transitives)
     const walk = (node, pkgName) => {
@@ -543,23 +551,22 @@ Options:
 }
 function openInBrowser(filePath) {
     const normalizedPath = filePath.replace(/\\/g, '/');
-    let command;
+    let child;
     switch ((0, os_1.platform)()) {
         case 'darwin':
-            command = `open "${normalizedPath}"`;
+            child = (0, child_process_1.spawn)('open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
             break;
         case 'win32':
-            command = `start "" "${normalizedPath}"`;
+            child = (0, child_process_1.spawn)('cmd', ['/c', 'start', '', normalizedPath], { stdio: 'ignore', shell: false, detached: true });
             break;
         default:
-            command = `command -v xdg-open >/dev/null 2>&1 && xdg-open "${normalizedPath}"`;
+            child = (0, child_process_1.spawn)('xdg-open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
             break;
     }
-    (0, child_process_1.exec)(command, (err) => {
-        if (err) {
-            console.warn('Could not open report:', err.message);
-        }
+    child.on('error', (err) => {
+        console.warn('Could not open report:', err.message);
     });
+    child.unref();
 }
 async function run() {
     const opts = parseArgs(process.argv.slice(2));
