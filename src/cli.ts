@@ -4,13 +4,13 @@ import { ChildProcess, spawn } from 'child_process';
 import { platform } from 'os';
 import { aggregateData } from './aggregator';
 import { runImportGraph } from './runners/importGraphRunner';
-import { runNpmAudit } from './runners/npmAudit';
+import { runPackageAudit } from './runners/npmAudit';
 import { runNpmLs } from './runners/npmLs';
-import { runNpmOutdated } from './runners/npmOutdated';
+import { runPackageOutdated } from './runners/npmOutdated';
 import { renderReport } from './report';
 import type { OutdatedEntry, OutdatedResult, ToolResult } from './types';
 import fs from 'fs/promises';
-import { ensureDir, removeDir } from './utils';
+import { ensureDir, removeDir, runCommand } from './utils';
 
 // Workspace detection and helpers
 type WorkspaceType = 'pnpm' | 'npm' | 'yarn' | 'none';
@@ -20,6 +20,11 @@ interface WorkspaceDiscovery {
   type: WorkspaceType;
   packagePaths: string[]; // absolute paths
 }
+
+type OutdatedAttempt = {
+  attempted: boolean;
+  result?: ToolResult<any>;
+};
 
 async function pathExists(target: string): Promise<boolean> {
   try {
@@ -97,6 +102,25 @@ async function readJsonFile(filePath: string): Promise<any | undefined> {
   } catch {
     return undefined;
   }
+}
+
+async function getToolVersion(tool: string, cwd: string): Promise<string | undefined> {
+  try {
+    const result = await runCommand(tool, ['--version'], { cwd });
+    const raw = (result.stdout || '').trim();
+    if (!raw) return undefined;
+    return raw.split(/\s+/)[0];
+  } catch {
+    return undefined;
+  }
+}
+
+function compactToolVersions(versions: Record<string, string | undefined>): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(versions)) {
+    if (value) out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 async function detectWorkspace(projectPath: string): Promise<WorkspaceDiscovery> {
@@ -211,6 +235,20 @@ async function detectPackageManager(projectPath: string, rootPkg: any, workspace
   return 'npm';
 }
 
+async function detectScanManager(projectPath: string, fallback: PackageManager): Promise<PackageManager> {
+  if (await pathExists(path.join(projectPath, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (await pathExists(path.join(projectPath, 'yarn.lock'))) return 'yarn';
+  if (
+    await pathExists(path.join(projectPath, 'package-lock.json')) ||
+    await pathExists(path.join(projectPath, 'npm-shrinkwrap.json'))
+  ) {
+    return 'npm';
+  }
+  if (await pathExists(path.join(projectPath, 'node_modules', '.pnpm'))) return 'pnpm';
+  if (await pathExists(path.join(projectPath, 'node_modules', '.yarn-state.yml'))) return 'yarn';
+  return fallback;
+}
+
 async function readWorkspacePackageMeta(rootPath: string, packagePaths: string[]): Promise<Array<{ path: string; name: string; pkg: any }>> {
   const out: Array<{ path: string; name: string; pkg: any }> = [];
   for (const p of packagePaths) {
@@ -282,6 +320,29 @@ function collectDeclaredDeps(pkg: any): string[] {
 function parseOutdatedData(data: any, unknownNames: Set<string>): OutdatedEntry[] {
   const entries: OutdatedEntry[] = [];
   if (!data || typeof data !== 'object') return entries;
+  if (Array.isArray(data)) {
+    for (const entry of data) {
+      if (!entry || typeof entry !== 'object') continue;
+      const name = typeof entry.name === 'string' ? entry.name : undefined;
+      const current = typeof entry.current === 'string' ? entry.current : '';
+      const latest = typeof entry.latest === 'string' ? entry.latest : undefined;
+      const type = typeof entry.type === 'string' ? entry.type.toLowerCase() : '';
+      if (!name || !current) continue;
+      let status: 'patch' | 'minor' | 'major' | 'unknown' | 'current' = 'unknown';
+      if (type === 'patch' || type === 'minor' || type === 'major') {
+        status = type;
+      } else if (latest) {
+        status = classifyOutdated(current, latest);
+      }
+      if (status === 'current') continue;
+      if (status === 'major' || status === 'minor' || status === 'patch') {
+        entries.push({ name, currentVersion: current, status, latestVersion: latest });
+        continue;
+      }
+      entries.push({ name, currentVersion: current, status: 'unknown' });
+    }
+    return entries;
+  }
   for (const [name, info] of Object.entries<any>(data)) {
     if (!info || typeof info !== 'object') {
       unknownNames.add(name);
@@ -342,19 +403,15 @@ function classifyOutdated(
   return 'current';
 }
 
-function mergeOutdatedResults(
-  packageMetas: Array<{ pkg: any }>,
-  results: Array<ToolResult<any> | undefined>
-): OutdatedResult | undefined {
+function mergeOutdatedResults(results: OutdatedAttempt[]): OutdatedResult | undefined {
   const entries: OutdatedEntry[] = [];
   const unknownNames = new Set<string>();
 
   for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const meta = packageMetas[i];
+    const attempt = results[i];
+    if (!attempt.attempted) continue;
+    const result = attempt.result;
     if (!result || !result.ok || !result.data || typeof result.data !== 'object') {
-      const declared = collectDeclaredDeps(meta?.pkg);
-      declared.forEach((name) => unknownNames.add(name));
       continue;
     }
     entries.push(...parseOutdatedData(result.data, unknownNames));
@@ -635,6 +692,22 @@ async function run(): Promise<void> {
   }
   const rootPkg = await readJsonFile(path.join(projectPath, 'package.json'));
   const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
+  const scanManager = await detectScanManager(projectPath, packageManager);
+  const [npmVersion, pnpmVersion, yarnVersion] = await Promise.all([
+    getToolVersion('npm', projectPath),
+    getToolVersion('pnpm', projectPath),
+    getToolVersion('yarn', projectPath)
+  ]);
+  const toolVersions = compactToolVersions({
+    npm: npmVersion,
+    pnpm: pnpmVersion,
+    yarn: yarnVersion
+  });
+  const packageManagerVersion = scanManager === 'npm'
+    ? npmVersion
+    : scanManager === 'pnpm'
+      ? pnpmVersion
+      : yarnVersion;
   if (packageManager === 'yarn') {
     const yarnrc = path.join(projectPath, '.yarnrc.yml');
     if (await pathExists(yarnrc)) {
@@ -660,24 +733,23 @@ async function run(): Promise<void> {
     const perPackageAudit: Array<ToolResult<any> | undefined> = [];
     const perPackageLs: Array<ToolResult<any>> = [];
     const perPackageImportGraph: Array<ToolResult<any>> = [];
-    const perPackageOutdated: Array<ToolResult<any> | undefined> = [];
+    const perPackageOutdated: OutdatedAttempt[] = [];
 
     for (const meta of packageMetas) {
       const pkgTempDir = path.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
       await ensureDir(pkgTempDir);
       const [a, l, ig, o] = await Promise.all([
-        opts.audit ? runNpmAudit(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
-        runNpmLs(meta.path, pkgTempDir, packageManager).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
+        opts.audit ? runPackageAudit(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)) : Promise.resolve(undefined),
+        runNpmLs(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
         runImportGraph(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>)),
-        // TODO: Add pnpm/yarn-specific outdated runners to avoid npm-only assumptions.
-        opts.outdated && packageManager === 'npm'
-          ? runNpmOutdated(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
+        opts.outdated
+          ? runPackageOutdated(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) } as ToolResult<any>))
           : Promise.resolve(undefined)
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
       perPackageImportGraph.push(ig);
-      perPackageOutdated.push(o);
+      perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
     }
 
     const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
@@ -686,7 +758,7 @@ async function run(): Promise<void> {
       : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
     const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
     const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
-    const outdatedResult = mergeOutdatedResults(packageMetas, perPackageOutdated);
+    const outdatedResult = mergeOutdatedResults(perPackageOutdated);
 
     const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
     const npmLsResult = { ok: true, data: mergedGraphData };
@@ -698,8 +770,11 @@ async function run(): Promise<void> {
     const auditFailure = opts.audit ? perPackageAudit.find((r) => r && !r.ok) : undefined;
     const lsFailure = perPackageLs.find((r) => r && !r.ok);
     const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
-    if (auditFailure || lsFailure || importFailure) {
-      const err = auditFailure || lsFailure || importFailure;
+    if (auditFailure) {
+      console.warn(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
+    }
+    if (lsFailure || importFailure) {
+      const err = lsFailure || importFailure;
       throw new Error(err?.error || 'Tool execution failed');
     }
 
@@ -713,6 +788,11 @@ async function run(): Promise<void> {
       workspaceUsage,
       resolvePaths: [projectPath, ...packagePaths.filter((p) => p !== projectPath)],
       workspaceEnabled: workspace.type !== 'none',
+      workspaceType: workspace.type,
+      workspacePackageCount: packagePaths.length,
+      packageManager: scanManager,
+      packageManagerVersion,
+      ...(toolVersions ? { toolVersions } : {})
     });
     dependencyCount = Object.keys(aggregated.dependencies).length;
 

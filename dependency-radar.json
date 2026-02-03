@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "1.1",
-  "generatedAt": "2026-02-03T10:10:20.305Z",
+  "schemaVersion": "1.2",
+  "generatedAt": "2026-02-03T16:11:51.616Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
-    "branch": "feat/better-handling-of-sub-dependencies"
+    "branch": "feat/audit-in-pnpm-and-yarn"
   },
   "project": {
     "projectDir": "/Developer/dependency-radar"
@@ -11,10 +11,18 @@
   "environment": {
     "nodeVersion": "23.6.0",
     "runtimeVersion": "v23.6.0",
-    "minRequiredMajor": 18
+    "minRequiredMajor": 18,
+    "packageManager": "npm",
+    "packageManagerVersion": "10.9.2",
+    "toolVersions": {
+      "npm": "10.9.2",
+      "pnpm": "9.5.0"
+    }
   },
   "workspaces": {
-    "enabled": false
+    "enabled": false,
+    "type": "none",
+    "packageCount": 1
   },
   "summary": {
     "dependencyCount": 38,
