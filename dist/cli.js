@@ -15,20 +15,23 @@ const npmOutdated_1 = require("./runners/npmOutdated");
 const report_1 = require("./report");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
-async function pathExists(target) {
-    try {
-        await promises_1.default.stat(target);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
 function normalizeSlashes(p) {
-    return p.split(path_1.default.sep).join('/');
+    return p.split(path_1.default.sep).join("/");
+}
+function isCI() {
+    return Boolean(process.env.CI === "true" ||
+        process.env.CI === "TRUE" ||
+        process.env.CI === "1" ||
+        process.env.GITHUB_ACTIONS ||
+        process.env.GITLAB_CI ||
+        process.env.CIRCLECI ||
+        process.env.JENKINS_URL ||
+        process.env.BUILDKITE);
 }
 async function listDirs(parent) {
-    const entries = await promises_1.default.readdir(parent, { withFileTypes: true }).catch(() => []);
+    const entries = await promises_1.default
+        .readdir(parent, { withFileTypes: true })
+        .catch(() => []);
     return entries
         .filter((e) => { var _a; return (_a = e === null || e === void 0 ? void 0 : e.isDirectory) === null || _a === void 0 ? void 0 : _a.call(e); })
         .map((e) => path_1.default.join(parent, e.name));
@@ -38,35 +41,35 @@ async function expandWorkspacePattern(root, pattern) {
     // - "packages/*", "apps/*"
     // - "packages/**" (recursive)
     // - "./packages/*" (leading ./)
-    const cleaned = pattern.trim().replace(/^[.][/\\]/, '');
+    const cleaned = pattern.trim().replace(/^[.][/\\]/, "");
     if (!cleaned)
         return [];
     // Disallow node_modules and hidden by default
     const parts = cleaned.split(/[/\\]/g).filter(Boolean);
-    const isRecursive = parts.includes('**');
+    const isRecursive = parts.includes("**");
     // Find the segment containing * or **
-    const starIndex = parts.findIndex((p) => p === '*' || p === '**');
+    const starIndex = parts.findIndex((p) => p === "*" || p === "**");
     if (starIndex === -1) {
         const abs = path_1.default.resolve(root, cleaned);
-        return (await pathExists(abs)) ? [abs] : [];
+        return (await (0, utils_1.pathExists)(abs)) ? [abs] : [];
     }
     const baseParts = parts.slice(0, starIndex);
     const baseDir = path_1.default.resolve(root, baseParts.join(path_1.default.sep));
-    if (!(await pathExists(baseDir)))
+    if (!(await (0, utils_1.pathExists)(baseDir)))
         return [];
-    if (parts[starIndex] === '*' && starIndex === parts.length - 1) {
+    if (parts[starIndex] === "*" && starIndex === parts.length - 1) {
         // one-level children
         return await listDirs(baseDir);
     }
-    if (parts[starIndex] === '**') {
+    if (parts[starIndex] === "**") {
         // recursive directories under base
         const out = [];
         async function walk(dir) {
             const children = await listDirs(dir);
             for (const child of children) {
-                if (path_1.default.basename(child) === 'node_modules')
+                if (path_1.default.basename(child) === "node_modules")
                     continue;
-                if (path_1.default.basename(child).startsWith('.'))
+                if (path_1.default.basename(child).startsWith("."))
                     continue;
                 out.push(child);
                 await walk(child);
@@ -80,7 +83,7 @@ async function expandWorkspacePattern(root, pattern) {
 }
 async function readJsonFile(filePath) {
     try {
-        const raw = await promises_1.default.readFile(filePath, 'utf8');
+        const raw = await promises_1.default.readFile(filePath, "utf8");
         return JSON.parse(raw);
     }
     catch {
@@ -89,8 +92,8 @@ async function readJsonFile(filePath) {
 }
 async function getToolVersion(tool, cwd) {
     try {
-        const result = await (0, utils_1.runCommand)(tool, ['--version'], { cwd });
-        const raw = (result.stdout || '').trim();
+        const result = await (0, utils_1.runCommand)(tool, ["--version"], { cwd });
+        const raw = (result.stdout || "").trim();
         if (!raw)
             return undefined;
         return raw.split(/\s+/)[0];
@@ -108,17 +111,17 @@ function compactToolVersions(versions) {
     return Object.keys(out).length > 0 ? out : undefined;
 }
 async function detectWorkspace(projectPath) {
-    const rootPkgPath = path_1.default.join(projectPath, 'package.json');
+    const rootPkgPath = path_1.default.join(projectPath, "package.json");
     const rootPkg = await readJsonFile(rootPkgPath);
     const inferredManager = inferPackageManager(rootPkg);
-    const pnpmWorkspacePath = path_1.default.join(projectPath, 'pnpm-workspace.yaml');
-    const hasPnpmWorkspace = await pathExists(pnpmWorkspacePath);
-    let type = 'none';
+    const pnpmWorkspacePath = path_1.default.join(projectPath, "pnpm-workspace.yaml");
+    const hasPnpmWorkspace = await (0, utils_1.pathExists)(pnpmWorkspacePath);
+    let type = "none";
     let patterns = [];
     if (hasPnpmWorkspace) {
-        type = 'pnpm';
+        type = "pnpm";
         // very small YAML parser for the only thing we care about: `packages:` list.
-        const yaml = await promises_1.default.readFile(pnpmWorkspacePath, 'utf8');
+        const yaml = await promises_1.default.readFile(pnpmWorkspacePath, "utf8");
         const lines = yaml.split(/\r?\n/);
         let inPackages = false;
         for (const line of lines) {
@@ -131,7 +134,7 @@ async function detectWorkspace(projectPath) {
             }
             if (inPackages) {
                 // stop when we hit a new top-level key
-                if (/^[A-Za-z0-9_-]+\s*:/.test(trimmed) && !trimmed.startsWith('-')) {
+                if (/^[A-Za-z0-9_-]+\s*:/.test(trimmed) && !trimmed.startsWith("-")) {
                     inPackages = false;
                     continue;
                 }
@@ -142,23 +145,23 @@ async function detectWorkspace(projectPath) {
         }
     }
     // npm/yarn workspaces
-    if (type === 'none' && rootPkg && rootPkg.workspaces) {
-        type = inferredManager || 'npm';
+    if (type === "none" && rootPkg && rootPkg.workspaces) {
+        type = inferredManager || "npm";
         if (Array.isArray(rootPkg.workspaces))
             patterns = rootPkg.workspaces;
         else if (Array.isArray(rootPkg.workspaces.packages))
             patterns = rootPkg.workspaces.packages;
         // try to detect yarn berry pnp (unsupported) later via .yarnrc.yml
-        const yarnrc = path_1.default.join(projectPath, '.yarnrc.yml');
-        if (await pathExists(yarnrc)) {
-            const y = await promises_1.default.readFile(yarnrc, 'utf8');
+        const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
+        if (await (0, utils_1.pathExists)(yarnrc)) {
+            const y = await promises_1.default.readFile(yarnrc, "utf8");
             if (/nodeLinker\s*:\s*pnp/.test(y)) {
-                return { type: 'yarn', packagePaths: [] };
+                return { type: "yarn", packagePaths: [] };
             }
         }
     }
-    if (type === 'none') {
-        return { type: 'none', packagePaths: [projectPath] };
+    if (type === "none") {
+        return { type: "none", packagePaths: [projectPath] };
     }
     // Expand patterns and keep only folders that contain package.json
     const candidates = [];
@@ -166,21 +169,22 @@ async function detectWorkspace(projectPath) {
         const expanded = await expandWorkspacePattern(projectPath, pat);
         candidates.push(...expanded);
     }
-    const unique = Array.from(new Set(candidates.map((p) => path_1.default.resolve(p))))
-        .filter((p) => !normalizeSlashes(p).includes('/node_modules/'));
+    const unique = Array.from(new Set(candidates.map((p) => path_1.default.resolve(p)))).filter((p) => !normalizeSlashes(p).includes("/node_modules/"));
     const packagePaths = [];
     for (const dir of unique) {
-        const pkgJson = path_1.default.join(dir, 'package.json');
-        if (await pathExists(pkgJson))
+        const pkgJson = path_1.default.join(dir, "package.json");
+        if (await (0, utils_1.pathExists)(pkgJson))
             packagePaths.push(dir);
     }
     // Always include root if it contains a name (some repos keep a root package)
-    if (await pathExists(path_1.default.join(projectPath, 'package.json'))) {
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "package.json"))) {
         // root may already be in the list; keep unique
         if (!packagePaths.includes(projectPath)) {
             // Only include root as a scanned package if it looks like a real package
-            const root = await readJsonFile(path_1.default.join(projectPath, 'package.json'));
-            if (root && typeof root.name === 'string' && root.name.trim().length > 0) {
+            const root = await readJsonFile(path_1.default.join(projectPath, "package.json"));
+            if (root &&
+                typeof root.name === "string" &&
+                root.name.trim().length > 0) {
                 packagePaths.push(projectPath);
             }
         }
@@ -188,63 +192,71 @@ async function detectWorkspace(projectPath) {
     return { type, packagePaths: packagePaths.sort() };
 }
 function inferPackageManager(rootPkg) {
-    const raw = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === 'string' ? rootPkg.packageManager.trim() : '';
+    const raw = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === "string"
+        ? rootPkg.packageManager.trim()
+        : "";
     if (!raw)
         return undefined;
-    if (raw.startsWith('pnpm@') || raw === 'pnpm')
-        return 'pnpm';
-    if (raw.startsWith('yarn@') || raw === 'yarn')
-        return 'yarn';
-    if (raw.startsWith('npm@') || raw === 'npm')
-        return 'npm';
+    if (raw.startsWith("pnpm@") || raw === "pnpm")
+        return "pnpm";
+    if (raw.startsWith("yarn@") || raw === "yarn")
+        return "yarn";
+    if (raw.startsWith("npm@") || raw === "npm")
+        return "npm";
     return undefined;
 }
 async function detectPackageManager(projectPath, rootPkg, workspaceType) {
     const inferred = inferPackageManager(rootPkg);
     if (inferred)
         return inferred;
-    if (workspaceType === 'pnpm' || workspaceType === 'yarn')
+    if (workspaceType === "pnpm" || workspaceType === "yarn")
         return workspaceType;
-    const yarnrc = path_1.default.join(projectPath, '.yarnrc.yml');
-    if (await pathExists(yarnrc)) {
-        const y = await promises_1.default.readFile(yarnrc, 'utf8');
+    const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
+    if (await (0, utils_1.pathExists)(yarnrc)) {
+        const y = await promises_1.default.readFile(yarnrc, "utf8");
         if (/nodeLinker\s*:\s*pnp/.test(y)) {
-            return 'yarn';
+            return "yarn";
         }
     }
-    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.pnpm')))
-        return 'pnpm';
-    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.yarn-state.yml')))
-        return 'yarn';
-    return 'npm';
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".pnpm")))
+        return "pnpm";
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".yarn-state.yml")))
+        return "yarn";
+    return "npm";
 }
 async function detectScanManager(projectPath, fallback) {
-    if (await pathExists(path_1.default.join(projectPath, 'pnpm-lock.yaml')))
-        return 'pnpm';
-    if (await pathExists(path_1.default.join(projectPath, 'yarn.lock')))
-        return 'yarn';
-    if (await pathExists(path_1.default.join(projectPath, 'package-lock.json')) ||
-        await pathExists(path_1.default.join(projectPath, 'npm-shrinkwrap.json'))) {
-        return 'npm';
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "pnpm-lock.yaml")))
+        return "pnpm";
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "yarn.lock")))
+        return "yarn";
+    if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "package-lock.json"))) ||
+        (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "npm-shrinkwrap.json")))) {
+        return "npm";
     }
-    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.pnpm')))
-        return 'pnpm';
-    if (await pathExists(path_1.default.join(projectPath, 'node_modules', '.yarn-state.yml')))
-        return 'yarn';
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".pnpm")))
+        return "pnpm";
+    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".yarn-state.yml")))
+        return "yarn";
     return fallback;
 }
 async function readWorkspacePackageMeta(rootPath, packagePaths) {
     const out = [];
     for (const p of packagePaths) {
-        const pkg = await readJsonFile(path_1.default.join(p, 'package.json'));
-        const name = (pkg && typeof pkg.name === 'string' && pkg.name.trim()) ? pkg.name.trim() : path_1.default.basename(p);
+        const pkg = await readJsonFile(path_1.default.join(p, "package.json"));
+        const name = pkg && typeof pkg.name === "string" && pkg.name.trim()
+            ? pkg.name.trim()
+            : path_1.default.basename(p);
         out.push({ path: p, name, pkg: pkg || {} });
     }
     return out;
 }
 function mergeDepsFromWorkspace(pkgs) {
     var _a, _b, _c;
-    const merged = { dependencies: {}, devDependencies: {}, optionalDependencies: {} };
+    const merged = {
+        dependencies: {},
+        devDependencies: {},
+        optionalDependencies: {},
+    };
     for (const entry of pkgs) {
         const deps = ((_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
         const dev = ((_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
@@ -261,10 +273,10 @@ function mergeAuditResults(results) {
         return undefined;
     const base = {};
     for (const r of defined) {
-        if (!r || typeof r !== 'object')
+        if (!r || typeof r !== "object")
             continue;
         // npm audit v7+ shape: { vulnerabilities: {..} }
-        if (r.vulnerabilities && typeof r.vulnerabilities === 'object') {
+        if (r.vulnerabilities && typeof r.vulnerabilities === "object") {
             base.vulnerabilities = base.vulnerabilities || {};
             for (const [k, v] of Object.entries(r.vulnerabilities)) {
                 if (!base.vulnerabilities[k])
@@ -277,7 +289,7 @@ function mergeAuditResults(results) {
             }
         }
         // legacy shape
-        if (r.advisories && typeof r.advisories === 'object') {
+        if (r.advisories && typeof r.advisories === "object") {
             base.advisories = base.advisories || {};
             Object.assign(base.advisories, r.advisories);
         }
@@ -293,10 +305,10 @@ function collectDeclaredDeps(pkg) {
         pkg === null || pkg === void 0 ? void 0 : pkg.dependencies,
         pkg === null || pkg === void 0 ? void 0 : pkg.devDependencies,
         pkg === null || pkg === void 0 ? void 0 : pkg.optionalDependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.peerDependencies
+        pkg === null || pkg === void 0 ? void 0 : pkg.peerDependencies,
     ];
     for (const deps of sections) {
-        if (deps && typeof deps === 'object') {
+        if (deps && typeof deps === "object") {
             Object.keys(deps).forEach((name) => out.add(name));
         }
     }
@@ -304,76 +316,86 @@ function collectDeclaredDeps(pkg) {
 }
 function parseOutdatedData(data, unknownNames) {
     const entries = [];
-    if (!data || typeof data !== 'object')
+    if (!data || typeof data !== "object")
         return entries;
     if (Array.isArray(data)) {
         for (const entry of data) {
-            if (!entry || typeof entry !== 'object')
+            if (!entry || typeof entry !== "object")
                 continue;
-            const name = typeof entry.name === 'string' ? entry.name : undefined;
-            const current = typeof entry.current === 'string' ? entry.current : '';
-            const latest = typeof entry.latest === 'string' ? entry.latest : undefined;
-            const type = typeof entry.type === 'string' ? entry.type.toLowerCase() : '';
+            const name = typeof entry.name === "string" ? entry.name : undefined;
+            const current = typeof entry.current === "string" ? entry.current : "";
+            const latest = typeof entry.latest === "string" ? entry.latest : undefined;
+            const type = typeof entry.type === "string" ? entry.type.toLowerCase() : "";
             if (!name || !current)
                 continue;
-            let status = 'unknown';
-            if (type === 'patch' || type === 'minor' || type === 'major') {
+            let status = "unknown";
+            if (type === "patch" || type === "minor" || type === "major") {
                 status = type;
             }
             else if (latest) {
                 status = classifyOutdated(current, latest);
             }
-            if (status === 'current')
+            if (status === "current")
                 continue;
-            if (status === 'major' || status === 'minor' || status === 'patch') {
-                entries.push({ name, currentVersion: current, status, latestVersion: latest });
+            if (status === "major" || status === "minor" || status === "patch") {
+                entries.push({
+                    name,
+                    currentVersion: current,
+                    status,
+                    latestVersion: latest,
+                });
                 continue;
             }
-            entries.push({ name, currentVersion: current, status: 'unknown' });
+            entries.push({ name, currentVersion: current, status: "unknown" });
         }
         return entries;
     }
     for (const [name, info] of Object.entries(data)) {
-        if (!info || typeof info !== 'object') {
+        if (!info || typeof info !== "object") {
             unknownNames.add(name);
             continue;
         }
-        const current = typeof info.current === 'string' ? info.current : '';
-        const latest = typeof info.latest === 'string' ? info.latest : undefined;
-        const type = typeof info.type === 'string' ? info.type.toLowerCase() : '';
+        const current = typeof info.current === "string" ? info.current : "";
+        const latest = typeof info.latest === "string" ? info.latest : undefined;
+        const type = typeof info.type === "string" ? info.type.toLowerCase() : "";
         if (!current) {
             unknownNames.add(name);
             continue;
         }
-        let status = 'unknown';
-        if (type === 'patch' || type === 'minor' || type === 'major') {
+        let status = "unknown";
+        if (type === "patch" || type === "minor" || type === "major") {
             status = type;
         }
         else if (latest) {
             status = classifyOutdated(current, latest);
         }
-        if (status === 'current')
+        if (status === "current")
             continue;
-        if (status === 'major' || status === 'minor' || status === 'patch') {
+        if (status === "major" || status === "minor" || status === "patch") {
             if (latest) {
-                entries.push({ name, currentVersion: current, status, latestVersion: latest });
+                entries.push({
+                    name,
+                    currentVersion: current,
+                    status,
+                    latestVersion: latest,
+                });
             }
             else {
-                entries.push({ name, currentVersion: current, status: 'unknown' });
+                entries.push({ name, currentVersion: current, status: "unknown" });
             }
             continue;
         }
-        entries.push({ name, currentVersion: current, status: 'unknown' });
+        entries.push({ name, currentVersion: current, status: "unknown" });
     }
     return entries;
 }
 function parseSimpleVersion(value) {
-    if (!value || typeof value !== 'string')
+    if (!value || typeof value !== "string")
         return undefined;
     const trimmed = value.trim();
     if (!trimmed)
         return undefined;
-    if (trimmed.includes('-') || trimmed.includes('+'))
+    if (trimmed.includes("-") || trimmed.includes("+"))
         return undefined;
     const match = trimmed.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
     if (!match)
@@ -389,14 +411,14 @@ function classifyOutdated(current, latest) {
     const currentVer = parseSimpleVersion(current);
     const latestVer = parseSimpleVersion(latest);
     if (!currentVer || !latestVer)
-        return 'unknown';
+        return "unknown";
     if (currentVer.major !== latestVer.major)
-        return 'major';
+        return "major";
     if (currentVer.minor !== latestVer.minor)
-        return 'minor';
+        return "minor";
     if (currentVer.patch !== latestVer.patch)
-        return 'patch';
-    return 'current';
+        return "patch";
+    return "current";
 }
 function mergeOutdatedResults(results) {
     const entries = [];
@@ -406,7 +428,10 @@ function mergeOutdatedResults(results) {
         if (!attempt.attempted)
             continue;
         const result = attempt.result;
-        if (!result || !result.ok || !result.data || typeof result.data !== 'object') {
+        if (!result ||
+            !result.ok ||
+            !result.data ||
+            typeof result.data !== "object") {
             continue;
         }
         entries.push(...parseOutdatedData(result.data, unknownNames));
@@ -422,13 +447,18 @@ function mergeOutdatedResults(results) {
             merged.set(key, entry);
             continue;
         }
-        if (existing.status !== entry.status || existing.latestVersion !== entry.latestVersion) {
-            merged.set(key, { name: entry.name, currentVersion: entry.currentVersion, status: 'unknown' });
+        if (existing.status !== entry.status ||
+            existing.latestVersion !== entry.latestVersion) {
+            merged.set(key, {
+                name: entry.name,
+                currentVersion: entry.currentVersion,
+                status: "unknown",
+            });
         }
     }
     return {
         entries: Array.from(merged.values()),
-        unknownNames: Array.from(unknownNames)
+        unknownNames: Array.from(unknownNames),
     };
 }
 function mergeImportGraphs(rootPath, packageMetas, graphs) {
@@ -439,33 +469,45 @@ function mergeImportGraphs(rootPath, packageMetas, graphs) {
     for (let i = 0; i < graphs.length; i++) {
         const g = graphs[i];
         const meta = packageMetas[i];
-        if (!g || typeof g !== 'object')
+        if (!g || typeof g !== "object")
             continue;
-        const relBase = path_1.default.relative(rootPath, meta.path).split(path_1.default.sep).join('/');
-        const prefix = relBase ? `${relBase}/` : '';
+        const relBase = path_1.default
+            .relative(rootPath, meta.path)
+            .split(path_1.default.sep)
+            .join("/");
+        const prefix = relBase ? `${relBase}/` : "";
         const gf = g.files || {};
         const gp = g.packages || {};
         const gc = g.packageCounts || {};
         for (const [k, v] of Object.entries(gf)) {
-            files[`${prefix}${k}`] = Array.isArray(v) ? v.map((x) => `${prefix}${x}`) : [];
+            files[`${prefix}${k}`] = Array.isArray(v)
+                ? v.map((x) => `${prefix}${x}`)
+                : [];
         }
         for (const [k, v] of Object.entries(gp)) {
             packages[`${prefix}${k}`] = Array.isArray(v) ? v : [];
         }
         for (const [k, v] of Object.entries(gc)) {
-            if (!v || typeof v !== 'object')
+            if (!v || typeof v !== "object")
                 continue;
             const next = {};
             for (const [dep, count] of Object.entries(v)) {
-                if (typeof count === 'number')
+                if (typeof count === "number")
                     next[dep] = count;
             }
             packageCounts[`${prefix}${k}`] = next;
         }
-        const unresolved = Array.isArray(g.unresolvedImports) ? g.unresolvedImports : [];
+        const unresolved = Array.isArray(g.unresolvedImports)
+            ? g.unresolvedImports
+            : [];
         unresolved.forEach((u) => {
-            if (u && typeof u.importer === 'string' && typeof u.specifier === 'string') {
-                unresolvedImports.push({ importer: `${prefix}${u.importer}`, specifier: u.specifier });
+            if (u &&
+                typeof u.importer === "string" &&
+                typeof u.specifier === "string") {
+                unresolvedImports.push({
+                    importer: `${prefix}${u.importer}`,
+                    specifier: u.specifier,
+                });
             }
         });
     }
@@ -503,13 +545,13 @@ function buildWorkspaceUsageMap(packageMetas, dependencyGraphs) {
     }
     // From npm ls trees (transitives)
     const walk = (node, pkgName) => {
-        if (!node || typeof node !== 'object')
+        if (!node || typeof node !== "object")
             return;
         const name = node.name;
-        if (typeof name === 'string')
+        if (typeof name === "string")
             add(name, pkgName);
         const deps = node.dependencies;
-        if (deps && typeof deps === 'object') {
+        if (deps && typeof deps === "object") {
             for (const [depName, child] of Object.entries(deps)) {
                 add(depName, pkgName);
                 walk(child, pkgName);
@@ -519,10 +561,10 @@ function buildWorkspaceUsageMap(packageMetas, dependencyGraphs) {
     for (let i = 0; i < dependencyGraphs.length; i++) {
         const data = dependencyGraphs[i];
         const meta = packageMetas[i];
-        if (!data || typeof data !== 'object')
+        if (!data || typeof data !== "object")
             continue;
         const deps = data.dependencies;
-        if (deps && typeof deps === 'object') {
+        if (deps && typeof deps === "object") {
             for (const [depName, child] of Object.entries(deps)) {
                 add(depName, meta.name);
                 walk(child, meta.name);
@@ -545,52 +587,55 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
         const meta = packageMetas[i];
         if (!meta)
             continue;
-        const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === 'string' ? meta.pkg.version : 'workspace';
-        const nodeDeps = (data && typeof data === 'object' && data.dependencies && typeof data.dependencies === 'object')
+        const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" ? meta.pkg.version : "workspace";
+        const nodeDeps = data &&
+            typeof data === "object" &&
+            data.dependencies &&
+            typeof data.dependencies === "object"
             ? data.dependencies
             : {};
         dependencies[meta.name] = {
             name: meta.name,
             version,
-            dependencies: nodeDeps
+            dependencies: nodeDeps,
         };
     }
-    return { name: 'dependency-radar-workspace', version: '0.0.0', dependencies };
+    return { name: "dependency-radar-workspace", version: "0.0.0", dependencies };
 }
 function parseArgs(argv) {
     const opts = {
-        command: 'scan',
+        command: "scan",
         project: process.cwd(),
-        out: 'dependency-radar.html',
+        out: "dependency-radar.html",
         keepTemp: false,
         audit: true,
         outdated: true,
         json: false,
-        open: false
+        open: false,
     };
     const args = [...argv];
-    if (args[0] && !args[0].startsWith('-')) {
+    if (args[0] && !args[0].startsWith("-")) {
         opts.command = args.shift();
     }
     while (args.length) {
         const arg = args.shift();
         if (!arg)
             break;
-        if (arg === '--project' && args[0])
+        if (arg === "--project" && args[0])
             opts.project = args.shift();
-        else if (arg === '--out' && args[0])
+        else if (arg === "--out" && args[0])
             opts.out = args.shift();
-        else if (arg === '--keep-temp')
+        else if (arg === "--keep-temp")
             opts.keepTemp = true;
-        else if (arg === '--offline') {
+        else if (arg === "--offline") {
             opts.audit = false;
             opts.outdated = false;
         }
-        else if (arg === '--json')
+        else if (arg === "--json")
             opts.json = true;
-        else if (arg === '--open')
+        else if (arg === "--open")
             opts.open = true;
-        else if (arg === '--help' || arg === '-h') {
+        else if (arg === "--help" || arg === "-h") {
             printHelp();
             process.exit(0);
         }
@@ -612,95 +657,111 @@ Options:
 `);
 }
 function openInBrowser(filePath) {
-    const normalizedPath = filePath.replace(/\\/g, '/');
+    const normalizedPath = filePath.replace(/\\/g, "/");
     let child;
     switch ((0, os_1.platform)()) {
-        case 'darwin':
-            child = (0, child_process_1.spawn)('open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
+        case "darwin":
+            child = (0, child_process_1.spawn)("open", [normalizedPath], {
+                stdio: "ignore",
+                shell: false,
+                detached: true,
+            });
             break;
-        case 'win32':
-            child = (0, child_process_1.spawn)('cmd', ['/c', 'start', '', normalizedPath], { stdio: 'ignore', shell: false, detached: true });
+        case "win32":
+            child = (0, child_process_1.spawn)("cmd", ["/c", "start", "", normalizedPath], {
+                stdio: "ignore",
+                shell: false,
+                detached: true,
+            });
             break;
         default:
-            child = (0, child_process_1.spawn)('xdg-open', [normalizedPath], { stdio: 'ignore', shell: false, detached: true });
+            child = (0, child_process_1.spawn)("xdg-open", [normalizedPath], {
+                stdio: "ignore",
+                shell: false,
+                detached: true,
+            });
             break;
     }
-    child.on('error', (err) => {
-        console.warn('Could not open report:', err.message);
+    child.on("error", (err) => {
+        console.warn("Could not open report:", err.message);
     });
     child.unref();
 }
 async function run() {
     const opts = parseArgs(process.argv.slice(2));
-    if (opts.command !== 'scan') {
+    if (opts.command !== "scan") {
         printHelp();
         process.exit(1);
         return;
     }
     const projectPath = path_1.default.resolve(opts.project);
-    if (opts.json && opts.out === 'dependency-radar.html') {
-        opts.out = 'dependency-radar.json';
+    if (opts.json && opts.out === "dependency-radar.html") {
+        opts.out = "dependency-radar.json";
     }
     let outputPath = path_1.default.resolve(opts.out);
     const startTime = Date.now();
     let dependencyCount = 0;
     try {
         const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
-        const endsWithSeparator = opts.out.endsWith('/') || opts.out.endsWith('\\');
+        const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
         const hasExtension = Boolean(path_1.default.extname(outputPath));
-        if ((stat && stat.isDirectory()) || endsWithSeparator || (!stat && !hasExtension)) {
-            outputPath = path_1.default.join(outputPath, opts.json ? 'dependency-radar.json' : 'dependency-radar.html');
+        if ((stat && stat.isDirectory()) ||
+            endsWithSeparator ||
+            (!stat && !hasExtension)) {
+            outputPath = path_1.default.join(outputPath, opts.json ? "dependency-radar.json" : "dependency-radar.html");
         }
     }
     catch (e) {
         // ignore, best-effort path normalization
     }
-    const tempDir = path_1.default.join(projectPath, '.dependency-radar');
+    const tempDir = path_1.default.join(projectPath, ".dependency-radar");
     // Workspace detection and reporting
     const workspace = await detectWorkspace(projectPath);
-    if (workspace.type === 'yarn' && workspace.packagePaths.length === 0) {
-        console.error('Yarn Plug\'n\'Play (nodeLinker: pnp) detected. This is not supported yet.');
-        console.error('Switch to nodeLinker: node-modules or run in a non-PnP environment.');
+    if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
+        console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
+        console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
         process.exit(1);
         return;
     }
-    const rootPkg = await readJsonFile(path_1.default.join(projectPath, 'package.json'));
+    const rootPkg = await readJsonFile(path_1.default.join(projectPath, "package.json"));
     const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
     const scanManager = await detectScanManager(projectPath, packageManager);
-    const packageManagerField = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === 'string'
+    const packageManagerField = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === "string"
         ? rootPkg.packageManager.trim()
         : undefined;
     const [npmVersion, pnpmVersion, yarnVersion] = await Promise.all([
-        getToolVersion('npm', projectPath),
-        getToolVersion('pnpm', projectPath),
-        getToolVersion('yarn', projectPath)
+        getToolVersion("npm", projectPath),
+        getToolVersion("pnpm", projectPath),
+        getToolVersion("yarn", projectPath),
     ]);
     const toolVersions = compactToolVersions({
         npm: npmVersion,
         pnpm: pnpmVersion,
-        yarn: yarnVersion
+        yarn: yarnVersion,
     });
-    const packageManagerVersion = scanManager === 'npm'
+    const packageManagerVersion = scanManager === "npm"
         ? npmVersion
-        : scanManager === 'pnpm'
+        : scanManager === "pnpm"
             ? pnpmVersion
             : yarnVersion;
-    if (packageManager === 'yarn') {
-        const yarnrc = path_1.default.join(projectPath, '.yarnrc.yml');
-        if (await pathExists(yarnrc)) {
-            const y = await promises_1.default.readFile(yarnrc, 'utf8');
+    if (packageManager === "yarn") {
+        const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
+        if (await (0, utils_1.pathExists)(yarnrc)) {
+            const y = await promises_1.default.readFile(yarnrc, "utf8");
             if (/nodeLinker\s*:\s*pnp/.test(y)) {
-                console.error('Yarn Plug\'n\'Play (nodeLinker: pnp) detected. This is not supported yet.');
-                console.error('Switch to nodeLinker: node-modules or run in a non-PnP environment.');
+                console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
+                console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
                 process.exit(1);
                 return;
             }
         }
     }
     const packagePaths = workspace.packagePaths;
-    const workspaceLabel = workspace.type === 'none' ? 'Single project' : `${workspace.type.toUpperCase()} workspace`;
+    const workspaceLabel = workspace.type === "none"
+        ? "Single project"
+        : `${workspace.type.toUpperCase()} workspace`;
     console.log(`✔ ${workspaceLabel} detected`);
-    if (workspace.type !== 'none' && scanManager !== workspace.type) {
+    if (workspace.type !== "none" && scanManager !== workspace.type) {
         console.log(`✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`);
     }
     const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
@@ -714,15 +775,17 @@ async function run() {
         const perPackageOutdated = [];
         for (const meta of packageMetas) {
             spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
-            const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+            const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, "_"));
             await (0, utils_1.ensureDir)(pkgTempDir);
             const [a, l, ig, o] = await Promise.all([
-                opts.audit ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) })) : Promise.resolve(undefined),
+                opts.audit
+                    ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) }))
+                    : Promise.resolve(undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
                 opts.outdated
                     ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(undefined)
+                    : Promise.resolve(undefined),
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
@@ -748,26 +811,32 @@ async function run() {
             }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
-        const mergedGraphData = workspace.type === 'none'
-            ? (perPackageLs[0] && perPackageLs[0].ok ? perPackageLs[0].data : undefined)
+        const mergedGraphData = workspace.type === "none"
+            ? perPackageLs[0] && perPackageLs[0].ok
+                ? perPackageLs[0].data
+                : undefined
             : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
         const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const outdatedResult = mergeOutdatedResults(perPackageOutdated);
-        const auditResult = mergedAuditData ? { ok: true, data: mergedAuditData } : undefined;
+        const auditResult = mergedAuditData
+            ? { ok: true, data: mergedAuditData }
+            : undefined;
         const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
         // Build a merged package.json view for aggregator direct-dep checks.
         const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas);
-        const auditFailure = opts.audit ? perPackageAudit.find((r) => r && !r.ok) : undefined;
+        const auditFailure = opts.audit
+            ? perPackageAudit.find((r) => r && !r.ok)
+            : undefined;
         const lsFailure = perPackageLs.find((r) => r && !r.ok);
         const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
         if (auditFailure) {
-            spinner.log(`Audit warning: ${auditFailure.error || 'Audit failed'}`);
+            spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
         }
         if (lsFailure || importFailure) {
             const err = lsFailure || importFailure;
-            throw new Error((err === null || err === void 0 ? void 0 : err.error) || 'Tool execution failed');
+            throw new Error((err === null || err === void 0 ? void 0 : err.error) || "Tool execution failed");
         }
         const aggregated = await (0, aggregator_1.aggregateData)({
             projectPath,
@@ -777,8 +846,11 @@ async function run() {
             outdatedResult,
             pkgOverride: mergedPkgForAggregator,
             workspaceUsage,
-            resolvePaths: [projectPath, ...packagePaths.filter((p) => p !== projectPath)],
-            workspaceEnabled: workspace.type !== 'none',
+            resolvePaths: [
+                projectPath,
+                ...packagePaths.filter((p) => p !== projectPath),
+            ],
+            workspaceEnabled: workspace.type !== "none",
             workspaceType: workspace.type,
             workspacePackageCount: packagePaths.length,
             packageManager: scanManager,
@@ -786,16 +858,16 @@ async function run() {
             packageManagerField,
             platform: process.platform,
             arch: process.arch,
-            ci: process.env.CI === 'true',
-            ...(toolVersions ? { toolVersions } : {})
+            ci: isCI(),
+            ...(toolVersions ? { toolVersions } : {}),
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
-        if (workspace.type !== 'none') {
-            console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? '' : 's'}.`);
+        if (workspace.type !== "none") {
+            console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
         if (opts.json) {
             await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
-            await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), 'utf8');
+            await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
         }
         else {
             await (0, report_1.renderReport)(aggregated, outputPath);
@@ -803,19 +875,11 @@ async function run() {
         spinner.stop(true);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        console.log(`✔ ${opts.json ? 'JSON' : 'Report'} written to ${outputPath}`);
-        const isCI = process.env.CI === 'true';
-        if (opts.open && !isCI) {
-            console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? 'application' : 'browser'}.`);
-            openInBrowser(outputPath);
-        }
-        else if (opts.open && isCI) {
-            console.log('Skipping auto-open in CI environment.');
-        }
+        console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
     }
     catch (err) {
         spinner.stop(false);
-        console.error('Failed to generate report:', err);
+        console.error("Failed to generate report:", err);
         process.exit(1);
     }
     finally {
@@ -826,13 +890,20 @@ async function run() {
             console.log(`✔ Temporary data kept at ${tempDir}`);
         }
     }
+    if (opts.open && !isCI()) {
+        console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`);
+        openInBrowser(outputPath);
+    }
+    else if (opts.open && isCI()) {
+        console.log("✖ Skipping auto-open in CI environment.");
+    }
     // Always show CTA as the last output
-    console.log('');
-    console.log('Get additional risk analysis and a management-ready summary at https://dependency-radar.com');
+    console.log("");
+    console.log("Get additional risk analysis and a management-ready summary at https://dependency-radar.com");
 }
 run();
 function startSpinner(text) {
-    const frames = ['|', '/', '-', '\\'];
+    const frames = ["|", "/", "-", "\\"];
     let i = 0;
     let currentText = text;
     process.stdout.write(`${frames[i]} ${currentText}`);
@@ -846,7 +917,7 @@ function startSpinner(text) {
             return;
         stopped = true;
         clearInterval(timer);
-        process.stdout.write(`\r\x1b[K${success ? '✔' : '✖'} ${currentText}\n`);
+        process.stdout.write(`\r\x1b[K${success ? "✔" : "✖"} ${currentText}\n`);
     };
     const update = (nextText) => {
         if (stopped)

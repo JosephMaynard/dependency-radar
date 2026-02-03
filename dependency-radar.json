@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.2",
-  "generatedAt": "2026-02-03T16:54:33.978Z",
+  "generatedAt": "2026-02-03T21:27:02.013Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
-    "branch": "feat/audit-in-pnpm-and-yarn"
+    "branch": "master"
   },
   "project": {
     "projectDir": "/Developer/dependency-radar"

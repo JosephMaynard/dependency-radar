@@ -176,3 +176,36 @@ async function findLicenseFile(dir: string): Promise<string | undefined> {
     return undefined;
   }
 }
+
+export async function findLockDir(startPath: string, lockFiles: string[]): Promise<string | undefined> {
+  let current = startPath;
+  while (true) {
+    for (const file of lockFiles) {
+      if (await pathExists(path.join(current, file))) {
+        return current;
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return undefined;
+}
+
+export function parseJsonOutput(raw: string): any | undefined {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const parsed: any[] = [];
+    for (const line of lines) {
+      try {
+        parsed.push(JSON.parse(line));
+      } catch {
+        // ignore non-JSON lines
+      }
+    }
+    return parsed.length > 0 ? parsed : undefined;
+  }
+}

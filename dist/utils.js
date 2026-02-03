@@ -16,6 +16,8 @@ exports.licenseRiskLevel = licenseRiskLevel;
 exports.vulnRiskLevel = vulnRiskLevel;
 exports.resolvePackageJsonPath = resolvePackageJsonPath;
 exports.readLicenseFromPackageJson = readLicenseFromPackageJson;
+exports.findLockDir = findLockDir;
+exports.parseJsonOutput = parseJsonOutput;
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const promises_1 = __importDefault(require("fs/promises"));
@@ -173,5 +175,40 @@ async function findLicenseFile(dir) {
     }
     catch {
         return undefined;
+    }
+}
+async function findLockDir(startPath, lockFiles) {
+    let current = startPath;
+    while (true) {
+        for (const file of lockFiles) {
+            if (await pathExists(path_1.default.join(current, file))) {
+                return current;
+            }
+        }
+        const parent = path_1.default.dirname(current);
+        if (parent === current)
+            break;
+        current = parent;
+    }
+    return undefined;
+}
+function parseJsonOutput(raw) {
+    if (!raw)
+        return undefined;
+    try {
+        return JSON.parse(raw);
+    }
+    catch {
+        const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        const parsed = [];
+        for (const line of lines) {
+            try {
+                parsed.push(JSON.parse(line));
+            }
+            catch {
+                // ignore non-JSON lines
+            }
+        }
+        return parsed.length > 0 ? parsed : undefined;
     }
 }
