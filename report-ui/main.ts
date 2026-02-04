@@ -166,7 +166,9 @@ function runtimeImpactLabel(impact: DependencyRecord['usage']['runtimeImpact'] |
 }
 
 function outdatedStatusLabel(status: DependencyRecord['upgrade']['outdatedStatus'] | undefined): string {
-  return status ? titleCaseValue(status) : 'Unknown';
+  if (!status) return 'Not reported';
+  if (status === 'unknown') return 'Unknown';
+  return titleCaseValue(status);
 }
 
 function badgeCard(label: string, value: string, tone: string): string {
@@ -694,7 +696,11 @@ function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): str
   if (dep.upgrade.latestVersion) {
     currencyItems.push(renderKvItem('Latest version (latestVersion)', dep.upgrade.latestVersion));
   }
-  const currencyBlock = renderSubsection('Version', '<div class="kv-grid">' + currencyItems.join('') + '</div>');
+  const currencyBlock = renderSubsection(
+    'Version',
+    '<div class="section-note">Based on npm outdated findings.</div>' +
+      '<div class="kv-grid">' + currencyItems.join('') + '</div>'
+  );
 
   const deprecatedBlock = dep.package.deprecated
     ? renderSubsection('Deprecated', '<div class="kv-grid">' + renderKvItem('Deprecated (deprecated)', 'Yes', 'Declared by the package author.') + '</div>', undefined, 'warning')
