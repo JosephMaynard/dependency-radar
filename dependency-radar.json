@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.2",
-  "generatedAt": "2026-02-04T14:39:24.391Z",
+  "generatedAt": "2026-02-04T19:28:37.791Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
-    "branch": "fix/pnpm-workspace-scan"
+    "branch": "fix/license-issues"
   },
   "project": {
     "projectDir": "/Developer/dependency-radar"

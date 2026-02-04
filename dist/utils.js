@@ -16,6 +16,7 @@ exports.licenseRiskLevel = licenseRiskLevel;
 exports.vulnRiskLevel = vulnRiskLevel;
 exports.resolvePackageJsonPath = resolvePackageJsonPath;
 exports.readLicenseFromPackageJson = readLicenseFromPackageJson;
+exports.readLicenseFromPackageDir = readLicenseFromPackageDir;
 exports.findLockDir = findLockDir;
 exports.parseJsonOutput = parseJsonOutput;
 const child_process_1 = require("child_process");
@@ -216,10 +217,19 @@ async function readLicenseFromPackageJson(pkgName, resolvePaths, version) {
         const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths, version);
         if (!pkgJsonPath)
             return undefined;
-        const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
+        return await readLicenseFromPackageDir(path_1.default.dirname(pkgJsonPath));
+    }
+    catch (err) {
+        return undefined;
+    }
+}
+async function readLicenseFromPackageDir(packageDir) {
+    try {
+        const pkgPath = path_1.default.join(packageDir, 'package.json');
+        const pkgRaw = await promises_1.default.readFile(pkgPath, 'utf8');
         const pkg = JSON.parse(pkgRaw);
         const license = pkg.license || (Array.isArray(pkg.licenses) ? pkg.licenses.map((l) => (typeof l === 'string' ? l : l === null || l === void 0 ? void 0 : l.type)).filter(Boolean).join(' OR ') : undefined);
-        const licenseFile = await findLicenseFile(path_1.default.dirname(pkgJsonPath));
+        const licenseFile = await findLicenseFile(packageDir);
         if (!license && !licenseFile)
             return undefined;
         let licenseText;
@@ -233,7 +243,7 @@ async function readLicenseFromPackageJson(pkgName, resolvePaths, version) {
         }
         return { license, licenseFile, licenseText };
     }
-    catch (err) {
+    catch {
         return undefined;
     }
 }

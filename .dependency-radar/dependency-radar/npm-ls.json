@@ -6,9 +6,11 @@
       "dependencies": {
         "undici-types": {
           "name": "undici-types",
-          "version": "6.21.0"
+          "version": "6.21.0",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/undici-types"
         }
-      }
+      },
+      "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@types/node"
     },
     "terser": {
       "name": "terser",
@@ -24,13 +26,16 @@
               "dependencies": {
                 "@jridgewell/sourcemap-codec": {
                   "name": "@jridgewell/sourcemap-codec",
-                  "version": "1.5.5"
+                  "version": "1.5.5",
+                  "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/sourcemap-codec"
                 },
                 "@jridgewell/trace-mapping": {
                   "name": "@jridgewell/trace-mapping",
-                  "version": "0.3.31"
+                  "version": "0.3.31",
+                  "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/trace-mapping"
                 }
-              }
+              },
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/gen-mapping"
             },
             "@jridgewell/trace-mapping": {
               "name": "@jridgewell/trace-mapping",
@@ -38,23 +43,29 @@
               "dependencies": {
                 "@jridgewell/resolve-uri": {
                   "name": "@jridgewell/resolve-uri",
-                  "version": "3.1.2"
+                  "version": "3.1.2",
+                  "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/resolve-uri"
                 },
                 "@jridgewell/sourcemap-codec": {
                   "name": "@jridgewell/sourcemap-codec",
-                  "version": "1.5.5"
+                  "version": "1.5.5",
+                  "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/sourcemap-codec"
                 }
-              }
+              },
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/trace-mapping"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/source-map"
         },
         "acorn": {
           "name": "acorn",
-          "version": "8.15.0"
+          "version": "8.15.0",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/acorn"
         },
         "commander": {
           "name": "commander",
-          "version": "2.20.3"
+          "version": "2.20.3",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/commander"
         },
         "source-map-support": {
           "name": "source-map-support",
@@ -62,15 +73,19 @@
           "dependencies": {
             "buffer-from": {
               "name": "buffer-from",
-              "version": "1.1.2"
+              "version": "1.1.2",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/buffer-from"
             },
             "source-map": {
               "name": "source-map",
-              "version": "0.6.1"
+              "version": "0.6.1",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/source-map"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/source-map-support"
         }
-      }
+      },
+      "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/terser"
     },
     "ts-node": {
       "name": "ts-node",
@@ -86,35 +101,44 @@
               "dependencies": {
                 "@jridgewell/resolve-uri": {
                   "name": "@jridgewell/resolve-uri",
-                  "version": "3.1.2"
+                  "version": "3.1.2",
+                  "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/resolve-uri"
                 },
                 "@jridgewell/sourcemap-codec": {
                   "name": "@jridgewell/sourcemap-codec",
-                  "version": "1.5.5"
+                  "version": "1.5.5",
+                  "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@jridgewell/sourcemap-codec"
                 }
-              }
+              },
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@cspotcode/source-map-support/node_modules/@jridgewell/trace-mapping"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@cspotcode/source-map-support"
         },
         "@tsconfig/node10": {
           "name": "@tsconfig/node10",
-          "version": "1.0.12"
+          "version": "1.0.12",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@tsconfig/node10"
         },
         "@tsconfig/node12": {
           "name": "@tsconfig/node12",
-          "version": "1.0.11"
+          "version": "1.0.11",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@tsconfig/node12"
         },
         "@tsconfig/node14": {
           "name": "@tsconfig/node14",
-          "version": "1.0.3"
+          "version": "1.0.3",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@tsconfig/node14"
         },
         "@tsconfig/node16": {
           "name": "@tsconfig/node16",
-          "version": "1.0.4"
+          "version": "1.0.4",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@tsconfig/node16"
         },
         "@types/node": {
           "name": "@types/node",
-          "version": "20.19.30"
+          "version": "20.19.30",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@types/node"
         },
         "acorn-walk": {
           "name": "acorn-walk",
@@ -122,47 +146,59 @@
           "dependencies": {
             "acorn": {
               "name": "acorn",
-              "version": "8.15.0"
+              "version": "8.15.0",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/acorn"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/acorn-walk"
         },
         "acorn": {
           "name": "acorn",
-          "version": "8.15.0"
+          "version": "8.15.0",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/acorn"
         },
         "arg": {
           "name": "arg",
-          "version": "4.1.3"
+          "version": "4.1.3",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/arg"
         },
         "create-require": {
           "name": "create-require",
-          "version": "1.1.1"
+          "version": "1.1.1",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/create-require"
         },
         "diff": {
           "name": "diff",
-          "version": "4.0.4"
+          "version": "4.0.4",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/diff"
         },
         "make-error": {
           "name": "make-error",
-          "version": "1.3.6"
+          "version": "1.3.6",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/make-error"
         },
         "typescript": {
           "name": "typescript",
-          "version": "5.9.3"
+          "version": "5.9.3",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/typescript"
         },
         "v8-compile-cache-lib": {
           "name": "v8-compile-cache-lib",
-          "version": "3.0.1"
+          "version": "3.0.1",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/v8-compile-cache-lib"
         },
         "yn": {
           "name": "yn",
-          "version": "3.1.1"
+          "version": "3.1.1",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/yn"
         }
-      }
+      },
+      "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/ts-node"
     },
     "typescript": {
       "name": "typescript",
-      "version": "5.9.3"
+      "version": "5.9.3",
+      "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/typescript"
     },
     "vite": {
       "name": "vite",
@@ -170,7 +206,8 @@
       "dependencies": {
         "@types/node": {
           "name": "@types/node",
-          "version": "20.19.30"
+          "version": "20.19.30",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@types/node"
         },
         "esbuild": {
           "name": "esbuild",
@@ -178,9 +215,11 @@
           "dependencies": {
             "@esbuild/darwin-arm64": {
               "name": "@esbuild/darwin-arm64",
-              "version": "0.21.5"
+              "version": "0.21.5",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@esbuild/darwin-arm64"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/esbuild"
         },
         "postcss": {
           "name": "postcss",
@@ -188,17 +227,21 @@
           "dependencies": {
             "nanoid": {
               "name": "nanoid",
-              "version": "3.3.11"
+              "version": "3.3.11",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/nanoid"
             },
             "picocolors": {
               "name": "picocolors",
-              "version": "1.1.1"
+              "version": "1.1.1",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/picocolors"
             },
             "source-map-js": {
               "name": "source-map-js",
-              "version": "1.2.1"
+              "version": "1.2.1",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/source-map-js"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/postcss"
         },
         "rollup": {
           "name": "rollup",
@@ -206,19 +249,24 @@
           "dependencies": {
             "@rollup/rollup-darwin-arm64": {
               "name": "@rollup/rollup-darwin-arm64",
-              "version": "4.56.0"
+              "version": "4.56.0",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@rollup/rollup-darwin-arm64"
             },
             "@types/estree": {
               "name": "@types/estree",
-              "version": "1.0.8"
+              "version": "1.0.8",
+              "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/@types/estree"
             }
-          }
+          },
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/rollup"
         },
         "terser": {
           "name": "terser",
-          "version": "5.46.0"
+          "version": "5.46.0",
+          "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/terser"
         }
-      }
+      },
+      "path": "/Users/josephmaynard/Developer/dependency-radar/node_modules/vite"
     }
   }
 }
