@@ -38,23 +38,54 @@ function normalizeExceptionId(raw) {
         return trimmed;
     return EXCEPTION_ID_LOOKUP.get(trimmed.toLowerCase());
 }
+function tokenizeSpdxExpression(value) {
+    const tokens = [];
+    let current = '';
+    const pushCurrent = () => {
+        const trimmed = current.trim();
+        if (trimmed)
+            tokens.push(trimmed);
+        current = '';
+    };
+    for (let i = 0; i < value.length; i += 1) {
+        const ch = value[i];
+        if (ch === '(' || ch === ')') {
+            pushCurrent();
+            tokens.push(ch);
+            continue;
+        }
+        if (/\s/.test(ch)) {
+            pushCurrent();
+            continue;
+        }
+        current += ch;
+    }
+    pushCurrent();
+    return tokens;
+}
 function validateSpdxExpression(input) {
+    if (!input || typeof input !== 'string') {
+        return {
+            valid: false,
+            expression: false,
+            deprecated: false,
+            normalized: '',
+            licenseIds: [],
+            exceptions: []
+        };
+    }
+    const raw = input.trim();
     const invalid = {
         valid: false,
         expression: false,
         deprecated: false,
-        normalized: input.trim(),
+        normalized: raw,
         licenseIds: [],
         exceptions: []
     };
-    if (!input || typeof input !== 'string')
-        return invalid;
-    const raw = input.trim();
     if (!raw)
         return invalid;
-    if (raw.includes('(') || raw.includes(')'))
-        return invalid;
-    const tokens = raw.split(/\s+/).filter(Boolean);
+    const tokens = tokenizeSpdxExpression(raw);
     if (tokens.length === 0)
         return invalid;
     const licenseIds = [];
@@ -62,10 +93,17 @@ function validateSpdxExpression(input) {
     const normalizedTokens = [];
     let deprecated = false;
     let expectTerm = true;
+    let depth = 0;
     let i = 0;
     while (i < tokens.length) {
         const token = tokens[i];
         if (expectTerm) {
+            if (token === '(') {
+                depth += 1;
+                normalizedTokens.push('(');
+                i += 1;
+                continue;
+            }
             const licenseId = normalizeSpdxId(token);
             if (!licenseId)
                 return invalid;
@@ -77,7 +115,7 @@ function validateSpdxExpression(input) {
             i += 1;
             if (tokens[i] && tokens[i].toUpperCase() === 'WITH') {
                 const exceptionToken = tokens[i + 1];
-                if (!exceptionToken)
+                if (!exceptionToken || exceptionToken === '(' || exceptionToken === ')')
                     return invalid;
                 const exceptionId = normalizeExceptionId(exceptionToken);
                 if (!exceptionId) {
@@ -94,6 +132,14 @@ function validateSpdxExpression(input) {
             expectTerm = false;
             continue;
         }
+        if (token === ')') {
+            depth -= 1;
+            if (depth < 0)
+                return invalid;
+            normalizedTokens.push(')');
+            i += 1;
+            continue;
+        }
         const op = token.toUpperCase();
         if (op !== 'AND' && op !== 'OR')
             return invalid;
@@ -101,7 +147,7 @@ function validateSpdxExpression(input) {
         i += 1;
         expectTerm = true;
     }
-    if (expectTerm)
+    if (expectTerm || depth !== 0)
         return invalid;
     return {
         valid: true,

@@ -1,15 +1,5 @@
 # Dependency Radar
 
-## License Scanning
-
-Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a bundled SPDX identifier list (generated at build time) with no runtime network access. Each dependency gets a structured license record with:
-
-- Declared SPDX validation (including deprecated IDs and `WITH` exceptions)
-- Inferred SPDX license (with confidence: `high`, `medium`, `low`) based on deterministic text matching
-- A status (`declared-only`, `inferred-only`, `match`, `mismatch`, `invalid-spdx`, `unknown`) to make review decisions easier
-
-This logic applies to all dependencies (direct and transitive). Inferred licenses are never treated as authoritative over valid declared SPDX expressions.
-
 Dependency Radar is a local-first CLI tool that inspects a Node.js project’s installed dependencies and generates a single, human-readable HTML report. The report highlights dependency structure, usage, size, licences, vulnerabilities, and other signals that help you understand risk and complexity hidden in your node_modules folder.
 
 ## What it does
@@ -26,6 +16,18 @@ Dependency Radar is a local-first CLI tool that inspects a Node.js project’s i
 - Not a replacement for dedicated security scanners
 - Not a bundler or build tool
 - Not a dependency updater
+
+
+## License Scanning
+
+Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a bundled SPDX identifier list (generated at build time) with no runtime network access. Each dependency gets a structured license record with:
+
+- Declared SPDX validation (including deprecated IDs and `WITH` exceptions)
+- Inferred SPDX license (with confidence: `high`, `medium`, `low`) based on deterministic text matching
+- A status (`declared-only`, `inferred-only`, `match`, `mismatch`, `invalid-spdx`, `unknown`) to make review decisions easier
+
+This logic applies to all dependencies (direct and transitive). Inferred licenses are never treated as authoritative over valid declared SPDX expressions.
+
 
 ## Setup
 

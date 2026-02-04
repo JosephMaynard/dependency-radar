@@ -28,25 +28,38 @@ const EXCEPTIONS_URL =
 
 async function fetchJson<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, (res) => {
-        if (res.statusCode && res.statusCode >= 400) {
-          reject(new Error(`Failed to fetch ${url} (${res.statusCode})`));
-          res.resume();
-          return;
+    const req = https.get(url, (res) => {
+      const status = res.statusCode || 0;
+      if (status < 200 || status > 299) {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to fetch ${url} (${status})`));
+        res.resume();
+        return;
+      }
+      const chunks: Buffer[] = [];
+      res.on('data', (d) => chunks.push(Buffer.from(d)));
+      res.on('end', () => {
+        clearTimeout(timeout);
+        try {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          resolve(JSON.parse(raw) as T);
+        } catch (err) {
+          reject(err);
         }
-        const chunks: Buffer[] = [];
-        res.on('data', (d) => chunks.push(Buffer.from(d)));
-        res.on('end', () => {
-          try {
-            const raw = Buffer.concat(chunks).toString('utf8');
-            resolve(JSON.parse(raw) as T);
-          } catch (err) {
-            reject(err);
-          }
-        });
-      })
-      .on('error', (err) => reject(err));
+      });
+      res.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+    const timeout = setTimeout(() => {
+      req.destroy(new Error(`Request timed out fetching ${url}`));
+      reject(new Error(`Request timed out fetching ${url}`));
+    }, 10_000);
+    req.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
   });
 }
 
