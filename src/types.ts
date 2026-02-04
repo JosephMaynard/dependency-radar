@@ -59,6 +59,34 @@ export interface DependencyExecutionInfo {
   };
 }
 
+export type LicenseConfidence = 'high' | 'medium' | 'low';
+export type LicenseStatus =
+  | 'declared-only'
+  | 'inferred-only'
+  | 'match'
+  | 'mismatch'
+  | 'invalid-spdx'
+  | 'unknown';
+
+export interface DependencyLicenseInfo {
+  declared?: {
+    spdxId: string;
+    expression: boolean;
+    deprecated: boolean;
+    valid: boolean;
+  };
+  inferred?: {
+    spdxId: string;
+    confidence: LicenseConfidence;
+  };
+  exception?: {
+    id: string;
+    deprecated: boolean;
+    valid: boolean;
+  };
+  status: LicenseStatus;
+}
+
 // Grouped by human review questions (what it is, security, usage, graph impact, execution).
 export interface DependencyRecord {
   package: {
@@ -75,7 +103,7 @@ export interface DependencyRecord {
     };
   };
   compliance: {
-    license: string;
+    license: DependencyLicenseInfo;
     licenseRisk: 'green' | 'amber' | 'red';
   };
   security: {

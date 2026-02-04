@@ -114,10 +114,78 @@ export function vulnRiskLevel(counts: Record<string, number>): 'green' | 'amber'
   return 'green';
 }
 
-export async function resolvePackageJsonPath(
+const pnpmStoreEntriesCache = new Map<string, string[]>();
+const pnpmStoreIndexCache = new Map<string, Map<string, string[]>>();
+
+function encodePnpmStoreName(pkgName: string): string {
+  if (pkgName.startsWith('@')) {
+    const parts = pkgName.slice(1).split('/');
+    if (parts.length >= 2) {
+      return `@${parts[0]}+${parts.slice(1).join('+')}`;
+    }
+  }
+  return pkgName.replace(/\//g, '+');
+}
+
+async function getPnpmStoreEntries(pnpmDir: string): Promise<string[]> {
+  if (pnpmStoreEntriesCache.has(pnpmDir)) return pnpmStoreEntriesCache.get(pnpmDir)!;
+  try {
+    const entries = await fsp.readdir(pnpmDir, { withFileTypes: true });
+    const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    pnpmStoreEntriesCache.set(pnpmDir, dirs);
+    return dirs;
+  } catch {
+    pnpmStoreEntriesCache.set(pnpmDir, []);
+    return [];
+  }
+}
+
+async function getPnpmStoreIndex(pnpmDir: string): Promise<Map<string, string[]>> {
+  if (pnpmStoreIndexCache.has(pnpmDir)) return pnpmStoreIndexCache.get(pnpmDir)!;
+  const entries = await getPnpmStoreEntries(pnpmDir);
+  const index = new Map<string, string[]>();
+  for (const entry of entries) {
+    const prefix = entry.split('(')[0];
+    if (!prefix) continue;
+    if (!index.has(prefix)) index.set(prefix, []);
+    index.get(prefix)!.push(entry);
+  }
+  pnpmStoreIndexCache.set(pnpmDir, index);
+  return index;
+}
+
+async function resolvePnpmPackageJsonPath(
   pkgName: string,
+  version: string,
   resolvePaths: string[]
 ): Promise<string | undefined> {
+  if (!version || version.startsWith('link:') || version.startsWith('workspace:') || version.startsWith('file:')) {
+    return undefined;
+  }
+  const encoded = encodePnpmStoreName(pkgName);
+  const prefix = `${encoded}@${version}`;
+  for (const basePath of resolvePaths) {
+    const pnpmDir = path.join(basePath, 'node_modules', '.pnpm');
+    if (!(await pathExists(pnpmDir))) continue;
+    const index = await getPnpmStoreIndex(pnpmDir);
+    const matches = index.get(prefix) || [];
+    for (const entry of matches) {
+      const candidate = path.join(pnpmDir, entry, 'node_modules', pkgName, 'package.json');
+      if (await pathExists(candidate)) return candidate;
+    }
+  }
+  return undefined;
+}
+
+export async function resolvePackageJsonPath(
+  pkgName: string,
+  resolvePaths: string[],
+  version?: string
+): Promise<string | undefined> {
+  if (version) {
+    const pnpmResolved = await resolvePnpmPackageJsonPath(pkgName, version, resolvePaths);
+    if (pnpmResolved) return pnpmResolved;
+  }
   try {
     const direct = require.resolve(path.join(pkgName, 'package.json'), { paths: resolvePaths });
     if (direct) return direct;
@@ -146,17 +214,26 @@ export async function resolvePackageJsonPath(
 
 export async function readLicenseFromPackageJson(
   pkgName: string,
-  resolvePaths: string[]
-): Promise<{ license?: string; licenseFile?: string } | undefined> {
+  resolvePaths: string[],
+  version?: string
+): Promise<{ license?: string; licenseFile?: string; licenseText?: string } | undefined> {
   try {
-    const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths);
+    const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths, version);
     if (!pkgJsonPath) return undefined;
     const pkgRaw = await fsp.readFile(pkgJsonPath, 'utf8');
     const pkg = JSON.parse(pkgRaw);
     const license = pkg.license || (Array.isArray(pkg.licenses) ? pkg.licenses.map((l: any) => (typeof l === 'string' ? l : l?.type)).filter(Boolean).join(' OR ') : undefined);
     const licenseFile = await findLicenseFile(path.dirname(pkgJsonPath));
     if (!license && !licenseFile) return undefined;
-    return { license, licenseFile };
+    let licenseText: string | undefined;
+    if (licenseFile) {
+      try {
+        licenseText = await fsp.readFile(licenseFile, 'utf8');
+      } catch {
+        licenseText = undefined;
+      }
+    }
+    return { license, licenseFile, licenseText };
   } catch (err) {
     return undefined;
   }

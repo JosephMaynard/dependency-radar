@@ -116,7 +116,73 @@ function vulnRiskLevel(counts) {
         return 'amber';
     return 'green';
 }
-async function resolvePackageJsonPath(pkgName, resolvePaths) {
+const pnpmStoreEntriesCache = new Map();
+const pnpmStoreIndexCache = new Map();
+function encodePnpmStoreName(pkgName) {
+    if (pkgName.startsWith('@')) {
+        const parts = pkgName.slice(1).split('/');
+        if (parts.length >= 2) {
+            return `@${parts[0]}+${parts.slice(1).join('+')}`;
+        }
+    }
+    return pkgName.replace(/\//g, '+');
+}
+async function getPnpmStoreEntries(pnpmDir) {
+    if (pnpmStoreEntriesCache.has(pnpmDir))
+        return pnpmStoreEntriesCache.get(pnpmDir);
+    try {
+        const entries = await promises_1.default.readdir(pnpmDir, { withFileTypes: true });
+        const dirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+        pnpmStoreEntriesCache.set(pnpmDir, dirs);
+        return dirs;
+    }
+    catch {
+        pnpmStoreEntriesCache.set(pnpmDir, []);
+        return [];
+    }
+}
+async function getPnpmStoreIndex(pnpmDir) {
+    if (pnpmStoreIndexCache.has(pnpmDir))
+        return pnpmStoreIndexCache.get(pnpmDir);
+    const entries = await getPnpmStoreEntries(pnpmDir);
+    const index = new Map();
+    for (const entry of entries) {
+        const prefix = entry.split('(')[0];
+        if (!prefix)
+            continue;
+        if (!index.has(prefix))
+            index.set(prefix, []);
+        index.get(prefix).push(entry);
+    }
+    pnpmStoreIndexCache.set(pnpmDir, index);
+    return index;
+}
+async function resolvePnpmPackageJsonPath(pkgName, version, resolvePaths) {
+    if (!version || version.startsWith('link:') || version.startsWith('workspace:') || version.startsWith('file:')) {
+        return undefined;
+    }
+    const encoded = encodePnpmStoreName(pkgName);
+    const prefix = `${encoded}@${version}`;
+    for (const basePath of resolvePaths) {
+        const pnpmDir = path_1.default.join(basePath, 'node_modules', '.pnpm');
+        if (!(await pathExists(pnpmDir)))
+            continue;
+        const index = await getPnpmStoreIndex(pnpmDir);
+        const matches = index.get(prefix) || [];
+        for (const entry of matches) {
+            const candidate = path_1.default.join(pnpmDir, entry, 'node_modules', pkgName, 'package.json');
+            if (await pathExists(candidate))
+                return candidate;
+        }
+    }
+    return undefined;
+}
+async function resolvePackageJsonPath(pkgName, resolvePaths, version) {
+    if (version) {
+        const pnpmResolved = await resolvePnpmPackageJsonPath(pkgName, version, resolvePaths);
+        if (pnpmResolved)
+            return pnpmResolved;
+    }
     try {
         const direct = require.resolve(path_1.default.join(pkgName, 'package.json'), { paths: resolvePaths });
         if (direct)
@@ -145,9 +211,9 @@ async function resolvePackageJsonPath(pkgName, resolvePaths) {
     }
     return undefined;
 }
-async function readLicenseFromPackageJson(pkgName, resolvePaths) {
+async function readLicenseFromPackageJson(pkgName, resolvePaths, version) {
     try {
-        const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths);
+        const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths, version);
         if (!pkgJsonPath)
             return undefined;
         const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
@@ -156,7 +222,16 @@ async function readLicenseFromPackageJson(pkgName, resolvePaths) {
         const licenseFile = await findLicenseFile(path_1.default.dirname(pkgJsonPath));
         if (!license && !licenseFile)
             return undefined;
-        return { license, licenseFile };
+        let licenseText;
+        if (licenseFile) {
+            try {
+                licenseText = await promises_1.default.readFile(licenseFile, 'utf8');
+            }
+            catch {
+                licenseText = undefined;
+            }
+        }
+        return { license, licenseFile, licenseText };
     }
     catch (err) {
         return undefined;

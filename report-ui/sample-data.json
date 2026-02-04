@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "generatedAt": "2026-01-28T00:00:00.000Z",
   "dependencyRadarVersion": "0.0.0",
   "git": {
@@ -17,9 +17,9 @@
     "enabled": false
   },
   "summary": {
-    "dependencyCount": 4,
+    "dependencyCount": 6,
     "directCount": 2,
-    "transitiveCount": 2
+    "transitiveCount": 4
   },
   "dependencies": {
     "chalk@5.3.0": {
@@ -34,7 +34,15 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "status": "declared-only"
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -86,7 +94,15 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "status": "declared-only"
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -125,7 +141,9 @@
             }
           ],
           "parentPackageCount": 1,
-          "topParentPackages": ["chalk@5.3.0"]
+          "topParentPackages": [
+            "chalk@5.3.0"
+          ]
         },
         "tsTypes": "none"
       },
@@ -148,7 +166,15 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "status": "declared-only"
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -175,7 +201,10 @@
         "nodeEngine": "^18.0.0 || >=20.0.0",
         "outdatedStatus": "major",
         "latestVersion": "7.3.1",
-        "blockers": ["nodeEngine", "peerDependency"],
+        "blockers": [
+          "nodeEngine",
+          "peerDependency"
+        ],
         "blocksNodeMajor": true
       },
       "usage": {
@@ -201,16 +230,28 @@
         "fanOut": 12,
         "subDeps": {
           "dep": {
-            "esbuild": ["^0.21.0", "esbuild@0.21.5"]
+            "esbuild": [
+              "^0.21.0",
+              "esbuild@0.21.5"
+            ]
           },
           "dev": {
-            "@types/node": ["^20.0.0", null]
+            "@types/node": [
+              "^20.0.0",
+              null
+            ]
           },
           "peer": {
-            "sass": ["^1.63.0", null]
+            "sass": [
+              "^1.63.0",
+              null
+            ]
           },
           "opt": {
-            "fsevents": ["~2.3.3", null]
+            "fsevents": [
+              "~2.3.3",
+              null
+            ]
           }
         }
       }
@@ -227,7 +268,15 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "status": "declared-only"
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -270,7 +319,9 @@
             }
           ],
           "parentPackageCount": 1,
-          "topParentPackages": ["vite@5.4.21"]
+          "topParentPackages": [
+            "vite@5.4.21"
+          ]
         },
         "introduction": "tooling",
         "tsTypes": "bundled"
@@ -280,9 +331,18 @@
         "fanOut": 23,
         "subDeps": {
           "opt": {
-            "@esbuild/darwin-arm64": ["0.21.5", "@esbuild/darwin-arm64@0.21.5"],
-            "@esbuild/linux-x64": ["0.21.5", null],
-            "@esbuild/win32-x64": ["0.21.5", null]
+            "@esbuild/darwin-arm64": [
+              "0.21.5",
+              "@esbuild/darwin-arm64@0.21.5"
+            ],
+            "@esbuild/linux-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/win32-x64": [
+              "0.21.5",
+              null
+            ]
           }
         }
       },
@@ -298,6 +358,146 @@
             "reads-env"
           ]
         }
+      }
+    },
+    "good-license-lib@1.2.3": {
+      "package": {
+        "id": "good-license-lib@1.2.3",
+        "name": "good-license-lib",
+        "version": "1.2.3",
+        "description": "Sample package with clean SPDX license.",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/good-license-lib"
+        }
+      },
+      "compliance": {
+        "license": {
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          },
+          "exception": {
+            "id": "LLVM-exception",
+            "deprecated": false,
+            "valid": true
+          },
+          "status": "match"
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": ">=16.0.0",
+        "outdatedStatus": "minor",
+        "latestVersion": "1.3.0"
+      },
+      "usage": {
+        "direct": true,
+        "scope": "runtime",
+        "depth": 1,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "good-license-lib",
+              "version": "1.2.3"
+            }
+          ],
+          "parentPackageCount": 0,
+          "topParentPackages": []
+        },
+        "introduction": "direct",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 0
+      }
+    },
+    "bad-license-lib@0.4.0": {
+      "package": {
+        "id": "bad-license-lib@0.4.0",
+        "name": "bad-license-lib",
+        "version": "0.4.0",
+        "description": "Sample package with invalid SPDX and mismatch.",
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/bad-license-lib"
+        }
+      },
+      "compliance": {
+        "license": {
+          "declared": {
+            "spdxId": "GPL-2.0-only",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "GPL-3.0-or-later",
+            "confidence": "medium"
+          },
+          "status": "mismatch",
+          "exception": {
+            "id": "Unknown-exception",
+            "deprecated": false,
+            "valid": false
+          }
+        },
+        "licenseRisk": "red"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "some-tool",
+              "version": "2.0.0"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "some-tool@2.0.0"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "unknown"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
       }
     }
   }
