@@ -1,2 +1,10 @@
 node_modules/
 .DS_Store
+.dependency-radar
+test-fixtures/**/node_modules
+test-fixtures/**/package-lock.json
+test-fixtures/**/pnpm-lock.yaml
+test-fixtures/**/yarn.lock
+test-fixtures/**/.pnp.*
+test-fixtures/**/.yarn/*
+test-fixtures/**/.yarnrc.yml
