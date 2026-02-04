@@ -222,7 +222,16 @@ async function readLicenseFromPackageJson(pkgName, resolvePaths, version) {
         const licenseFile = await findLicenseFile(path_1.default.dirname(pkgJsonPath));
         if (!license && !licenseFile)
             return undefined;
-        return { license, licenseFile };
+        let licenseText;
+        if (licenseFile) {
+            try {
+                licenseText = await promises_1.default.readFile(licenseFile, 'utf8');
+            }
+            catch {
+                licenseText = undefined;
+            }
+        }
+        return { license, licenseFile, licenseText };
     }
     catch (err) {
         return undefined;

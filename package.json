@@ -11,9 +11,10 @@
   ],
   "scripts": {
     "dev:report": "cd report-ui && npx vite",
+    "build:spdx": "ts-node scripts/build-spdx.ts",
     "build:report-ui": "cd report-ui && npx vite build",
     "build:report": "npm run build:report-ui && npx ts-node scripts/build-report.ts",
-    "build": "npm run build:report && tsc",
+    "build": "npm run build:spdx && npm run build:report && tsc",
     "dev": "ts-node src/cli.ts scan",
     "scan": "node dist/cli.js scan",
     "prepublishOnly": "npm run build",

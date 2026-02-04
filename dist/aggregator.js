@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
+const license_1 = require("./license");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
@@ -95,16 +96,17 @@ async function aggregateData(input) {
         const direct = isDirectDependency(node.name, pkg);
         if (direct)
             directCount += 1;
-        const cachedLicense = licenseCache.get(node.name);
-        const license = cachedLicense ||
+        const cacheKey = `${node.name}@${node.version}`;
+        const cachedLicense = licenseCache.get(cacheKey);
+        const licenseSource = cachedLicense ||
             (await (0, utils_1.readLicenseFromPackageJson)(node.name, resolvePaths, node.version)) ||
             { license: undefined };
-        if (!licenseCache.has(node.name) && license.license) {
-            licenseCache.set(node.name, license);
+        if (!licenseCache.has(cacheKey)) {
+            licenseCache.set(cacheKey, licenseSource);
         }
         const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
-        const licenseValue = license.license || 'unknown';
-        const licenseRisk = (0, utils_1.licenseRiskLevel)(licenseValue);
+        const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
+        const licenseRisk = (0, license_1.pickLicenseRisk)(licenseInfo.licenseIds);
         // Calculate root causes (direct dependencies that cause this to be installed)
         const rootCauses = findRootCauses(node, nodeMap, pkg);
         const packageInsights = await gatherPackageInsights(node.name, node.version, resolvePaths, packageMetaCache, packageStatCache);
@@ -146,7 +148,7 @@ async function aggregateData(input) {
                 }
             },
             compliance: {
-                license: licenseValue,
+                license: licenseInfo.record,
                 licenseRisk
             },
             security: {
@@ -778,6 +780,54 @@ function determineRuntimeImpactFromFiles(files) {
     if (categories.size > 1)
         return 'mixed';
     return Array.from(categories)[0];
+}
+function buildLicenseInfo(declaredRaw, licenseText) {
+    const declaredValue = typeof declaredRaw === 'string' ? declaredRaw.trim() : '';
+    const hasDeclared = Boolean(declaredValue);
+    const declaredValidation = hasDeclared ? (0, license_1.validateSpdxExpression)(declaredValue) : undefined;
+    const inferred = licenseText ? (0, license_1.inferLicenseFromText)(licenseText) : undefined;
+    const record = {
+        status: 'unknown'
+    };
+    if (hasDeclared && declaredValidation) {
+        record.declared = {
+            spdxId: declaredValidation.normalized || declaredValue,
+            expression: declaredValidation.expression,
+            deprecated: declaredValidation.deprecated,
+            valid: declaredValidation.valid
+        };
+        if (declaredValidation.exceptions.length === 1) {
+            record.exception = declaredValidation.exceptions[0];
+        }
+    }
+    if (inferred) {
+        record.inferred = {
+            spdxId: inferred.spdxId,
+            confidence: inferred.confidence
+        };
+    }
+    if (hasDeclared && declaredValidation && !declaredValidation.valid) {
+        record.status = 'invalid-spdx';
+    }
+    else if ((declaredValidation === null || declaredValidation === void 0 ? void 0 : declaredValidation.valid) && inferred) {
+        record.status = declaredValidation.normalized === inferred.spdxId ? 'match' : 'mismatch';
+    }
+    else if (declaredValidation === null || declaredValidation === void 0 ? void 0 : declaredValidation.valid) {
+        record.status = 'declared-only';
+    }
+    else if (inferred) {
+        record.status = 'inferred-only';
+    }
+    else {
+        record.status = 'unknown';
+    }
+    if (declaredValidation === null || declaredValidation === void 0 ? void 0 : declaredValidation.valid) {
+        return { record, licenseIds: declaredValidation.licenseIds };
+    }
+    if (inferred) {
+        return { record, licenseIds: [inferred.spdxId] };
+    }
+    return { record, licenseIds: [] };
 }
 const TOOLING_PACKAGES = new Set([
     'eslint',

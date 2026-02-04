@@ -216,7 +216,7 @@ export async function readLicenseFromPackageJson(
   pkgName: string,
   resolvePaths: string[],
   version?: string
-): Promise<{ license?: string; licenseFile?: string } | undefined> {
+): Promise<{ license?: string; licenseFile?: string; licenseText?: string } | undefined> {
   try {
     const pkgJsonPath = await resolvePackageJsonPath(pkgName, resolvePaths, version);
     if (!pkgJsonPath) return undefined;
@@ -225,7 +225,15 @@ export async function readLicenseFromPackageJson(
     const license = pkg.license || (Array.isArray(pkg.licenses) ? pkg.licenses.map((l: any) => (typeof l === 'string' ? l : l?.type)).filter(Boolean).join(' OR ') : undefined);
     const licenseFile = await findLicenseFile(path.dirname(pkgJsonPath));
     if (!license && !licenseFile) return undefined;
-    return { license, licenseFile };
+    let licenseText: string | undefined;
+    if (licenseFile) {
+      try {
+        licenseText = await fsp.readFile(licenseFile, 'utf8');
+      } catch {
+        licenseText = undefined;
+      }
+    }
+    return { license, licenseFile, licenseText };
   } catch (err) {
     return undefined;
   }

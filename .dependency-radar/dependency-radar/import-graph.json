@@ -1,6 +1,7 @@
 {
   "files": {
     "src/aggregator.ts": [
+      "src/license.ts",
       "src/types.ts",
       "src/utils.ts"
     ],
@@ -14,9 +15,13 @@
       "src/types.ts",
       "src/utils.ts"
     ],
+    "src/generated/spdx.ts": [],
     "src/index.ts": [
       "src/aggregator.ts",
       "src/report.ts"
+    ],
+    "src/license.ts": [
+      "src/generated/spdx.ts"
     ],
     "src/report-assets.ts": [],
     "src/report.ts": [
@@ -45,7 +50,9 @@
   "packages": {
     "src/aggregator.ts": [],
     "src/cli.ts": [],
+    "src/generated/spdx.ts": [],
     "src/index.ts": [],
+    "src/license.ts": [],
     "src/report-assets.ts": [],
     "src/report.ts": [],
     "src/runners/importGraphRunner.ts": [],
@@ -58,7 +65,9 @@
   "packageCounts": {
     "src/aggregator.ts": {},
     "src/cli.ts": {},
+    "src/generated/spdx.ts": {},
     "src/index.ts": {},
+    "src/license.ts": {},
     "src/report-assets.ts": {},
     "src/report.ts": {},
     "src/runners/importGraphRunner.ts": {},

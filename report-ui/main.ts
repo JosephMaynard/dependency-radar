@@ -4,7 +4,7 @@
  */
 
 import './style.css';
-import type { AggregatedData, DependencyRecord, ExecutionSignal, Severity } from './types';
+import type { AggregatedData, DependencyRecord, ExecutionSignal, LicenseStatus, Severity } from './types';
 
 // In development, load sample data; in production, data is embedded
 async function loadReportData(): Promise<AggregatedData> {
@@ -58,6 +58,32 @@ function getLicenseCategory(license: string | undefined | null): LicenseCategory
     if (licenses.some(l => normalized.includes(l.toUpperCase()))) return cat as LicenseCategory;
   }
   return 'unknown';
+}
+
+function resolvePrimaryLicense(dep: DependencyRecord): { value: string; isInferred: boolean } {
+  const info = dep.compliance.license;
+  const declared = info.declared?.valid ? info.declared.spdxId : undefined;
+  const inferred = info.inferred?.spdxId;
+  if (declared) return { value: declared, isInferred: false };
+  if (inferred) return { value: inferred, isInferred: true };
+  return { value: 'Unknown', isInferred: false };
+}
+
+function formatLicenseStatus(status: LicenseStatus): string {
+  switch (status) {
+    case 'declared-only':
+      return 'Declared';
+    case 'inferred-only':
+      return 'Inferred';
+    case 'match':
+      return 'Declared + Inferred (match)';
+    case 'mismatch':
+      return 'Declared + Inferred (mismatch)';
+    case 'invalid-spdx':
+      return 'Invalid SPDX';
+    default:
+      return 'Unknown';
+  }
 }
 
 const severityOrder: Record<Severity | 'none', number> = { none: 0, low: 1, moderate: 2, high: 3, critical: 4 };
@@ -499,8 +525,9 @@ function renderAdvisoriesTable(advisories: DependencyRecord['security']['advisor
 function renderDep(dep: DependencyRecord): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
-  const licenseText = dep.compliance.license || 'Unknown';
-  const licenseCategory = getLicenseCategory(licenseText);
+  const primaryLicense = resolvePrimaryLicense(dep);
+  const licenseText = primaryLicense.isInferred ? `${primaryLicense.value} (inferred)` : primaryLicense.value;
+  const licenseCategory = getLicenseCategory(primaryLicense.value);
   const highestRisk = getHighestRisk(securitySummary, dep.compliance.licenseRisk);
   const severity = highestSeverity(securitySummary);
   const depKey = getDepKey(dep.package.name, dep.package.version);
@@ -548,7 +575,8 @@ function renderDep(dep: DependencyRecord): string {
 function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
-  const licenseText = dep.compliance.license || 'Unknown';
+  const primaryLicense = resolvePrimaryLicense(dep);
+  const licenseText = primaryLicense.isInferred ? `${primaryLicense.value} (inferred)` : primaryLicense.value;
   const links = resolveLinks(dep);
   const rawJson = JSON.stringify(dep, null, 2);
 
@@ -602,11 +630,32 @@ function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): str
     microSummaryHtml + workspaceListHtml + keyContextHtml + importTopFilesHtml
   );
 
+  const licenseInfo = dep.compliance.license;
+  const licenseDetails: string[] = [
+    renderKvItemHtml('Primary license', renderRiskValue(licenseText, dep.compliance.licenseRisk)),
+    renderKvItem('Status (status)', formatLicenseStatus(licenseInfo.status))
+  ];
+  if (licenseInfo.declared) {
+    const declaredMeta = [
+      licenseInfo.declared.valid ? 'valid' : 'invalid',
+      licenseInfo.declared.expression ? 'expression' : undefined,
+      licenseInfo.declared.deprecated ? 'deprecated' : undefined
+    ].filter(Boolean).join(', ');
+    const exceptionLabel = licenseInfo.exception?.id ? ` WITH ${licenseInfo.exception.id}` : '';
+    licenseDetails.push(renderKvItem('Declared SPDX (declared)', `${licenseInfo.declared.spdxId}${exceptionLabel}${declaredMeta ? ` (${declaredMeta})` : ''}`));
+  }
+  if (licenseInfo.inferred) {
+    licenseDetails.push(renderKvItem('Inferred from LICENSE (inferred)', `${licenseInfo.inferred.spdxId} (${licenseInfo.inferred.confidence})`));
+  }
+  if (licenseInfo.status === 'mismatch') {
+    licenseDetails.push(renderKvItem('Mismatch', 'Declared SPDX and LICENSE text do not match'));
+  }
+  if (licenseInfo.status === 'invalid-spdx') {
+    licenseDetails.push(renderKvItem('Invalid SPDX', 'Package.json license is not a valid SPDX identifier or expression'));
+  }
   const licenseBlock = renderSubsection(
     'License',
-    '<div class="kv-grid">' + [
-      renderKvItemHtml('License', renderRiskValue(licenseText, dep.compliance.licenseRisk))
-    ].join('') + '</div>'
+    '<div class="kv-grid">' + licenseDetails.join('') + '</div>'
   );
 
   const vulnTotal = securitySummary.critical + securitySummary.high + securitySummary.moderate + securitySummary.low;
@@ -898,13 +947,19 @@ async function init(): Promise<void> {
     const showUnknown = controls.licenseUnknown.checked;
     
     return allDependencies.filter((dep) => {
-      if (term && !(dep.package.name.toLowerCase().includes(term) || dep.compliance.license.toLowerCase().includes(term))) return false;
+      const primaryLicense = resolvePrimaryLicense(dep);
+      const licenseSearch = [
+        primaryLicense.value,
+        dep.compliance.license.declared?.spdxId,
+        dep.compliance.license.inferred?.spdxId
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (term && !(dep.package.name.toLowerCase().includes(term) || licenseSearch.includes(term))) return false;
       if (directFilter === 'direct' && !dep.usage.direct) return false;
       if (directFilter === 'transitive' && dep.usage.direct) return false;
       if (runtimeFilter !== 'all' && dep.usage.scope !== runtimeFilter) return false;
       if (hasVulns && severityOrder[highestSeverity(normalizeSecurity(dep).summary)] === 0) return false;
       
-      const licenseCategory = getLicenseCategory(dep.compliance.license);
+      const licenseCategory = getLicenseCategory(primaryLicense.value);
       if (licenseCategory === 'permissive' && !showPermissive) return false;
       if (licenseCategory === 'weakCopyleft' && !showWeakCopyleft) return false;
       if (licenseCategory === 'strongCopyleft' && !showStrongCopyleft) return false;

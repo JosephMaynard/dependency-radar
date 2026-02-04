@@ -14,6 +14,34 @@ export type ExecutionSignal =
   | 'reads-home'
   | 'uses-ssh';
 
+export type LicenseConfidence = 'high' | 'medium' | 'low';
+export type LicenseStatus =
+  | 'declared-only'
+  | 'inferred-only'
+  | 'match'
+  | 'mismatch'
+  | 'invalid-spdx'
+  | 'unknown';
+
+export interface DependencyLicenseInfo {
+  declared?: {
+    spdxId: string;
+    expression: boolean;
+    deprecated: boolean;
+    valid: boolean;
+  };
+  inferred?: {
+    spdxId: string;
+    confidence: LicenseConfidence;
+  };
+  exception?: {
+    id: string;
+    deprecated: boolean;
+    valid: boolean;
+  };
+  status: LicenseStatus;
+}
+
 export interface VulnerabilityAdvisory {
   id: string;
   title: string;
@@ -38,7 +66,7 @@ export interface DependencyRecord {
     };
   };
   compliance: {
-    license: string;
+    license: DependencyLicenseInfo;
     licenseRisk: 'green' | 'amber' | 'red';
   };
   security: {
@@ -100,7 +128,7 @@ export interface DependencyRecord {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.1';
+  schemaVersion: '1.2';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

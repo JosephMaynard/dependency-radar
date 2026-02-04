@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.2",
-  "generatedAt": "2026-02-04T11:12:24.035Z",
+  "generatedAt": "2026-02-04T12:51:26.607Z",
   "dependencyRadarVersion": "0.2.0",
   "git": {
     "branch": "fix/pnpm-workspace-scan"
@@ -48,7 +48,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -115,7 +127,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -170,7 +194,19 @@
         }
       },
       "compliance": {
-        "license": "BSD-2-Clause",
+        "license": {
+          "status": "mismatch",
+          "declared": {
+            "spdxId": "BSD-2-Clause",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "BSD-3-Clause",
+            "confidence": "low"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -299,7 +335,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -366,7 +414,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -433,7 +493,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -494,7 +566,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -561,7 +645,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -677,7 +773,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -749,7 +857,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "low"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -836,7 +956,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -923,7 +1055,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -986,7 +1130,19 @@
         }
       },
       "compliance": {
-        "license": "BSD-3-Clause",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "BSD-3-Clause",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "BSD-3-Clause",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1058,7 +1214,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1323,7 +1491,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1428,7 +1608,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1494,7 +1686,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1548,7 +1752,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1602,7 +1818,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1656,7 +1884,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1711,7 +1951,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1785,7 +2037,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1855,7 +2119,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -1930,7 +2206,19 @@
         }
       },
       "compliance": {
-        "license": "BSD-3-Clause",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "BSD-3-Clause",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "BSD-3-Clause",
+            "confidence": "low"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -2146,7 +2434,19 @@
         }
       },
       "compliance": {
-        "license": "ISC",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "ISC",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "ISC",
+            "confidence": "high"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -2254,7 +2554,19 @@
         }
       },
       "compliance": {
-        "license": "Apache-2.0",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "Apache-2.0",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "Apache-2.0",
+            "confidence": "high"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -2492,7 +2804,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -2586,7 +2910,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -2662,7 +2998,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3025,7 +3373,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3202,7 +3562,15 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "declared-only",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3262,7 +3630,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3336,7 +3716,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3394,7 +3786,19 @@
         }
       },
       "compliance": {
-        "license": "ISC",
+        "license": {
+          "status": "mismatch",
+          "declared": {
+            "spdxId": "ISC",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "low"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3449,7 +3853,19 @@
         }
       },
       "compliance": {
-        "license": "BSD-3-Clause",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "BSD-3-Clause",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "BSD-3-Clause",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -3525,7 +3941,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -4056,7 +4484,15 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "declared-only",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {
@@ -4119,7 +4555,19 @@
         }
       },
       "compliance": {
-        "license": "MIT",
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
         "licenseRisk": "green"
       },
       "security": {

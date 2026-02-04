@@ -12,7 +12,6 @@ import {
   VulnerabilitySummary
 } from './types';
 import {
-  licenseRiskLevel,
   readPackageJson,
   readLicenseFromPackageJson,
   runCommand,
@@ -20,6 +19,11 @@ import {
   getDependencyRadarVersion,
   resolvePackageJsonPath
 } from './utils';
+import {
+  inferLicenseFromText,
+  pickLicenseRisk,
+  validateSpdxExpression
+} from './license';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -148,7 +152,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const packageStatCache = new Map<string, PackageStats>();
 
   const dependencies: Record<string, DependencyRecord> = {};
-  const licenseCache = new Map<string, { license?: string }>();
+  const licenseCache = new Map<string, { license?: string; licenseText?: string }>();
   const nodeEngineRanges: string[] = [];
 
   const nodes = Array.from(nodeMap.values());
@@ -159,16 +163,18 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   for (const node of nodes) {
     const direct = isDirectDependency(node.name, pkg);
     if (direct) directCount += 1;
-    const cachedLicense = licenseCache.get(node.name);
-    const license = cachedLicense ||
+    const cacheKey = `${node.name}@${node.version}`;
+    const cachedLicense = licenseCache.get(cacheKey);
+    const licenseSource = cachedLicense ||
       (await readLicenseFromPackageJson(node.name, resolvePaths, node.version)) ||
       { license: undefined };
-    if (!licenseCache.has(node.name) && license.license) {
-      licenseCache.set(node.name, license);
+    if (!licenseCache.has(cacheKey)) {
+      licenseCache.set(cacheKey, licenseSource);
     }
     const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
-    const licenseValue = license.license || 'unknown';
-    const licenseRisk = licenseRiskLevel(licenseValue);
+
+    const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
+    const licenseRisk = pickLicenseRisk(licenseInfo.licenseIds);
     
     // Calculate root causes (direct dependencies that cause this to be installed)
     const rootCauses = findRootCauses(node, nodeMap, pkg);
@@ -228,7 +234,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         }
       },
       compliance: {
-        license: licenseValue,
+        license: licenseInfo.record,
         licenseRisk
       },
       security: {
@@ -873,6 +879,61 @@ function determineRuntimeImpactFromFiles(files: string[]): DependencyRecord['usa
   if (categories.size === 0) return 'runtime';
   if (categories.size > 1) return 'mixed';
   return Array.from(categories)[0];
+}
+
+type LicenseBuildResult = {
+  record: DependencyRecord['compliance']['license'];
+  licenseIds: string[];
+};
+
+function buildLicenseInfo(declaredRaw?: string, licenseText?: string): LicenseBuildResult {
+  const declaredValue = typeof declaredRaw === 'string' ? declaredRaw.trim() : '';
+  const hasDeclared = Boolean(declaredValue);
+  const declaredValidation = hasDeclared ? validateSpdxExpression(declaredValue) : undefined;
+  const inferred = licenseText ? inferLicenseFromText(licenseText) : undefined;
+
+  const record: DependencyRecord['compliance']['license'] = {
+    status: 'unknown'
+  };
+
+  if (hasDeclared && declaredValidation) {
+    record.declared = {
+      spdxId: declaredValidation.normalized || declaredValue,
+      expression: declaredValidation.expression,
+      deprecated: declaredValidation.deprecated,
+      valid: declaredValidation.valid
+    };
+    if (declaredValidation.exceptions.length === 1) {
+      record.exception = declaredValidation.exceptions[0];
+    }
+  }
+
+  if (inferred) {
+    record.inferred = {
+      spdxId: inferred.spdxId,
+      confidence: inferred.confidence
+    };
+  }
+
+  if (hasDeclared && declaredValidation && !declaredValidation.valid) {
+    record.status = 'invalid-spdx';
+  } else if (declaredValidation?.valid && inferred) {
+    record.status = declaredValidation.normalized === inferred.spdxId ? 'match' : 'mismatch';
+  } else if (declaredValidation?.valid) {
+    record.status = 'declared-only';
+  } else if (inferred) {
+    record.status = 'inferred-only';
+  } else {
+    record.status = 'unknown';
+  }
+
+  if (declaredValidation?.valid) {
+    return { record, licenseIds: declaredValidation.licenseIds };
+  }
+  if (inferred) {
+    return { record, licenseIds: [inferred.spdxId] };
+  }
+  return { record, licenseIds: [] };
 }
 
 const TOOLING_PACKAGES = new Set([
