@@ -1,5 +1,0 @@
-{
-  "stdout": "{\n  \"error\": {\n    \"code\": \"ERR_PNPM_AUDIT_NO_LOCKFILE\",\n    \"message\": \"No pnpm-lock.yaml found: Cannot audit a project without a lockfile\"\n  }\n}\n",
-  "stderr": "",
-  "code": 1
-}
