@@ -161,7 +161,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     if (direct) directCount += 1;
     const cachedLicense = licenseCache.get(node.name);
     const license = cachedLicense ||
-      (await readLicenseFromPackageJson(node.name, resolvePaths)) ||
+      (await readLicenseFromPackageJson(node.name, resolvePaths, node.version)) ||
       { license: undefined };
     if (!licenseCache.has(node.name) && license.license) {
       licenseCache.set(node.name, license);
@@ -175,6 +175,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
 
     const packageInsights = await gatherPackageInsights(
       node.name,
+      node.version,
       resolvePaths,
       packageMetaCache,
       packageStatCache
@@ -984,11 +985,12 @@ interface PackageInsights {
 
 async function gatherPackageInsights(
   name: string,
+  version: string,
   resolvePaths: string[],
   metaCache: Map<string, PackageMeta>,
   statCache: Map<string, PackageStats>
 ): Promise<PackageInsights> {
-  const meta = await loadPackageMeta(name, resolvePaths, metaCache);
+  const meta = await loadPackageMeta(name, resolvePaths, metaCache, version);
   if (!meta) {
     return {
       deprecated: false,
@@ -1044,16 +1046,18 @@ function normalizeDeclaredDeps(source: any): Record<string, string> {
 async function loadPackageMeta(
   name: string,
   resolvePaths: string[],
-  cache: Map<string, PackageMeta>
+  cache: Map<string, PackageMeta>,
+  version?: string
 ): Promise<PackageMeta | undefined> {
-  if (cache.has(name)) return cache.get(name);
+  const cacheKey = version ? `${name}@${version}` : name;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
   try {
-    const pkgJsonPath = await resolvePackageJsonPath(name, resolvePaths);
+    const pkgJsonPath = await resolvePackageJsonPath(name, resolvePaths, version);
     if (!pkgJsonPath) return undefined;
     const pkgRaw = await fs.readFile(pkgJsonPath, 'utf8');
     const pkg = JSON.parse(pkgRaw);
     const meta = { pkg, dir: path.dirname(pkgJsonPath) };
-    cache.set(name, meta);
+    cache.set(cacheKey, meta);
     return meta;
   } catch (err) {
     return undefined;

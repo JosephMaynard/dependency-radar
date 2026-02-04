@@ -97,7 +97,7 @@ async function aggregateData(input) {
             directCount += 1;
         const cachedLicense = licenseCache.get(node.name);
         const license = cachedLicense ||
-            (await (0, utils_1.readLicenseFromPackageJson)(node.name, resolvePaths)) ||
+            (await (0, utils_1.readLicenseFromPackageJson)(node.name, resolvePaths, node.version)) ||
             { license: undefined };
         if (!licenseCache.has(node.name) && license.license) {
             licenseCache.set(node.name, license);
@@ -107,7 +107,7 @@ async function aggregateData(input) {
         const licenseRisk = (0, utils_1.licenseRiskLevel)(licenseValue);
         // Calculate root causes (direct dependencies that cause this to be installed)
         const rootCauses = findRootCauses(node, nodeMap, pkg);
-        const packageInsights = await gatherPackageInsights(node.name, resolvePaths, packageMetaCache, packageStatCache);
+        const packageInsights = await gatherPackageInsights(node.name, node.version, resolvePaths, packageMetaCache, packageStatCache);
         if (packageInsights.nodeEngine) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
         }
@@ -858,9 +858,9 @@ function buildUpgradeBlock(insights) {
         blockers
     };
 }
-async function gatherPackageInsights(name, resolvePaths, metaCache, statCache) {
+async function gatherPackageInsights(name, version, resolvePaths, metaCache, statCache) {
     var _a;
-    const meta = await loadPackageMeta(name, resolvePaths, metaCache);
+    const meta = await loadPackageMeta(name, resolvePaths, metaCache, version);
     if (!meta) {
         return {
             deprecated: false,
@@ -911,17 +911,18 @@ function normalizeDeclaredDeps(source) {
     }
     return out;
 }
-async function loadPackageMeta(name, resolvePaths, cache) {
-    if (cache.has(name))
-        return cache.get(name);
+async function loadPackageMeta(name, resolvePaths, cache, version) {
+    const cacheKey = version ? `${name}@${version}` : name;
+    if (cache.has(cacheKey))
+        return cache.get(cacheKey);
     try {
-        const pkgJsonPath = await (0, utils_1.resolvePackageJsonPath)(name, resolvePaths);
+        const pkgJsonPath = await (0, utils_1.resolvePackageJsonPath)(name, resolvePaths, version);
         if (!pkgJsonPath)
             return undefined;
         const pkgRaw = await promises_1.default.readFile(pkgJsonPath, 'utf8');
         const pkg = JSON.parse(pkgRaw);
         const meta = { pkg, dir: path_1.default.dirname(pkgJsonPath) };
-        cache.set(name, meta);
+        cache.set(cacheKey, meta);
         return meta;
     }
     catch (err) {
