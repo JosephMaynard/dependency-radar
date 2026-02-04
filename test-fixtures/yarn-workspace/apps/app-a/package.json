@@ -1,0 +1,11 @@
+{
+  "name": "@dr-yarn/app-a",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@dr-yarn/pkg-a": "0.1.0",
+    "dayjs": "^1.11.10"
+  }
+}

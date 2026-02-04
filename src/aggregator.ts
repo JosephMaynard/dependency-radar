@@ -14,6 +14,7 @@ import {
 import {
   readPackageJson,
   readLicenseFromPackageJson,
+  readLicenseFromPackageDir,
   runCommand,
   vulnRiskLevel,
   getDependencyRadarVersion,
@@ -65,6 +66,7 @@ interface NodeInfo {
   children: Set<string>;
   childByName: Map<string, string>;
   dev?: boolean;
+  path?: string;
 }
 
 const dependencyRadarVersion = getDependencyRadarVersion();
@@ -166,7 +168,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const cacheKey = `${node.name}@${node.version}`;
     const cachedLicense = licenseCache.get(cacheKey);
     const licenseSource = cachedLicense ||
-      (await readLicenseFromPackageJson(node.name, resolvePaths, node.version)) ||
+      (node.path
+        ? (await readLicenseFromPackageDir(node.path))
+        : (await readLicenseFromPackageJson(node.name, resolvePaths, node.version))) ||
       { license: undefined };
     if (!licenseCache.has(cacheKey)) {
       licenseCache.set(cacheKey, licenseSource);
@@ -387,13 +391,15 @@ function buildNodeMap(lsData: any): Map<string, NodeInfo> {
         parents: new Set(parentKey ? [parentKey] : []),
         children: new Set<string>(),
         childByName: new Map<string, string>(),
-        dev: node.dev
+        dev: node.dev,
+        path: typeof node.path === 'string' ? node.path : undefined
       });
     } else {
       const existing = map.get(key)!;
       existing.depth = Math.min(existing.depth, depth);
       if (parentKey) existing.parents.add(parentKey);
       if (existing.dev === undefined && node.dev !== undefined) existing.dev = node.dev;
+      if (!existing.path && typeof node.path === 'string') existing.path = node.path;
       if (!existing.children) existing.children = new Set<string>();
       if (!existing.childByName) existing.childByName = new Map<string, string>();
     }

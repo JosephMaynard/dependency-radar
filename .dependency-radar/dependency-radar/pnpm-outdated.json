@@ -1,5 +1,0 @@
-{
-  "stdout": " ERR_PNPM_OUTDATED_NO_LOCKFILE  No lockfile in directory \"/Users/josephmaynard/Developer/dependency-radar\". Run `pnpm install` to generate one.\n",
-  "stderr": "",
-  "code": 1
-}

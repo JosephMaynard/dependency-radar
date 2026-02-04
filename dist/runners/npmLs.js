@@ -43,7 +43,7 @@ function buildLsCommand(tool) {
         };
     }
     return {
-        args: ['ls', '--json', '--all'],
+        args: ['ls', '--json', '--all', '--long'],
         normalize: normalizeNpmTree
     };
 }
@@ -89,6 +89,9 @@ function normalizeNpmNode(name, node) {
     if (!version || version === 'unknown' || version === 'missing' || version === 'invalid')
         return undefined;
     const out = { name, version, dependencies: {} };
+    if (typeof node.path === 'string' && node.path.trim()) {
+        out.path = node.path.trim();
+    }
     if ((node === null || node === void 0 ? void 0 : node.dependencies) && typeof node.dependencies === 'object') {
         for (const [childName, child] of Object.entries(node.dependencies)) {
             const normalizedChild = normalizeNpmNode(childName, child);

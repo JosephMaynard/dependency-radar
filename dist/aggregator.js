@@ -99,7 +99,9 @@ async function aggregateData(input) {
         const cacheKey = `${node.name}@${node.version}`;
         const cachedLicense = licenseCache.get(cacheKey);
         const licenseSource = cachedLicense ||
-            (await (0, utils_1.readLicenseFromPackageJson)(node.name, resolvePaths, node.version)) ||
+            (node.path
+                ? (await (0, utils_1.readLicenseFromPackageDir)(node.path))
+                : (await (0, utils_1.readLicenseFromPackageJson)(node.name, resolvePaths, node.version))) ||
             { license: undefined };
         if (!licenseCache.has(cacheKey)) {
             licenseCache.set(cacheKey, licenseSource);
@@ -302,7 +304,8 @@ function buildNodeMap(lsData) {
                 parents: new Set(parentKey ? [parentKey] : []),
                 children: new Set(),
                 childByName: new Map(),
-                dev: node.dev
+                dev: node.dev,
+                path: typeof node.path === 'string' ? node.path : undefined
             });
         }
         else {
@@ -312,6 +315,8 @@ function buildNodeMap(lsData) {
                 existing.parents.add(parentKey);
             if (existing.dev === undefined && node.dev !== undefined)
                 existing.dev = node.dev;
+            if (!existing.path && typeof node.path === 'string')
+                existing.path = node.path;
             if (!existing.children)
                 existing.children = new Set();
             if (!existing.childByName)

@@ -1083,10 +1083,36 @@ function startSpinner(text: string): {
   const frames = ["|", "/", "-", "\\"];
   let i = 0;
   let currentText = text;
-  process.stdout.write(`${frames[i]} ${currentText}`);
+  const shortenPathInMessage = (message: string): string => {
+    const marker = ' at ';
+    const idx = message.lastIndexOf(marker);
+    if (idx === -1) return message;
+    const head = message.slice(0, idx + marker.length);
+    const rawPath = message.slice(idx + marker.length).trim();
+    if (!rawPath) return message;
+    const segments = rawPath.split(/[\\/]+/).filter(Boolean);
+    if (segments.length === 0) return message;
+    const tail = segments.slice(-2).join('/');
+    return `${head}…/${tail}`;
+  };
+
+  const formatLine = (prefix: string, value: string): string => {
+    if (!process.stdout.isTTY) return `${prefix} ${value}`;
+    const displayValue = shortenPathInMessage(value);
+    const columns = process.stdout.columns || 0;
+    if (columns <= 0) return `${prefix} ${displayValue}`;
+    const max = columns - (prefix.length + 1);
+    if (max <= 0) return prefix;
+    if (displayValue.length <= max) return `${prefix} ${displayValue}`;
+    const ellipsis = "…";
+    const keep = Math.max(0, max - ellipsis.length);
+    return `${prefix} ${displayValue.slice(0, keep)}${ellipsis}`;
+  };
+
+  process.stdout.write(formatLine(frames[i], currentText));
   const timer = setInterval(() => {
     i = (i + 1) % frames.length;
-    process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
+    process.stdout.write(`\r\x1b[K${formatLine(frames[i], currentText)}`);
   }, 120);
 
   let stopped = false;
@@ -1095,13 +1121,13 @@ function startSpinner(text: string): {
     if (stopped) return;
     stopped = true;
     clearInterval(timer);
-    process.stdout.write(`\r\x1b[K${success ? "✔" : "✖"} ${currentText}\n`);
+    process.stdout.write(`\r\x1b[K${formatLine(success ? "✔" : "✖", currentText)}\n`);
   };
 
   const update = (nextText: string) => {
     if (stopped) return;
     currentText = nextText;
-    process.stdout.write(`\r\x1b[K${frames[i]} ${currentText}`);
+    process.stdout.write(`\r\x1b[K${formatLine(frames[i], currentText)}`);
   };
 
   const log = (line: string) => {
@@ -1110,7 +1136,7 @@ function startSpinner(text: string): {
       return;
     }
     process.stdout.write(`\r\x1b[K${line}\n`);
-    process.stdout.write(`${frames[i]} ${currentText}`);
+    process.stdout.write(formatLine(frames[i], currentText));
   };
 
   return { stop, update, log };

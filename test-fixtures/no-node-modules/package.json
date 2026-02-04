@@ -1,0 +1,10 @@
+{
+  "name": "dr-no-node-modules",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "left-pad": "^1.3.0"
+  }
+}

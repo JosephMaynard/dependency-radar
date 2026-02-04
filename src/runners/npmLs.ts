@@ -5,6 +5,7 @@ import { runCommand, writeJsonFile } from '../utils';
 type ResolvedNode = {
   name: string;
   version: string;
+  path?: string;
   dependencies?: Record<string, ResolvedNode>;
   dev?: boolean;
 };
@@ -50,7 +51,7 @@ function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normal
     };
   }
   return {
-    args: ['ls', '--json', '--all'],
+    args: ['ls', '--json', '--all', '--long'],
     normalize: normalizeNpmTree
   };
 }
@@ -91,6 +92,9 @@ function normalizeNpmNode(name: string, node: any): ResolvedNode | undefined {
   const version = typeof node?.version === 'string' ? node.version.trim() : '';
   if (!version || version === 'unknown' || version === 'missing' || version === 'invalid') return undefined;
   const out: ResolvedNode = { name, version, dependencies: {} };
+  if (typeof node.path === 'string' && node.path.trim()) {
+    out.path = node.path.trim();
+  }
   if (node?.dependencies && typeof node.dependencies === 'object') {
     for (const [childName, child] of Object.entries<any>(node.dependencies)) {
       const normalizedChild = normalizeNpmNode(childName, child);
