@@ -1,5 +1,15 @@
 # Dependency Radar
 
+## License Scanning
+
+Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a bundled SPDX identifier list (generated at build time) with no runtime network access. Each dependency gets a structured license record with:
+
+- Declared SPDX validation (including deprecated IDs and `WITH` exceptions)
+- Inferred SPDX license (with confidence: `high`, `medium`, `low`) based on deterministic text matching
+- A status (`declared-only`, `inferred-only`, `match`, `mismatch`, `invalid-spdx`, `unknown`) to make review decisions easier
+
+This logic applies to all dependencies (direct and transitive). Inferred licenses are never treated as authoritative over valid declared SPDX expressions.
+
 Dependency Radar is a local-first CLI tool that inspects a Node.js project’s installed dependencies and generates a single, human-readable HTML report. The report highlights dependency structure, usage, size, licences, vulnerabilities, and other signals that help you understand risk and complexity hidden in your node_modules folder.
 
 ## What it does
@@ -158,8 +168,31 @@ export interface DependencyRecord {
     };
   };
   compliance: {
-    license: string; // License string read from the installed package.json
-    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from license string
+    license: {
+      declared?: {
+        spdxId: string; // SPDX ID or expression from package.json
+        expression: boolean; // True when SPDX expression (AND/OR/WITH)
+        deprecated: boolean; // True if SPDX ID is deprecated
+        valid: boolean; // True if SPDX ID/expression is valid
+      };
+      inferred?: {
+        spdxId: string; // SPDX ID inferred from LICENSE text
+        confidence: 'high' | 'medium' | 'low'; // Heuristic confidence
+      };
+      exception?: {
+        id: string; // SPDX exception id
+        deprecated: boolean; // True if exception is deprecated
+        valid: boolean; // True if exception id is valid
+      };
+      status:
+        | 'declared-only'
+        | 'inferred-only'
+        | 'match'
+        | 'mismatch'
+        | 'invalid-spdx'
+        | 'unknown';
+    };
+    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from declared/inferred SPDX ids
   };
   security: {
     summary: {
