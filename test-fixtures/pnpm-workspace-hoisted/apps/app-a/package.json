@@ -1,0 +1,11 @@
+{
+  "name": "@dr/hoisted-app-a",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@dr/hoisted-pkg-a": "workspace:*",
+    "react": "^19.0.0"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@dr-berry/pkg-a",
+  "version": "0.1.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "nanoid": "^5.0.7"
+  }
+}
