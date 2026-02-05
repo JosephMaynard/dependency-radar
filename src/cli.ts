@@ -988,14 +988,20 @@ async function run(): Promise<void> {
     const auditFailure = opts.audit
       ? perPackageAudit.find((r) => r && !r.ok)
       : undefined;
-    const lsFailure = perPackageLs.find((r) => r && !r.ok);
-    const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
+    const lsFailures = perPackageLs.filter((r) => r && !r.ok);
+    const importFailures = perPackageImportGraph.filter((r) => r && !r.ok);
     if (auditFailure) {
       spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
     }
-    if (lsFailure || importFailure) {
-      const err = lsFailure || importFailure;
-      throw new Error(err?.error || "Tool execution failed");
+    if (lsFailures.length > 0) {
+      spinner.log(
+        `Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${lsFailures[0].error || "pnpm ls failed"})`,
+      );
+    }
+    if (importFailures.length > 0) {
+      spinner.log(
+        `Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`,
+      );
     }
 
     const aggregated = await aggregateData({

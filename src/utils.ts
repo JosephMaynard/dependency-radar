@@ -12,12 +12,13 @@ export interface CommandResult {
 export function runCommand(
   command: string,
   args: string[],
-  options: { cwd?: string } = {}
+  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
-      shell: false
+      shell: false,
+      env: options.env ? { ...process.env, ...options.env } : process.env
     });
 
     const stdoutChunks: Buffer[] = [];
