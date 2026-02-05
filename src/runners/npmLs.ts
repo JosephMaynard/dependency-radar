@@ -14,10 +14,26 @@ type ResolvedTree = {
   dependencies: Record<string, ResolvedNode>;
 };
 
+const PNPM_DEPTH_ATTEMPTS = ['Infinity', '8', '4', '2', '1'];
+const PNPM_MAX_OLD_SPACE_SIZE_MB = '8192';
+
+type LsProgressOptions = {
+  contextLabel?: string;
+  onProgress?: (line: string) => void;
+};
+
 // Normalize package-manager-specific list output into a shared dependency tree.
-export async function runNpmLs(projectPath: string, tempDir: string, tool: 'npm' | 'pnpm' | 'yarn' = 'npm'): Promise<ToolResult<any>> {
+export async function runNpmLs(
+  projectPath: string,
+  tempDir: string,
+  tool: 'npm' | 'pnpm' | 'yarn' = 'npm',
+  options: LsProgressOptions = {}
+): Promise<ToolResult<any>> {
   const targetFile = path.join(tempDir, `${tool}-ls.json`);
   try {
+    if (tool === 'pnpm') {
+      return await runPnpmLsWithFallback(projectPath, targetFile, options);
+    }
     const { args, normalize } = buildLsCommand(tool);
     const result = await runCommand(tool, args, { cwd: projectPath });
     const parsed = parseJsonOutput(result.stdout);
@@ -27,9 +43,7 @@ export async function runNpmLs(projectPath: string, tempDir: string, tool: 'npm'
       return { ok: true, data: normalized, file: targetFile };
     }
     await writeJsonFile(targetFile, { stdout: result.stdout, stderr: result.stderr, code: result.code });
-    const error = result.code && result.code !== 0
-      ? `${tool} ls exited with code ${result.code}`
-      : `Failed to parse ${tool} ls output`;
+    const error = buildLsFailureMessage(tool, result.code, result.stderr);
     return { ok: false, error, file: targetFile };
   } catch (err: any) {
     await writeJsonFile(targetFile, { error: String(err) });
@@ -38,12 +52,6 @@ export async function runNpmLs(projectPath: string, tempDir: string, tool: 'npm'
 }
 
 function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normalize: (data: any) => ResolvedTree | undefined } {
-  if (tool === 'pnpm') {
-    return {
-      args: ['list', '--json', '--depth', 'Infinity'],
-      normalize: normalizePnpmTree
-    };
-  }
   if (tool === 'yarn') {
     return {
       args: ['list', '--json', '--depth', 'Infinity'],
@@ -54,6 +62,135 @@ function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normal
     args: ['ls', '--json', '--all', '--long'],
     normalize: normalizeNpmTree
   };
+}
+
+async function runPnpmLsWithFallback(projectPath: string, targetFile: string, options: LsProgressOptions): Promise<ToolResult<any>> {
+  const normalize = normalizePnpmTree;
+  const attempts: Array<{
+    depth: string;
+    code: number | null;
+    stdoutBytes: number;
+    stderrPreview: string;
+    outOfMemory: boolean;
+  }> = [];
+  const env = {
+    NODE_OPTIONS: ensureNodeMaxOldSpaceSize(process.env.NODE_OPTIONS, PNPM_MAX_OLD_SPACE_SIZE_MB)
+  };
+
+  for (let index = 0; index < PNPM_DEPTH_ATTEMPTS.length; index++) {
+    const depth = PNPM_DEPTH_ATTEMPTS[index];
+    const result = await runCommand('pnpm', ['list', '--json', '--depth', depth], {
+      cwd: projectPath,
+      env
+    });
+    const parsed = parseJsonOutput(result.stdout);
+    const normalized = normalize(parsed);
+    const outOfMemory = isOutOfMemoryError(result.stderr);
+    attempts.push({
+      depth,
+      code: result.code,
+      stdoutBytes: Buffer.byteLength(result.stdout || '', 'utf8'),
+      stderrPreview: trimText(result.stderr, 1200),
+      outOfMemory
+    });
+    if (normalized) {
+      if (index > 0) {
+        progress(
+          options,
+          `✔ PNPM ls recovered for workspace: ${formatContextLabel(options)} (depth=${depth})`
+        );
+      }
+      await writeJsonFile(targetFile, normalized);
+      return { ok: true, data: normalized, file: targetFile };
+    }
+    const reason = describeAttemptFailure(result.code, result.stderr);
+    progress(
+      options,
+      `✖ Failed pnpm ls for workspace: ${formatContextLabel(options)} (depth=${depth}; ${reason})`
+    );
+    const nextDepth = PNPM_DEPTH_ATTEMPTS[index + 1];
+    if (nextDepth) {
+      progress(
+        options,
+        `✔ Retrying pnpm ls for workspace: ${formatContextLabel(options)} (depth=${nextDepth})`
+      );
+    }
+  }
+
+  await writeJsonFile(targetFile, {
+    error: 'pnpm ls retries exhausted',
+    nodeOptions: env.NODE_OPTIONS,
+    attempts
+  });
+
+  const sawOom = attempts.some((attempt) => attempt.outOfMemory);
+  const lastAttempt = attempts[attempts.length - 1];
+  if (sawOom) {
+    return {
+      ok: false,
+      error: 'pnpm ls ran out of memory while building the dependency tree (retried with lower depths).',
+      file: targetFile
+    };
+  }
+  const suffix = lastAttempt && typeof lastAttempt.code === 'number'
+    ? ` Last exit code: ${lastAttempt.code}.`
+    : '';
+  return {
+    ok: false,
+    error: `Failed to parse pnpm ls output after retries.${suffix}`,
+    file: targetFile
+  };
+}
+
+function progress(options: LsProgressOptions, line: string): void {
+  if (typeof options.onProgress === 'function') {
+    options.onProgress(line);
+  }
+}
+
+function formatContextLabel(options: LsProgressOptions): string {
+  const label = options.contextLabel?.trim();
+  return label || '(unknown package)';
+}
+
+function describeAttemptFailure(code: number | null, stderr: string): string {
+  if (isOutOfMemoryError(stderr)) return 'out of memory';
+  if (typeof code === 'number' && code !== 0) return `exit code ${code}`;
+  if (code === null && stderr && stderr.trim()) return 'terminated before completion';
+  return 'no parseable JSON output';
+}
+
+function ensureNodeMaxOldSpaceSize(existing: string | undefined, megabytes: string): string {
+  const token = '--max-old-space-size=';
+  if (typeof existing === 'string' && existing.includes(token)) {
+    return existing;
+  }
+  const option = `${token}${megabytes}`;
+  return existing && existing.trim() ? `${existing.trim()} ${option}` : option;
+}
+
+function isOutOfMemoryError(stderr: string): boolean {
+  return /heap out of memory|Reached heap limit|Allocation failed - JavaScript heap out of memory/i.test(stderr || '');
+}
+
+function trimText(text: string, maxChars: number): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  return trimmed.slice(trimmed.length - maxChars);
+}
+
+function buildLsFailureMessage(tool: 'npm' | 'pnpm' | 'yarn', code: number | null, stderr: string): string {
+  if (isOutOfMemoryError(stderr)) {
+    return `${tool} ls ran out of memory while building the dependency tree`;
+  }
+  if (typeof code === 'number' && code !== 0) {
+    return `${tool} ls exited with code ${code}`;
+  }
+  if (code === null && stderr && stderr.trim()) {
+    return `${tool} ls failed before completion`;
+  }
+  return `Failed to parse ${tool} ls output`;
 }
 
 function parseJsonOutput(raw: string): any {

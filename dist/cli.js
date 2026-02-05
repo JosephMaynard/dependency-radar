@@ -688,6 +688,7 @@ function openInBrowser(filePath) {
     child.unref();
 }
 async function run() {
+    var _a;
     const opts = parseArgs(process.argv.slice(2));
     if (opts.command !== "scan") {
         printHelp();
@@ -701,6 +702,7 @@ async function run() {
     let outputPath = path_1.default.resolve(opts.out);
     const startTime = Date.now();
     let dependencyCount = 0;
+    let outputCreated = false;
     try {
         const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
         const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
@@ -781,7 +783,10 @@ async function run() {
                 opts.audit
                     ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) }))
                     : Promise.resolve(undefined),
-                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) })),
+                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
+                    contextLabel: meta.name,
+                    onProgress: (line) => spinner.log(line),
+                }).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
                 opts.outdated
                     ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) }))
@@ -829,14 +834,20 @@ async function run() {
         const auditFailure = opts.audit
             ? perPackageAudit.find((r) => r && !r.ok)
             : undefined;
-        const lsFailure = perPackageLs.find((r) => r && !r.ok);
-        const importFailure = perPackageImportGraph.find((r) => r && !r.ok);
+        const lsFailures = perPackageLs
+            .map((result, index) => ({ result, meta: packageMetas[index] }))
+            .filter((entry) => entry.result && !entry.result.ok);
+        const importFailures = perPackageImportGraph.filter((r) => r && !r.ok);
         if (auditFailure) {
             spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
         }
-        if (lsFailure || importFailure) {
-            const err = lsFailure || importFailure;
-            throw new Error((err === null || err === void 0 ? void 0 : err.error) || "Tool execution failed");
+        if (lsFailures.length > 0) {
+            const packageList = lsFailures.map((entry) => { var _a; return (_a = entry.meta) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean);
+            spinner.log(`Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${packageList.join(", ")}).`);
+            spinner.log(`First dependency tree error: ${((_a = lsFailures[0].result) === null || _a === void 0 ? void 0 : _a.error) || "pnpm ls failed"}`);
+        }
+        if (importFailures.length > 0) {
+            spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
         }
         const aggregated = await (0, aggregator_1.aggregateData)({
             projectPath,
@@ -865,17 +876,25 @@ async function run() {
         if (workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
-        if (opts.json) {
-            await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
-            await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
-        }
-        else {
-            await (0, report_1.renderReport)(aggregated, outputPath);
+        if (dependencyCount > 0) {
+            if (opts.json) {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
+            }
+            else {
+                await (0, report_1.renderReport)(aggregated, outputPath);
+            }
+            outputCreated = true;
         }
         spinner.stop(true);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+        if (outputCreated) {
+            console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+        }
+        else {
+            console.log(`✖ No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`);
+        }
     }
     catch (err) {
         spinner.stop(false);
@@ -890,11 +909,11 @@ async function run() {
             console.log(`✔ Temporary data kept at ${tempDir}`);
         }
     }
-    if (opts.open && !isCI()) {
+    if (opts.open && outputCreated && !isCI()) {
         console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`);
         openInBrowser(outputPath);
     }
-    else if (opts.open && isCI()) {
+    else if (opts.open && outputCreated && isCI()) {
         console.log("✖ Skipping auto-open in CI environment.");
     }
     // Always show CTA as the last output

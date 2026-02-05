@@ -27,7 +27,8 @@ function runCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         const child = (0, child_process_1.spawn)(command, args, {
             cwd: options.cwd,
-            shell: false
+            shell: false,
+            env: options.env ? { ...process.env, ...options.env } : process.env
         });
         const stdoutChunks = [];
         const stderrChunks = [];
