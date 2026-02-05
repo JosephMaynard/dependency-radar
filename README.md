@@ -91,18 +91,43 @@ npx dependency-radar --help
 
 ## Scripts
 
-- `npm run build` – compile TypeScript to `dist/`
-- `npm run dev` – run a scan from source (`ts-node`)
-- `npm run scan` – run a scan from the built output
+- `npm run build` – generate SPDX/report assets and compile TypeScript to `dist/`
+- `npm run dev` – run a scan from source (`ts-node src/cli.ts scan`)
+- `npm run scan` – run a scan from the built output (`node dist/cli.js scan`)
+- `npm run dev:report` – run the report UI dev server
+- `npm run build:spdx` – rebuild bundled SPDX identifiers
+- `npm run build:report-ui` – build report UI assets
+- `npm run build:report` – rebuild report assets used by the CLI
+
+Fixture scripts (after the main scripts):
+
+- `npm run fixtures:install` – install core fixture dependencies
+- `npm run fixtures:install:all` – install all fixture dependencies
+- `npm run fixtures:scan` – scan the core fixture set
+- `npm run fixtures:install:npm`
+- `npm run fixtures:install:npm-heavy`
+- `npm run fixtures:install:pnpm`
+- `npm run fixtures:install:pnpm-hoisted`
+- `npm run fixtures:install:yarn`
+- `npm run fixtures:install:yarn-berry`
+- `npm run fixtures:install:optional`
+- `npm run fixtures:scan:npm`
+- `npm run fixtures:scan:npm-heavy`
+- `npm run fixtures:scan:pnpm`
+- `npm run fixtures:scan:pnpm-hoisted`
+- `npm run fixtures:scan:yarn`
+- `npm run fixtures:scan:yarn-berry`
+- `npm run fixtures:scan:optional`
+- `npm run fixtures:scan:no-node-modules`
 
 ## Notes
 
-- The target project must have node_modules installed (run npm install first).
+- The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
 - The scan is local-first and does not upload your code or dependencies anywhere.
-- `npm audit` and `npm outdated` perform registry lookups; use `--offline` for offline-only scans.
+- `npm audit`/`pnpm audit`/`yarn npm audit` and `npm outdated`/`pnpm outdated` perform registry lookups; use `--offline` for offline-only scans.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
-- If a tool fails, its section is marked as unavailable, but the report is still generated.
+- If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
 
 ## Output
 
