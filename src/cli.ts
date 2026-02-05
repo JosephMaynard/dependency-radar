@@ -915,7 +915,10 @@ async function run(): Promise<void> {
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
           : Promise.resolve(undefined),
-        runNpmLs(meta.path, pkgTempDir, scanManager).catch(
+        runNpmLs(meta.path, pkgTempDir, scanManager, {
+          contextLabel: meta.name,
+          onProgress: (line) => spinner.log(line),
+        }).catch(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
         runImportGraph(meta.path, pkgTempDir).catch(
@@ -988,14 +991,20 @@ async function run(): Promise<void> {
     const auditFailure = opts.audit
       ? perPackageAudit.find((r) => r && !r.ok)
       : undefined;
-    const lsFailures = perPackageLs.filter((r) => r && !r.ok);
+    const lsFailures = perPackageLs
+      .map((result, index) => ({ result, meta: packageMetas[index] }))
+      .filter((entry) => entry.result && !entry.result.ok);
     const importFailures = perPackageImportGraph.filter((r) => r && !r.ok);
     if (auditFailure) {
       spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
     }
     if (lsFailures.length > 0) {
+      const packageList = lsFailures.map((entry) => entry.meta?.name).filter(Boolean);
       spinner.log(
-        `Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${lsFailures[0].error || "pnpm ls failed"})`,
+        `Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${packageList.join(", ")}).`,
+      );
+      spinner.log(
+        `First dependency tree error: ${lsFailures[0].result?.error || "pnpm ls failed"}`,
       );
     }
     if (importFailures.length > 0) {

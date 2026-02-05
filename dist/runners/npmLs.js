@@ -9,11 +9,11 @@ const utils_1 = require("../utils");
 const PNPM_DEPTH_ATTEMPTS = ['Infinity', '8', '4', '2', '1'];
 const PNPM_MAX_OLD_SPACE_SIZE_MB = '8192';
 // Normalize package-manager-specific list output into a shared dependency tree.
-async function runNpmLs(projectPath, tempDir, tool = 'npm') {
+async function runNpmLs(projectPath, tempDir, tool = 'npm', options = {}) {
     const targetFile = path_1.default.join(tempDir, `${tool}-ls.json`);
     try {
         if (tool === 'pnpm') {
-            return await runPnpmLsWithFallback(projectPath, targetFile);
+            return await runPnpmLsWithFallback(projectPath, targetFile, options);
         }
         const { args, normalize } = buildLsCommand(tool);
         const result = await (0, utils_1.runCommand)(tool, args, { cwd: projectPath });
@@ -44,13 +44,14 @@ function buildLsCommand(tool) {
         normalize: normalizeNpmTree
     };
 }
-async function runPnpmLsWithFallback(projectPath, targetFile) {
+async function runPnpmLsWithFallback(projectPath, targetFile, options) {
     const normalize = normalizePnpmTree;
     const attempts = [];
     const env = {
         NODE_OPTIONS: ensureNodeMaxOldSpaceSize(process.env.NODE_OPTIONS, PNPM_MAX_OLD_SPACE_SIZE_MB)
     };
-    for (const depth of PNPM_DEPTH_ATTEMPTS) {
+    for (let index = 0; index < PNPM_DEPTH_ATTEMPTS.length; index++) {
+        const depth = PNPM_DEPTH_ATTEMPTS[index];
         const result = await (0, utils_1.runCommand)('pnpm', ['list', '--json', '--depth', depth], {
             cwd: projectPath,
             env
@@ -66,8 +67,17 @@ async function runPnpmLsWithFallback(projectPath, targetFile) {
             outOfMemory
         });
         if (normalized) {
+            if (index > 0) {
+                progress(options, `✔ PNPM ls recovered for workspace: ${formatContextLabel(options)} (depth=${depth})`);
+            }
             await (0, utils_1.writeJsonFile)(targetFile, normalized);
             return { ok: true, data: normalized, file: targetFile };
+        }
+        const reason = describeAttemptFailure(result.code, result.stderr);
+        progress(options, `✖ Failed pnpm ls for workspace: ${formatContextLabel(options)} (depth=${depth}; ${reason})`);
+        const nextDepth = PNPM_DEPTH_ATTEMPTS[index + 1];
+        if (nextDepth) {
+            progress(options, `✔ Retrying pnpm ls for workspace: ${formatContextLabel(options)} (depth=${nextDepth})`);
         }
     }
     await (0, utils_1.writeJsonFile)(targetFile, {
@@ -92,6 +102,25 @@ async function runPnpmLsWithFallback(projectPath, targetFile) {
         error: `Failed to parse pnpm ls output after retries.${suffix}`,
         file: targetFile
     };
+}
+function progress(options, line) {
+    if (typeof options.onProgress === 'function') {
+        options.onProgress(line);
+    }
+}
+function formatContextLabel(options) {
+    var _a;
+    const label = (_a = options.contextLabel) === null || _a === void 0 ? void 0 : _a.trim();
+    return label || '(unknown package)';
+}
+function describeAttemptFailure(code, stderr) {
+    if (isOutOfMemoryError(stderr))
+        return 'out of memory';
+    if (typeof code === 'number' && code !== 0)
+        return `exit code ${code}`;
+    if (code === null && stderr && stderr.trim())
+        return 'terminated before completion';
+    return 'no parseable JSON output';
 }
 function ensureNodeMaxOldSpaceSize(existing, megabytes) {
     const token = '--max-old-space-size=';

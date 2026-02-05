@@ -688,6 +688,7 @@ function openInBrowser(filePath) {
     child.unref();
 }
 async function run() {
+    var _a;
     const opts = parseArgs(process.argv.slice(2));
     if (opts.command !== "scan") {
         printHelp();
@@ -781,7 +782,10 @@ async function run() {
                 opts.audit
                     ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) }))
                     : Promise.resolve(undefined),
-                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) })),
+                (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
+                    contextLabel: meta.name,
+                    onProgress: (line) => spinner.log(line),
+                }).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
                 opts.outdated
                     ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) }))
@@ -829,13 +833,17 @@ async function run() {
         const auditFailure = opts.audit
             ? perPackageAudit.find((r) => r && !r.ok)
             : undefined;
-        const lsFailures = perPackageLs.filter((r) => r && !r.ok);
+        const lsFailures = perPackageLs
+            .map((result, index) => ({ result, meta: packageMetas[index] }))
+            .filter((entry) => entry.result && !entry.result.ok);
         const importFailures = perPackageImportGraph.filter((r) => r && !r.ok);
         if (auditFailure) {
             spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
         }
         if (lsFailures.length > 0) {
-            spinner.log(`Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${lsFailures[0].error || "pnpm ls failed"})`);
+            const packageList = lsFailures.map((entry) => { var _a; return (_a = entry.meta) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean);
+            spinner.log(`Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${packageList.join(", ")}).`);
+            spinner.log(`First dependency tree error: ${((_a = lsFailures[0].result) === null || _a === void 0 ? void 0 : _a.error) || "pnpm ls failed"}`);
         }
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
