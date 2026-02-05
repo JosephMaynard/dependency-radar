@@ -702,6 +702,7 @@ async function run() {
     let outputPath = path_1.default.resolve(opts.out);
     const startTime = Date.now();
     let dependencyCount = 0;
+    let outputCreated = false;
     try {
         const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
         const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
@@ -875,17 +876,25 @@ async function run() {
         if (workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
-        if (opts.json) {
-            await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
-            await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
-        }
-        else {
-            await (0, report_1.renderReport)(aggregated, outputPath);
+        if (dependencyCount > 0) {
+            if (opts.json) {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
+            }
+            else {
+                await (0, report_1.renderReport)(aggregated, outputPath);
+            }
+            outputCreated = true;
         }
         spinner.stop(true);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+        if (outputCreated) {
+            console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+        }
+        else {
+            console.log(`✖ No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`);
+        }
     }
     catch (err) {
         spinner.stop(false);
@@ -900,11 +909,11 @@ async function run() {
             console.log(`✔ Temporary data kept at ${tempDir}`);
         }
     }
-    if (opts.open && !isCI()) {
+    if (opts.open && outputCreated && !isCI()) {
         console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`);
         openInBrowser(outputPath);
     }
-    else if (opts.open && isCI()) {
+    else if (opts.open && outputCreated && isCI()) {
         console.log("✖ Skipping auto-open in CI environment.");
     }
     // Always show CTA as the last output

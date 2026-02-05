@@ -794,6 +794,7 @@ async function run(): Promise<void> {
   let outputPath = path.resolve(opts.out);
   const startTime = Date.now();
   let dependencyCount = 0;
+  let outputCreated = false;
   try {
     const stat = await fs.stat(outputPath).catch(() => undefined);
     const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
@@ -1044,22 +1045,31 @@ async function run(): Promise<void> {
       );
     }
 
-    if (opts.json) {
-      await fs.mkdir(path.dirname(outputPath), { recursive: true });
-      await fs.writeFile(
-        outputPath,
-        JSON.stringify(aggregated, null, 2),
-        "utf8",
-      );
-    } else {
-      await renderReport(aggregated, outputPath);
+    if (dependencyCount > 0) {
+      if (opts.json) {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(
+          outputPath,
+          JSON.stringify(aggregated, null, 2),
+          "utf8",
+        );
+      } else {
+        await renderReport(aggregated, outputPath);
+      }
+      outputCreated = true;
     }
     spinner.stop(true);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(
       `✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`,
     );
-    console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+    if (outputCreated) {
+      console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+    } else {
+      console.log(
+        `✖ No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+      );
+    }
   } catch (err: any) {
     spinner.stop(false);
     console.error("Failed to generate report:", err);
@@ -1072,12 +1082,12 @@ async function run(): Promise<void> {
     }
   }
 
-  if (opts.open && !isCI()) {
+  if (opts.open && outputCreated && !isCI()) {
     console.log(
       `↗ Opening ${path.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
     );
     openInBrowser(outputPath);
-  } else if (opts.open && isCI()) {
+  } else if (opts.open && outputCreated && isCI()) {
     console.log("✖ Skipping auto-open in CI environment.");
   }
 
