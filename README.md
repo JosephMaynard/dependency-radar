@@ -1,22 +1,34 @@
 # Dependency Radar
 
-Dependency Radar is a local-first CLI tool that inspects a Node.js project’s installed dependencies and generates a single, human-readable HTML report. The report highlights dependency structure, usage, size, licences, vulnerabilities, and other signals that help you understand risk and complexity hidden in your node_modules folder.
+Dependency Radar is a CLI tool that inspects a Node.js project’s installed dependencies and generates a single, human-readable HTML report. The report highlights dependency structure, usage, licences, vulnerabilities, and other signals that help you understand risk and complexity hidden in your node_modules folder.
+
+The simplest way to get started is:
+
+```bash
+npx dependency-radar
+```
+
+This runs a scan against the current project and writes a self-contained `dependency-radar.html` report you can open locally, share with teammates, or attach to tickets and documentation.
 
 ## What it does
 
-- Analyses installed dependencies using only local data (no SaaS, no uploads by default)
-- Combines multiple tools (npm audit, npm ls, import graph analysis) into a single report
-- Shows direct vs sub-dependencies, dependency depth, and parent relationships
+- Analyses installed dependencies by running standard package manager tooling (npm, pnpm, or yarn)
+- Combines multiple signals (audit results, dependency graph data, import usage, and heuristics) into a single report
+- Shows direct vs transitive dependencies, dependency depth, and parent relationships
 - Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint
-- Produces a single self-contained HTML file you can share or archive
+- Produces a single self-contained HTML file with no external assets, which you can easily share
 
 ## What it is not
 
-- Not a CI service or hosted platform
+- Not a CI service or hosted scanning platform
 - Not a replacement for dedicated security scanners
 - Not a bundler or build tool
 - Not a dependency updater
 
+---
+
+For teams that want deeper analysis, long-term tracking, and additional enrichment (such as ecosystem and maintenance signals), Dependency Radar also offers an optional premium service.  
+See https://dependency-radar.com for details.
 
 ## License Scanning
 
@@ -99,7 +111,7 @@ npx dependency-radar --help
 - `npm run build:report-ui` – build report UI assets
 - `npm run build:report` – rebuild report assets used by the CLI
 
-Fixture scripts (after the main scripts):
+### Fixture scripts:
 
 - `npm run fixtures:install` – install core fixture dependencies
 - `npm run fixtures:install:all` – install all fixture dependencies
@@ -123,7 +135,7 @@ Fixture scripts (after the main scripts):
 ## Notes
 
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
-- The scan is local-first and does not upload your code or dependencies anywhere.
+- The scan runs on your machine and does not upload your code or dependencies anywhere.
 - `npm audit`/`pnpm audit`/`yarn npm audit` and `npm outdated`/`pnpm outdated` perform registry lookups; use `--offline` for offline-only scans.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
