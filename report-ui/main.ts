@@ -861,6 +861,7 @@ async function init(): Promise<void> {
     controls.licenseWeakCopyleft.checked = true;
     controls.licenseStrongCopyleft.checked = true;
     controls.licenseUnknown.checked = true;
+    forcedVisibleDepKeys.clear();
     renderList();
   });
   
@@ -869,6 +870,7 @@ async function init(): Promise<void> {
     controls.licenseWeakCopyleft.checked = false;
     controls.licenseStrongCopyleft.checked = false;
     controls.licenseUnknown.checked = false;
+    forcedVisibleDepKeys.clear();
     renderList();
   });
   
@@ -877,9 +879,10 @@ async function init(): Promise<void> {
   allDependencies.forEach((dep) => {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
+  const knownDepKeys = new Set(depByKey.keys());
   const openDepKeys = new Set<string>();
+  const forcedVisibleDepKeys = new Set<string>();
   const depElementsByKey = new Map<string, HTMLDetailsElement>();
-  let currentLinkableKeys = new Set<string>();
   const copyAnnouncer = (() => {
     const existing = document.getElementById('copy-announcer');
     if (existing) return existing;
@@ -902,7 +905,7 @@ async function init(): Promise<void> {
     detailsBody.innerHTML = renderLoadingPlaceholder();
     // Defer heavy render so the placeholder paints first.
     requestAnimationFrame(() => {
-    detailsBody.innerHTML = renderDepDetails(dep, currentLinkableKeys);
+    detailsBody.innerHTML = renderDepDetails(dep, knownDepKeys);
       detailsBody.dataset.rendered = 'true';
       detailsBody.removeAttribute('aria-busy');
     });
@@ -953,6 +956,8 @@ async function init(): Promise<void> {
     const showUnknown = controls.licenseUnknown.checked;
     
     return allDependencies.filter((dep) => {
+      const depKey = getDepKey(dep.package.name, dep.package.version);
+      if (forcedVisibleDepKeys.has(depKey)) return true;
       const primaryLicense = resolvePrimaryLicense(dep);
       const licenseSearch = [
         primaryLicense.value,
@@ -994,7 +999,6 @@ async function init(): Promise<void> {
   function renderList(): void {
     const filtered = applyFilters();
     const deps = sortDeps(filtered);
-    currentLinkableKeys = new Set(deps.map((dep) => getDepKey(dep.package.name, dep.package.version)));
     
     const totalCount = report.summary?.dependencyCount || allDependencies.length;
     summaryEl.innerHTML = 'Showing <strong>' + deps.length + '</strong> of <strong>' + totalCount + '</strong> dependencies';
@@ -1023,17 +1027,28 @@ async function init(): Promise<void> {
     controls.search, controls.direct, controls.runtime, controls.sort, controls.hasVulns,
     controls.licensePermissive, controls.licenseWeakCopyleft, controls.licenseStrongCopyleft, controls.licenseUnknown
   ];
+  const handleFilterControlChange = (): void => {
+    // User-driven filtering should return to normal behavior.
+    forcedVisibleDepKeys.clear();
+    renderList();
+  };
   
   filterControls.forEach((ctrl) => {
     if (!ctrl) return;
-    ctrl.addEventListener('input', renderList);
-    ctrl.addEventListener('change', renderList);
+    ctrl.addEventListener('input', handleFilterControlChange);
+    ctrl.addEventListener('change', handleFilterControlChange);
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
     const depKey = target.getAttribute('data-dep-key');
     if (!depKey) return;
-    const detailsEl = depElementsByKey.get(depKey);
+    let detailsEl = depElementsByKey.get(depKey);
+    if (!detailsEl) {
+      // Make linked targets visible even when active filters hide them.
+      forcedVisibleDepKeys.add(depKey);
+      renderList();
+      detailsEl = depElementsByKey.get(depKey);
+    }
     if (!detailsEl) return;
     openDepKeys.add(depKey);
     if (!detailsEl.open) detailsEl.open = true;
