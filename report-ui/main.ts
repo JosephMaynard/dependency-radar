@@ -227,10 +227,6 @@ function renderDependencyIdList(
   const remaining = ids.length - maxShow;
   let html = '<div class="package-list">';
   shown.forEach((id) => {
-    if (!linkableKeys.has(id)) {
-      html += '<span class="package-tag">' + escapeHtml(id) + '</span>';
-      return;
-    }
     html += '<a class="package-tag package-tag-link root-package-link" href="#' +
       escapeHtml(getDepDomId(id)) +
       '" data-dep-key="' + escapeHtml(id) +
@@ -264,15 +260,16 @@ function renderRootPackageList(
   let html = '<div class="package-list">';
   shown.forEach((pkg) => {
     if (typeof pkg === 'string') {
-      html += '<span class="package-tag">' + escapeHtml(pkg) + '</span>';
+      html += '<a class="package-tag package-tag-link root-package-link" href="#' +
+        escapeHtml(getDepDomId(pkg)) +
+        '" data-dep-key="' + escapeHtml(pkg) +
+        '" aria-label="Jump to dependency ' + escapeHtml(pkg) + '">' +
+        escapeHtml(pkg) +
+        '</a>';
       return;
     }
     const depKey = getDepKey(pkg.name, pkg.version);
     const label = pkg.name + '@' + pkg.version;
-    if (!linkableKeys.has(depKey)) {
-      html += '<span class="package-tag">' + escapeHtml(label) + '</span>';
-      return;
-    }
     html += '<a class="package-tag package-tag-link root-package-link" href="#' +
       escapeHtml(getDepDomId(depKey)) +
       '" data-dep-key="' + escapeHtml(depKey) +
@@ -370,9 +367,6 @@ function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<str
 }
 
 function renderInstalledStatus(depKey: string, linkableKeys: Set<string>): string {
-  if (!linkableKeys.has(depKey)) {
-    return '<span class="status-pill installed">Installed</span>';
-  }
   return '<a class="status-pill installed root-package-link" href="#' +
     escapeHtml(getDepDomId(depKey)) +
     '" data-dep-key="' + escapeHtml(depKey) +
@@ -880,6 +874,15 @@ async function init(): Promise<void> {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
   const knownDepKeys = new Set(depByKey.keys());
+  const depKeysByName = new Map<string, string[]>();
+  depByKey.forEach((_dep, depKey) => {
+    const lastAt = depKey.lastIndexOf('@');
+    if (lastAt <= 0) return;
+    const name = depKey.slice(0, lastAt);
+    const keys = depKeysByName.get(name) || [];
+    keys.push(depKey);
+    depKeysByName.set(name, keys);
+  });
   const openDepKeys = new Set<string>();
   const forcedVisibleDepKeys = new Set<string>();
   const depElementsByKey = new Map<string, HTMLDetailsElement>();
@@ -1021,6 +1024,23 @@ async function init(): Promise<void> {
       ensureDepDetailsRendered(detailsEl);
     });
   }
+
+  function resolveDepKey(depKey: string): string | null {
+    if (depByKey.has(depKey)) return depKey;
+    const lastAt = depKey.lastIndexOf('@');
+    if (lastAt <= 0) return null;
+    const name = depKey.slice(0, lastAt);
+    const version = depKey.slice(lastAt + 1);
+
+    if (version.startsWith('npm:')) {
+      const npmAliasKey = name + '@' + version.slice('npm:'.length);
+      if (depByKey.has(npmAliasKey)) return npmAliasKey;
+    }
+
+    const candidates = depKeysByName.get(name) || [];
+    if (candidates.length === 1) return candidates[0];
+    return null;
+  }
   
   // Event listeners
   const filterControls = [
@@ -1040,7 +1060,9 @@ async function init(): Promise<void> {
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
-    const depKey = target.getAttribute('data-dep-key');
+    const rawDepKey = target.getAttribute('data-dep-key');
+    if (!rawDepKey) return;
+    const depKey = resolveDepKey(rawDepKey) || rawDepKey;
     if (!depKey) return;
     let detailsEl = depElementsByKey.get(depKey);
     if (!detailsEl) {
@@ -1053,9 +1075,17 @@ async function init(): Promise<void> {
     openDepKeys.add(depKey);
     if (!detailsEl.open) detailsEl.open = true;
     ensureDepDetailsRendered(detailsEl);
-    detailsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const summary = detailsEl.querySelector<HTMLElement>('summary');
-    if (summary) summary.focus({ preventScroll: true });
+    const scrollToTarget = (): void => {
+      detailsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const summary = detailsEl.querySelector<HTMLElement>('summary');
+      if (summary) summary.focus({ preventScroll: true });
+    };
+    // Ensure scrolling happens after any renderList DOM replacement/layout.
+    requestAnimationFrame(() => {
+      scrollToTarget();
+      // A second pass improves reliability on slower layout/update paths.
+      window.setTimeout(scrollToTarget, 60);
+    });
   }
 
   container.addEventListener('toggle', (event) => {
