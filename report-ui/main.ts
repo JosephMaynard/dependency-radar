@@ -1131,7 +1131,8 @@ async function init(): Promise<void> {
     if (!parsed) return resolveDepKeyByName(depKey);
 
     if (parsed.version.startsWith('npm:')) {
-      const npmAliasKey = parsed.name + '@' + parsed.version.slice('npm:'.length);
+      const aliasedTarget = parsed.version.slice('npm:'.length);
+      const npmAliasKey = parsed.name + (aliasedTarget.startsWith('@') ? aliasedTarget : '@' + aliasedTarget);
       if (depByKey.has(npmAliasKey)) return npmAliasKey;
     }
 
