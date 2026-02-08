@@ -110,10 +110,23 @@ function compactToolVersions(versions) {
     }
     return Object.keys(out).length > 0 ? out : undefined;
 }
+async function detectYarnPnP(projectPath) {
+    if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, ".pnp.cjs"))) ||
+        (await (0, utils_1.pathExists)(path_1.default.join(projectPath, ".pnp.js")))) {
+        return true;
+    }
+    const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
+    if (!(await (0, utils_1.pathExists)(yarnrc)))
+        return false;
+    const content = await promises_1.default.readFile(yarnrc, "utf8").catch(() => "");
+    return /nodeLinker\s*:\s*pnp\b/.test(content);
+}
 async function detectWorkspace(projectPath) {
     const rootPkgPath = path_1.default.join(projectPath, "package.json");
     const rootPkg = await readJsonFile(rootPkgPath);
     const inferredManager = inferPackageManager(rootPkg);
+    const hasYarnLock = await (0, utils_1.pathExists)(path_1.default.join(projectPath, "yarn.lock"));
+    const hasYarnPnp = await detectYarnPnP(projectPath);
     const pnpmWorkspacePath = path_1.default.join(projectPath, "pnpm-workspace.yaml");
     const hasPnpmWorkspace = await (0, utils_1.pathExists)(pnpmWorkspacePath);
     let type = "none";
@@ -144,21 +157,16 @@ async function detectWorkspace(projectPath) {
             }
         }
     }
+    if (hasYarnPnp) {
+        return { type: "yarn", packagePaths: [] };
+    }
     // npm/yarn workspaces
     if (type === "none" && rootPkg && rootPkg.workspaces) {
-        type = inferredManager || "npm";
+        type = inferredManager || (hasYarnLock ? "yarn" : "npm");
         if (Array.isArray(rootPkg.workspaces))
             patterns = rootPkg.workspaces;
         else if (Array.isArray(rootPkg.workspaces.packages))
             patterns = rootPkg.workspaces.packages;
-        // try to detect yarn berry pnp (unsupported) later via .yarnrc.yml
-        const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
-        if (await (0, utils_1.pathExists)(yarnrc)) {
-            const y = await promises_1.default.readFile(yarnrc, "utf8");
-            if (/nodeLinker\s*:\s*pnp/.test(y)) {
-                return { type: "yarn", packagePaths: [] };
-            }
-        }
     }
     if (type === "none") {
         return { type: "none", packagePaths: [projectPath] };
@@ -211,13 +219,8 @@ async function detectPackageManager(projectPath, rootPkg, workspaceType) {
         return inferred;
     if (workspaceType === "pnpm" || workspaceType === "yarn")
         return workspaceType;
-    const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
-    if (await (0, utils_1.pathExists)(yarnrc)) {
-        const y = await promises_1.default.readFile(yarnrc, "utf8");
-        if (/nodeLinker\s*:\s*pnp/.test(y)) {
-            return "yarn";
-        }
-    }
+    if (await detectYarnPnP(projectPath))
+        return "yarn";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".pnpm")))
         return "pnpm";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".yarn-state.yml")))
@@ -251,19 +254,22 @@ async function readWorkspacePackageMeta(rootPath, packagePaths) {
     return out;
 }
 function mergeDepsFromWorkspace(pkgs) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const merged = {
         dependencies: {},
         devDependencies: {},
         optionalDependencies: {},
+        peerDependencies: {},
     };
     for (const entry of pkgs) {
         const deps = ((_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
         const dev = ((_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
         const opt = ((_c = entry.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
+        const peer = ((_d = entry.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies) || {};
         Object.assign(merged.dependencies, deps);
         Object.assign(merged.devDependencies, dev);
         Object.assign(merged.optionalDependencies, opt);
+        Object.assign(merged.peerDependencies, peer);
     }
     return merged;
 }
@@ -717,8 +723,9 @@ async function run() {
         // ignore, best-effort path normalization
     }
     const tempDir = path_1.default.join(projectPath, ".dependency-radar");
-    // Workspace detection and reporting
+    // Stage 1: detect workspace/package-manager context and collect tool versions.
     const workspace = await detectWorkspace(projectPath);
+    const yarnPnP = await detectYarnPnP(projectPath);
     if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
         console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
         console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
@@ -746,17 +753,11 @@ async function run() {
         : scanManager === "pnpm"
             ? pnpmVersion
             : yarnVersion;
-    if (packageManager === "yarn") {
-        const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
-        if (await (0, utils_1.pathExists)(yarnrc)) {
-            const y = await promises_1.default.readFile(yarnrc, "utf8");
-            if (/nodeLinker\s*:\s*pnp/.test(y)) {
-                console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
-                console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
-                process.exit(1);
-                return;
-            }
-        }
+    if (packageManager === "yarn" && yarnPnP) {
+        console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
+        console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
+        process.exit(1);
+        return;
     }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === "none"
@@ -769,7 +770,7 @@ async function run() {
     const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
-        // Run tools per package for best coverage.
+        // Stage 2: run per-package collectors and persist raw tool outputs.
         const packageMetas = await readWorkspacePackageMeta(projectPath, packagePaths);
         const perPackageAudit = [];
         const perPackageLs = [];
@@ -797,6 +798,7 @@ async function run() {
             perPackageImportGraph.push(ig);
             perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
         }
+        // Stage 3: merge per-package results into a workspace-level view.
         if (opts.audit) {
             const auditOk = perPackageAudit.every((r) => r && r.ok);
             if (auditOk) {
@@ -849,6 +851,7 @@ async function run() {
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
         }
+        // Stage 4: aggregate all signals into the final report model.
         const aggregated = await (0, aggregator_1.aggregateData)({
             projectPath,
             auditResult,

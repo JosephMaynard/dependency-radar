@@ -118,7 +118,7 @@ async function aggregateData(input) {
         const scope = determineScope(node.name, direct, rootCauses, pkg);
         const importUsage = usageResult.summary.get(node.name);
         const runtimeImpact = usageResult.runtimeImpact.get(node.name);
-        const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
+        const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
         const parentIds = Array.from(node.parents).sort();
         const origins = buildOrigins(rootCauses, parentIds, (_e = input.workspaceUsage) === null || _e === void 0 ? void 0 : _e.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES, MAX_TOP_PARENT_PACKAGES);
         const execution = packageInsights.execution;
@@ -141,6 +141,8 @@ async function aggregateData(input) {
                 name: node.name,
                 version: node.version,
                 ...(packageInsights.description ? { description: packageInsights.description } : {}),
+                ...(typeof packageInsights.fileCount === 'number' ? { fileCount: packageInsights.fileCount } : {}),
+                ...(packageInsights.hasBin ? { hasBin: true } : {}),
                 deprecated: packageInsights.deprecated,
                 links: {
                     npm: `https://www.npmjs.com/package/${node.name}`,
@@ -662,12 +664,14 @@ function buildUsageSummary(graph, projectPath) {
             file,
             count,
             depth: file.split('/').length,
-            isTest: isTestFile(file)
+            category: classifyFileCategory(file)
         }));
-        // Rank: prefer non-test files, then higher import counts, then closer to root.
+        // Rank: prefer non-testing files, then higher import counts, then closer to root.
         entries.sort((a, b) => {
-            if (a.isTest !== b.isTest)
-                return a.isTest ? 1 : -1;
+            const aIsTest = a.category === 'testing';
+            const bIsTest = b.category === 'testing';
+            if (aIsTest !== bIsTest)
+                return aIsTest ? 1 : -1;
             if (b.count !== a.count)
                 return b.count - a.count;
             if (a.depth !== b.depth)
@@ -678,14 +682,15 @@ function buildUsageSummary(graph, projectPath) {
             fileCount: fileMap.size,
             topFiles: entries.slice(0, 5).map((entry) => entry.file)
         });
-        runtimeImpact.set(dep, determineRuntimeImpactFromFiles(Array.from(fileMap.keys())));
+        runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
     }
     return { summary, runtimeImpact };
 }
 function isDirectDependency(name, pkg) {
     return Boolean((pkg.dependencies && pkg.dependencies[name]) ||
         (pkg.devDependencies && pkg.devDependencies[name]) ||
-        (pkg.optionalDependencies && pkg.optionalDependencies[name]));
+        (pkg.optionalDependencies && pkg.optionalDependencies[name]) ||
+        (pkg.peerDependencies && pkg.peerDependencies[name]));
 }
 function directScopeFromPackage(name, pkg) {
     if (pkg.dependencies && pkg.dependencies[name])
@@ -756,35 +761,62 @@ function buildOrigins(rootCauses, parentIds, workspaceList, workspaceEnabled, ma
     return origins;
 }
 function isTestFile(file) {
-    return /(^|\/)(__tests__|__mocks__|test|tests)(\/|$)/.test(file) || /\.(test|spec)\./.test(file);
+    return (/(^|\/)(__tests__|__mocks__|test|tests|testing|e2e|cypress|playwright|__snapshots__)(\/|$)/.test(file) ||
+        /\.(test|spec|e2e)\./.test(file) ||
+        /(^|\/)(jest|vitest|playwright|cypress)\.config\./.test(file));
 }
 function isToolingFile(file) {
-    return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky)[^\/]*\./.test(file);
+    return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky|renovate|semantic-release|release-it|lefthook|dependabot)[^\/]*\./.test(file);
 }
 function isBuildFile(file) {
-    return /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind)[^\/]*\./.test(file);
+    return (/(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind|storybook|rspack|turbo|nx|metro)[^\/]*\./.test(file) ||
+        /(^|\/)scripts\/(build|bundle|compile|release|deploy)(\/|\.|$)/.test(file));
+}
+function classifyFileCategory(file) {
+    if (isTestFile(file))
+        return 'testing';
+    if (isToolingFile(file))
+        return 'tooling';
+    if (isBuildFile(file))
+        return 'build';
+    return 'runtime';
 }
 function determineRuntimeImpactFromFiles(files) {
-    const categories = new Set();
-    for (const file of files) {
-        if (isTestFile(file)) {
-            categories.add('testing');
-        }
-        else if (isToolingFile(file)) {
-            categories.add('tooling');
-        }
-        else if (isBuildFile(file)) {
-            categories.add('build');
-        }
-        else {
-            categories.add('runtime');
-        }
+    const weights = {
+        runtime: 0,
+        build: 0,
+        testing: 0,
+        tooling: 0
+    };
+    let total = 0;
+    for (const entry of files) {
+        const category = classifyFileCategory(entry.file);
+        const weight = Number.isFinite(entry.count) && entry.count > 0 ? entry.count : 1;
+        weights[category] += weight;
+        total += weight;
     }
-    if (categories.size === 0)
+    if (total <= 0)
         return 'runtime';
-    if (categories.size > 1)
-        return 'mixed';
-    return Array.from(categories)[0];
+    const ranked = Object.entries(weights)
+        .filter(([, weight]) => weight > 0)
+        .sort((a, b) => b[1] - a[1]);
+    if (ranked.length === 0)
+        return 'runtime';
+    if (ranked.length === 1)
+        return ranked[0][0];
+    const [top, second] = ranked;
+    const topRatio = top[1] / total;
+    const secondRatio = second ? second[1] / total : 0;
+    // Strong dominance: classify as a single category instead of defaulting to mixed.
+    if (topRatio >= 0.7)
+        return top[0];
+    // Runtime is common; tolerate a small amount of non-runtime usage before calling it mixed.
+    if (top[0] === 'runtime' && topRatio >= 0.6 && secondRatio <= 0.25)
+        return 'runtime';
+    // Testing-heavy dependencies often leak a small runtime footprint (helpers in fixtures).
+    if (top[0] === 'testing' && topRatio >= 0.6 && secondRatio <= 0.3)
+        return 'testing';
+    return 'mixed';
 }
 function buildLicenseInfo(declaredRaw, licenseText) {
     const declaredValue = typeof declaredRaw === 'string' ? declaredRaw.trim() : '';
@@ -880,12 +912,16 @@ function isFrameworkPackage(name) {
     return FRAMEWORK_PACKAGES.has(name);
 }
 // Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
-function determineIntroduction(direct, rootCauses, runtimeImpact) {
+function determineIntroduction(direct, scope, rootCauses, runtimeImpact) {
     const rootNames = rootCauses.map((root) => root.name);
     if (direct)
         return 'direct';
     if (runtimeImpact === 'testing')
         return 'testing';
+    if (runtimeImpact === 'tooling' || runtimeImpact === 'build')
+        return 'tooling';
+    if (scope === 'dev' || scope === 'peer')
+        return 'tooling';
     if (rootNames.length > 0 && rootNames.every((root) => isToolingPackage(root)))
         return 'tooling';
     if (rootNames.some((root) => isFrameworkPackage(root)))
@@ -920,6 +956,7 @@ async function gatherPackageInsights(name, version, resolvePaths, metaCache, sta
         return {
             deprecated: false,
             nodeEngine: null,
+            hasBin: false,
             declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
             tsTypes: 'unknown'
         };
@@ -939,6 +976,7 @@ async function gatherPackageInsights(name, version, resolvePaths, metaCache, sta
     const description = typeof pkg.description === 'string' && pkg.description.trim()
         ? pkg.description.trim()
         : undefined;
+    const hasBin = hasPackageBin(pkg.bin);
     const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, resolvePaths, metaCache);
     const tsTypes = determineTypes(pkg, (stats === null || stats === void 0 ? void 0 : stats.hasDts) || false, hasDefinitelyTyped);
     const links = extractPackageLinks(pkg);
@@ -947,6 +985,8 @@ async function gatherPackageInsights(name, version, resolvePaths, metaCache, sta
         deprecated,
         nodeEngine,
         description,
+        ...(typeof (stats === null || stats === void 0 ? void 0 : stats.fileCount) === 'number' ? { fileCount: stats.fileCount } : {}),
+        hasBin,
         declaredDependencies,
         links,
         execution,
@@ -965,6 +1005,13 @@ function normalizeDeclaredDeps(source) {
         out[name] = range.trim();
     }
     return out;
+}
+function hasPackageBin(binField) {
+    if (typeof binField === 'string')
+        return binField.trim().length > 0;
+    if (!binField || typeof binField !== 'object')
+        return false;
+    return Object.values(binField).some((value) => typeof value === 'string' && value.trim().length > 0);
 }
 async function loadPackageMeta(name, resolvePaths, cache, version) {
     const cacheKey = version ? `${name}@${version}` : name;
@@ -1010,6 +1057,7 @@ async function calculatePackageStats(dir, cache) {
     let hasDts = false;
     let hasNativeBinary = false;
     let hasBindingGyp = false;
+    let fileCount = 0;
     async function walk(current) {
         const entries = await promises_1.default.readdir(current, { withFileTypes: true });
         for (const entry of entries) {
@@ -1017,9 +1065,13 @@ async function calculatePackageStats(dir, cache) {
             if (entry.isSymbolicLink())
                 continue;
             if (entry.isDirectory()) {
+                // Ignore nested dependency stores to keep package-level stats bounded and comparable.
+                if (entry.name === 'node_modules' || entry.name === '.git')
+                    continue;
                 await walk(full);
             }
             else if (entry.isFile()) {
+                fileCount += 1;
                 if (entry.name.endsWith('.d.ts'))
                     hasDts = true;
                 if (entry.name.endsWith('.node'))
@@ -1035,7 +1087,7 @@ async function calculatePackageStats(dir, cache) {
     catch (err) {
         // best-effort; ignore inaccessible paths
     }
-    const result = { hasDts, hasNativeBinary, hasBindingGyp };
+    const result = { hasDts, hasNativeBinary, hasBindingGyp, fileCount };
     cache.set(dir, result);
     return result;
 }
