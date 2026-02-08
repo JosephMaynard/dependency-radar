@@ -59,6 +59,45 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
 
 The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
 
+## Usage Heuristics (`usage.runtimeImpact` and `usage.introduction`)
+
+These two fields are inferred from local signals. They are intended as review hints, not strict truth.
+
+### `usage.runtimeImpact`
+
+`runtimeImpact` is inferred from the import graph and file-path classification:
+
+1. Dependency imports are collected from source files (`import`, `export ... from`, `require()`, and static `import()`).
+2. Each importing file is classified into one of: `runtime`, `build`, `testing`, `tooling`.
+3. Classification is path-pattern based (examples):
+   - `testing`: `__tests__`, `test`, `tests`, `e2e`, `cypress`, `playwright`, `*.test.*`, `*.spec.*`
+   - `tooling`: eslint/prettier/stylelint/commitlint/lint-staged/husky/renovate/release configs
+   - `build`: webpack/rollup/vite/tsconfig/babel/swc/esbuild/parcel/postcss/tailwind/storybook/turbo/nx configs and common `scripts/build*` paths
+4. Per dependency, category weights are summed from import counts.
+5. Result selection:
+   - Single dominant category => that category
+   - Strong majority (for example >= 70%) => that category
+   - Otherwise => `mixed`
+
+### `usage.introduction`
+
+`introduction` is inferred from dependency graph roots, scope, and runtime impact:
+
+1. If dependency is direct => `direct`
+2. If `runtimeImpact` is `testing` => `testing`
+3. If `runtimeImpact` is `tooling` or `build` => `tooling`
+4. If inferred scope is `dev` or `peer` => `tooling`
+5. If all root-cause direct dependencies are in a tooling allowlist => `tooling`
+6. If any root-cause direct dependency is in a framework allowlist => `framework`
+7. If root causes exist but none of the above match => `transitive`
+8. Otherwise => `unknown`
+
+### Validity and limits
+
+- Valid as directional metadata for prioritization and triage.
+- Not valid as a definitive runtime/ownership model.
+- Accuracy depends on file naming conventions, static import detectability, and dependency graph quality from package manager output.
+
 ## License Scanning
 
 Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a bundled SPDX identifier list (generated at build time) with no runtime network access. Each dependency gets a structured license record with:

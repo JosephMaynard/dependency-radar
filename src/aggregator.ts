@@ -197,7 +197,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const scope = determineScope(node.name, direct, rootCauses, pkg);
     const importUsage = usageResult.summary.get(node.name);
     const runtimeImpact = usageResult.runtimeImpact.get(node.name);
-    const introduction = determineIntroduction(direct, rootCauses, runtimeImpact);
+    const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
     const parentIds = Array.from(node.parents).sort();
     const origins = buildOrigins(
       rootCauses,
@@ -756,11 +756,13 @@ function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBu
       file,
       count,
       depth: file.split('/').length,
-      isTest: isTestFile(file)
+      category: classifyFileCategory(file)
     }));
-    // Rank: prefer non-test files, then higher import counts, then closer to root.
+    // Rank: prefer non-testing files, then higher import counts, then closer to root.
     entries.sort((a, b) => {
-      if (a.isTest !== b.isTest) return a.isTest ? 1 : -1;
+      const aIsTest = a.category === 'testing';
+      const bIsTest = b.category === 'testing';
+      if (aIsTest !== bIsTest) return aIsTest ? 1 : -1;
       if (b.count !== a.count) return b.count - a.count;
       if (a.depth !== b.depth) return a.depth - b.depth;
       return a.file.localeCompare(b.file);
@@ -769,7 +771,7 @@ function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBu
       fileCount: fileMap.size,
       topFiles: entries.slice(0, 5).map((entry) => entry.file)
     });
-    runtimeImpact.set(dep, determineRuntimeImpactFromFiles(Array.from(fileMap.keys())));
+    runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
   }
 
   return { summary, runtimeImpact };
@@ -861,33 +863,70 @@ function buildOrigins(
 }
 
 function isTestFile(file: string): boolean {
-  return /(^|\/)(__tests__|__mocks__|test|tests)(\/|$)/.test(file) || /\.(test|spec)\./.test(file);
+  return (
+    /(^|\/)(__tests__|__mocks__|test|tests|testing|e2e|cypress|playwright|__snapshots__)(\/|$)/.test(file) ||
+    /\.(test|spec|e2e)\./.test(file) ||
+    /(^|\/)(jest|vitest|playwright|cypress)\.config\./.test(file)
+  );
 }
 
 function isToolingFile(file: string): boolean {
-  return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky)[^\/]*\./.test(file);
+  return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky|renovate|semantic-release|release-it|lefthook|dependabot)[^\/]*\./.test(file);
 }
 
 function isBuildFile(file: string): boolean {
-  return /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind)[^\/]*\./.test(file);
+  return (
+    /(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind|storybook|rspack|turbo|nx|metro)[^\/]*\./.test(file) ||
+    /(^|\/)scripts\/(build|bundle|compile|release|deploy)(\/|\.|$)/.test(file)
+  );
 }
 
-function determineRuntimeImpactFromFiles(files: string[]): DependencyRecord['usage']['runtimeImpact'] {
-  const categories = new Set<'runtime' | 'build' | 'testing' | 'tooling'>();
-  for (const file of files) {
-    if (isTestFile(file)) {
-      categories.add('testing');
-    } else if (isToolingFile(file)) {
-      categories.add('tooling');
-    } else if (isBuildFile(file)) {
-      categories.add('build');
-    } else {
-      categories.add('runtime');
-    }
+type RuntimeCategory = 'runtime' | 'build' | 'testing' | 'tooling';
+
+function classifyFileCategory(file: string): RuntimeCategory {
+  if (isTestFile(file)) return 'testing';
+  if (isToolingFile(file)) return 'tooling';
+  if (isBuildFile(file)) return 'build';
+  return 'runtime';
+}
+
+function determineRuntimeImpactFromFiles(
+  files: Array<{ file: string; count: number }>
+): DependencyRecord['usage']['runtimeImpact'] {
+  const weights: Record<RuntimeCategory, number> = {
+    runtime: 0,
+    build: 0,
+    testing: 0,
+    tooling: 0
+  };
+  let total = 0;
+
+  for (const entry of files) {
+    const category = classifyFileCategory(entry.file);
+    const weight = Number.isFinite(entry.count) && entry.count > 0 ? entry.count : 1;
+    weights[category] += weight;
+    total += weight;
   }
-  if (categories.size === 0) return 'runtime';
-  if (categories.size > 1) return 'mixed';
-  return Array.from(categories)[0];
+
+  if (total <= 0) return 'runtime';
+
+  const ranked = (Object.entries(weights) as Array<[RuntimeCategory, number]>)
+    .filter(([, weight]) => weight > 0)
+    .sort((a, b) => b[1] - a[1]);
+  if (ranked.length === 0) return 'runtime';
+  if (ranked.length === 1) return ranked[0][0];
+
+  const [top, second] = ranked;
+  const topRatio = top[1] / total;
+  const secondRatio = second ? second[1] / total : 0;
+
+  // Strong dominance: classify as a single category instead of defaulting to mixed.
+  if (topRatio >= 0.7) return top[0];
+  // Runtime is common; tolerate a small amount of non-runtime usage before calling it mixed.
+  if (top[0] === 'runtime' && topRatio >= 0.6 && secondRatio <= 0.25) return 'runtime';
+  // Testing-heavy dependencies often leak a small runtime footprint (helpers in fixtures).
+  if (top[0] === 'testing' && topRatio >= 0.6 && secondRatio <= 0.3) return 'testing';
+  return 'mixed';
 }
 
 type LicenseBuildResult = {
@@ -994,12 +1033,15 @@ function isFrameworkPackage(name: string): boolean {
 // Heuristic-only classification for why a dependency exists. Kept deterministic and bounded.
 function determineIntroduction(
   direct: boolean,
+  scope: DependencyScope,
   rootCauses: RootPackageRef[],
-  runtimeImpact: DependencyRecord['usage']['runtimeImpact']
+  runtimeImpact: DependencyRecord['usage']['runtimeImpact'] | undefined
 ): DependencyRecord['usage']['introduction'] {
   const rootNames = rootCauses.map((root) => root.name);
   if (direct) return 'direct';
   if (runtimeImpact === 'testing') return 'testing';
+  if (runtimeImpact === 'tooling' || runtimeImpact === 'build') return 'tooling';
+  if (scope === 'dev' || scope === 'peer') return 'tooling';
   if (rootNames.length > 0 && rootNames.every((root) => isToolingPackage(root))) return 'tooling';
   if (rootNames.some((root) => isFrameworkPackage(root))) return 'framework';
   if (rootNames.length > 0) return 'transitive';
