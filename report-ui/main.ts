@@ -968,15 +968,7 @@ async function init(): Promise<void> {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
   const knownDepKeys = new Set(depByKey.keys());
-  const depKeysByName = new Map<string, string[]>();
-  depByKey.forEach((_dep, depKey) => {
-    const lastAt = depKey.lastIndexOf('@');
-    if (lastAt <= 0) return;
-    const name = depKey.slice(0, lastAt);
-    const keys = depKeysByName.get(name) || [];
-    keys.push(depKey);
-    depKeysByName.set(name, keys);
-  });
+  const depKeysByName = getDepKeysByNameIndex(knownDepKeys);
   const openDepKeys = new Set<string>();
   const forcedVisibleDepKeys = new Set<string>();
   const depElementsByKey = new Map<string, HTMLDetailsElement>();
