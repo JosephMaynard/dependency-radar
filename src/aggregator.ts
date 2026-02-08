@@ -229,6 +229,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         name: node.name,
         version: node.version,
         ...(packageInsights.description ? { description: packageInsights.description } : {}),
+        ...(typeof packageInsights.fileCount === 'number' ? { fileCount: packageInsights.fileCount } : {}),
+        ...(packageInsights.hasBin ? { hasBin: true } : {}),
         deprecated: packageInsights.deprecated,
         links: {
           npm: `https://www.npmjs.com/package/${node.name}`,
@@ -777,7 +779,8 @@ function isDirectDependency(name: string, pkg: any): boolean {
   return Boolean(
     (pkg.dependencies && pkg.dependencies[name]) ||
     (pkg.devDependencies && pkg.devDependencies[name]) ||
-    (pkg.optionalDependencies && pkg.optionalDependencies[name])
+    (pkg.optionalDependencies && pkg.optionalDependencies[name]) ||
+    (pkg.peerDependencies && pkg.peerDependencies[name])
   );
 }
 
@@ -1029,12 +1032,15 @@ interface PackageStats {
   hasDts: boolean;
   hasNativeBinary: boolean;
   hasBindingGyp: boolean;
+  fileCount: number;
 }
 
 interface PackageInsights {
   deprecated: boolean;
   nodeEngine: string | null;
   description?: string;
+  fileCount?: number;
+  hasBin: boolean;
   declaredDependencies: {
     dep: Record<string, string>;
     dev: Record<string, string>;
@@ -1062,6 +1068,7 @@ async function gatherPackageInsights(
     return {
       deprecated: false,
       nodeEngine: null,
+      hasBin: false,
       declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
       tsTypes: 'unknown'
     };
@@ -1082,6 +1089,7 @@ async function gatherPackageInsights(
   const description = typeof pkg.description === 'string' && pkg.description.trim()
     ? pkg.description.trim()
     : undefined;
+  const hasBin = hasPackageBin(pkg.bin);
 
   const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, resolvePaths, metaCache);
   const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
@@ -1092,6 +1100,8 @@ async function gatherPackageInsights(
     deprecated,
     nodeEngine,
     description,
+    ...(typeof stats?.fileCount === 'number' ? { fileCount: stats.fileCount } : {}),
+    hasBin,
     declaredDependencies,
     links,
     execution,
@@ -1108,6 +1118,14 @@ function normalizeDeclaredDeps(source: any): Record<string, string> {
     out[name] = range.trim();
   }
   return out;
+}
+
+function hasPackageBin(binField: any): boolean {
+  if (typeof binField === 'string') return binField.trim().length > 0;
+  if (!binField || typeof binField !== 'object') return false;
+  return Object.values(binField).some((value) =>
+    typeof value === 'string' && value.trim().length > 0
+  );
 }
 
 async function loadPackageMeta(
@@ -1158,6 +1176,7 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
   let hasDts = false;
   let hasNativeBinary = false;
   let hasBindingGyp = false;
+  let fileCount = 0;
 
   async function walk(current: string): Promise<void> {
     const entries = await fs.readdir(current, { withFileTypes: true });
@@ -1165,8 +1184,11 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
       const full = path.join(current, entry.name);
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {
+        // Ignore nested dependency stores to keep package-level stats bounded and comparable.
+        if (entry.name === 'node_modules' || entry.name === '.git') continue;
         await walk(full);
       } else if (entry.isFile()) {
+        fileCount += 1;
         if (entry.name.endsWith('.d.ts')) hasDts = true;
         if (entry.name.endsWith('.node')) hasNativeBinary = true;
         if (entry.name === 'binding.gyp') hasBindingGyp = true;
@@ -1179,7 +1201,7 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
   } catch (err) {
     // best-effort; ignore inaccessible paths
   }
-  const result: PackageStats = { hasDts, hasNativeBinary, hasBindingGyp };
+  const result: PackageStats = { hasDts, hasNativeBinary, hasBindingGyp, fileCount };
   cache.set(dir, result);
   return result;
 }

@@ -94,6 +94,10 @@ export interface DependencyRecord {
     name: string;
     version: string;
     description?: string;
+    // Number of files observed in the installed package directory (excluding nested node_modules).
+    fileCount?: number;
+    // True when the package exposes at least one CLI executable via package.json#bin.
+    hasBin?: true;
     deprecated: boolean;
     links: {
       npm: string;

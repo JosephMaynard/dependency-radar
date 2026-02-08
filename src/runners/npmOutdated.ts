@@ -15,23 +15,7 @@ function normalizeOutdatedOutput(
   if (typeof data === "object" && !Array.isArray(data) && !data.type)
     return data;
 
-  if (Array.isArray(data)) {
-    // pnpm often returns arrays of rows
-    const out: Record<string, any> = {};
-    for (const entry of data) {
-      if (!entry || typeof entry !== "object") continue;
-      const name = entry.name || entry.packageName;
-      if (typeof name !== "string" || !name.trim()) continue;
-      out[name] = {
-        current: entry.current || entry.currentVersion || entry.from,
-        latest: entry.latest || entry.latestVersion || entry.to,
-        wanted: entry.wanted,
-      };
-    }
-    return Object.keys(out).length > 0 ? out : undefined;
-  }
-
-  // Yarn JSONL table output
+  // Yarn JSONL table output (classic) must be checked before generic array parsing.
   const entries = Array.isArray(data) ? data : [data];
   const tableEntry = entries.find(
     (e) => e && typeof e === "object" && (e.type === "table" || e.data?.body),
@@ -61,8 +45,32 @@ function normalizeOutdatedOutput(
     return Object.keys(out).length > 0 ? out : undefined;
   }
 
+  if (Array.isArray(data)) {
+    // pnpm often returns arrays of rows
+    const out: Record<string, any> = {};
+    for (const entry of data) {
+      if (!entry || typeof entry !== "object") continue;
+      const name = entry.name || entry.packageName;
+      if (typeof name !== "string" || !name.trim()) continue;
+      out[name] = {
+        current: entry.current || entry.currentVersion || entry.from,
+        latest: entry.latest || entry.latestVersion || entry.to,
+        wanted: entry.wanted,
+      };
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }
+
   if (tool === "pnpm" && data.outdated) return data.outdated;
   return undefined;
+}
+
+function isYarnOutdatedUnsupported(result: {
+  stdout: string;
+  stderr: string;
+}): boolean {
+  const output = `${result.stdout}\n${result.stderr}`;
+  return /Couldn't find a script named "outdated"/i.test(output);
 }
 
 function buildOutdatedCommand(tool: "npm" | "pnpm" | "yarn"): {
@@ -107,6 +115,19 @@ export async function runPackageOutdated(
     if (normalized && typeof normalized === "object") {
       await writeJsonFile(targetFile, normalized);
       return { ok: true, data: normalized, file: targetFile };
+    }
+    if (tool === "yarn" && isYarnOutdatedUnsupported(result)) {
+      await writeJsonFile(targetFile, {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        code: result.code,
+      });
+      return {
+        ok: false,
+        error:
+          'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
+        file: targetFile,
+      };
     }
     await writeJsonFile(targetFile, {
       stdout: result.stdout,

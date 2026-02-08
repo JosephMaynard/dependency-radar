@@ -57,6 +57,8 @@ export interface DependencyRecord {
     name: string;
     version: string;
     description?: string;
+    fileCount?: number;
+    hasBin?: true;
     deprecated: boolean;
     links: {
       npm: string;

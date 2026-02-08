@@ -137,12 +137,28 @@ function compactToolVersions(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+async function detectYarnPnP(projectPath: string): Promise<boolean> {
+  if (
+    (await pathExists(path.join(projectPath, ".pnp.cjs"))) ||
+    (await pathExists(path.join(projectPath, ".pnp.js")))
+  ) {
+    return true;
+  }
+
+  const yarnrc = path.join(projectPath, ".yarnrc.yml");
+  if (!(await pathExists(yarnrc))) return false;
+  const content = await fs.readFile(yarnrc, "utf8").catch(() => "");
+  return /nodeLinker\s*:\s*pnp\b/.test(content);
+}
+
 async function detectWorkspace(
   projectPath: string,
 ): Promise<WorkspaceDiscovery> {
   const rootPkgPath = path.join(projectPath, "package.json");
   const rootPkg = await readJsonFile(rootPkgPath);
   const inferredManager = inferPackageManager(rootPkg);
+  const hasYarnLock = await pathExists(path.join(projectPath, "yarn.lock"));
+  const hasYarnPnp = await detectYarnPnP(projectPath);
 
   const pnpmWorkspacePath = path.join(projectPath, "pnpm-workspace.yaml");
   const hasPnpmWorkspace = await pathExists(pnpmWorkspacePath);
@@ -175,21 +191,16 @@ async function detectWorkspace(
     }
   }
 
+  if (hasYarnPnp) {
+    return { type: "yarn", packagePaths: [] };
+  }
+
   // npm/yarn workspaces
   if (type === "none" && rootPkg && rootPkg.workspaces) {
-    type = inferredManager || "npm";
+    type = inferredManager || (hasYarnLock ? "yarn" : "npm");
     if (Array.isArray(rootPkg.workspaces)) patterns = rootPkg.workspaces;
     else if (Array.isArray(rootPkg.workspaces.packages))
       patterns = rootPkg.workspaces.packages;
-
-    // try to detect yarn berry pnp (unsupported) later via .yarnrc.yml
-    const yarnrc = path.join(projectPath, ".yarnrc.yml");
-    if (await pathExists(yarnrc)) {
-      const y = await fs.readFile(yarnrc, "utf8");
-      if (/nodeLinker\s*:\s*pnp/.test(y)) {
-        return { type: "yarn", packagePaths: [] };
-      }
-    }
   }
 
   if (type === "none") {
@@ -253,13 +264,7 @@ async function detectPackageManager(
   if (inferred) return inferred;
   if (workspaceType === "pnpm" || workspaceType === "yarn")
     return workspaceType;
-  const yarnrc = path.join(projectPath, ".yarnrc.yml");
-  if (await pathExists(yarnrc)) {
-    const y = await fs.readFile(yarnrc, "utf8");
-    if (/nodeLinker\s*:\s*pnp/.test(y)) {
-      return "yarn";
-    }
-  }
+  if (await detectYarnPnP(projectPath)) return "yarn";
   if (await pathExists(path.join(projectPath, "node_modules", ".pnpm")))
     return "pnpm";
   if (
@@ -311,14 +316,17 @@ function mergeDepsFromWorkspace(pkgs: Array<{ pkg: any }>): any {
     dependencies: {},
     devDependencies: {},
     optionalDependencies: {},
+    peerDependencies: {},
   };
   for (const entry of pkgs) {
     const deps = entry.pkg?.dependencies || {};
     const dev = entry.pkg?.devDependencies || {};
     const opt = entry.pkg?.optionalDependencies || {};
+    const peer = entry.pkg?.peerDependencies || {};
     Object.assign(merged.dependencies, deps);
     Object.assign(merged.devDependencies, dev);
     Object.assign(merged.optionalDependencies, opt);
+    Object.assign(merged.peerDependencies, peer);
   }
   return merged;
 }
@@ -814,8 +822,9 @@ async function run(): Promise<void> {
   }
   const tempDir = path.join(projectPath, ".dependency-radar");
 
-  // Workspace detection and reporting
+  // Stage 1: detect workspace/package-manager context and collect tool versions.
   const workspace = await detectWorkspace(projectPath);
+  const yarnPnP = await detectYarnPnP(projectPath);
   if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
     console.error(
       "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
@@ -853,21 +862,15 @@ async function run(): Promise<void> {
       : scanManager === "pnpm"
         ? pnpmVersion
         : yarnVersion;
-  if (packageManager === "yarn") {
-    const yarnrc = path.join(projectPath, ".yarnrc.yml");
-    if (await pathExists(yarnrc)) {
-      const y = await fs.readFile(yarnrc, "utf8");
-      if (/nodeLinker\s*:\s*pnp/.test(y)) {
-        console.error(
-          "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
-        );
-        console.error(
-          "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
-        );
-        process.exit(1);
-        return;
-      }
-    }
+  if (packageManager === "yarn" && yarnPnP) {
+    console.error(
+      "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
+    );
+    console.error(
+      "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
+    );
+    process.exit(1);
+    return;
   }
 
   const packagePaths = workspace.packagePaths;
@@ -885,7 +888,7 @@ async function run(): Promise<void> {
   try {
     await ensureDir(tempDir);
 
-    // Run tools per package for best coverage.
+    // Stage 2: run per-package collectors and persist raw tool outputs.
     const packageMetas = await readWorkspacePackageMeta(
       projectPath,
       packagePaths,
@@ -937,6 +940,7 @@ async function run(): Promise<void> {
       perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
     }
 
+    // Stage 3: merge per-package results into a workspace-level view.
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
       if (auditOk) {
@@ -1014,6 +1018,7 @@ async function run(): Promise<void> {
       );
     }
 
+    // Stage 4: aggregate all signals into the final report model.
     const aggregated = await aggregateData({
       projectPath,
       auditResult,

@@ -15,7 +15,7 @@ This runs a scan against the current project and writes a self-contained `depend
 - Analyses installed dependencies by running standard package manager tooling (npm, pnpm, or yarn)
 - Combines multiple signals (audit results, dependency graph data, import usage, and heuristics) into a single report
 - Shows direct vs transitive dependencies, dependency depth, and parent relationships
-- Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint
+- Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint (including installed file counts)
 - Produces a single self-contained HTML file with no external assets, which you can easily share
 
 ## What it is not
@@ -29,6 +29,35 @@ This runs a scan against the current project and writes a self-contained `depend
 
 For teams that want deeper analysis, long-term tracking, and additional enrichment (such as ecosystem and maintenance signals), Dependency Radar also offers an optional premium service.  
 See https://dependency-radar.com for details.
+
+## How a scan works
+
+When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
+
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--keep-temp`, `--open`).
+2. Detect workspace/package-manager context:
+   - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
+   - Package manager from `packageManager`, lockfiles, and installed metadata
+   - Yarn Plug'n'Play detection (`.pnp.cjs`/`.pnp.js` or `.yarnrc.yml nodeLinker: pnp`)
+3. Create a temporary `.dependency-radar/` directory inside the scanned project.
+4. For each workspace package (or just the project root in single-package mode), run collectors:
+   - Dependency tree (`npm ls` / `pnpm list` / `yarn list`)
+   - Vulnerabilities (`npm audit` / `pnpm audit` / `yarn audit` or `yarn npm audit`)
+   - Version drift (`npm outdated` / `pnpm outdated` / `yarn outdated`, where available)
+   - Source import graph (static import/require parsing in `src/` or project root)
+5. Normalize tool outputs into one internal shape and merge workspace package results.
+6. Aggregate dependency records by enriching each installed package with:
+   - License declaration + `LICENSE` file inference/validation
+   - Advisory summaries and severity/risk rollups
+   - Root-cause/origin and runtime-impact heuristics
+   - Install-time execution signals
+   - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
+7. Write final output as either:
+   - `dependency-radar.html` (self-contained report), or
+   - `dependency-radar.json` (raw aggregated model)
+8. Remove `.dependency-radar/` unless `--keep-temp` is set.
+
+The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
 
 ## License Scanning
 
@@ -101,6 +130,14 @@ Show options:
 npx dependency-radar --help
 ```
 
+## Package Manager Support
+
+- npm: Supported for dependency tree, audit, outdated, single-package, and workspaces.
+- pnpm: Supported for dependency tree, audit, outdated, and workspaces (with ls depth fallbacks for large projects).
+- Yarn Classic (v1, node_modules linker): Supported for dependency tree, audit, outdated, and workspaces.
+- Yarn Berry (v2+, node-modules linker): Dependency tree and audit work; outdated support depends on available Yarn commands/plugins and may be unavailable.
+- Yarn Plug'n'Play (`nodeLinker: pnp`): Not supported yet.
+
 ## Scripts
 
 - `npm run build` – generate SPDX/report assets and compile TypeScript to `dist/`
@@ -137,6 +174,7 @@ npx dependency-radar --help
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
 - The scan runs on your machine and does not upload your code or dependencies anywhere.
 - `npm audit`/`pnpm audit`/`yarn npm audit` and `npm outdated`/`pnpm outdated` perform registry lookups; use `--offline` for offline-only scans.
+- On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
 - If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
@@ -198,6 +236,8 @@ export interface DependencyRecord {
     name: string; // Package name from npm metadata
     version: string; // Installed version from npm ls
     description?: string; // Description from the installed package.json (if present)
+    fileCount?: number; // Number of files in the installed package folder (excluding nested node_modules)
+    hasBin?: true; // True if package.json declares at least one executable in `bin`
     deprecated: boolean; // True if the package.json has a deprecated flag
     links: {
       npm: string; // npm package page URL
