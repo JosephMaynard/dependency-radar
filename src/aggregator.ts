@@ -1046,7 +1046,8 @@ function determineIntroduction(
   if (direct) return 'direct';
   if (runtimeImpact === 'testing') return 'testing';
   if (runtimeImpact === 'tooling' || runtimeImpact === 'build') return 'tooling';
-  if (scope === 'dev' || scope === 'peer') return 'tooling';
+  if (scope === 'dev') return 'tooling';
+  if (scope === 'peer' && runtimeImpact !== 'runtime') return 'tooling';
   if (rootNames.length > 0 && rootNames.every((root) => isToolingPackage(root))) return 'tooling';
   if (rootNames.some((root) => isFrameworkPackage(root))) return 'framework';
   if (rootNames.length > 0) return 'transitive';

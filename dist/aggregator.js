@@ -923,7 +923,9 @@ function determineIntroduction(direct, scope, rootCauses, runtimeImpact) {
         return 'testing';
     if (runtimeImpact === 'tooling' || runtimeImpact === 'build')
         return 'tooling';
-    if (scope === 'dev' || scope === 'peer')
+    if (scope === 'dev')
+        return 'tooling';
+    if (scope === 'peer' && runtimeImpact !== 'runtime')
         return 'tooling';
     if (rootNames.length > 0 && rootNames.every((root) => isToolingPackage(root)))
         return 'tooling';

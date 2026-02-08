@@ -220,14 +220,15 @@ function renderPackageList(packages: string[] | undefined, maxShow: number): str
 function renderDependencyIdList(
   ids: string[] | undefined,
   maxShow: number,
-  linkableKeys: Set<string>
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
 ): string {
   if (!ids || ids.length === 0) return '<span class="kv-value">None</span>';
   const shown = ids.slice(0, maxShow);
   const remaining = ids.length - maxShow;
   let html = '<div class="package-list">';
   shown.forEach((id) => {
-    const resolvedDepKey = resolveDepLinkTarget(id, linkableKeys);
+    const resolvedDepKey = resolveDepLinkTarget(id, linkableKeys, keysByName);
     if (!resolvedDepKey) {
       html += '<span class="package-tag">' + escapeHtml(id) + '</span>';
       return;
@@ -250,6 +251,9 @@ function getDepKey(name: string, version: string): string {
   return name + '@' + version;
 }
 
+type DepKeysByNameIndex = Map<string, string[]>;
+const depKeysByNameCache = new WeakMap<Set<string>, DepKeysByNameIndex>();
+
 function parseDepKey(depKey: string): { name: string; version: string } | null {
   const lastAt = depKey.lastIndexOf('@');
   if (lastAt <= 0) return null;
@@ -263,31 +267,53 @@ function getDepDomId(depKey: string): string {
   return 'dep-' + encodeURIComponent(depKey).replace(/%/g, '_');
 }
 
-function resolveDepKeyByNameFromSet(name: string, linkableKeys: Set<string>): string | null {
-  const candidates = Array.from(linkableKeys).filter((candidate) => {
+function getDepKeysByNameIndex(linkableKeys: Set<string>): DepKeysByNameIndex {
+  const cached = depKeysByNameCache.get(linkableKeys);
+  if (cached) return cached;
+  const index: DepKeysByNameIndex = new Map<string, string[]>();
+  linkableKeys.forEach((candidate) => {
     const parsed = parseDepKey(candidate);
-    return parsed?.name === name;
+    if (!parsed) return;
+    const keys = index.get(parsed.name) || [];
+    keys.push(candidate);
+    index.set(parsed.name, keys);
   });
+  depKeysByNameCache.set(linkableKeys, index);
+  return index;
+}
+
+function resolveDepKeyByNameFromSet(
+  name: string,
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
+): string | null {
+  const nameIndex = keysByName || getDepKeysByNameIndex(linkableKeys);
+  const candidates = (nameIndex.get(name) || []).filter((candidate) => linkableKeys.has(candidate));
   if (candidates.length === 1) return candidates[0];
   return null;
 }
 
-function resolveDepLinkTarget(depKey: string, linkableKeys: Set<string>): string | null {
+function resolveDepLinkTarget(
+  depKey: string,
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
+): string | null {
   if (linkableKeys.has(depKey)) return depKey;
   const parsed = parseDepKey(depKey);
-  if (!parsed) return resolveDepKeyByNameFromSet(depKey, linkableKeys);
+  if (!parsed) return resolveDepKeyByNameFromSet(depKey, linkableKeys, keysByName);
 
   if (parsed.version.startsWith('npm:')) {
     const npmAliasKey = parsed.name + '@' + parsed.version.slice('npm:'.length);
     if (linkableKeys.has(npmAliasKey)) return npmAliasKey;
   }
-  return resolveDepKeyByNameFromSet(parsed.name, linkableKeys);
+  return resolveDepKeyByNameFromSet(parsed.name, linkableKeys, keysByName);
 }
 
 function renderRootPackageList(
   packages: Array<{ name: string; version: string } | string> | undefined,
   maxShow: number,
-  linkableKeys: Set<string>
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
 ): string {
   if (!packages || packages.length === 0) return '<span class="kv-value">None</span>';
   const shown = packages.slice(0, maxShow);
@@ -295,7 +321,7 @@ function renderRootPackageList(
   let html = '<div class="package-list">';
   shown.forEach((pkg) => {
     if (typeof pkg === 'string') {
-      const resolvedDepKey = resolveDepLinkTarget(pkg, linkableKeys);
+      const resolvedDepKey = resolveDepLinkTarget(pkg, linkableKeys, keysByName);
       if (!resolvedDepKey) {
         html += '<span class="package-tag">' + escapeHtml(pkg) + '</span>';
         return;
@@ -310,7 +336,7 @@ function renderRootPackageList(
     }
     const depKey = getDepKey(pkg.name, pkg.version);
     const label = pkg.name + '@' + pkg.version;
-    const resolvedDepKey = resolveDepLinkTarget(depKey, linkableKeys);
+    const resolvedDepKey = resolveDepLinkTarget(depKey, linkableKeys, keysByName);
     if (!resolvedDepKey) {
       html += '<span class="package-tag">' + escapeHtml(label) + '</span>';
       return;
@@ -355,7 +381,11 @@ function renderDetailList(title: string, items: string[] | undefined, maxShow: n
   return html;
 }
 
-function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<string>): string {
+function renderDeclaredDependencies(
+  dep: DependencyRecord,
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
+): string {
   const subDeps = dep.graph.subDeps;
   if (!subDeps) return '';
   const groups: Array<{ title: string; key: keyof NonNullable<DependencyRecord['graph']['subDeps']> }> = [
@@ -392,7 +422,7 @@ function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<str
         const nameCell = '<div class="declared-name">' + escapeHtml(name) + '</div>';
         const rangeCell = '<div class="declared-range">' + escapeHtml(range) + '</div>';
         const statusCell = resolvedId
-          ? renderInstalledStatus(resolvedId, linkableKeys)
+          ? renderInstalledStatus(resolvedId, linkableKeys, keysByName)
           : '<span class="status-pill missing">Not installed</span>';
         return '<div class="declared-row">' + nameCell + rangeCell + statusCell + '</div>';
       });
@@ -411,8 +441,12 @@ function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<str
   return renderSection('Declared Dependencies', 'Dependencies declared by this package', body);
 }
 
-function renderInstalledStatus(depKey: string, linkableKeys: Set<string>): string {
-  const resolvedDepKey = resolveDepLinkTarget(depKey, linkableKeys);
+function renderInstalledStatus(
+  depKey: string,
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
+): string {
+  const resolvedDepKey = resolveDepLinkTarget(depKey, linkableKeys, keysByName);
   if (!resolvedDepKey) return '<span class="status-pill installed">Installed</span>';
   return '<a class="status-pill installed root-package-link" href="#' +
     escapeHtml(getDepDomId(resolvedDepKey)) +
@@ -615,7 +649,11 @@ function renderDep(dep: DependencyRecord): string {
   ].join('');
 }
 
-function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): string {
+function renderDepDetails(
+  dep: DependencyRecord,
+  linkableKeys: Set<string>,
+  keysByName?: DepKeysByNameIndex
+): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
   const primaryLicense = resolvePrimaryLicense(dep);
@@ -653,12 +691,12 @@ function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): str
     renderKvItem('Dependency depth', dep.usage.depth),
     renderKvItemHtml(
       'Introduced via root packages (topRootPackages)',
-      renderRootPackageList(dep.usage.origins.topRootPackages, 8, linkableKeys)
+      renderRootPackageList(dep.usage.origins.topRootPackages, 8, linkableKeys, keysByName)
     ),
     renderKvItem('Direct roots (rootPackageCount)', dep.usage.origins.rootPackageCount),
     renderKvItemHtml(
       'Direct parents (topParentPackages)',
-      renderDependencyIdList(dep.usage.origins.topParentPackages, 8, linkableKeys)
+      renderDependencyIdList(dep.usage.origins.topParentPackages, 8, linkableKeys, keysByName)
     ),
     renderKvItem('Direct parents (parentPackageCount)', dep.usage.origins.parentPackageCount ?? 0),
     renderKvItem('TypeScript types (tsTypes)', tsTypesLabel(dep.usage.tsTypes))
@@ -780,7 +818,7 @@ function renderDepDetails(dep: DependencyRecord, linkableKeys: Set<string>): str
     'Currency, constraints, and blast radius',
     currencyBlock + deprecatedBlock + constraintBlock + blastRadiusBlock + blockers
   );
-  const declaredSection = renderDeclaredDependencies(dep, linkableKeys);
+  const declaredSection = renderDeclaredDependencies(dep, linkableKeys, keysByName);
 
   return [
     renderPackageLinks(links),
@@ -955,7 +993,7 @@ async function init(): Promise<void> {
     detailsBody.innerHTML = renderLoadingPlaceholder();
     // Defer heavy render so the placeholder paints first.
     requestAnimationFrame(() => {
-    detailsBody.innerHTML = renderDepDetails(dep, knownDepKeys);
+      detailsBody.innerHTML = renderDepDetails(dep, knownDepKeys, depKeysByName);
       detailsBody.dataset.rendered = 'true';
       detailsBody.removeAttribute('aria-busy');
     });
