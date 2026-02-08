@@ -255,6 +255,13 @@ type DepKeysByNameIndex = Map<string, string[]>;
 const depKeysByNameCache = new WeakMap<Set<string>, DepKeysByNameIndex>();
 
 function parseDepKey(depKey: string): { name: string; version: string } | null {
+  const npmAliasAt = depKey.lastIndexOf('@npm:');
+  if (npmAliasAt > 0) {
+    return {
+      name: depKey.slice(0, npmAliasAt),
+      version: depKey.slice(npmAliasAt + 1)
+    };
+  }
   const lastAt = depKey.lastIndexOf('@');
   if (lastAt <= 0) return null;
   return {
@@ -303,7 +310,8 @@ function resolveDepLinkTarget(
   if (!parsed) return resolveDepKeyByNameFromSet(depKey, linkableKeys, keysByName);
 
   if (parsed.version.startsWith('npm:')) {
-    const npmAliasKey = parsed.name + '@' + parsed.version.slice('npm:'.length);
+    const aliasedTarget = parsed.version.slice('npm:'.length);
+    const npmAliasKey = parsed.name + (aliasedTarget.startsWith('@') ? aliasedTarget : '@' + aliasedTarget);
     if (linkableKeys.has(npmAliasKey)) return npmAliasKey;
   }
   return resolveDepKeyByNameFromSet(parsed.name, linkableKeys, keysByName);
@@ -690,15 +698,15 @@ function renderDepDetails(
     dep.usage.runtimeImpact ? renderKvItem('Runtime impact (runtimeImpact)', runtimeImpactLabel(dep.usage.runtimeImpact)) : '',
     renderKvItem('Dependency depth', dep.usage.depth),
     renderKvItemHtml(
-      'Introduced via root packages (topRootPackages)',
+      'Introduced via root packages',
       renderRootPackageList(dep.usage.origins.topRootPackages, 8, linkableKeys, keysByName)
     ),
-    renderKvItem('Direct roots (rootPackageCount)', dep.usage.origins.rootPackageCount),
+    renderKvItem('Direct roots', dep.usage.origins.rootPackageCount),
     renderKvItemHtml(
-      'Direct parents (topParentPackages)',
+      'Direct parents',
       renderDependencyIdList(dep.usage.origins.topParentPackages, 8, linkableKeys, keysByName)
     ),
-    renderKvItem('Direct parents (parentPackageCount)', dep.usage.origins.parentPackageCount ?? 0),
+    renderKvItem('Direct parents', dep.usage.origins.parentPackageCount ?? 0),
     renderKvItem('TypeScript types (tsTypes)', tsTypesLabel(dep.usage.tsTypes))
   ].filter(Boolean);
 
@@ -714,7 +722,7 @@ function renderDepDetails(
   const licenseInfo = dep.compliance.license;
   const licenseDetails: string[] = [
     renderKvItemHtml('Primary license', renderRiskValue(licenseText, dep.compliance.licenseRisk)),
-    renderKvItem('Status (status)', formatLicenseStatus(licenseInfo.status))
+    renderKvItem('Status', formatLicenseStatus(licenseInfo.status))
   ];
   if (licenseInfo.declared) {
     const declaredMeta = [
@@ -723,10 +731,10 @@ function renderDepDetails(
       licenseInfo.declared.deprecated ? 'deprecated' : undefined
     ].filter(Boolean).join(', ');
     const exceptionLabel = licenseInfo.exception?.id ? ` WITH ${licenseInfo.exception.id}` : '';
-    licenseDetails.push(renderKvItem('Declared SPDX (declared)', `${licenseInfo.declared.spdxId}${exceptionLabel}${declaredMeta ? ` (${declaredMeta})` : ''}`));
+    licenseDetails.push(renderKvItem('Declared SPDX', `${licenseInfo.declared.spdxId}${exceptionLabel}${declaredMeta ? ` (${declaredMeta})` : ''}`));
   }
   if (licenseInfo.inferred) {
-    licenseDetails.push(renderKvItem('Inferred from LICENSE (inferred)', `${licenseInfo.inferred.spdxId} (${licenseInfo.inferred.confidence})`));
+    licenseDetails.push(renderKvItem('Inferred from LICENSE', `${licenseInfo.inferred.spdxId} (${licenseInfo.inferred.confidence})`));
   }
   if (licenseInfo.status === 'mismatch') {
     licenseDetails.push(renderKvItem('Mismatch', 'Declared SPDX and LICENSE text do not match'));
@@ -770,10 +778,10 @@ function renderDepDetails(
   );
 
   const currencyItems = [
-    renderKvItem('Outdated status (outdatedStatus)', outdatedStatusLabel(dep.upgrade.outdatedStatus))
+    renderKvItem('Outdated status', outdatedStatusLabel(dep.upgrade.outdatedStatus))
   ];
   if (dep.upgrade.latestVersion) {
-    currencyItems.push(renderKvItem('Latest version (latestVersion)', dep.upgrade.latestVersion));
+    currencyItems.push(renderKvItem('Latest version', dep.upgrade.latestVersion));
   }
   const currencyBlock = renderSubsection(
     'Version',
@@ -782,14 +790,14 @@ function renderDepDetails(
   );
 
   const deprecatedBlock = dep.package.deprecated
-    ? renderSubsection('Deprecated', '<div class="kv-grid">' + renderKvItem('Deprecated (deprecated)', 'Yes', 'Declared by the package author.') + '</div>', undefined, 'warning')
+    ? renderSubsection('Deprecated', '<div class="kv-grid">' + renderKvItem('Deprecated', 'Yes', 'Declared by the package author.') + '</div>', undefined, 'warning')
     : '';
 
   const constraintItems = [
-    renderKvItem('Node engine constraint (nodeEngine)', dep.upgrade.nodeEngine || 'Any')
+    renderKvItem('Node engine constraint', dep.upgrade.nodeEngine || 'Any')
   ];
   if (dep.upgrade.blocksNodeMajor !== undefined) {
-    constraintItems.push(renderKvItem('Blocks Node major upgrade (blocksNodeMajor)', yesNo(dep.upgrade.blocksNodeMajor)));
+    constraintItems.push(renderKvItem('Blocks Node major upgrade', yesNo(dep.upgrade.blocksNodeMajor)));
   }
   const constraintBlock = renderSubsection('Constraints', '<div class="kv-grid">' + constraintItems.join('') + '</div>');
 
@@ -802,13 +810,13 @@ function renderDepDetails(
   );
 
   const blockerLabels: Record<string, string> = {
-    nodeEngine: 'Node engine constraint (nodeEngine)',
-    peerDependency: 'Peer dependency constraints (peerDependency)',
-    nativeBindings: 'Native bindings/build tooling (nativeBindings)',
-    deprecated: 'Deprecated by author (deprecated)'
+    nodeEngine: 'Node engine constraint',
+    peerDependency: 'Peer dependency constraints',
+    nativeBindings: 'Native bindings/build tooling',
+    deprecated: 'Deprecated by author'
   };
   const blockers = dep.upgrade.blockers?.length
-    ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers (blockers)</span></div><ul class="bullet-list">' +
+    ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' +
       dep.upgrade.blockers.map((blocker) => '<li>' + escapeHtml(blockerLabels[blocker] || blocker) + '</li>').join('') +
       '</ul></div>'
     : '';
