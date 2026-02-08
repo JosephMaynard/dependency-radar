@@ -1,0 +1,9 @@
+{
+  "name": "tooling-root",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "transitive-tooling": "file:../transitive-tooling"
+  }
+}

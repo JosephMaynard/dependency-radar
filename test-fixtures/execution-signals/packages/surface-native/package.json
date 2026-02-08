@@ -1,0 +1,9 @@
+{
+  "name": "@dr-exec/surface-native",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "install": "node -e \"console.log('fixture native surface install')\""
+  }
+}

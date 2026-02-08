@@ -1,0 +1,9 @@
+{
+  "name": "build-root",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "transitive-build": "file:../transitive-build"
+  }
+}
