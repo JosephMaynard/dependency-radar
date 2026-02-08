@@ -763,14 +763,17 @@ function buildOrigins(rootCauses, parentIds, workspaceList, workspaceEnabled, ma
 function isTestFile(file) {
     return (/(^|\/)(__tests__|__mocks__|test|tests|testing|e2e|cypress|playwright|__snapshots__)(\/|$)/.test(file) ||
         /\.(test|spec|e2e)\./.test(file) ||
-        /(^|\/)(jest|vitest|playwright|cypress)\.config\./.test(file));
+        /(^|\/)(jest|vitest|playwright|cypress)\.config\./.test(file) ||
+        /(^|\/)\.(jest|vitest|playwright|cypress)(rc|\.config)?(\..*)?$/.test(file));
 }
 function isToolingFile(file) {
-    return /(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky|renovate|semantic-release|release-it|lefthook|dependabot)[^\/]*\./.test(file);
+    return (/(^|\/)(eslint|prettier|stylelint|commitlint|lint-staged|husky|renovate|semantic-release|release-it|lefthook|dependabot)[^\/]*\./.test(file) ||
+        /(^|\/)\.(eslint|eslintrc|prettier|prettierrc|stylelint|stylelintrc|commitlint|commitlintrc|lint-staged|lintstagedrc|husky|huskyrc|renovate|semantic-release|release-it|lefthook|dependabot)(rc|\.config)?(\..*)?$/.test(file));
 }
 function isBuildFile(file) {
     return (/(^|\/)(webpack|rollup|vite|tsconfig|babel|swc|esbuild|parcel|gulpfile|gruntfile|postcss|tailwind|storybook|rspack|turbo|nx|metro)[^\/]*\./.test(file) ||
-        /(^|\/)scripts\/(build|bundle|compile|release|deploy)(\/|\.|$)/.test(file));
+        /(^|\/)scripts\/(build|bundle|compile|release|deploy)(\/|\.|$)/.test(file) ||
+        /(^|\/)\.(webpack|rollup|vite|tsconfig|babel|babelrc|swc|swcrc|esbuild|parcel|postcss|postcssrc|tailwind|storybook|rspack|turbo|nx|metro)(rc|\.config)?(\..*)?$/.test(file));
 }
 function classifyFileCategory(file) {
     if (isTestFile(file))

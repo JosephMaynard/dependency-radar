@@ -227,10 +227,15 @@ function renderDependencyIdList(
   const remaining = ids.length - maxShow;
   let html = '<div class="package-list">';
   shown.forEach((id) => {
+    const resolvedDepKey = resolveDepLinkTarget(id, linkableKeys);
+    if (!resolvedDepKey) {
+      html += '<span class="package-tag">' + escapeHtml(id) + '</span>';
+      return;
+    }
     html += '<a class="package-tag package-tag-link root-package-link" href="#' +
-      escapeHtml(getDepDomId(id)) +
-      '" data-dep-key="' + escapeHtml(id) +
-      '" aria-label="Jump to dependency ' + escapeHtml(id) + '">' +
+      escapeHtml(getDepDomId(resolvedDepKey)) +
+      '" data-dep-key="' + escapeHtml(resolvedDepKey) +
+      '" aria-label="Jump to dependency ' + escapeHtml(resolvedDepKey) + '">' +
       escapeHtml(id) +
       '</a>';
   });
@@ -245,8 +250,38 @@ function getDepKey(name: string, version: string): string {
   return name + '@' + version;
 }
 
+function parseDepKey(depKey: string): { name: string; version: string } | null {
+  const lastAt = depKey.lastIndexOf('@');
+  if (lastAt <= 0) return null;
+  return {
+    name: depKey.slice(0, lastAt),
+    version: depKey.slice(lastAt + 1)
+  };
+}
+
 function getDepDomId(depKey: string): string {
   return 'dep-' + encodeURIComponent(depKey).replace(/%/g, '_');
+}
+
+function resolveDepKeyByNameFromSet(name: string, linkableKeys: Set<string>): string | null {
+  const candidates = Array.from(linkableKeys).filter((candidate) => {
+    const parsed = parseDepKey(candidate);
+    return parsed?.name === name;
+  });
+  if (candidates.length === 1) return candidates[0];
+  return null;
+}
+
+function resolveDepLinkTarget(depKey: string, linkableKeys: Set<string>): string | null {
+  if (linkableKeys.has(depKey)) return depKey;
+  const parsed = parseDepKey(depKey);
+  if (!parsed) return resolveDepKeyByNameFromSet(depKey, linkableKeys);
+
+  if (parsed.version.startsWith('npm:')) {
+    const npmAliasKey = parsed.name + '@' + parsed.version.slice('npm:'.length);
+    if (linkableKeys.has(npmAliasKey)) return npmAliasKey;
+  }
+  return resolveDepKeyByNameFromSet(parsed.name, linkableKeys);
 }
 
 function renderRootPackageList(
@@ -260,20 +295,30 @@ function renderRootPackageList(
   let html = '<div class="package-list">';
   shown.forEach((pkg) => {
     if (typeof pkg === 'string') {
+      const resolvedDepKey = resolveDepLinkTarget(pkg, linkableKeys);
+      if (!resolvedDepKey) {
+        html += '<span class="package-tag">' + escapeHtml(pkg) + '</span>';
+        return;
+      }
       html += '<a class="package-tag package-tag-link root-package-link" href="#' +
-        escapeHtml(getDepDomId(pkg)) +
-        '" data-dep-key="' + escapeHtml(pkg) +
-        '" aria-label="Jump to dependency ' + escapeHtml(pkg) + '">' +
+        escapeHtml(getDepDomId(resolvedDepKey)) +
+        '" data-dep-key="' + escapeHtml(resolvedDepKey) +
+        '" aria-label="Jump to dependency ' + escapeHtml(resolvedDepKey) + '">' +
         escapeHtml(pkg) +
         '</a>';
       return;
     }
     const depKey = getDepKey(pkg.name, pkg.version);
     const label = pkg.name + '@' + pkg.version;
+    const resolvedDepKey = resolveDepLinkTarget(depKey, linkableKeys);
+    if (!resolvedDepKey) {
+      html += '<span class="package-tag">' + escapeHtml(label) + '</span>';
+      return;
+    }
     html += '<a class="package-tag package-tag-link root-package-link" href="#' +
-      escapeHtml(getDepDomId(depKey)) +
-      '" data-dep-key="' + escapeHtml(depKey) +
-      '" aria-label="Jump to dependency ' + escapeHtml(label) + '">' +
+      escapeHtml(getDepDomId(resolvedDepKey)) +
+      '" data-dep-key="' + escapeHtml(resolvedDepKey) +
+      '" aria-label="Jump to dependency ' + escapeHtml(resolvedDepKey) + '">' +
       escapeHtml(label) +
       '</a>';
   });
@@ -367,10 +412,12 @@ function renderDeclaredDependencies(dep: DependencyRecord, linkableKeys: Set<str
 }
 
 function renderInstalledStatus(depKey: string, linkableKeys: Set<string>): string {
+  const resolvedDepKey = resolveDepLinkTarget(depKey, linkableKeys);
+  if (!resolvedDepKey) return '<span class="status-pill installed">Installed</span>';
   return '<a class="status-pill installed root-package-link" href="#' +
-    escapeHtml(getDepDomId(depKey)) +
-    '" data-dep-key="' + escapeHtml(depKey) +
-    '" aria-label="Jump to dependency ' + escapeHtml(depKey) + '">' +
+    escapeHtml(getDepDomId(resolvedDepKey)) +
+    '" data-dep-key="' + escapeHtml(resolvedDepKey) +
+    '" aria-label="Jump to dependency ' + escapeHtml(resolvedDepKey) + '">' +
     'Installed' +
     '</a>';
 }
@@ -1025,21 +1072,23 @@ async function init(): Promise<void> {
     });
   }
 
-  function resolveDepKey(depKey: string): string | null {
-    if (depByKey.has(depKey)) return depKey;
-    const lastAt = depKey.lastIndexOf('@');
-    if (lastAt <= 0) return null;
-    const name = depKey.slice(0, lastAt);
-    const version = depKey.slice(lastAt + 1);
-
-    if (version.startsWith('npm:')) {
-      const npmAliasKey = name + '@' + version.slice('npm:'.length);
-      if (depByKey.has(npmAliasKey)) return npmAliasKey;
-    }
-
+  function resolveDepKeyByName(name: string): string | null {
     const candidates = depKeysByName.get(name) || [];
     if (candidates.length === 1) return candidates[0];
     return null;
+  }
+
+  function resolveDepKey(depKey: string): string | null {
+    if (depByKey.has(depKey)) return depKey;
+    const parsed = parseDepKey(depKey);
+    if (!parsed) return resolveDepKeyByName(depKey);
+
+    if (parsed.version.startsWith('npm:')) {
+      const npmAliasKey = parsed.name + '@' + parsed.version.slice('npm:'.length);
+      if (depByKey.has(npmAliasKey)) return npmAliasKey;
+    }
+
+    return resolveDepKeyByName(parsed.name);
   }
   
   // Event listeners
@@ -1062,7 +1111,7 @@ async function init(): Promise<void> {
   function activateRootPackageLink(target: HTMLElement): void {
     const rawDepKey = target.getAttribute('data-dep-key');
     if (!rawDepKey) return;
-    const depKey = resolveDepKey(rawDepKey) || rawDepKey;
+    const depKey = resolveDepKey(rawDepKey);
     if (!depKey) return;
     let detailsEl = depElementsByKey.get(depKey);
     if (!detailsEl) {

@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "install": "node scripts/install.js && node scripts/install.js || node scripts/install.js",
+    "install": "node scripts/install-with-retries.js",
     "postinstall": "node scripts/postinstall.js",
     "prepare": "node scripts/prepare.js"
   }
