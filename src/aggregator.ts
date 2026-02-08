@@ -1055,19 +1055,66 @@ function determineIntroduction(
 }
 
 // Upgrade blockers derived only from local metadata (no external lookups).
+type UpgradeBlocker =
+  | 'nodeEngine'
+  | 'peerDependency'
+  | 'nativeBindings'
+  | 'installScripts'
+  | 'deprecated';
+
+function isPermissiveNodeEngineRange(range: string): boolean {
+  const compact = range.trim().toLowerCase().replace(/\s+/g, '');
+  return compact === '*' || compact === 'x' || compact === '>=0' || compact === '>=0.0' || compact === '>=0.0.0';
+}
+
+function hasNodeEngineUpgradeBlocker(nodeEngine: string | null): boolean {
+  if (!nodeEngine || !nodeEngine.trim()) return false;
+  if (isPermissiveNodeEngineRange(nodeEngine)) return false;
+
+  const clauses = nodeEngine.split('||').map((clause) => clause.trim()).filter(Boolean);
+  if (clauses.length > 0 && clauses.every((clause) => isPermissiveNodeEngineRange(clause))) {
+    return false;
+  }
+
+  const minMajor = parseMinMajorFromRange(nodeEngine);
+  if (minMajor !== undefined) {
+    if (minMajor > 0) return true;
+    return /<\s*\d/.test(nodeEngine);
+  }
+
+  if (/<\s*\d/.test(nodeEngine)) return true;
+
+  const majors = Array.from(nodeEngine.matchAll(/v?(\d+)/g))
+    .map((match) => Number.parseInt(match[1], 10))
+    .filter((major) => Number.isFinite(major));
+  return majors.some((major) => major > 0);
+}
+
+function hasInstallScriptUpgradeBlocker(execution: DependencyRecord['execution'] | undefined): boolean {
+  const hooks = execution?.scripts?.hooks;
+  if (!hooks || hooks.length === 0) return false;
+  return hooks.includes('preinstall') || hooks.includes('install') || hooks.includes('postinstall');
+}
+
 function buildUpgradeBlock(
   insights: PackageInsights
-): { blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; blocksNodeMajor: boolean } | undefined {
-  const blockers: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'> = [];
-  if (insights.nodeEngine) blockers.push('nodeEngine');
-  if (Object.keys(insights.declaredDependencies.peer).length > 0) blockers.push('peerDependency');
-  if (insights.execution?.native) blockers.push('nativeBindings');
+): { blockers: UpgradeBlocker[]; blocksNodeMajor?: true } | undefined {
+  const blockers: UpgradeBlocker[] = [];
+  const hasNodeEngineBlocker = hasNodeEngineUpgradeBlocker(insights.nodeEngine);
+  const hasNativeBindingsBlocker = Boolean(insights.execution?.native);
+  const hasInstallScriptBlocker = hasInstallScriptUpgradeBlocker(insights.execution);
+
+  if (hasNodeEngineBlocker) blockers.push('nodeEngine');
+  if (insights.requiredPeerDependencies > 0) blockers.push('peerDependency');
+  if (hasNativeBindingsBlocker) blockers.push('nativeBindings');
+  if (hasInstallScriptBlocker) blockers.push('installScripts');
   if (insights.deprecated) blockers.push('deprecated');
 
   if (blockers.length === 0) return undefined;
+  const blocksNodeMajor = hasNodeEngineBlocker || hasNativeBindingsBlocker || hasInstallScriptBlocker;
   return {
-    blocksNodeMajor: true,
-    blockers
+    blockers,
+    ...(blocksNodeMajor ? { blocksNodeMajor: true as const } : {})
   };
 }
 
@@ -1086,6 +1133,7 @@ interface PackageStats {
 interface PackageInsights {
   deprecated: boolean;
   nodeEngine: string | null;
+  requiredPeerDependencies: number;
   description?: string;
   fileCount?: number;
   hasBin: boolean;
@@ -1116,6 +1164,7 @@ async function gatherPackageInsights(
     return {
       deprecated: false,
       nodeEngine: null,
+      requiredPeerDependencies: 0,
       hasBin: false,
       declaredDependencies: { dep: {}, dev: {}, peer: {}, opt: {} },
       tsTypes: 'unknown'
@@ -1124,12 +1173,14 @@ async function gatherPackageInsights(
   const pkg = meta?.pkg || {};
   const dir = meta?.dir;
   const stats = dir ? await calculatePackageStats(dir, statCache) : undefined;
+  const peerDependencies = normalizeDeclaredDeps(pkg.peerDependencies);
   const declaredDependencies = {
     dep: normalizeDeclaredDeps(pkg.dependencies),
     dev: normalizeDeclaredDeps(pkg.devDependencies),
-    peer: normalizeDeclaredDeps(pkg.peerDependencies),
+    peer: peerDependencies,
     opt: normalizeDeclaredDeps(pkg.optionalDependencies)
   };
+  const requiredPeerDependencies = countRequiredPeerDependencies(peerDependencies, pkg.peerDependenciesMeta);
 
   const scripts = pkg.scripts || {};
   const deprecated = Boolean(pkg.deprecated);
@@ -1147,6 +1198,7 @@ async function gatherPackageInsights(
   return {
     deprecated,
     nodeEngine,
+    requiredPeerDependencies,
     description,
     ...(typeof stats?.fileCount === 'number' ? { fileCount: stats.fileCount } : {}),
     hasBin,
@@ -1166,6 +1218,27 @@ function normalizeDeclaredDeps(source: any): Record<string, string> {
     out[name] = range.trim();
   }
   return out;
+}
+
+function countRequiredPeerDependencies(
+  peerDependencies: Record<string, string>,
+  peerDependenciesMeta: any
+): number {
+  if (!peerDependencies || Object.keys(peerDependencies).length === 0) return 0;
+  const meta = peerDependenciesMeta && typeof peerDependenciesMeta === 'object'
+    ? peerDependenciesMeta
+    : {};
+  let count = 0;
+  for (const peerName of Object.keys(peerDependencies)) {
+    const peerMeta = meta[peerName];
+    const optional = Boolean(
+      peerMeta &&
+      typeof peerMeta === 'object' &&
+      peerMeta.optional === true
+    );
+    if (!optional) count += 1;
+  }
+  return count;
 }
 
 function hasPackageBin(binField: any): boolean {

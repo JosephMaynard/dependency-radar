@@ -86,7 +86,7 @@ export interface DependencyRecord {
     nodeEngine: string | null;
     outdatedStatus?: OutdatedStatus;
     latestVersion?: string;
-    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
   };
   usage: {

@@ -813,6 +813,7 @@ function renderDepDetails(
     nodeEngine: 'Node engine constraint',
     peerDependency: 'Peer dependency constraints',
     nativeBindings: 'Native bindings/build tooling',
+    installScripts: 'Install lifecycle scripts',
     deprecated: 'Deprecated by author'
   };
   const blockers = dep.upgrade.blockers?.length

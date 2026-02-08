@@ -86,17 +86,50 @@ These two fields are inferred from local signals. They are intended as review hi
 1. If dependency is direct => `direct`
 2. If `runtimeImpact` is `testing` => `testing`
 3. If `runtimeImpact` is `tooling` or `build` => `tooling`
-4. If inferred scope is `dev` or `peer` => `tooling`
-5. If all root-cause direct dependencies are in a tooling allowlist => `tooling`
-6. If any root-cause direct dependency is in a framework allowlist => `framework`
-7. If root causes exist but none of the above match => `transitive`
-8. Otherwise => `unknown`
+4. If inferred scope is `dev` => `tooling`
+5. If inferred scope is `peer` and `runtimeImpact` is not `runtime` => `tooling`
+6. If all root-cause direct dependencies are in a tooling allowlist => `tooling`
+7. If any root-cause direct dependency is in a framework allowlist => `framework`
+8. If root causes exist but none of the above match => `transitive`
+9. Otherwise => `unknown`
 
 ### Validity and limits
 
 - Valid as directional metadata for prioritization and triage.
 - Not valid as a definitive runtime/ownership model.
 - Accuracy depends on file naming conventions, static import detectability, and dependency graph quality from package manager output.
+
+## Upgrade Blockers Heuristic (`upgrade.blockers`, `upgrade.blocksNodeMajor`)
+
+`upgrade.blockers` is a local, static heuristic for upgrade friction. It does not run package code and does not query external APIs.
+
+### How blockers are collected
+
+For each installed dependency, Dependency Radar inspects local package metadata and install-surface signals and may add one or more blockers:
+
+- `nodeEngine`: Added when `package.json#engines.node` looks restrictive (for example `>=16`, `^18`, `<20`, ranges with concrete major constraints). Permissive forms such as `*` and `>=0` are not flagged.
+- `peerDependency`: Added when the package declares at least one non-optional peer dependency (`peerDependencies`, excluding peers marked `peerDependenciesMeta.<name>.optional: true`).
+- `nativeBindings`: Added when native build/binary surface is detected (`binding.gyp`, `.node` binaries, or native build tooling in scripts such as `node-gyp`/`prebuild`).
+- `installScripts`: Added when install lifecycle hooks are present (`preinstall`, `install`, or `postinstall`).
+- `deprecated`: Added when the package is marked deprecated in installed metadata.
+
+### `blocksNodeMajor` meaning
+
+`upgrade.blocksNodeMajor` is only emitted when local signals suggest Node major upgrades may be risky for that package. It is set from a subset of blockers:
+
+- `nodeEngine`
+- `nativeBindings`
+- `installScripts`
+
+It is not set from `peerDependency` or `deprecated` alone.
+
+### Accuracy and limits
+
+- High signal: `nativeBindings`, `deprecated`, and non-optional `peerDependency` are generally reliable local indicators.
+- Medium signal: `nodeEngine` is heuristic range parsing; unusual semver expressions may be under- or over-classified.
+- Medium signal: `installScripts` indicates lifecycle execution surface, not guaranteed breakage.
+- The field represents friction likelihood, not a guaranteed upgrade failure.
+- Future versions may expand blocker categories; consumers should handle unknown blocker strings defensively.
 
 ## License Scanning
 
@@ -334,8 +367,8 @@ export interface DependencyRecord {
     nodeEngine: string | null; // engines.node from the package.json (if present)
     outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (if present)
     latestVersion?: string; // npm latest version (present only when status is not current)
-    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; // Reasons for upgrade friction
-    blocksNodeMajor?: boolean; // True if local signals indicate a node major bump is risky
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>; // Reasons for upgrade friction
+    blocksNodeMajor?: boolean; // Present when local signals indicate a Node major bump is risky
   };
   usage: {
     direct: boolean; // True if declared in package.json (dependencies/devDependencies/etc.)
