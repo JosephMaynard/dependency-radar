@@ -706,7 +706,7 @@ function renderDepDetails(
       'Direct parents',
       renderDependencyIdList(dep.usage.origins.topParentPackages, 8, linkableKeys, keysByName)
     ),
-    renderKvItem('Direct parents', dep.usage.origins.parentPackageCount ?? 0),
+    renderKvItem('Direct parents count', dep.usage.origins.parentPackageCount ?? 0),
     renderKvItem('TypeScript types (tsTypes)', tsTypesLabel(dep.usage.tsTypes))
   ].filter(Boolean);
 
