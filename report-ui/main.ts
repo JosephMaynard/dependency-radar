@@ -97,6 +97,224 @@ type NormalizedSecurity = {
   advisories?: DependencyRecord["security"]["advisories"];
 };
 
+// =============================================================================
+// COLUMN CONFIGURATION - Single source of truth for all columns
+// =============================================================================
+// To add/remove/reorder columns, edit this array. The entire UI adapts automatically.
+// Package name is always first and handled separately.
+
+interface ColumnConfig {
+  /** Unique identifier for the column (used for sorting state) */
+  id: string;
+  /** Display label shown in column header and mobile badge labels */
+  label: string;
+  /** Key used for sort state (may differ from id for grouped sorts) */
+  sortKey: string;
+  /** Extract display value from a dependency record */
+  getValue: (dep: DependencyRecord) => string;
+  /** Get color tone: "green" | "amber" | "red" | "gray" */
+  getTone: (dep: DependencyRecord) => string;
+  /** Custom sort comparator (ascending order). If not provided, uses string comparison of getValue */
+  sortFn?: (a: DependencyRecord, b: DependencyRecord) => number;
+}
+
+// Helper functions for column config (defined here to avoid circular dependencies)
+function getColumnLicenseCategory(
+  license: string | undefined | null,
+): LicenseCategory {
+  if (!license) return "unknown";
+  const normalized = license.toUpperCase();
+  for (const [cat, licenses] of Object.entries(LICENSE_CATEGORIES)) {
+    if (licenses.some((l) => normalized.includes(l.toUpperCase())))
+      return cat as LicenseCategory;
+  }
+  return "unknown";
+}
+
+function getColumnScopeLabel(scope: string): string {
+  if (scope === "runtime") return "Runtime";
+  if (scope === "dev") return "Dev";
+  if (scope === "optional") return "Optional";
+  if (scope === "peer") return "Peer";
+  return scope;
+}
+
+function getColumnCapitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function getColumnPrimaryLicense(dep: DependencyRecord): {
+  value: string;
+  isInferred: boolean;
+} {
+  const info = dep.compliance.license;
+  const declared = info.declared?.valid ? info.declared.spdxId : undefined;
+  const inferred = info.inferred?.spdxId;
+  if (declared) return { value: declared, isInferred: false };
+  if (inferred) return { value: inferred, isInferred: true };
+  return { value: "Unknown", isInferred: false };
+}
+
+function getColumnNormalizeSecurity(dep: DependencyRecord): NormalizedSecurity {
+  const security = (dep as DependencyRecord & { security?: any }).security;
+  if (security?.summary) {
+    return {
+      summary: security.summary as SecuritySummary,
+      advisories: security.advisories,
+    };
+  }
+  if (security?.vulnerabilities) {
+    const vulns = security.vulnerabilities;
+    return {
+      summary: {
+        critical: Number(vulns.critical || 0),
+        high: Number(vulns.high || 0),
+        moderate: Number(vulns.moderate || 0),
+        low: Number(vulns.low || 0),
+        highest: (vulns.highest as Severity | "none") || "none",
+        risk: (security.vulnRisk || security.risk || "green") as
+          | "green"
+          | "amber"
+          | "red",
+      },
+      advisories: security.advisories,
+    };
+  }
+  return {
+    summary: {
+      critical: 0,
+      high: 0,
+      moderate: 0,
+      low: 0,
+      highest: "none",
+      risk: "green",
+    },
+    advisories: security?.advisories,
+  };
+}
+
+function getColumnHighestSeverity(summary: SecuritySummary): Severity | "none" {
+  return summary?.highest || "none";
+}
+
+function getColumnExecutionRiskTone(
+  execution: DependencyRecord["execution"] | undefined,
+): "green" | "amber" | "red" {
+  if (!execution) return "green";
+  return execution.risk || "green";
+}
+
+function getColumnExecutionRiskLabel(
+  execution: DependencyRecord["execution"] | undefined,
+): string {
+  if (!execution) return "Low";
+  return getColumnCapitalize(execution.risk || "low");
+}
+
+const licenseCategoryTone: Record<LicenseCategory, string> = {
+  permissive: "green",
+  weakCopyleft: "amber",
+  strongCopyleft: "red",
+  unknown: "gray",
+};
+
+const columnSeverityOrder: Record<Severity | "none", number> = {
+  none: 0,
+  low: 1,
+  moderate: 2,
+  high: 3,
+  critical: 4,
+};
+
+/**
+ * Column configuration array - THE SINGLE SOURCE OF TRUTH
+ * Edit this array to add, remove, or reorder columns.
+ * Both column headers and badge cards are generated from this config.
+ */
+const COLUMN_CONFIG: ColumnConfig[] = [
+  {
+    id: "type",
+    label: "Type",
+    sortKey: "type",
+    getValue: (dep) => (dep.usage.direct ? "Dependency" : "Sub-Dependency"),
+    getTone: (dep) => (dep.usage.direct ? "green" : "amber"),
+    sortFn: (a, b) =>
+      a.usage.direct === b.usage.direct ? 0 : a.usage.direct ? -1 : 1,
+  },
+  {
+    id: "scope",
+    label: "Scope",
+    sortKey: "scope",
+    getValue: (dep) => getColumnScopeLabel(dep.usage.scope),
+    getTone: (dep) =>
+      dep.usage.scope === "runtime"
+        ? "green"
+        : dep.usage.scope === "dev"
+          ? "amber"
+          : dep.usage.scope === "optional"
+            ? "amber"
+            : "gray",
+    sortFn: (a, b) => a.usage.scope.localeCompare(b.usage.scope),
+  },
+  {
+    id: "license",
+    label: "License",
+    sortKey: "license",
+    getValue: (dep) => {
+      const primary = getColumnPrimaryLicense(dep);
+      return primary.isInferred
+        ? `${primary.value} (inferred)`
+        : primary.value;
+    },
+    getTone: (dep) => {
+      const primary = getColumnPrimaryLicense(dep);
+      const category = getColumnLicenseCategory(primary.value);
+      return licenseCategoryTone[category];
+    },
+    sortFn: (a, b) => {
+      const aLicense = getColumnPrimaryLicense(a).value;
+      const bLicense = getColumnPrimaryLicense(b).value;
+      return aLicense.localeCompare(bLicense);
+    },
+  },
+  {
+    id: "vulns",
+    label: "Vulns",
+    sortKey: "severity",
+    getValue: (dep) => {
+      const severity = getColumnHighestSeverity(
+        getColumnNormalizeSecurity(dep).summary,
+      );
+      return getColumnCapitalize(severity);
+    },
+    getTone: (dep) => getColumnNormalizeSecurity(dep).summary.risk,
+    sortFn: (a, b) =>
+      columnSeverityOrder[
+        getColumnHighestSeverity(getColumnNormalizeSecurity(b).summary)
+      ] -
+      columnSeverityOrder[
+        getColumnHighestSeverity(getColumnNormalizeSecurity(a).summary)
+      ],
+  },
+  {
+    id: "install",
+    label: "Install",
+    sortKey: "install",
+    getValue: (dep) => getColumnExecutionRiskLabel(dep.execution),
+    getTone: (dep) => getColumnExecutionRiskTone(dep.execution),
+    sortFn: (a, b) => {
+      const riskOrder = { green: 0, amber: 1, red: 2 };
+      const aRisk = getColumnExecutionRiskTone(a.execution);
+      const bRisk = getColumnExecutionRiskTone(b.execution);
+      return riskOrder[aRisk] - riskOrder[bRisk];
+    },
+  },
+];
+
+// Export column count for CSS variable
+const COLUMN_COUNT = COLUMN_CONFIG.length;
+
 function getLicenseCategory(
   license: string | undefined | null,
 ): LicenseCategory {
@@ -265,6 +483,71 @@ function badgeCard(label: string, value: string, tone: string): string {
     escapeHtml(value) +
     "</span>" +
     "</div>"
+  );
+}
+
+/**
+ * Render badges from COLUMN_CONFIG for a dependency
+ * This is the config-driven replacement for the hardcoded badges array
+ */
+function renderBadgesFromConfig(dep: DependencyRecord): string {
+  return COLUMN_CONFIG.map((col) =>
+    badgeCard(col.label, col.getValue(dep), col.getTone(dep)),
+  ).join("");
+}
+
+/**
+ * Render column headers for the sticky filter bar
+ * Returns HTML string for the column headers row (only for badge columns, not package name)
+ */
+function renderColumnHeaders(
+  sortColumn: string,
+  sortAscending: boolean,
+): string {
+  // Only render headers for badge columns - these align with the dep-indicators grid
+  const headers = COLUMN_CONFIG.map((col) =>
+    renderSingleColumnHeader(col.sortKey, col.label, sortColumn, sortAscending),
+  ).join("");
+
+  return (
+    '<div class="column-headers" style="--column-count: ' +
+    COLUMN_COUNT +
+    '">' +
+    headers +
+    "</div>"
+  );
+}
+
+
+function renderSingleColumnHeader(
+  sortKey: string,
+  label: string,
+  currentSortColumn: string,
+  sortAscending: boolean,
+): string {
+  const isActive = currentSortColumn === sortKey;
+  const sortIndicator = isActive ? (sortAscending ? " ▲" : " ▼") : "";
+  const activeClass = isActive ? " sorted" : "";
+  const directionClass = isActive
+    ? sortAscending
+      ? " sorted-asc"
+      : " sorted-desc"
+    : "";
+
+  return (
+    '<button type="button" class="column-header' +
+    activeClass +
+    directionClass +
+    '" data-sort="' +
+    escapeHtml(sortKey) +
+    '">' +
+    '<span class="column-header-label">' +
+    escapeHtml(label) +
+    "</span>" +
+    '<span class="sort-indicator">' +
+    sortIndicator +
+    "</span>" +
+    "</button>"
   );
 }
 
@@ -858,53 +1141,15 @@ function renderAdvisoriesTable(
 function renderDep(dep: DependencyRecord): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
-  const primaryLicense = resolvePrimaryLicense(dep);
-  const licenseText = primaryLicense.isInferred
-    ? `${primaryLicense.value} (inferred)`
-    : primaryLicense.value;
-  const licenseCategory = getLicenseCategory(primaryLicense.value);
   const highestRisk = getHighestRisk(
     securitySummary,
     dep.compliance.licenseRisk,
   );
-  const severity = highestSeverity(securitySummary);
   const depKey = getDepKey(dep.package.name, dep.package.version);
   const domId = getDepDomId(depKey);
 
-  const licenseCategoryDisplay: Record<
-    LicenseCategory,
-    { text: string; class: string }
-  > = {
-    permissive: { text: "Permissive", class: "green" },
-    weakCopyleft: { text: "Weak Copyleft", class: "amber" },
-    strongCopyleft: { text: "Strong Copyleft", class: "red" },
-    unknown: { text: "Unknown", class: "gray" },
-  };
-
-  const depTypeText = dep.usage.direct ? "Dependency" : "Sub-Dependency";
-  const depTypeClass = dep.usage.direct ? "green" : "amber";
-  const scopeTone =
-    dep.usage.scope === "runtime"
-      ? "green"
-      : dep.usage.scope === "dev"
-        ? "amber"
-        : dep.usage.scope === "optional"
-          ? "amber"
-          : "gray";
-  const executionTone = executionRiskTone(dep.execution);
-  const executionLabel = executionRiskLabel(dep.execution);
-
-  const badges = [
-    badgeCard("Type", depTypeText, depTypeClass),
-    badgeCard("Scope", scopeLabel(dep.usage.scope), scopeTone),
-    badgeCard(
-      "License",
-      licenseText,
-      licenseCategoryDisplay[licenseCategory].class,
-    ),
-    badgeCard("Vulnerabilities", capitalize(severity), securitySummary.risk),
-    badgeCard("Install", executionLabel, executionTone),
-  ];
+  // Use config-driven badge rendering
+  const badges = renderBadgesFromConfig(dep);
 
   const summary = [
     '<summary class="dep-summary">',
@@ -914,8 +1159,8 @@ function renderDep(dep: DependencyRecord): string {
       '<span class="dep-version">@' +
       escapeHtml(dep.package.version) +
       "</span></span>",
-    '<div class="dep-indicators">',
-    badges.join(""),
+    '<div class="dep-indicators" style="--column-count: ' + COLUMN_COUNT + '">',
+    badges,
     "</div>",
     "</summary>",
   ].join("");
@@ -933,6 +1178,7 @@ function renderDep(dep: DependencyRecord): string {
     "</details>",
   ].join("");
 }
+
 
 function renderDepDetails(
   dep: DependencyRecord,
@@ -1339,9 +1585,16 @@ async function init(): Promise<void> {
     licenseFriendly: document.getElementById(
       "license-friendly",
     ) as HTMLButtonElement,
+    // New controls for redesigned filter bar
+    filtersToggle: document.getElementById("filters-toggle") as HTMLButtonElement,
+    filterControls: document.getElementById("filter-controls") as HTMLElement,
+    columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
   };
 
+  // Sorting state - "name" is the default (Package name ascending)
+  let sortColumn = "name";
   let sortAscending = true;
+
 
   // Theme handling
   const savedTheme = localStorage.getItem("dependency-radar-theme");
@@ -1363,12 +1616,70 @@ async function init(): Promise<void> {
     controls.licensePanel.classList.toggle("open");
   });
 
-  // Sort direction toggle
+  // Mobile filters toggle
+  if (controls.filtersToggle && controls.filterControls) {
+    controls.filtersToggle.addEventListener("click", () => {
+      const isOpen = controls.filterControls.classList.toggle("open");
+      controls.filtersToggle.classList.toggle("open", isOpen);
+      controls.filtersToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+  }
+
+  // Sort direction toggle (for mobile dropdown)
   controls.sortDirection.addEventListener("click", () => {
     sortAscending = !sortAscending;
     controls.sortDirection.textContent = sortAscending ? "↑" : "↓";
+    updateColumnHeaders();
     renderList();
   });
+
+  // Mobile sort dropdown change - sync with column-based sorting
+  controls.sort.addEventListener("change", () => {
+    sortColumn = controls.sort.value;
+    updateColumnHeaders();
+    renderList();
+  });
+
+  // Function to update column headers display
+  function updateColumnHeaders(): void {
+    if (controls.columnHeadersContainer) {
+      controls.columnHeadersContainer.innerHTML = renderColumnHeaders(sortColumn, sortAscending);
+    }
+  }
+
+  // Handle column header clicks for sorting
+  function handleColumnHeaderClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    const button = target.closest(".column-header") as HTMLButtonElement | null;
+    if (!button) return;
+
+    const clickedSortKey = button.dataset.sort;
+    if (!clickedSortKey) return;
+
+    if (sortColumn === clickedSortKey) {
+      // Same column - toggle direction
+      sortAscending = !sortAscending;
+    } else {
+      // Different column - set new column, ascending by default
+      sortColumn = clickedSortKey;
+      sortAscending = true;
+    }
+
+    // Sync mobile dropdown
+    if (controls.sort) {
+      controls.sort.value = sortColumn;
+      controls.sortDirection.textContent = sortAscending ? "↑" : "↓";
+    }
+
+    updateColumnHeaders();
+    renderList();
+  }
+
+  // Attach column header click listener (delegated)
+  if (controls.columnHeadersContainer) {
+    controls.columnHeadersContainer.addEventListener("click", handleColumnHeaderClick);
+  }
+
 
   // License quick actions
   controls.licenseAll.addEventListener("click", () => {
@@ -1518,24 +1829,32 @@ async function init(): Promise<void> {
   }
 
   function sortDeps(deps: DependencyRecord[]): DependencyRecord[] {
-    const sortBy = controls.sort.value;
     const sorted = [...deps];
 
-    if (sortBy === "name") {
+    // Special cases: name and depth are not in COLUMN_CONFIG
+    if (sortColumn === "name") {
       sorted.sort((a, b) => a.package.name.localeCompare(b.package.name));
-    } else if (sortBy === "depth") {
+    } else if (sortColumn === "depth") {
       sorted.sort((a, b) => a.usage.depth - b.usage.depth);
-    } else if (sortBy === "severity") {
-      sorted.sort(
-        (a, b) =>
-          severityOrder[highestSeverity(normalizeSecurity(b).summary)] -
-          severityOrder[highestSeverity(normalizeSecurity(a).summary)],
+    } else {
+      // Look up sort function from COLUMN_CONFIG
+      const columnConfig = COLUMN_CONFIG.find(
+        (col) => col.sortKey === sortColumn || col.id === sortColumn,
       );
+      if (columnConfig?.sortFn) {
+        sorted.sort(columnConfig.sortFn);
+      } else if (columnConfig) {
+        // Fallback: sort by string value
+        sorted.sort((a, b) =>
+          columnConfig.getValue(a).localeCompare(columnConfig.getValue(b)),
+        );
+      }
     }
 
     if (!sortAscending) sorted.reverse();
     return sorted;
   }
+
 
   function renderList(): void {
     const filtered = applyFilters();
@@ -1691,9 +2010,11 @@ async function init(): Promise<void> {
       activateRootPackageLink(rootLink);
     }
   });
-
+  // Initial render
+  updateColumnHeaders();
   renderList();
 }
+
 
 // Initialize on DOM ready
 if (document.readyState === "loading") {
