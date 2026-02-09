@@ -681,6 +681,15 @@ details[open] > summary .expand-icon {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   line-height: 1.1;
+
+  clip: rect(1px, 1px, 1px, 1px);
+  clip-path: inset(50%);
+  height: 1px;
+  width: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
 }
 
 .badge-value {
@@ -1430,6 +1439,14 @@ details[open] > summary .expand-icon {
   }
   
   .badge-label {
+    clip: none;
+    clip-path: none;
+    height: auto;
+    width: auto;
+    margin: 0;
+    overflow: auto;
+    padding: 0;
+    position: relative;
     font-size: 7px;
   }
 
