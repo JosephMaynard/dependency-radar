@@ -232,7 +232,7 @@ body {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(12px);
-  padding: 12px 24px;
+  padding: 12px 24px 4px 24px;
   transition: background var(--transition), border-color var(--transition);
 }
 
@@ -536,7 +536,7 @@ select:focus {
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 16px 24px 48px;
+  padding: 8px 24px 48px;
 }
 
 .report-footer {
@@ -551,8 +551,34 @@ select:focus {
   margin: 8px 0 0;
 }
 
+.dep-card-headings {
+  max-width: calc(1400px - 3rem);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 12px 0 0 12px;
+}
+
+.dep-indicators-headings {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 60%;
+}
+
+.dep-card-heading {
+  border-left: 1px solid var(--border-color);
+  padding-left: 1rem;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1.1;
+}
+
 .results-summary {
-  margin-bottom: 16px;
   font-size: 14px;
   color: var(--text-secondary);
 }
@@ -1453,6 +1479,10 @@ details[open] > summary .expand-icon {
   .declared-row {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .dep-indicators-headings {
+    display: none;
   }
 }
 
