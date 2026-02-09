@@ -1589,6 +1589,7 @@ async function init(): Promise<void> {
     filtersToggle: document.getElementById("filters-toggle") as HTMLButtonElement,
     filterControls: document.getElementById("filter-controls") as HTMLElement,
     columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
+    packageHeader: document.getElementById("package-header") as HTMLButtonElement,
   };
 
   // Sorting state - "name" is the default (Package name ascending)
@@ -1645,6 +1646,19 @@ async function init(): Promise<void> {
     if (controls.columnHeadersContainer) {
       controls.columnHeadersContainer.innerHTML = renderColumnHeaders(sortColumn, sortAscending);
     }
+    // Update package header sort indicator
+    if (controls.packageHeader) {
+      const indicator = controls.packageHeader.querySelector(".sort-indicator");
+      if (indicator) {
+        if (sortColumn === "name") {
+          indicator.textContent = sortAscending ? " ▲" : " ▼";
+          controls.packageHeader.classList.add("sorted");
+        } else {
+          indicator.textContent = "";
+          controls.packageHeader.classList.remove("sorted");
+        }
+      }
+    }
   }
 
   // Handle column header clicks for sorting
@@ -1680,6 +1694,13 @@ async function init(): Promise<void> {
     controls.columnHeadersContainer.addEventListener("click", handleColumnHeaderClick);
   }
 
+  // Attach package header click listener
+  if (controls.packageHeader) {
+    controls.packageHeader.addEventListener("click", handleColumnHeaderClick);
+  }
+
+  // Initialize column headers (including package header indicator)
+  updateColumnHeaders();
 
   // License quick actions
   controls.licenseAll.addEventListener("click", () => {

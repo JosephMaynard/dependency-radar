@@ -332,6 +332,10 @@ select:focus {
   gap: 4px;
 }
 
+.sort-wrapper select {
+  margin-left: auto;
+}
+
 .sort-direction-btn {
   padding: 8px;
   border: 1px solid var(--border-color);
@@ -568,17 +572,34 @@ select:focus {
   margin: 0 auto;
   display: flex;
   align-items: center;
-  padding: 12px 0 8px 12px;
+  padding: 12px 0 8px 14px;
+}
+
+/* Package header wrapper - takes the left ~40% */
+.package-header-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding-right: 1rem;
 }
 
 .results-summary {
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .results-summary strong {
   color: var(--text-primary);
+}
+
+/* Package header button - clickable for sorting by name */
+.package-header {
+  align-self: flex-start;
+  padding: 4px 8px 4px 0;
 }
 
 /* Container for dynamically generated column headers */
@@ -594,7 +615,6 @@ select:focus {
   grid-template-columns: repeat(5, 1fr);
   width: 100%;
 }
-
 
 
 /* Individual column header button */
@@ -615,6 +635,10 @@ select:focus {
   transition: color var(--transition);
   white-space: nowrap;
   line-height: 1.1;
+}
+
+.column-header-no-border {
+  border-left: none;
 }
 
 .column-header:hover {
@@ -1476,12 +1500,17 @@ details[open] > summary .expand-icon {
   
   /* Hide column headers on mobile - use sort dropdown instead */
   #column-headers-container,
-  .column-headers {
+  .column-headers,
+  .package-header {
     display: none;
   }
   
   .column-headers-section {
     padding: 8px 16px;
+  }
+  
+  .package-header-wrapper {
+    flex-direction: row;
   }
 
 
