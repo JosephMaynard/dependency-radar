@@ -252,8 +252,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 320px;
-  min-width: 260px;
+  flex: 0 0 280px;
+  min-width: 280px;
 }
 
 .filter-top-row .search-wrapper {
@@ -263,7 +263,7 @@ body {
 
 .filter-controls {
   display: block;
-  flex: 999 1 640px;
+  flex: 1 1 640px;
   min-width: 0;
 }
 
@@ -300,6 +300,11 @@ body {
 
 .filters-toggle.open .chevron {
   transform: rotate(180deg);
+}
+
+.filter-row > .column-headers-section {
+  flex: 0 0 100%;
+  width: 100%;
 }
 
 
@@ -1526,6 +1531,8 @@ details[open] > summary .expand-icon {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .search-wrapper {
@@ -1611,6 +1618,27 @@ details[open] > summary .expand-icon {
   }
   
   .column-headers-section {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition:
+      max-height 0.3s ease-out,
+      opacity 0.25s ease-out,
+      transform 0.25s ease-out,
+      margin-top 0.25s ease-out,
+      padding 0.25s ease-out;
+    margin-top: 0;
+    padding: 0 16px;
+  }
+
+  .filter-controls.open + .column-headers-section {
+    max-height: 120px;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    margin-top: 8px;
     padding: 8px 16px;
   }
   
