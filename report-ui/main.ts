@@ -280,7 +280,7 @@ const COLUMN_CONFIG: ColumnConfig[] = [
   },
   {
     id: "vulns",
-    label: "Vulns",
+    label: "Vulnerabilities",
     sortKey: "severity",
     getValue: (dep) => {
       const severity = getColumnHighestSeverity(
@@ -964,12 +964,6 @@ function toneToString(tone?: "red" | "amber" | "green"): string {
   if (tone === "red") return "High";
   if (tone === "amber") return "Medium";
   return "Low";
-}
-
-function executionRiskLabel(
-  execution: DependencyRecord["execution"] | undefined,
-): string {
-  return toneToString(executionRiskTone(execution));
 }
 
 function renderExecutionSection(

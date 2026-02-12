@@ -635,6 +635,7 @@ select:focus {
   transition: color var(--transition);
   white-space: nowrap;
   line-height: 1.1;
+  overflow: hidden;
 }
 
 .column-header-no-border {
