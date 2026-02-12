@@ -293,13 +293,23 @@ export interface AggregatedData {
     enabled: boolean; // True when the scan used workspace aggregation
     type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace type if detected
     packageCount?: number; // Number of workspace packages scanned
+    workspacePackages?: WorkspacePackage[]; // Lightweight first-party workspace metadata
   };
   summary: {
-    dependencyCount: number; // Total dependencies in the graph
-    directCount: number; // Dependencies listed in package.json
-    transitiveCount: number; // Dependencies pulled in by other dependencies
+    dependencyCount: number; // Total EXTERNAL dependencies in the graph
+    directCount: number; // External dependencies listed in package.json
+    transitiveCount: number; // External dependencies pulled in by other dependencies
   };
-  dependencies: Record<string, DependencyRecord>; // Keyed by name@version
+  dependencies: Record<string, DependencyRecord>; // External third-party packages keyed by name@version
+}
+
+export interface WorkspacePackage {
+  name: string; // Workspace package name from package.json
+  relativePath: string; // Workspace-relative path (e.g. apps/web)
+  directExternal: {
+    runtime: number; // Unique direct external deps from dependencies + optionalDependencies
+    dev: number; // Unique direct external deps from devDependencies
+  };
 }
 
 export interface DependencyRecord {

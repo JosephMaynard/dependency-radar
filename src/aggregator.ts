@@ -9,7 +9,8 @@ import {
   Severity,
   ToolResult,
   VulnerabilityAdvisory,
-  VulnerabilitySummary
+  VulnerabilitySummary,
+  WorkspacePackage
 } from './types';
 import {
   readPackageJson,
@@ -44,6 +45,11 @@ interface AggregateInput {
   workspaceEnabled: boolean;
   workspaceType?: PackageManager | 'none';
   workspacePackageCount?: number;
+  workspacePackages?: WorkspacePackage[];
+  workspacePackageNames?: Set<string>;
+  workspacePackageIds?: Set<string>;
+  workspacePackagePaths?: Set<string>;
+  workspaceLocalDependencyNames?: Set<string>;
   packageManager?: PackageManager;
   packageManagerVersion?: string;
   packageManagerField?: string;
@@ -135,6 +141,39 @@ function formatProjectDir(projectPath: string): string {
   return projectPath;
 }
 
+function isWorkspaceLocalVersion(version: string): boolean {
+  const normalized = version.trim().toLowerCase();
+  return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
+}
+
+function isPathWithin(basePath: string, candidatePath: string): boolean {
+  const normalizedBase = path.resolve(basePath);
+  const normalizedCandidate = path.resolve(candidatePath);
+  return (
+    normalizedCandidate === normalizedBase ||
+    normalizedCandidate.startsWith(`${normalizedBase}${path.sep}`)
+  );
+}
+
+function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean {
+  if (!input.workspaceEnabled) return false;
+  if (input.workspacePackageIds?.has(node.key)) return true;
+  if (isWorkspaceLocalVersion(node.version)) return true;
+  if (input.workspaceLocalDependencyNames?.has(node.name)) return true;
+
+  if (node.path && input.workspacePackagePaths && input.workspacePackagePaths.size > 0) {
+    for (const workspacePath of input.workspacePackagePaths) {
+      if (isPathWithin(workspacePath, node.path)) return true;
+    }
+  }
+
+  if (input.workspacePackageNames?.has(node.name) && node.depth <= 1) {
+    return true;
+  }
+
+  return false;
+}
+
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
   const pkg = input.pkgOverride || (await readPackageJson(input.projectPath));
 
@@ -157,7 +196,9 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const licenseCache = new Map<string, { license?: string; licenseText?: string }>();
   const nodeEngineRanges: string[] = [];
 
-  const nodes = Array.from(nodeMap.values());
+  const nodes = Array.from(nodeMap.values()).filter(
+    (node) => !isWorkspacePackageNode(node, input)
+  );
   let directCount = 0;
   const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
   const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
@@ -308,7 +349,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       ...(input.workspaceType ? { type: input.workspaceType } : {}),
       ...(typeof input.workspacePackageCount === 'number'
         ? { packageCount: input.workspacePackageCount }
-        : {})
+        : {}),
+      ...(input.workspacePackages ? { workspacePackages: input.workspacePackages } : {})
     },
     summary: {
       dependencyCount,

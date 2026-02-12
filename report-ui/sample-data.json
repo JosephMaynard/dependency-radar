@@ -14,7 +14,8 @@
     "minRequiredMajor": 18
   },
   "workspaces": {
-    "enabled": false
+    "enabled": false,
+    "workspacePackages": []
   },
   "summary": {
     "dependencyCount": 6,

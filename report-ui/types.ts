@@ -146,6 +146,16 @@ export interface AggregatedData {
   };
   workspaces: {
     enabled: boolean;
+    type?: 'npm' | 'pnpm' | 'yarn' | 'none';
+    packageCount?: number;
+    workspacePackages?: Array<{
+      name: string;
+      relativePath: string;
+      directExternal: {
+        runtime: number;
+        dev: number;
+      };
+    }>;
   };
   summary: {
     dependencyCount: number;

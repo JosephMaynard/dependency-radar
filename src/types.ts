@@ -172,6 +172,15 @@ export interface OutdatedResult {
   unknownNames: string[];
 }
 
+export interface WorkspacePackage {
+  name: string;
+  relativePath: string;
+  directExternal: {
+    runtime: number;
+    dev: number;
+  };
+}
+
 export interface AggregatedData {
   schemaVersion: '1.2';
   generatedAt: string;
@@ -202,6 +211,7 @@ export interface AggregatedData {
     enabled: boolean;
     type?: PackageManager | 'none';
     packageCount?: number;
+    workspacePackages?: WorkspacePackage[];
   };
   summary: {
     dependencyCount: number;
