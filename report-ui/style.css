@@ -239,10 +239,67 @@ body {
 .filter-bar-inner {
   max-width: 1360px;
   margin: 0 auto;
+}
+
+.filter-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+}
+
+.filter-top-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
+.filter-top-row .search-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-controls {
+  display: block;
+  flex: 999 1 640px;
+  min-width: 0;
+}
+
+.filter-controls-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filters-toggle {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.filters-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filters-toggle .chevron {
+  transition: transform var(--transition);
+}
+
+.filters-toggle.open .chevron {
+  transform: rotate(180deg);
 }
 
 
@@ -1461,14 +1518,52 @@ details[open] > summary .expand-icon {
     padding: 10px 16px;
   }
   
-  .filter-bar-inner {
+  .filter-row {
+    display: block;
+  }
+  
+  .filter-top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search-wrapper {
+    max-width: none;
+  }
+
+  .filters-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .filter-controls {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition:
+      max-height 0.3s ease-out,
+      opacity 0.25s ease-out,
+      transform 0.25s ease-out,
+      margin-top 0.25s ease-out;
+    margin-top: 0;
+  }
+
+  .filter-controls.open {
+    max-height: 900px;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    margin-top: 10px;
+  }
+
+  .filter-controls-row {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
-  }
-  
-  .search-wrapper {
-    max-width: none;
   }
   
   .filter-group {
@@ -1493,10 +1588,19 @@ details[open] > summary .expand-icon {
     margin-left: auto;
   }
   
-  /* License toggle full width on mobile */
+  /* License toggle is replaced by always-open panel on mobile */
   .license-filter-toggle {
-    width: 100%;
-    justify-content: space-between;
+    display: none;
+  }
+
+  .license-filter-panel,
+  .license-filter-panel.open {
+    max-height: 520px;
+    border-bottom-color: var(--border-color);
+  }
+
+  .license-filter-inner {
+    padding: 12px 0 10px;
   }
   
   /* Hide column headers on mobile - use sort dropdown instead */

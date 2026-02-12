@@ -194,110 +194,127 @@ ${report_assets_1.CSS_CONTENT}
   <!-- Sticky Filter Bar -->
   <div class="filter-bar">
     <div class="filter-bar-inner">
-      <div class="search-wrapper">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input type="search" id="search" placeholder="Search packages..." />
-      </div>
-      
-      <div class="filter-group">
-        <span class="filter-label">Type</span>
-        <select id="direct-filter">
-          <option value="all">All</option>
-          <option value="direct">Dependency</option>
-          <option value="transitive">Sub-Dependency</option>
-        </select>
-      </div>
-      
-      <div class="filter-group">
-        <span class="filter-label">Scope</span>
-        <select id="runtime-filter">
-          <option value="all">All</option>
-          <option value="runtime">Runtime</option>
-          <option value="dev">Dev</option>
-          <option value="optional">Optional</option>
-          <option value="peer">Peer</option>
-        </select>
-      </div>
-      
-      <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
-      <div class="filter-group sort-wrapper mobile-only" id="mobile-sort">
-        <span class="filter-label">SORT</span>
-        <select id="sort-by">
-          <option value="name">Name</option>
-          <option value="type">Type</option>
-          <option value="scope">Scope</option>
-          <option value="license">License</option>
-          <option value="severity">Severity</option>
-          <option value="install">Install</option>
-          <option value="depth">Depth</option>
-        </select>
-        <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
-      </div>
-      
-      <button type="button" class="license-filter-toggle" id="license-toggle">
-        License Categories
-        <span class="chevron">▼</span>
-      </button>
-      
-      <label class="checkbox-filter">
-        <input type="checkbox" id="has-vulns" />
-        Has vulnerabilities
-      </label>
-      
-      <div class="theme-toggle">
-        <span class="theme-toggle-label">Theme</span>
-        <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
-      </div>
-    </div>
-    
-    <!-- Collapsible License Filter Panel -->
-    <div class="license-filter-panel" id="license-panel">
-      <div class="license-filter-inner">
-        <div class="license-filter-header">
-          <span class="license-filter-title">Filter by License Type</span>
-          <div class="license-quick-actions">
-            <button type="button" class="quick-action-btn" id="license-all">Show All</button>
-            <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
+      <div class="filter-row">
+        <div class="filter-top-row">
+          <button
+            type="button"
+            class="filters-toggle"
+            id="filters-toggle"
+            aria-expanded="false"
+          >
+            Filters
+            <span class="chevron">▼</span>
+          </button>
+          <div class="search-wrapper">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="search" id="search" placeholder="Search packages..." />
           </div>
         </div>
-        <div class="license-groups">
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-permissive" checked />
-            <span class="license-dot permissive"></span>
-            Permissive (MIT, BSD, Apache, ISC)
-          </label>
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-weak-copyleft" checked />
-            <span class="license-dot weak-copyleft"></span>
-            Weak Copyleft (LGPL, MPL, EPL)
-          </label>
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-strong-copyleft" checked />
-            <span class="license-dot strong-copyleft"></span>
-            Strong Copyleft (GPL, AGPL)
-          </label>
-          <label class="license-group-checkbox">
-            <input type="checkbox" id="license-unknown" checked />
-            <span class="license-dot unknown"></span>
-            Other / Unknown
-          </label>
+
+        <div class="filter-controls" id="filter-controls">
+          <div class="filter-controls-row">
+            <div class="filter-group">
+              <span class="filter-label">Type</span>
+              <select id="direct-filter">
+                <option value="all">All</option>
+                <option value="direct">Dependency</option>
+                <option value="transitive">Sub-Dependency</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <span class="filter-label">Scope</span>
+              <select id="runtime-filter">
+                <option value="all">All</option>
+                <option value="runtime">Runtime</option>
+                <option value="dev">Dev</option>
+                <option value="optional">Optional</option>
+                <option value="peer">Peer</option>
+              </select>
+            </div>
+
+            <button type="button" class="license-filter-toggle" id="license-toggle">
+              License Categories
+              <span class="chevron">▼</span>
+            </button>
+
+            <label class="checkbox-filter">
+              <input type="checkbox" id="has-vulns" />
+              Has vulnerabilities
+            </label>
+
+            <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
+            <div class="filter-group sort-wrapper mobile-only" id="mobile-sort">
+              <span class="filter-label">SORT</span>
+              <select id="sort-by">
+                <option value="name">Name</option>
+                <option value="type">Type</option>
+                <option value="scope">Scope</option>
+                <option value="license">License</option>
+                <option value="severity">Severity</option>
+                <option value="install">Install</option>
+                <option value="depth">Depth</option>
+              </select>
+              <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
+            </div>
+
+            <div class="theme-toggle">
+              <span class="theme-toggle-label">Theme</span>
+              <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
+            </div>
+          </div>
+
+          <!-- Collapsible License Filter Panel -->
+          <div class="license-filter-panel" id="license-panel">
+            <div class="license-filter-inner">
+              <div class="license-filter-header">
+                <span class="license-filter-title">Filter by License Type</span>
+                <div class="license-quick-actions">
+                  <button type="button" class="quick-action-btn" id="license-all">Show All</button>
+                  <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
+                </div>
+              </div>
+              <div class="license-groups">
+                <label class="license-group-checkbox">
+                  <input type="checkbox" id="license-permissive" checked />
+                  <span class="license-dot permissive"></span>
+                  Permissive (MIT, BSD, Apache, ISC)
+                </label>
+                <label class="license-group-checkbox">
+                  <input type="checkbox" id="license-weak-copyleft" checked />
+                  <span class="license-dot weak-copyleft"></span>
+                  Weak Copyleft (LGPL, MPL, EPL)
+                </label>
+                <label class="license-group-checkbox">
+                  <input type="checkbox" id="license-strong-copyleft" checked />
+                  <span class="license-dot strong-copyleft"></span>
+                  Strong Copyleft (GPL, AGPL)
+                </label>
+                <label class="license-group-checkbox">
+                  <input type="checkbox" id="license-unknown" checked />
+                  <span class="license-dot unknown"></span>
+                  Other / Unknown
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results summary and column headers row -->
+          <div class="column-headers-section">
+            <div class="package-header-wrapper">
+              <div class="results-summary" id="results-summary"></div>
+              <button type="button" class="column-header package-header column-header-no-border" data-sort="name" id="package-header">
+                PACKAGE
+                <span class="sort-indicator"></span>
+              </button>
+            </div>
+            <!-- Column headers are dynamically generated by JavaScript from COLUMN_CONFIG -->
+            <div id="column-headers-container"></div>
+          </div>
         </div>
       </div>
-    </div>
-
-    <!-- Results summary and column headers row -->
-    <div class="column-headers-section">
-      <div class="package-header-wrapper">
-        <div class="results-summary" id="results-summary"></div>
-        <button type="button" class="column-header package-header column-header-no-border" data-sort="name" id="package-header">
-          PACKAGE
-          <span class="sort-indicator"></span>
-        </button>
-      </div>
-      <!-- Column headers are dynamically generated by JavaScript from COLUMN_CONFIG -->
-      <div id="column-headers-container"></div>
     </div>
   </div>
   

@@ -1605,8 +1605,37 @@ async function init(): Promise<void> {
     localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
   });
 
+  const mobileFilterQuery = window.matchMedia("(max-width: 768px)");
+  let lastViewportWasMobile = mobileFilterQuery.matches;
+  const setFiltersOpen = (isOpen: boolean): void => {
+    if (!controls.filterControls || !controls.filtersToggle) return;
+    controls.filterControls.classList.toggle("open", isOpen);
+    controls.filtersToggle.classList.toggle("open", isOpen);
+    controls.filtersToggle.setAttribute("aria-expanded", String(isOpen));
+  };
+
+  const syncResponsiveFilterState = (): void => {
+    const isMobile = mobileFilterQuery.matches;
+    if (isMobile) {
+      // Mobile defaults to collapsed controls and always-open license section.
+      setFiltersOpen(false);
+      controls.licensePanel.classList.add("open");
+      controls.licenseToggle.classList.add("open");
+      lastViewportWasMobile = true;
+      return;
+    }
+    if (lastViewportWasMobile) {
+      // Reset classes when moving back to desktop from mobile.
+      setFiltersOpen(false);
+      controls.licensePanel.classList.remove("open");
+      controls.licenseToggle.classList.remove("open");
+    }
+    lastViewportWasMobile = false;
+  };
+
   // License panel toggle
   controls.licenseToggle.addEventListener("click", () => {
+    if (mobileFilterQuery.matches) return;
     controls.licenseToggle.classList.toggle("open");
     controls.licensePanel.classList.toggle("open");
   });
@@ -1614,11 +1643,13 @@ async function init(): Promise<void> {
   // Mobile filters toggle
   if (controls.filtersToggle && controls.filterControls) {
     controls.filtersToggle.addEventListener("click", () => {
-      const isOpen = controls.filterControls.classList.toggle("open");
-      controls.filtersToggle.classList.toggle("open", isOpen);
-      controls.filtersToggle.setAttribute("aria-expanded", String(isOpen));
+      const isOpen = !controls.filterControls.classList.contains("open");
+      setFiltersOpen(isOpen);
     });
   }
+
+  window.addEventListener("resize", syncResponsiveFilterState);
+  syncResponsiveFilterState();
 
   // Sort direction toggle (for mobile dropdown)
   controls.sortDirection.addEventListener("click", () => {
