@@ -69,6 +69,37 @@ function formatProjectDir(projectPath) {
     }
     return projectPath;
 }
+function isWorkspaceLocalVersion(version) {
+    const normalized = version.trim().toLowerCase();
+    return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
+}
+function isPathWithin(basePath, candidatePath) {
+    const normalizedBase = path_1.default.resolve(basePath);
+    const normalizedCandidate = path_1.default.resolve(candidatePath);
+    return (normalizedCandidate === normalizedBase ||
+        normalizedCandidate.startsWith(`${normalizedBase}${path_1.default.sep}`));
+}
+function isWorkspacePackageNode(node, input) {
+    var _a, _b, _c;
+    if (!input.workspaceEnabled)
+        return false;
+    if ((_a = input.workspacePackageIds) === null || _a === void 0 ? void 0 : _a.has(node.key))
+        return true;
+    if (isWorkspaceLocalVersion(node.version))
+        return true;
+    if ((_b = input.workspaceLocalDependencyNames) === null || _b === void 0 ? void 0 : _b.has(node.name))
+        return true;
+    if (node.path && input.workspacePackagePaths && input.workspacePackagePaths.size > 0) {
+        for (const workspacePath of input.workspacePackagePaths) {
+            if (isPathWithin(workspacePath, node.path))
+                return true;
+        }
+    }
+    if (((_c = input.workspacePackageNames) === null || _c === void 0 ? void 0 : _c.has(node.name)) && node.depth <= 1) {
+        return true;
+    }
+    return false;
+}
 async function aggregateData(input) {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
@@ -88,7 +119,7 @@ async function aggregateData(input) {
     const dependencies = {};
     const licenseCache = new Map();
     const nodeEngineRanges = [];
-    const nodes = Array.from(nodeMap.values());
+    const nodes = Array.from(nodeMap.values()).filter((node) => !isWorkspacePackageNode(node, input));
     let directCount = 0;
     const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
     const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
@@ -217,7 +248,8 @@ async function aggregateData(input) {
             ...(input.workspaceType ? { type: input.workspaceType } : {}),
             ...(typeof input.workspacePackageCount === 'number'
                 ? { packageCount: input.workspacePackageCount }
-                : {})
+                : {}),
+            ...(input.workspacePackages ? { workspacePackages: input.workspacePackages } : {})
         },
         summary: {
             dependencyCount,

@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dependency Radar - Development</title>
   <link rel="stylesheet" href="./style.css" />
+  <!-- BEGIN: Copied to src/report.ts (favicon link block) -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,
         <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'>
       <defs>
@@ -44,9 +45,11 @@
       <circle class='st10' cx='754.3' cy='661.3' r='90'/>
       <circle class='st9' cx='754.3' cy='661.3' r='45'/>
     </svg>">
+  <!-- END: Copied to src/report.ts (favicon link block) -->
 </head>
 
 <body>
+  <!-- BEGIN: Copied to src/report.ts (top header block) -->
   <!-- Top Header (Scrollable) -->
   <header class="top-header">
     <div class="header-row">
@@ -168,7 +171,9 @@
       </div>
     </div>
   </header>
+  <!-- END: Copied to src/report.ts (top header block) -->
 
+  <!-- BEGIN: Copied to src/report.ts (filter bar + license panel + column headers block) -->
   <!-- Sticky Filter Bar -->
   <div class="filter-bar">
     <div class="filter-bar-inner">
@@ -281,19 +286,24 @@
       <div id="column-headers-container"></div>
     </div>
   </div>
+  <!-- END: Copied to src/report.ts (filter bar + license panel + column headers block) -->
 
 
+  <!-- BEGIN: Copied to src/report.ts (main content block) -->
   <!-- Main Content -->
   <main class="main-content">
     <div id="dependency-list" class="dependency-grid"></div>
   </main>
+  <!-- END: Copied to src/report.ts (main content block) -->
 
+  <!-- BEGIN: Copied to src/report.ts (footer block) -->
   <footer class="report-footer">
     <p><strong>About this report</strong></p>
     <p>Dependency Radar does not perform malware scanning or security auditing. It surfaces factual signals from
       dependency metadata, known vulnerabilities (npm audit), dependency graphs, and install-time behaviour to support
       informed review.</p>
   </footer>
+  <!-- END: Copied to src/report.ts (footer block) -->
 
   <!-- Data placeholder - in development, loaded from sample-data.json -->
   <script type="application/json" id="radar-data">{}</script>

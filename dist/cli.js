@@ -253,7 +253,99 @@ async function readWorkspacePackageMeta(rootPath, packagePaths) {
     }
     return out;
 }
-function mergeDepsFromWorkspace(pkgs) {
+function isWorkspaceLocalSpecifier(value) {
+    if (typeof value !== "string")
+        return false;
+    const trimmed = value.trim().toLowerCase();
+    return (trimmed.startsWith("workspace:") ||
+        trimmed.startsWith("link:") ||
+        trimmed.startsWith("file:"));
+}
+function normalizeRelativePath(rootPath, packagePath) {
+    const relative = path_1.default.relative(rootPath, packagePath);
+    const normalized = relative.split(path_1.default.sep).join("/");
+    return normalized && normalized.length > 0 ? normalized : ".";
+}
+function readDependencyEntries(source) {
+    if (!source || typeof source !== "object")
+        return [];
+    const entries = [];
+    for (const [name, spec] of Object.entries(source)) {
+        if (typeof name !== "string" || !name.trim())
+            continue;
+        if (typeof spec !== "string" || !spec.trim())
+            continue;
+        entries.push([name, spec.trim()]);
+    }
+    return entries;
+}
+function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames) {
+    return workspacePackageNames.has(dependencyName) || isWorkspaceLocalSpecifier(spec);
+}
+function buildWorkspaceClassification(rootPath, packageMetas) {
+    var _a, _b, _c, _d, _e;
+    const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+    const workspacePackageIds = new Set();
+    const workspacePackagePaths = new Set();
+    const localDependencyNames = new Set();
+    const workspacePackages = [];
+    for (const meta of packageMetas) {
+        const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" && meta.pkg.version.trim().length > 0
+            ? meta.pkg.version.trim()
+            : "workspace";
+        workspacePackageIds.add(`${meta.name}@${version}`);
+        workspacePackagePaths.add(path_1.default.resolve(meta.path));
+        const runtimeExternal = new Set();
+        const devExternal = new Set();
+        const runtimeEntries = [
+            ...readDependencyEntries((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.dependencies),
+            ...readDependencyEntries((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies),
+        ];
+        const devEntries = readDependencyEntries((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.devDependencies);
+        const peerEntries = readDependencyEntries((_e = meta.pkg) === null || _e === void 0 ? void 0 : _e.peerDependencies);
+        for (const [depName, spec] of runtimeEntries) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+                continue;
+            }
+            runtimeExternal.add(depName);
+        }
+        for (const [depName, spec] of devEntries) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+                continue;
+            }
+            devExternal.add(depName);
+        }
+        for (const [depName, spec] of peerEntries) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+            }
+        }
+        workspacePackages.push({
+            name: meta.name,
+            relativePath: normalizeRelativePath(rootPath, meta.path),
+            directExternal: {
+                runtime: runtimeExternal.size,
+                dev: devExternal.size,
+            },
+        });
+    }
+    workspacePackages.sort((a, b) => {
+        const pathCompare = a.relativePath.localeCompare(b.relativePath);
+        if (pathCompare !== 0)
+            return pathCompare;
+        return a.name.localeCompare(b.name);
+    });
+    return {
+        workspacePackages,
+        workspacePackageNames,
+        workspacePackageIds,
+        workspacePackagePaths,
+        localDependencyNames,
+    };
+}
+function mergeDepsFromWorkspace(pkgs, workspacePackageNames, localDependencyNames) {
     var _a, _b, _c, _d;
     const merged = {
         dependencies: {},
@@ -261,15 +353,20 @@ function mergeDepsFromWorkspace(pkgs) {
         optionalDependencies: {},
         peerDependencies: {},
     };
+    const mergeSection = (target, source) => {
+        for (const [depName, spec] of readDependencyEntries(source)) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+                continue;
+            }
+            target[depName] = spec;
+        }
+    };
     for (const entry of pkgs) {
-        const deps = ((_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
-        const dev = ((_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
-        const opt = ((_c = entry.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
-        const peer = ((_d = entry.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies) || {};
-        Object.assign(merged.dependencies, deps);
-        Object.assign(merged.devDependencies, dev);
-        Object.assign(merged.optionalDependencies, opt);
-        Object.assign(merged.peerDependencies, peer);
+        mergeSection(merged.dependencies, (_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies);
+        mergeSection(merged.devDependencies, (_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies);
+        mergeSection(merged.optionalDependencies, (_c = entry.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies);
+        mergeSection(merged.peerDependencies, (_d = entry.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies);
     }
     return merged;
 }
@@ -304,21 +401,6 @@ function mergeAuditResults(results) {
             base.metadata = r.metadata;
     }
     return base;
-}
-function collectDeclaredDeps(pkg) {
-    const out = new Set();
-    const sections = [
-        pkg === null || pkg === void 0 ? void 0 : pkg.dependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.devDependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.optionalDependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.peerDependencies,
-    ];
-    for (const deps of sections) {
-        if (deps && typeof deps === "object") {
-            Object.keys(deps).forEach((name) => out.add(name));
-        }
-    }
-    return Array.from(out);
 }
 function parseOutdatedData(data, unknownNames) {
     const entries = [];
@@ -519,11 +601,15 @@ function mergeImportGraphs(rootPath, packageMetas, graphs) {
     }
     return { files, packages, packageCounts, unresolvedImports };
 }
-function buildWorkspaceUsageMap(packageMetas, dependencyGraphs) {
+function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackageNames, localDependencyNames) {
     var _a, _b, _c, _d;
     const usage = new Map();
     const add = (depName, pkgName) => {
         if (!depName)
+            return;
+        if (workspacePackageNames.has(depName))
+            return;
+        if (localDependencyNames.has(depName))
             return;
         if (!usage.has(depName))
             usage.set(depName, new Set());
@@ -772,6 +858,7 @@ async function run() {
         await (0, utils_1.ensureDir)(tempDir);
         // Stage 2: run per-package collectors and persist raw tool outputs.
         const packageMetas = await readWorkspacePackageMeta(projectPath, packagePaths);
+        const workspaceClassification = buildWorkspaceClassification(projectPath, packageMetas);
         const perPackageAudit = [];
         const perPackageLs = [];
         const perPackageImportGraph = [];
@@ -824,7 +911,7 @@ async function run() {
                 : undefined
             : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
-        const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+        const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)), workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
         const outdatedResult = mergeOutdatedResults(perPackageOutdated);
         const auditResult = mergedAuditData
             ? { ok: true, data: mergedAuditData }
@@ -832,7 +919,7 @@ async function run() {
         const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
         // Build a merged package.json view for aggregator direct-dep checks.
-        const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas);
+        const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas, workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
         const auditFailure = opts.audit
             ? perPackageAudit.find((r) => r && !r.ok)
             : undefined;
@@ -867,6 +954,15 @@ async function run() {
             workspaceEnabled: workspace.type !== "none",
             workspaceType: workspace.type,
             workspacePackageCount: packagePaths.length,
+            ...(workspace.type !== "none"
+                ? {
+                    workspacePackages: workspaceClassification.workspacePackages,
+                    workspacePackageNames: workspaceClassification.workspacePackageNames,
+                    workspacePackageIds: workspaceClassification.workspacePackageIds,
+                    workspacePackagePaths: workspaceClassification.workspacePackagePaths,
+                    workspaceLocalDependencyNames: workspaceClassification.localDependencyNames,
+                }
+                : {}),
             packageManager: scanManager,
             packageManagerVersion,
             packageManagerField,
