@@ -213,12 +213,20 @@ function normalizeNpmNode(name, node) {
     return out;
 }
 function normalizePnpmTree(data) {
-    const roots = Array.isArray(data) ? data : [data];
-    const root = roots.find((entry) => entry && typeof entry === 'object');
+    const roots = (Array.isArray(data) ? data : [data]).filter((entry) => entry && typeof entry === 'object');
+    const root = roots.find((entry) => !isPnpmErrorPayload(entry));
     if (!root || typeof root !== 'object')
         return undefined;
     const dependencies = collectPnpmDependencyMap(root);
     return { dependencies };
+}
+function isPnpmErrorPayload(node) {
+    if (!node || typeof node !== 'object')
+        return false;
+    if (!('error' in node))
+        return false;
+    const error = node.error;
+    return typeof error === 'string' || (error !== null && typeof error === 'object');
 }
 function collectPnpmDependencyMap(node) {
     const out = {};
