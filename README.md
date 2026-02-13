@@ -279,10 +279,10 @@ export interface AggregatedData {
     minRequiredMajor: number; // Strictest Node major required by dependency engines (0 if unknown)
     platform?: string; // OS platform (process.platform)
     arch?: string; // CPU architecture (process.arch)
-    ci?: boolean; // True when running in CI (process.env.CI === 'true')
+    ci?: boolean; // True when CI indicators are detected
     packageManagerField?: string; // package.json packageManager field (e.g. pnpm@9.1.0)
-    packageManager?: 'npm' | 'pnpm' | 'yarn'; // Package manager used to scan
-    packageManagerVersion?: string; // Version of the package manager used to scan
+    packageManager?: 'npm' | 'pnpm' | 'yarn'; // Package manager used for dependency/audit/outdated collection
+    packageManagerVersion?: string; // Version of the selected package manager (when available)
     toolVersions?: {
       npm?: string;
       pnpm?: string;
@@ -291,8 +291,8 @@ export interface AggregatedData {
   };
   workspaces: {
     enabled: boolean; // True when the scan used workspace aggregation
-    type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace type if detected
-    packageCount?: number; // Number of workspace packages scanned
+    type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace mode (CLI currently always emits this)
+    packageCount?: number; // Number of workspace packages scanned (CLI currently always emits this)
     workspacePackages?: WorkspacePackage[]; // Lightweight first-party workspace metadata
   };
   summary: {
@@ -365,18 +365,18 @@ export interface DependencyRecord {
       risk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
     };
     advisories?: Array<{
-      id: string; // GHSA identifier
+      id: string; // Advisory identifier (GHSA, npm advisory ID, or source-specific fallback)
       title: string; // Human-readable advisory title
       severity: 'low' | 'moderate' | 'high' | 'critical';
       vulnerableRange: string; // Semver range
       fixAvailable: boolean; // True if npm audit indicates a fix exists
-      url: string; // Advisory URL
+      url: string; // Advisory URL (may be empty when unavailable)
     }>;
   };
   upgrade: {
     nodeEngine: string | null; // engines.node from the package.json (if present)
-    outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (if present)
-    latestVersion?: string; // npm latest version (present only when status is not current)
+    outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (field is omitted rather than set to 'current')
+    latestVersion?: string; // Latest version from outdated data (present for patch/minor/major when known)
     blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>; // Reasons for upgrade friction
     blocksNodeMajor?: boolean; // Present when local signals indicate a Node major bump is risky
   };
@@ -408,8 +408,8 @@ export interface DependencyRecord {
       // Only installed dependencies have full dependency records in the top-level list.
       dep?: Record<string, [string, string | null]>; // Declared runtime deps
       dev?: Record<string, [string, string | null]>; // Declared dev deps
-      peer?: Record<string, [string, string | null]>; // Declared peer deps
       opt?: Record<string, [string, string | null]>; // Declared optional deps
+      peer?: Record<string, [string, string | null]>; // Declared peer deps
     };
   };
   execution?: {
