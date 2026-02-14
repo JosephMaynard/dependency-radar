@@ -69,6 +69,167 @@ function formatProjectDir(projectPath) {
     }
     return projectPath;
 }
+function asTrimmedString(value) {
+    if (typeof value !== 'string')
+        return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+}
+function normalizeStringList(value) {
+    if (typeof value === 'string') {
+        const single = value.trim();
+        return single ? [single] : undefined;
+    }
+    if (!Array.isArray(value))
+        return undefined;
+    const items = value
+        .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+        .filter(Boolean);
+    if (items.length === 0)
+        return undefined;
+    return Array.from(new Set(items));
+}
+function toObjectRecord(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return undefined;
+    return value;
+}
+function hasKeys(value) {
+    return Boolean(value && Object.keys(value).length > 0);
+}
+function mergeRecordObjects(...sources) {
+    const merged = {};
+    for (const source of sources) {
+        if (!source)
+            continue;
+        for (const [key, val] of Object.entries(source)) {
+            merged[key] = val;
+        }
+    }
+    return Object.keys(merged).length > 0 ? merged : undefined;
+}
+function normalizeRepository(repository) {
+    const direct = asTrimmedString(repository);
+    if (direct)
+        return direct;
+    const asObject = toObjectRecord(repository);
+    if (!asObject)
+        return undefined;
+    const url = asTrimmedString(asObject.url);
+    if (url)
+        return url;
+    const type = asTrimmedString(asObject.type);
+    const directory = asTrimmedString(asObject.directory);
+    if (type && directory)
+        return `${type} (${directory})`;
+    return type;
+}
+function extractPackageNameFromSelector(selector) {
+    let token = selector.trim();
+    if (!token)
+        return undefined;
+    if (token.includes('>')) {
+        const parts = token.split('>').map((part) => part.trim()).filter(Boolean);
+        if (parts.length > 0)
+            token = parts[parts.length - 1];
+    }
+    if (token.startsWith('npm:')) {
+        token = token.slice(4).trim();
+    }
+    if (!token)
+        return undefined;
+    if (token.startsWith('@')) {
+        const scopedMatch = token.match(/^@[^/\s]+\/[^@\s]+/);
+        return scopedMatch ? scopedMatch[0] : undefined;
+    }
+    const atIndex = token.indexOf('@');
+    const unversioned = atIndex > 0 ? token.slice(0, atIndex) : token;
+    const match = unversioned.match(/^[^@\s]+/);
+    return match ? match[0] : undefined;
+}
+function collectPolicyPackageNames(entries) {
+    if (!entries)
+        return undefined;
+    const names = new Set();
+    for (const selector of Object.keys(entries)) {
+        const pkgName = extractPackageNameFromSelector(selector);
+        if (pkgName)
+            names.add(pkgName);
+    }
+    if (names.size === 0)
+        return undefined;
+    return Array.from(names).sort();
+}
+function buildProjectDependencyPolicy(projectPkg, inputPolicy) {
+    var _a;
+    const projectPkgOverrides = toObjectRecord(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.overrides);
+    const projectPkgPnpm = toObjectRecord(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.pnpm);
+    const projectPkgPnpmOverrides = toObjectRecord(projectPkgPnpm === null || projectPkgPnpm === void 0 ? void 0 : projectPkgPnpm.overrides);
+    const projectPkgResolutions = toObjectRecord(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.resolutions);
+    const overrides = mergeRecordObjects(projectPkgOverrides, projectPkgPnpmOverrides, inputPolicy === null || inputPolicy === void 0 ? void 0 : inputPolicy.overrides);
+    const resolutions = mergeRecordObjects(projectPkgResolutions, inputPolicy === null || inputPolicy === void 0 ? void 0 : inputPolicy.resolutions);
+    const sources = new Set();
+    if (hasKeys(projectPkgOverrides))
+        sources.add('package.json#overrides');
+    if (hasKeys(projectPkgPnpmOverrides))
+        sources.add('package.json#pnpm.overrides');
+    if (hasKeys(projectPkgResolutions))
+        sources.add('package.json#resolutions');
+    (_a = inputPolicy === null || inputPolicy === void 0 ? void 0 : inputPolicy.sources) === null || _a === void 0 ? void 0 : _a.forEach((source) => {
+        const normalized = source.trim();
+        if (normalized)
+            sources.add(normalized);
+    });
+    const policy = {
+        ...(overrides ? { overrides } : {}),
+        ...(resolutions ? { resolutions } : {})
+    };
+    return {
+        ...(hasKeys(policy.overrides) || hasKeys(policy.resolutions) ? { policy } : {}),
+        ...(sources.size > 0 ? { sources: Array.from(sources).sort() } : {})
+    };
+}
+function buildProjectDependencyPolicySummary(policy, sources) {
+    const overrideCount = (policy === null || policy === void 0 ? void 0 : policy.overrides) ? Object.keys(policy.overrides).length : 0;
+    const resolutionCount = (policy === null || policy === void 0 ? void 0 : policy.resolutions) ? Object.keys(policy.resolutions).length : 0;
+    if (overrideCount === 0 && resolutionCount === 0)
+        return undefined;
+    const overriddenPackageNames = collectPolicyPackageNames(policy === null || policy === void 0 ? void 0 : policy.overrides);
+    const resolvedPackageNames = collectPolicyPackageNames(policy === null || policy === void 0 ? void 0 : policy.resolutions);
+    return {
+        hasOverrides: overrideCount > 0,
+        overrideCount,
+        ...(overriddenPackageNames ? { overriddenPackageNames } : {}),
+        hasResolutions: resolutionCount > 0,
+        resolutionCount,
+        ...(resolvedPackageNames ? { resolvedPackageNames } : {}),
+        ...(sources && sources.length > 0 ? { sources } : {})
+    };
+}
+function buildProjectMetadata(projectPath, projectPkg, inputPolicy) {
+    var _a, _b;
+    const { policy, sources } = buildProjectDependencyPolicy(projectPkg, inputPolicy);
+    const policySummary = buildProjectDependencyPolicySummary(policy, sources);
+    const constraints = {
+        ...(normalizeStringList(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.os) ? { os: normalizeStringList(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.os) } : {}),
+        ...(normalizeStringList(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.cpu) ? { cpu: normalizeStringList(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.cpu) } : {}),
+        ...(asTrimmedString((_a = projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.engines) === null || _a === void 0 ? void 0 : _a.node) ? { enginesNode: asTrimmedString((_b = projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.engines) === null || _b === void 0 ? void 0 : _b.node) } : {})
+    };
+    const hasConstraints = Object.keys(constraints).length > 0;
+    return {
+        projectDir: formatProjectDir(projectPath),
+        ...(asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.name) ? { name: asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.name) } : {}),
+        ...(asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.version) ? { version: asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.version) } : {}),
+        ...(asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.description) ? { description: asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.description) } : {}),
+        ...(asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.license) ? { license: asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.license) } : {}),
+        ...(normalizeStringList(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.keywords) ? { keywords: normalizeStringList(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.keywords) } : {}),
+        ...(asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.homepage) ? { homepage: asTrimmedString(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.homepage) } : {}),
+        ...(normalizeRepository(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.repository) ? { repository: normalizeRepository(projectPkg === null || projectPkg === void 0 ? void 0 : projectPkg.repository) } : {}),
+        ...(hasConstraints ? { constraints } : {}),
+        ...(policy ? { dependencyPolicy: policy } : {}),
+        ...(policySummary ? { dependencyPolicySummary: policySummary } : {})
+    };
+}
 function isWorkspaceLocalVersion(version) {
     const normalized = version.trim().toLowerCase();
     return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
@@ -103,6 +264,16 @@ function isWorkspacePackageNode(node, input) {
 async function aggregateData(input) {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
+    let projectPkg = input.projectPackageJson;
+    if (!projectPkg) {
+        try {
+            projectPkg = await (0, utils_1.readPackageJson)(input.projectPath);
+        }
+        catch {
+            projectPkg = {};
+        }
+    }
+    const project = buildProjectMetadata(input.projectPath, projectPkg, input.projectDependencyPolicy);
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
     const nodeMap = buildNodeMap((_a = input.npmLsResult) === null || _a === void 0 ? void 0 : _a.data);
@@ -222,15 +393,13 @@ async function aggregateData(input) {
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
     return {
-        schemaVersion: '1.2',
+        schemaVersion: '1.3',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
             branch: gitBranch || ''
         },
-        project: {
-            projectDir: formatProjectDir(input.projectPath)
-        },
+        project,
         environment: {
             nodeVersion,
             runtimeVersion,

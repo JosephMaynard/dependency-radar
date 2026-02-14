@@ -90,6 +90,234 @@ async function readJsonFile(filePath) {
         return undefined;
     }
 }
+function stripYamlInlineComment(rawLine) {
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < rawLine.length; i += 1) {
+        const ch = rawLine[i];
+        const prev = i > 0 ? rawLine[i - 1] : "";
+        if (ch === "'" && !inDouble) {
+            inSingle = !inSingle;
+            continue;
+        }
+        if (ch === '"' && !inSingle && prev !== "\\") {
+            inDouble = !inDouble;
+            continue;
+        }
+        if (ch === "#" && !inSingle && !inDouble) {
+            return rawLine.slice(0, i);
+        }
+    }
+    return rawLine;
+}
+function unquoteYamlScalar(value) {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        const quote = trimmed[0];
+        const inner = trimmed.slice(1, -1);
+        return quote === '"'
+            ? inner
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, "\\")
+            : inner.replace(/''/g, "'");
+    }
+    return trimmed;
+}
+function parseYamlScalar(value) {
+    const normalized = value.trim();
+    if (!normalized)
+        return "";
+    if (normalized === "{}")
+        return {};
+    if (normalized === "[]")
+        return [];
+    if (normalized === "null" || normalized === "~")
+        return null;
+    if (normalized === "true")
+        return true;
+    if (normalized === "false")
+        return false;
+    return unquoteYamlScalar(normalized);
+}
+function findYamlMapSeparator(content) {
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < content.length; i += 1) {
+        const ch = content[i];
+        const prev = i > 0 ? content[i - 1] : "";
+        if (ch === "'" && !inDouble) {
+            inSingle = !inSingle;
+            continue;
+        }
+        if (ch === '"' && !inSingle && prev !== "\\") {
+            inDouble = !inDouble;
+            continue;
+        }
+        if (ch !== ":" || inSingle || inDouble)
+            continue;
+        const next = content[i + 1];
+        if (next === undefined || next === " " || next === "\t") {
+            return i;
+        }
+    }
+    return -1;
+}
+function toObjectRecord(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+    }
+    return value;
+}
+function mergeRecordObjects(...objects) {
+    const merged = {};
+    for (const obj of objects) {
+        if (!obj)
+            continue;
+        for (const [key, val] of Object.entries(obj)) {
+            merged[key] = val;
+        }
+    }
+    return Object.keys(merged).length > 0 ? merged : undefined;
+}
+function normalizeStringArray(value) {
+    if (typeof value === "string") {
+        const single = value.trim();
+        return single ? [single] : [];
+    }
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter(Boolean);
+}
+function parseSimpleYaml(yaml) {
+    var _a, _b;
+    const lines = [];
+    for (const rawLine of yaml.split(/\r?\n/)) {
+        const noComment = stripYamlInlineComment(rawLine).replace(/\s+$/, "");
+        if (!noComment.trim())
+            continue;
+        const indent = (_b = (_a = noComment.match(/^(\s*)/)) === null || _a === void 0 ? void 0 : _a[1].length) !== null && _b !== void 0 ? _b : 0;
+        lines.push({
+            indent,
+            content: noComment.trim(),
+        });
+    }
+    let index = 0;
+    const parseNode = (indentLevel) => {
+        if (index >= lines.length)
+            return undefined;
+        if (lines[index].indent < indentLevel)
+            return undefined;
+        if (lines[index].indent === indentLevel &&
+            lines[index].content.startsWith("- ")) {
+            return parseSequence(indentLevel);
+        }
+        return parseMapping(indentLevel);
+    };
+    const parseMapping = (indentLevel) => {
+        const out = {};
+        while (index < lines.length) {
+            const line = lines[index];
+            if (line.indent < indentLevel)
+                break;
+            if (line.indent > indentLevel) {
+                index += 1;
+                continue;
+            }
+            if (line.content.startsWith("- "))
+                break;
+            const colonIndex = findYamlMapSeparator(line.content);
+            if (colonIndex <= 0) {
+                index += 1;
+                continue;
+            }
+            const key = unquoteYamlScalar(line.content.slice(0, colonIndex));
+            const valueToken = line.content.slice(colonIndex + 1).trim();
+            index += 1;
+            if (valueToken) {
+                out[key] = parseYamlScalar(valueToken);
+                continue;
+            }
+            if (index < lines.length && lines[index].indent > indentLevel) {
+                out[key] = parseNode(lines[index].indent);
+            }
+            else {
+                out[key] = null;
+            }
+        }
+        return out;
+    };
+    const parseSequence = (indentLevel) => {
+        const values = [];
+        while (index < lines.length) {
+            const line = lines[index];
+            if (line.indent < indentLevel)
+                break;
+            if (line.indent !== indentLevel || !line.content.startsWith("- "))
+                break;
+            const valueToken = line.content.slice(2).trim();
+            index += 1;
+            if (valueToken) {
+                values.push(parseYamlScalar(valueToken));
+                if (index < lines.length && lines[index].indent > indentLevel) {
+                    // Consume malformed continuation lines to keep parser state stable.
+                    parseNode(lines[index].indent);
+                }
+                continue;
+            }
+            if (index < lines.length && lines[index].indent > indentLevel) {
+                values.push(parseNode(lines[index].indent));
+            }
+            else {
+                values.push(null);
+            }
+        }
+        return values;
+    };
+    const root = parseNode(0);
+    return toObjectRecord(root) || {};
+}
+function parsePnpmWorkspacePackagesFallback(yaml) {
+    const patterns = [];
+    const lines = yaml.split(/\r?\n/);
+    let inPackages = false;
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed)
+            continue;
+        if (/^packages\s*:\s*$/.test(trimmed)) {
+            inPackages = true;
+            continue;
+        }
+        if (inPackages) {
+            if (/^[A-Za-z0-9_-]+\s*:/.test(trimmed) && !trimmed.startsWith("-")) {
+                inPackages = false;
+                continue;
+            }
+            const m = trimmed.match(/^[-]\s*["']?([^"']+)["']?\s*$/);
+            if (m && m[1])
+                patterns.push(m[1].trim());
+        }
+    }
+    return patterns;
+}
+function parsePnpmWorkspaceFile(yaml) {
+    var _a;
+    const parsed = parseSimpleYaml(yaml);
+    const fromYaml = normalizeStringArray(parsed.packages);
+    const fromFallback = fromYaml.length > 0
+        ? fromYaml
+        : parsePnpmWorkspacePackagesFallback(yaml);
+    const topLevelOverrides = toObjectRecord(parsed.overrides);
+    const pnpmOverrides = toObjectRecord((_a = toObjectRecord(parsed.pnpm)) === null || _a === void 0 ? void 0 : _a.overrides);
+    const overrides = mergeRecordObjects(topLevelOverrides, pnpmOverrides);
+    return {
+        packages: fromFallback,
+        ...(overrides ? { overrides } : {}),
+    };
+}
 async function getToolVersion(tool, cwd) {
     try {
         const result = await (0, utils_1.runCommand)(tool, ["--version"], { cwd });
@@ -131,31 +359,13 @@ async function detectWorkspace(projectPath) {
     const hasPnpmWorkspace = await (0, utils_1.pathExists)(pnpmWorkspacePath);
     let type = "none";
     let patterns = [];
+    let pnpmWorkspaceOverrides;
     if (hasPnpmWorkspace) {
         type = "pnpm";
-        // very small YAML parser for the only thing we care about: `packages:` list.
         const yaml = await promises_1.default.readFile(pnpmWorkspacePath, "utf8");
-        const lines = yaml.split(/\r?\n/);
-        let inPackages = false;
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed)
-                continue;
-            if (/^packages\s*:\s*$/.test(trimmed)) {
-                inPackages = true;
-                continue;
-            }
-            if (inPackages) {
-                // stop when we hit a new top-level key
-                if (/^[A-Za-z0-9_-]+\s*:/.test(trimmed) && !trimmed.startsWith("-")) {
-                    inPackages = false;
-                    continue;
-                }
-                const m = trimmed.match(/^[-]\s*["']?([^"']+)["']?\s*$/);
-                if (m && m[1])
-                    patterns.push(m[1].trim());
-            }
-        }
+        const workspaceFile = parsePnpmWorkspaceFile(yaml);
+        patterns = workspaceFile.packages;
+        pnpmWorkspaceOverrides = workspaceFile.overrides;
     }
     if (hasYarnPnp) {
         return { type: "yarn", packagePaths: [] };
@@ -197,7 +407,11 @@ async function detectWorkspace(projectPath) {
             }
         }
     }
-    return { type, packagePaths: packagePaths.sort() };
+    return {
+        type,
+        packagePaths: packagePaths.sort(),
+        ...(pnpmWorkspaceOverrides ? { pnpmWorkspaceOverrides } : {}),
+    };
 }
 function inferPackageManager(rootPkg) {
     const raw = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === "string"
@@ -819,6 +1033,12 @@ async function run() {
         return;
     }
     const rootPkg = await readJsonFile(path_1.default.join(projectPath, "package.json"));
+    const projectDependencyPolicy = workspace.pnpmWorkspaceOverrides
+        ? {
+            overrides: workspace.pnpmWorkspaceOverrides,
+            sources: ["pnpm-workspace.yaml#overrides"],
+        }
+        : undefined;
     const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
     const scanManager = await detectScanManager(projectPath, packageManager);
     const packageManagerField = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === "string"
@@ -946,6 +1166,8 @@ async function run() {
             importGraphResult,
             outdatedResult,
             pkgOverride: mergedPkgForAggregator,
+            projectPackageJson: rootPkg,
+            ...(projectDependencyPolicy ? { projectDependencyPolicy } : {}),
             workspaceUsage,
             resolvePaths: [
                 projectPath,

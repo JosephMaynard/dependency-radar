@@ -181,8 +181,23 @@ export interface WorkspacePackage {
   };
 }
 
+export interface ProjectDependencyPolicy {
+  overrides?: Record<string, unknown>;
+  resolutions?: Record<string, unknown>;
+}
+
+export interface ProjectDependencyPolicySummary {
+  hasOverrides: boolean;
+  overrideCount: number;
+  overriddenPackageNames?: string[];
+  hasResolutions: boolean;
+  resolutionCount: number;
+  resolvedPackageNames?: string[];
+  sources?: string[];
+}
+
 export interface AggregatedData {
-  schemaVersion: '1.2';
+  schemaVersion: '1.3';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -190,6 +205,20 @@ export interface AggregatedData {
   };
   project: {
     projectDir: string;
+    name?: string;
+    version?: string;
+    description?: string;
+    license?: string;
+    keywords?: string[];
+    homepage?: string;
+    repository?: string;
+    constraints?: {
+      os?: string[];
+      cpu?: string[];
+      enginesNode?: string;
+    };
+    dependencyPolicy?: ProjectDependencyPolicy;
+    dependencyPolicySummary?: ProjectDependencyPolicySummary;
   };
   environment: {
     nodeVersion: string;

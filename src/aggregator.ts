@@ -6,6 +6,8 @@ import {
   OutdatedResult,
   OutdatedStatus,
   PackageManager,
+  ProjectDependencyPolicy,
+  ProjectDependencyPolicySummary,
   Severity,
   ToolResult,
   VulnerabilityAdvisory,
@@ -38,6 +40,14 @@ interface AggregateInput {
   outdatedResult?: OutdatedResult;
   // Optional: allow CLI to pass a merged view of workspace package.json dependencies
   pkgOverride?: any;
+  // Root package.json of the scanned project (used for project metadata output).
+  projectPackageJson?: any;
+  // Optional policy data discovered outside package.json (e.g. pnpm-workspace.yaml).
+  projectDependencyPolicy?: {
+    overrides?: Record<string, unknown>;
+    resolutions?: Record<string, unknown>;
+    sources?: string[];
+  };
   // Map dependency name -> workspace package names where it is used/declared
   workspaceUsage?: Map<string, string[]>;
   // Paths to resolve dependency package.json from (workspace package roots, etc.)
@@ -141,6 +151,191 @@ function formatProjectDir(projectPath: string): string {
   return projectPath;
 }
 
+function asTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeStringList(value: unknown): string[] | undefined {
+  if (typeof value === 'string') {
+    const single = value.trim();
+    return single ? [single] : undefined;
+  }
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+  if (items.length === 0) return undefined;
+  return Array.from(new Set(items));
+}
+
+function toObjectRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
+function hasKeys(value: Record<string, unknown> | undefined): value is Record<string, unknown> {
+  return Boolean(value && Object.keys(value).length > 0);
+}
+
+function mergeRecordObjects(
+  ...sources: Array<Record<string, unknown> | undefined>
+): Record<string, unknown> | undefined {
+  const merged: Record<string, unknown> = {};
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [key, val] of Object.entries(source)) {
+      merged[key] = val;
+    }
+  }
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
+function normalizeRepository(repository: unknown): string | undefined {
+  const direct = asTrimmedString(repository);
+  if (direct) return direct;
+  const asObject = toObjectRecord(repository);
+  if (!asObject) return undefined;
+  const url = asTrimmedString(asObject.url);
+  if (url) return url;
+  const type = asTrimmedString(asObject.type);
+  const directory = asTrimmedString(asObject.directory);
+  if (type && directory) return `${type} (${directory})`;
+  return type;
+}
+
+function extractPackageNameFromSelector(selector: string): string | undefined {
+  let token = selector.trim();
+  if (!token) return undefined;
+  if (token.includes('>')) {
+    const parts = token.split('>').map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 0) token = parts[parts.length - 1];
+  }
+  if (token.startsWith('npm:')) {
+    token = token.slice(4).trim();
+  }
+  if (!token) return undefined;
+  if (token.startsWith('@')) {
+    const scopedMatch = token.match(/^@[^/\s]+\/[^@\s]+/);
+    return scopedMatch ? scopedMatch[0] : undefined;
+  }
+  const atIndex = token.indexOf('@');
+  const unversioned = atIndex > 0 ? token.slice(0, atIndex) : token;
+  const match = unversioned.match(/^[^@\s]+/);
+  return match ? match[0] : undefined;
+}
+
+function collectPolicyPackageNames(
+  entries: Record<string, unknown> | undefined
+): string[] | undefined {
+  if (!entries) return undefined;
+  const names = new Set<string>();
+  for (const selector of Object.keys(entries)) {
+    const pkgName = extractPackageNameFromSelector(selector);
+    if (pkgName) names.add(pkgName);
+  }
+  if (names.size === 0) return undefined;
+  return Array.from(names).sort();
+}
+
+function buildProjectDependencyPolicy(
+  projectPkg: any,
+  inputPolicy?: {
+    overrides?: Record<string, unknown>;
+    resolutions?: Record<string, unknown>;
+    sources?: string[];
+  }
+): { policy?: ProjectDependencyPolicy; sources?: string[] } {
+  const projectPkgOverrides = toObjectRecord(projectPkg?.overrides);
+  const projectPkgPnpm = toObjectRecord(projectPkg?.pnpm);
+  const projectPkgPnpmOverrides = toObjectRecord(projectPkgPnpm?.overrides);
+  const projectPkgResolutions = toObjectRecord(projectPkg?.resolutions);
+
+  const overrides = mergeRecordObjects(
+    projectPkgOverrides,
+    projectPkgPnpmOverrides,
+    inputPolicy?.overrides
+  );
+  const resolutions = mergeRecordObjects(
+    projectPkgResolutions,
+    inputPolicy?.resolutions
+  );
+
+  const sources = new Set<string>();
+  if (hasKeys(projectPkgOverrides)) sources.add('package.json#overrides');
+  if (hasKeys(projectPkgPnpmOverrides)) sources.add('package.json#pnpm.overrides');
+  if (hasKeys(projectPkgResolutions)) sources.add('package.json#resolutions');
+  inputPolicy?.sources?.forEach((source) => {
+    const normalized = source.trim();
+    if (normalized) sources.add(normalized);
+  });
+
+  const policy: ProjectDependencyPolicy = {
+    ...(overrides ? { overrides } : {}),
+    ...(resolutions ? { resolutions } : {})
+  };
+
+  return {
+    ...(hasKeys(policy.overrides) || hasKeys(policy.resolutions) ? { policy } : {}),
+    ...(sources.size > 0 ? { sources: Array.from(sources).sort() } : {})
+  };
+}
+
+function buildProjectDependencyPolicySummary(
+  policy: ProjectDependencyPolicy | undefined,
+  sources?: string[]
+): ProjectDependencyPolicySummary | undefined {
+  const overrideCount = policy?.overrides ? Object.keys(policy.overrides).length : 0;
+  const resolutionCount = policy?.resolutions ? Object.keys(policy.resolutions).length : 0;
+  if (overrideCount === 0 && resolutionCount === 0) return undefined;
+  const overriddenPackageNames = collectPolicyPackageNames(policy?.overrides);
+  const resolvedPackageNames = collectPolicyPackageNames(policy?.resolutions);
+
+  return {
+    hasOverrides: overrideCount > 0,
+    overrideCount,
+    ...(overriddenPackageNames ? { overriddenPackageNames } : {}),
+    hasResolutions: resolutionCount > 0,
+    resolutionCount,
+    ...(resolvedPackageNames ? { resolvedPackageNames } : {}),
+    ...(sources && sources.length > 0 ? { sources } : {})
+  };
+}
+
+function buildProjectMetadata(
+  projectPath: string,
+  projectPkg: any,
+  inputPolicy?: {
+    overrides?: Record<string, unknown>;
+    resolutions?: Record<string, unknown>;
+    sources?: string[];
+  }
+): AggregatedData['project'] {
+  const { policy, sources } = buildProjectDependencyPolicy(projectPkg, inputPolicy);
+  const policySummary = buildProjectDependencyPolicySummary(policy, sources);
+  const constraints = {
+    ...(normalizeStringList(projectPkg?.os) ? { os: normalizeStringList(projectPkg?.os) } : {}),
+    ...(normalizeStringList(projectPkg?.cpu) ? { cpu: normalizeStringList(projectPkg?.cpu) } : {}),
+    ...(asTrimmedString(projectPkg?.engines?.node) ? { enginesNode: asTrimmedString(projectPkg?.engines?.node) } : {})
+  };
+  const hasConstraints = Object.keys(constraints).length > 0;
+
+  return {
+    projectDir: formatProjectDir(projectPath),
+    ...(asTrimmedString(projectPkg?.name) ? { name: asTrimmedString(projectPkg?.name) } : {}),
+    ...(asTrimmedString(projectPkg?.version) ? { version: asTrimmedString(projectPkg?.version) } : {}),
+    ...(asTrimmedString(projectPkg?.description) ? { description: asTrimmedString(projectPkg?.description) } : {}),
+    ...(asTrimmedString(projectPkg?.license) ? { license: asTrimmedString(projectPkg?.license) } : {}),
+    ...(normalizeStringList(projectPkg?.keywords) ? { keywords: normalizeStringList(projectPkg?.keywords) } : {}),
+    ...(asTrimmedString(projectPkg?.homepage) ? { homepage: asTrimmedString(projectPkg?.homepage) } : {}),
+    ...(normalizeRepository(projectPkg?.repository) ? { repository: normalizeRepository(projectPkg?.repository) } : {}),
+    ...(hasConstraints ? { constraints } : {}),
+    ...(policy ? { dependencyPolicy: policy } : {}),
+    ...(policySummary ? { dependencyPolicySummary: policySummary } : {})
+  };
+}
+
 function isWorkspaceLocalVersion(version: string): boolean {
   const normalized = version.trim().toLowerCase();
   return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
@@ -176,6 +371,19 @@ function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean 
 
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
   const pkg = input.pkgOverride || (await readPackageJson(input.projectPath));
+  let projectPkg = input.projectPackageJson;
+  if (!projectPkg) {
+    try {
+      projectPkg = await readPackageJson(input.projectPath);
+    } catch {
+      projectPkg = {};
+    }
+  }
+  const project = buildProjectMetadata(
+    input.projectPath,
+    projectPkg,
+    input.projectDependencyPolicy
+  );
 
   // Get git branch
   const gitBranch = await getGitBranch(input.projectPath);
@@ -323,15 +531,13 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const transitiveCount = dependencyCount - directCount;
 
   return {
-    schemaVersion: '1.2',
+    schemaVersion: '1.3',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
       branch: gitBranch || ''
     },
-    project: {
-      projectDir: formatProjectDir(input.projectPath)
-    },
+    project,
     environment: {
       nodeVersion,
       runtimeVersion,

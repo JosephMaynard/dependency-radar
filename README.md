@@ -37,6 +37,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
 1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--keep-temp`, `--open`).
 2. Detect workspace/package-manager context:
    - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
+   - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions
    - Package manager from `packageManager`, lockfiles, and installed metadata
    - Yarn Plug'n'Play detection (`.pnp.cjs`/`.pnp.js` or `.yarnrc.yml nodeLinker: pnp`)
 3. Create a temporary `.dependency-radar/` directory inside the scanned project.
@@ -264,7 +265,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.2'; // Report schema version for compatibility checks
+  schemaVersion: '1.3'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -272,6 +273,31 @@ export interface AggregatedData {
   };
   project: {
     projectDir: string; // Project path relative to the user's home directory (e.g. /Developer/app)
+    name?: string; // package.json#name from the scanned project root
+    version?: string; // package.json#version from the scanned project root
+    description?: string; // package.json#description
+    license?: string; // package.json#license
+    keywords?: string[]; // package.json#keywords
+    homepage?: string; // package.json#homepage
+    repository?: string; // repository URL (string or repository.url)
+    constraints?: {
+      os?: string[]; // package.json#os constraints
+      cpu?: string[]; // package.json#cpu constraints
+      enginesNode?: string; // package.json#engines.node
+    };
+    dependencyPolicy?: {
+      overrides?: Record<string, unknown>; // package.json overrides plus pnpm workspace overrides
+      resolutions?: Record<string, unknown>; // package.json#resolutions
+    };
+    dependencyPolicySummary?: {
+      hasOverrides: boolean;
+      overrideCount: number; // Top-level override entries
+      overriddenPackageNames?: string[]; // Package names parsed from override selectors
+      hasResolutions: boolean;
+      resolutionCount: number; // Top-level resolution entries
+      resolvedPackageNames?: string[]; // Package names parsed from resolution selectors
+      sources?: string[]; // Where policy came from (e.g. package.json#overrides, pnpm-workspace.yaml#overrides)
+    };
   };
   environment: {
     nodeVersion: string; // Node.js version from process.versions.node
