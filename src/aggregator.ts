@@ -336,6 +336,34 @@ function buildProjectMetadata(
   };
 }
 
+function getRiskRank(risk: 'green' | 'amber' | 'red'): number {
+  if (risk === 'red') return 2;
+  if (risk === 'amber') return 1;
+  return 0;
+}
+
+function maxRisk(
+  ...risks: Array<'green' | 'amber' | 'red'>
+): 'green' | 'amber' | 'red' {
+  let highest: 'green' | 'amber' | 'red' = 'green';
+  for (const risk of risks) {
+    if (getRiskRank(risk) > getRiskRank(highest)) highest = risk;
+  }
+  return highest;
+}
+
+function resolveLicenseRisk(
+  licenseInfo: LicenseBuildResult
+): 'green' | 'amber' | 'red' {
+  const declaredOrPrimaryRisk = pickLicenseRisk(licenseInfo.licenseIds);
+  if (licenseInfo.record.status !== 'mismatch') return declaredOrPrimaryRisk;
+
+  const inferredRisk = licenseInfo.record.inferred
+    ? pickLicenseRisk([licenseInfo.record.inferred.spdxId])
+    : 'green';
+  return maxRisk(declaredOrPrimaryRisk, inferredRisk, 'amber');
+}
+
 function isWorkspaceLocalVersion(version: string): boolean {
   const normalized = version.trim().toLowerCase();
   return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
@@ -427,7 +455,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
 
     const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
-    const licenseRisk = pickLicenseRisk(licenseInfo.licenseIds);
+    const licenseRisk = resolveLicenseRisk(licenseInfo);
     
     // Calculate root causes (direct dependencies that cause this to be installed)
     const rootCauses = findRootCauses(node, nodeMap, pkg);

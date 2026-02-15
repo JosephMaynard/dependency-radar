@@ -263,9 +263,10 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     sortKey: "license",
     getValue: (dep) => {
       const primary = getColumnPrimaryLicense(dep);
-      return primary.isInferred
+      const label = primary.isInferred
         ? `${primary.value} (inferred)`
         : primary.value;
+      return dep.compliance.license.status === "mismatch" ? `${label} *` : label;
     },
     getTone: (dep) => {
       const primary = getColumnPrimaryLicense(dep);
@@ -1023,15 +1024,80 @@ type LinkSet = {
   issues?: string;
 };
 
+function normalizeRepositoryUrl(rawUrl: string | undefined): string | undefined {
+  if (!rawUrl) return undefined;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return undefined;
+
+  const stripGitSuffix = (value: string): string => value.replace(/\.git$/i, "");
+
+  if (/^https?:\/\//i.test(trimmed)) return stripGitSuffix(trimmed);
+  if (/^git\+https?:\/\//i.test(trimmed)) {
+    return stripGitSuffix(trimmed.replace(/^git\+/, ""));
+  }
+  if (/^git:\/\/github\.com\//i.test(trimmed)) {
+    return stripGitSuffix(trimmed.replace(/^git:\/\//i, "https://"));
+  }
+  if (/^github:/i.test(trimmed)) {
+    const suffix = trimmed.slice("github:".length).replace(/^\/+/, "");
+    return suffix ? `https://github.com/${stripGitSuffix(suffix)}` : undefined;
+  }
+  if (/^git@github\.com:/i.test(trimmed)) {
+    const suffix = trimmed.slice("git@github.com:".length);
+    return suffix ? `https://github.com/${stripGitSuffix(suffix)}` : undefined;
+  }
+  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(trimmed)) {
+    return `https://github.com/${stripGitSuffix(trimmed)}`;
+  }
+  return undefined;
+}
+
+function buildGithubFileUrl(
+  repositoryUrl: string | undefined,
+  filePath: "package.json" | "LICENSE",
+): string | undefined {
+  const normalizedRepoUrl = normalizeRepositoryUrl(repositoryUrl);
+  if (!normalizedRepoUrl) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(normalizedRepoUrl);
+  } catch {
+    return undefined;
+  }
+  if (parsed.hostname.toLowerCase() !== "github.com") return undefined;
+  const parts = parsed.pathname.split("/").filter(Boolean);
+  if (parts.length < 2) return undefined;
+  const owner = parts[0];
+  const repo = parts[1].replace(/\.git$/i, "");
+  if (!owner || !repo) return undefined;
+  return `https://github.com/${owner}/${repo}/blob/HEAD/${filePath}`;
+}
+
+function appendGithubFileLink(value: string, fileUrl: string | undefined): string {
+  if (!fileUrl) return escapeHtml(value);
+  return (
+    escapeHtml(value) +
+    ' <a class="kv-inline-link" href="' +
+    escapeHtml(fileUrl) +
+    '" target="_blank" rel="noopener">GitHub file</a>'
+  );
+}
+
 function resolveLinks(dep: DependencyRecord): LinkSet {
   const pkgLinks =
     dep.package?.links || ({} as DependencyRecord["package"]["links"]);
   const legacyLinks =
     (dep as DependencyRecord & { links?: Record<string, string> }).links || {};
+  const normalizedRepository = normalizeRepositoryUrl(
+    pkgLinks.repository || legacyLinks.repository || legacyLinks.repo,
+  );
   return {
     npm: pkgLinks.npm || legacyLinks.npm,
     repository:
-      pkgLinks.repository || legacyLinks.repository || legacyLinks.repo,
+      normalizedRepository ||
+      pkgLinks.repository ||
+      legacyLinks.repository ||
+      legacyLinks.repo,
     homepage: pkgLinks.homepage || legacyLinks.homepage,
     issues:
       pkgLinks.bugs ||
@@ -1277,6 +1343,8 @@ function renderDepDetails(
   );
 
   const licenseInfo = dep.compliance.license;
+  const declaredSpdxFileUrl = buildGithubFileUrl(links.repository, "package.json");
+  const inferredLicenseFileUrl = buildGithubFileUrl(links.repository, "LICENSE");
   const licenseDetails: string[] = [
     renderKvItemHtml(
       "Primary license",
@@ -1296,17 +1364,27 @@ function renderDepDetails(
       ? ` WITH ${licenseInfo.exception.id}`
       : "";
     licenseDetails.push(
-      renderKvItem(
+      renderKvItemHtml(
         "Declared SPDX in package.json",
-        `${licenseInfo.declared.spdxId}${exceptionLabel}${declaredMeta ? ` (${declaredMeta})` : ""}`,
+        '<span class="kv-value">' +
+          appendGithubFileLink(
+            `${licenseInfo.declared.spdxId}${exceptionLabel}${declaredMeta ? ` (${declaredMeta})` : ""}`,
+            declaredSpdxFileUrl,
+          ) +
+          "</span>",
       ),
     );
   }
   if (licenseInfo.inferred) {
     licenseDetails.push(
-      renderKvItem(
+      renderKvItemHtml(
         "Inferred from LICENSE file",
-        `${licenseInfo.inferred.spdxId} (${licenseInfo.inferred.confidence})`,
+        '<span class="kv-value">' +
+          appendGithubFileLink(
+            `${licenseInfo.inferred.spdxId} (${licenseInfo.inferred.confidence})`,
+            inferredLicenseFileUrl,
+          ) +
+          "</span>",
       ),
     );
   }

@@ -986,6 +986,24 @@ details[open] > summary .expand-icon {
   word-break: break-word;
 }
 
+.kv-inline-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.kv-inline-link:hover {
+  text-decoration: underline;
+}
+
+.kv-inline-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 .risk-value {
   display: inline-flex;
   align-items: center;

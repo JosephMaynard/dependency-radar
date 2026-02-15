@@ -142,6 +142,10 @@ Dependency Radar validates SPDX licenses declared in `package.json` and can infe
 
 This logic applies to all dependencies (direct and transitive). Inferred licenses are never treated as authoritative over valid declared SPDX expressions.
 
+`licenseRisk` is derived from SPDX IDs, with one escalation rule for safety: when status is `mismatch` (declared SPDX differs from inferred LICENSE text), risk is promoted to at least `amber`.
+In the HTML report, the License badge shows a trailing `*` when status is `mismatch`.
+When a dependency repository resolves to GitHub, the expanded License section links to `package.json` and `LICENSE` source files for faster verification.
+
 
 ## Setup
 
@@ -379,7 +383,7 @@ export interface DependencyRecord {
         | 'invalid-spdx'
         | 'unknown';
     };
-    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from declared/inferred SPDX ids
+    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from declared/inferred SPDX ids (mismatch is escalated to at least amber)
   };
   security: {
     summary: {
