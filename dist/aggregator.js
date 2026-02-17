@@ -230,6 +230,30 @@ function buildProjectMetadata(projectPath, projectPkg, inputPolicy) {
         ...(policySummary ? { dependencyPolicySummary: policySummary } : {})
     };
 }
+function getRiskRank(risk) {
+    if (risk === 'red')
+        return 2;
+    if (risk === 'amber')
+        return 1;
+    return 0;
+}
+function maxRisk(...risks) {
+    let highest = 'green';
+    for (const risk of risks) {
+        if (getRiskRank(risk) > getRiskRank(highest))
+            highest = risk;
+    }
+    return highest;
+}
+function resolveLicenseRisk(licenseInfo) {
+    const declaredOrPrimaryRisk = (0, license_1.pickLicenseRisk)(licenseInfo.licenseIds);
+    if (licenseInfo.record.status !== 'mismatch')
+        return declaredOrPrimaryRisk;
+    const inferredRisk = licenseInfo.record.inferred
+        ? (0, license_1.pickLicenseRisk)([licenseInfo.record.inferred.spdxId])
+        : 'green';
+    return maxRisk(declaredOrPrimaryRisk, inferredRisk, 'amber');
+}
 function isWorkspaceLocalVersion(version) {
     const normalized = version.trim().toLowerCase();
     return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
@@ -310,7 +334,7 @@ async function aggregateData(input) {
         }
         const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
         const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
-        const licenseRisk = (0, license_1.pickLicenseRisk)(licenseInfo.licenseIds);
+        const licenseRisk = resolveLicenseRisk(licenseInfo);
         // Calculate root causes (direct dependencies that cause this to be installed)
         const rootCauses = findRootCauses(node, nodeMap, pkg);
         const packageInsights = await gatherPackageInsights(node.name, node.version, resolvePaths, packageMetaCache, packageStatCache);

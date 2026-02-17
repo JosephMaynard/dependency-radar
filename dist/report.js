@@ -265,8 +265,10 @@ ${report_assets_1.CSS_CONTENT}
               <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
             </div>
           </div>
+        </div>
 
-          <!-- Collapsible License Filter Panel -->
+        <!-- Collapsible License Filter Panel -->
+        <div class="license-filter-panel-row">
           <div class="license-filter-panel" id="license-panel">
             <div class="license-filter-inner">
               <div class="license-filter-header">
@@ -300,7 +302,6 @@ ${report_assets_1.CSS_CONTENT}
               </div>
             </div>
           </div>
-
         </div>
 
         <!-- Results summary and column headers row -->
