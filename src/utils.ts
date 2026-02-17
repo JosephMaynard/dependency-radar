@@ -146,13 +146,25 @@ async function getPnpmStoreIndex(pnpmDir: string): Promise<Map<string, string[]>
   const entries = await getPnpmStoreEntries(pnpmDir);
   const index = new Map<string, string[]>();
   for (const entry of entries) {
-    const prefix = entry.split('(')[0];
+    const prefix = extractPnpmStoreEntryPrefix(entry);
     if (!prefix) continue;
     if (!index.has(prefix)) index.set(prefix, []);
     index.get(prefix)!.push(entry);
   }
   pnpmStoreIndexCache.set(pnpmDir, index);
   return index;
+}
+
+function extractPnpmStoreEntryPrefix(entry: string): string {
+  const atIndex = entry.startsWith('@') ? entry.indexOf('@', 1) : entry.indexOf('@');
+  if (atIndex <= 0) return entry.split('(')[0];
+  const versionAndSuffix = entry.slice(atIndex + 1);
+  const underscoreIndex = versionAndSuffix.indexOf('_');
+  const parenIndex = versionAndSuffix.indexOf('(');
+  let cutoff = versionAndSuffix.length;
+  if (underscoreIndex >= 0) cutoff = Math.min(cutoff, underscoreIndex);
+  if (parenIndex >= 0) cutoff = Math.min(cutoff, parenIndex);
+  return entry.slice(0, atIndex + 1 + cutoff);
 }
 
 async function resolvePnpmPackageJsonPath(
