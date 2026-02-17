@@ -15,7 +15,7 @@ This runs a scan against the current project and writes a self-contained `depend
 - Analyses installed dependencies by running standard package manager tooling (npm, pnpm, or yarn)
 - Combines multiple signals (audit results, dependency graph data, import usage, and heuristics) into a single report
 - Shows direct vs transitive dependencies, dependency depth, and parent relationships
-- Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint
+- Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint (including installed file counts)
 - Produces a single self-contained HTML file with no external assets, which you can easily share
 
 ## What it is not
@@ -30,6 +30,108 @@ This runs a scan against the current project and writes a self-contained `depend
 For teams that want deeper analysis, long-term tracking, and additional enrichment (such as ecosystem and maintenance signals), Dependency Radar also offers an optional premium service.  
 See https://dependency-radar.com for details.
 
+## How a scan works
+
+When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
+
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--keep-temp`, `--open`).
+2. Detect workspace/package-manager context:
+   - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
+   - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions
+   - Package manager from `packageManager`, lockfiles, and installed metadata
+   - Yarn Plug'n'Play detection (`.pnp.cjs`/`.pnp.js` or `.yarnrc.yml nodeLinker: pnp`)
+3. Create a temporary `.dependency-radar/` directory inside the scanned project.
+4. For each workspace package (or just the project root in single-package mode), run collectors:
+   - Dependency tree (`npm ls` / `pnpm list` / `yarn list`)
+   - Vulnerabilities (`npm audit` / `pnpm audit` / `yarn audit` or `yarn npm audit`)
+   - Version drift (`npm outdated` / `pnpm outdated` / `yarn outdated`, where available)
+   - Source import graph (static import/require parsing in `src/` or project root)
+5. Normalize tool outputs into one internal shape and merge workspace package results.
+6. Aggregate dependency records by enriching each installed package with:
+   - License declaration + `LICENSE` file inference/validation
+   - Advisory summaries and severity/risk rollups
+   - Root-cause/origin and runtime-impact heuristics
+   - Install-time execution signals
+   - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
+7. Write final output as either:
+   - `dependency-radar.html` (self-contained report), or
+   - `dependency-radar.json` (raw aggregated model)
+8. Remove `.dependency-radar/` unless `--keep-temp` is set.
+
+The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
+
+## Usage Heuristics (`usage.runtimeImpact` and `usage.introduction`)
+
+These two fields are inferred from local signals. They are intended as review hints, not strict truth.
+
+### `usage.runtimeImpact`
+
+`runtimeImpact` is inferred from the import graph and file-path classification:
+
+1. Dependency imports are collected from source files (`import`, `export ... from`, `require()`, and static `import()`).
+2. Each importing file is classified into one of: `runtime`, `build`, `testing`, `tooling`.
+3. Classification is path-pattern based (examples):
+   - `testing`: `__tests__`, `test`, `tests`, `e2e`, `cypress`, `playwright`, `*.test.*`, `*.spec.*`
+   - `tooling`: eslint/prettier/stylelint/commitlint/lint-staged/husky/renovate/release configs
+   - `build`: webpack/rollup/vite/tsconfig/babel/swc/esbuild/parcel/postcss/tailwind/storybook/turbo/nx configs and common `scripts/build*` paths
+4. Per dependency, category weights are summed from import counts.
+5. Result selection:
+   - Single dominant category => that category
+   - Strong majority (for example >= 70%) => that category
+   - Otherwise => `mixed`
+
+### `usage.introduction`
+
+`introduction` is inferred from dependency graph roots, scope, and runtime impact:
+
+1. If dependency is direct => `direct`
+2. If `runtimeImpact` is `testing` => `testing`
+3. If `runtimeImpact` is `tooling` or `build` => `tooling`
+4. If inferred scope is `dev` => `tooling`
+5. If inferred scope is `peer` and `runtimeImpact` is not `runtime` => `tooling`
+6. If all root-cause direct dependencies are in a tooling allowlist => `tooling`
+7. If any root-cause direct dependency is in a framework allowlist => `framework`
+8. If root causes exist but none of the above match => `transitive`
+9. Otherwise => `unknown`
+
+### Validity and limits
+
+- Valid as directional metadata for prioritization and triage.
+- Not valid as a definitive runtime/ownership model.
+- Accuracy depends on file naming conventions, static import detectability, and dependency graph quality from package manager output.
+
+## Upgrade Blockers Heuristic (`upgrade.blockers`, `upgrade.blocksNodeMajor`)
+
+`upgrade.blockers` is a local, static heuristic for upgrade friction. It does not run package code and does not query external APIs.
+
+### How blockers are collected
+
+For each installed dependency, Dependency Radar inspects local package metadata and install-surface signals and may add one or more blockers:
+
+- `nodeEngine`: Added when `package.json#engines.node` looks restrictive (for example `>=16`, `^18`, `<20`, ranges with concrete major constraints). Permissive forms such as `*` and `>=0` are not flagged.
+- `peerDependency`: Added when the package declares at least one non-optional peer dependency (`peerDependencies`, excluding peers marked `peerDependenciesMeta.<name>.optional: true`).
+- `nativeBindings`: Added when native build/binary surface is detected (`binding.gyp`, `.node` binaries, or native build tooling in scripts such as `node-gyp`/`prebuild`).
+- `installScripts`: Added when install lifecycle hooks are present (`preinstall`, `install`, or `postinstall`).
+- `deprecated`: Added when the package is marked deprecated in installed metadata.
+
+### `blocksNodeMajor` meaning
+
+`upgrade.blocksNodeMajor` is only emitted when local signals suggest Node major upgrades may be risky for that package. It is set from a subset of blockers:
+
+- `nodeEngine`
+- `nativeBindings`
+- `installScripts`
+
+It is not set from `peerDependency` or `deprecated` alone.
+
+### Accuracy and limits
+
+- High signal: `nativeBindings`, `deprecated`, and non-optional `peerDependency` are generally reliable local indicators.
+- Medium signal: `nodeEngine` is heuristic range parsing; unusual semver expressions may be under- or over-classified.
+- Medium signal: `installScripts` indicates lifecycle execution surface, not guaranteed breakage.
+- The field represents friction likelihood, not a guaranteed upgrade failure.
+- Future versions may expand blocker categories; consumers should handle unknown blocker strings defensively.
+
 ## License Scanning
 
 Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a bundled SPDX identifier list (generated at build time) with no runtime network access. Each dependency gets a structured license record with:
@@ -39,6 +141,10 @@ Dependency Radar validates SPDX licenses declared in `package.json` and can infe
 - A status (`declared-only`, `inferred-only`, `match`, `mismatch`, `invalid-spdx`, `unknown`) to make review decisions easier
 
 This logic applies to all dependencies (direct and transitive). Inferred licenses are never treated as authoritative over valid declared SPDX expressions.
+
+`licenseRisk` is derived from SPDX IDs, with one escalation rule for safety: when status is `mismatch` (declared SPDX differs from inferred LICENSE text), risk is promoted to at least `amber`.
+In the HTML report, the License badge shows a trailing `*` when status is `mismatch`.
+When a dependency repository resolves to GitHub, the expanded License section links to `package.json` and `LICENSE` source files for faster verification.
 
 
 ## Setup
@@ -101,6 +207,14 @@ Show options:
 npx dependency-radar --help
 ```
 
+## Package Manager Support
+
+- npm: Supported for dependency tree, audit, outdated, single-package, and workspaces.
+- pnpm: Supported for dependency tree, audit, outdated, and workspaces (with ls depth fallbacks for large projects).
+- Yarn Classic (v1, node_modules linker): Supported for dependency tree, audit, outdated, and workspaces.
+- Yarn Berry (v2+, node-modules linker): Dependency tree and audit work; outdated support depends on available Yarn commands/plugins and may be unavailable.
+- Yarn Plug'n'Play (`nodeLinker: pnp`): Not supported yet.
+
 ## Scripts
 
 - `npm run build` – generate SPDX/report assets and compile TypeScript to `dist/`
@@ -137,6 +251,7 @@ npx dependency-radar --help
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
 - The scan runs on your machine and does not upload your code or dependencies anywhere.
 - `npm audit`/`pnpm audit`/`yarn npm audit` and `npm outdated`/`pnpm outdated` perform registry lookups; use `--offline` for offline-only scans.
+- On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
 - If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
@@ -154,7 +269,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.2'; // Report schema version for compatibility checks
+  schemaVersion: '1.3'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -162,6 +277,31 @@ export interface AggregatedData {
   };
   project: {
     projectDir: string; // Project path relative to the user's home directory (e.g. /Developer/app)
+    name?: string; // package.json#name from the scanned project root
+    version?: string; // package.json#version from the scanned project root
+    description?: string; // package.json#description
+    license?: string; // package.json#license
+    keywords?: string[]; // package.json#keywords
+    homepage?: string; // package.json#homepage
+    repository?: string; // repository URL (string or repository.url)
+    constraints?: {
+      os?: string[]; // package.json#os constraints
+      cpu?: string[]; // package.json#cpu constraints
+      enginesNode?: string; // package.json#engines.node
+    };
+    dependencyPolicy?: {
+      overrides?: Record<string, unknown>; // package.json overrides plus pnpm workspace overrides
+      resolutions?: Record<string, unknown>; // package.json#resolutions
+    };
+    dependencyPolicySummary?: {
+      hasOverrides: boolean;
+      overrideCount: number; // Top-level override entries
+      overriddenPackageNames?: string[]; // Package names parsed from override selectors
+      hasResolutions: boolean;
+      resolutionCount: number; // Top-level resolution entries
+      resolvedPackageNames?: string[]; // Package names parsed from resolution selectors
+      sources?: string[]; // Where policy came from (e.g. package.json#overrides, pnpm-workspace.yaml#overrides)
+    };
   };
   environment: {
     nodeVersion: string; // Node.js version from process.versions.node
@@ -169,10 +309,10 @@ export interface AggregatedData {
     minRequiredMajor: number; // Strictest Node major required by dependency engines (0 if unknown)
     platform?: string; // OS platform (process.platform)
     arch?: string; // CPU architecture (process.arch)
-    ci?: boolean; // True when running in CI (process.env.CI === 'true')
+    ci?: boolean; // True when CI indicators are detected
     packageManagerField?: string; // package.json packageManager field (e.g. pnpm@9.1.0)
-    packageManager?: 'npm' | 'pnpm' | 'yarn'; // Package manager used to scan
-    packageManagerVersion?: string; // Version of the package manager used to scan
+    packageManager?: 'npm' | 'pnpm' | 'yarn'; // Package manager used for dependency/audit/outdated collection
+    packageManagerVersion?: string; // Version of the selected package manager (when available)
     toolVersions?: {
       npm?: string;
       pnpm?: string;
@@ -181,15 +321,25 @@ export interface AggregatedData {
   };
   workspaces: {
     enabled: boolean; // True when the scan used workspace aggregation
-    type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace type if detected
-    packageCount?: number; // Number of workspace packages scanned
+    type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace mode (CLI currently always emits this)
+    packageCount?: number; // Number of workspace packages scanned (CLI currently always emits this)
+    workspacePackages?: WorkspacePackage[]; // Lightweight first-party workspace metadata
   };
   summary: {
-    dependencyCount: number; // Total dependencies in the graph
-    directCount: number; // Dependencies listed in package.json
-    transitiveCount: number; // Dependencies pulled in by other dependencies
+    dependencyCount: number; // Total EXTERNAL dependencies in the graph
+    directCount: number; // External dependencies listed in package.json
+    transitiveCount: number; // External dependencies pulled in by other dependencies
   };
-  dependencies: Record<string, DependencyRecord>; // Keyed by name@version
+  dependencies: Record<string, DependencyRecord>; // External third-party packages keyed by name@version
+}
+
+export interface WorkspacePackage {
+  name: string; // Workspace package name from package.json
+  relativePath: string; // Workspace-relative path (e.g. apps/web)
+  directExternal: {
+    runtime: number; // Unique direct external deps from dependencies + optionalDependencies
+    dev: number; // Unique direct external deps from devDependencies
+  };
 }
 
 export interface DependencyRecord {
@@ -198,6 +348,8 @@ export interface DependencyRecord {
     name: string; // Package name from npm metadata
     version: string; // Installed version from npm ls
     description?: string; // Description from the installed package.json (if present)
+    fileCount?: number; // Number of files in the installed package folder (excluding nested node_modules)
+    hasBin?: true; // True if package.json declares at least one executable in `bin`
     deprecated: boolean; // True if the package.json has a deprecated flag
     links: {
       npm: string; // npm package page URL
@@ -231,7 +383,7 @@ export interface DependencyRecord {
         | 'invalid-spdx'
         | 'unknown';
     };
-    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from declared/inferred SPDX ids
+    licenseRisk: 'green' | 'amber' | 'red'; // Risk classification derived from declared/inferred SPDX ids (mismatch is escalated to at least amber)
   };
   security: {
     summary: {
@@ -243,20 +395,20 @@ export interface DependencyRecord {
       risk: 'green' | 'amber' | 'red'; // Risk classification derived from audit counts
     };
     advisories?: Array<{
-      id: string; // GHSA identifier
+      id: string; // Advisory identifier (GHSA, npm advisory ID, or source-specific fallback)
       title: string; // Human-readable advisory title
       severity: 'low' | 'moderate' | 'high' | 'critical';
       vulnerableRange: string; // Semver range
       fixAvailable: boolean; // True if npm audit indicates a fix exists
-      url: string; // Advisory URL
+      url: string; // Advisory URL (may be empty when unavailable)
     }>;
   };
   upgrade: {
     nodeEngine: string | null; // engines.node from the package.json (if present)
-    outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (if present)
-    latestVersion?: string; // npm latest version (present only when status is not current)
-    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>; // Reasons for upgrade friction
-    blocksNodeMajor?: boolean; // True if local signals indicate a node major bump is risky
+    outdatedStatus?: 'current' | 'patch' | 'minor' | 'major' | 'unknown'; // Derived from npm outdated (field is omitted rather than set to 'current')
+    latestVersion?: string; // Latest version from outdated data (present for patch/minor/major when known)
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>; // Reasons for upgrade friction
+    blocksNodeMajor?: boolean; // Present when local signals indicate a Node major bump is risky
   };
   usage: {
     direct: boolean; // True if declared in package.json (dependencies/devDependencies/etc.)
@@ -286,8 +438,8 @@ export interface DependencyRecord {
       // Only installed dependencies have full dependency records in the top-level list.
       dep?: Record<string, [string, string | null]>; // Declared runtime deps
       dev?: Record<string, [string, string | null]>; // Declared dev deps
-      peer?: Record<string, [string, string | null]>; // Declared peer deps
       opt?: Record<string, [string, string | null]>; // Declared optional deps
+      peer?: Record<string, [string, string | null]>; // Declared peer deps
     };
   };
   execution?: {

@@ -94,6 +94,10 @@ export interface DependencyRecord {
     name: string;
     version: string;
     description?: string;
+    // Number of files observed in the installed package directory (excluding nested node_modules).
+    fileCount?: number;
+    // True when the package exposes at least one CLI executable via package.json#bin.
+    hasBin?: true;
     deprecated: boolean;
     links: {
       npm: string;
@@ -123,7 +127,7 @@ export interface DependencyRecord {
     nodeEngine: string | null;
     outdatedStatus?: OutdatedStatus;
     latestVersion?: string;
-    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'deprecated'>;
+    blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
   };
   // Usage answers why this dependency exists and where it shows up in the project.
@@ -168,8 +172,32 @@ export interface OutdatedResult {
   unknownNames: string[];
 }
 
+export interface WorkspacePackage {
+  name: string;
+  relativePath: string;
+  directExternal: {
+    runtime: number;
+    dev: number;
+  };
+}
+
+export interface ProjectDependencyPolicy {
+  overrides?: Record<string, unknown>;
+  resolutions?: Record<string, unknown>;
+}
+
+export interface ProjectDependencyPolicySummary {
+  hasOverrides: boolean;
+  overrideCount: number;
+  overriddenPackageNames?: string[];
+  hasResolutions: boolean;
+  resolutionCount: number;
+  resolvedPackageNames?: string[];
+  sources?: string[];
+}
+
 export interface AggregatedData {
-  schemaVersion: '1.2';
+  schemaVersion: '1.3';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -177,6 +205,20 @@ export interface AggregatedData {
   };
   project: {
     projectDir: string;
+    name?: string;
+    version?: string;
+    description?: string;
+    license?: string;
+    keywords?: string[];
+    homepage?: string;
+    repository?: string;
+    constraints?: {
+      os?: string[];
+      cpu?: string[];
+      enginesNode?: string;
+    };
+    dependencyPolicy?: ProjectDependencyPolicy;
+    dependencyPolicySummary?: ProjectDependencyPolicySummary;
   };
   environment: {
     nodeVersion: string;
@@ -198,6 +240,7 @@ export interface AggregatedData {
     enabled: boolean;
     type?: PackageManager | 'none';
     packageCount?: number;
+    workspacePackages?: WorkspacePackage[];
   };
   summary: {
     dependencyCount: number;

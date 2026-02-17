@@ -1,0 +1,11 @@
+{
+  "name": "dr-execution-signals",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@dr-exec/scripted": "file:./packages/scripted",
+    "@dr-exec/surface-native": "file:./packages/surface-native"
+  }
+}

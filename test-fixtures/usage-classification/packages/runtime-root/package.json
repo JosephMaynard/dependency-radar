@@ -1,0 +1,10 @@
+{
+  "name": "runtime-root",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "transitive-runtime": "file:../transitive-runtime",
+    "transitive-mixed": "file:../transitive-mixed"
+  }
+}

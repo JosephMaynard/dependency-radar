@@ -90,6 +90,234 @@ async function readJsonFile(filePath) {
         return undefined;
     }
 }
+function stripYamlInlineComment(rawLine) {
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < rawLine.length; i += 1) {
+        const ch = rawLine[i];
+        const prev = i > 0 ? rawLine[i - 1] : "";
+        if (ch === "'" && !inDouble) {
+            inSingle = !inSingle;
+            continue;
+        }
+        if (ch === '"' && !inSingle && prev !== "\\") {
+            inDouble = !inDouble;
+            continue;
+        }
+        if (ch === "#" && !inSingle && !inDouble) {
+            return rawLine.slice(0, i);
+        }
+    }
+    return rawLine;
+}
+function unquoteYamlScalar(value) {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        const quote = trimmed[0];
+        const inner = trimmed.slice(1, -1);
+        return quote === '"'
+            ? inner
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, "\\")
+            : inner.replace(/''/g, "'");
+    }
+    return trimmed;
+}
+function parseYamlScalar(value) {
+    const normalized = value.trim();
+    if (!normalized)
+        return "";
+    if (normalized === "{}")
+        return {};
+    if (normalized === "[]")
+        return [];
+    if (normalized === "null" || normalized === "~")
+        return null;
+    if (normalized === "true")
+        return true;
+    if (normalized === "false")
+        return false;
+    return unquoteYamlScalar(normalized);
+}
+function findYamlMapSeparator(content) {
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < content.length; i += 1) {
+        const ch = content[i];
+        const prev = i > 0 ? content[i - 1] : "";
+        if (ch === "'" && !inDouble) {
+            inSingle = !inSingle;
+            continue;
+        }
+        if (ch === '"' && !inSingle && prev !== "\\") {
+            inDouble = !inDouble;
+            continue;
+        }
+        if (ch !== ":" || inSingle || inDouble)
+            continue;
+        const next = content[i + 1];
+        if (next === undefined || next === " " || next === "\t") {
+            return i;
+        }
+    }
+    return -1;
+}
+function toObjectRecord(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+    }
+    return value;
+}
+function mergeRecordObjects(...objects) {
+    const merged = {};
+    for (const obj of objects) {
+        if (!obj)
+            continue;
+        for (const [key, val] of Object.entries(obj)) {
+            merged[key] = val;
+        }
+    }
+    return Object.keys(merged).length > 0 ? merged : undefined;
+}
+function normalizeStringArray(value) {
+    if (typeof value === "string") {
+        const single = value.trim();
+        return single ? [single] : [];
+    }
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter(Boolean);
+}
+function parseSimpleYaml(yaml) {
+    var _a, _b;
+    const lines = [];
+    for (const rawLine of yaml.split(/\r?\n/)) {
+        const noComment = stripYamlInlineComment(rawLine).replace(/\s+$/, "");
+        if (!noComment.trim())
+            continue;
+        const indent = (_b = (_a = noComment.match(/^(\s*)/)) === null || _a === void 0 ? void 0 : _a[1].length) !== null && _b !== void 0 ? _b : 0;
+        lines.push({
+            indent,
+            content: noComment.trim(),
+        });
+    }
+    let index = 0;
+    const parseNode = (indentLevel) => {
+        if (index >= lines.length)
+            return undefined;
+        if (lines[index].indent < indentLevel)
+            return undefined;
+        if (lines[index].indent === indentLevel &&
+            lines[index].content.startsWith("- ")) {
+            return parseSequence(indentLevel);
+        }
+        return parseMapping(indentLevel);
+    };
+    const parseMapping = (indentLevel) => {
+        const out = {};
+        while (index < lines.length) {
+            const line = lines[index];
+            if (line.indent < indentLevel)
+                break;
+            if (line.indent > indentLevel) {
+                index += 1;
+                continue;
+            }
+            if (line.content.startsWith("- "))
+                break;
+            const colonIndex = findYamlMapSeparator(line.content);
+            if (colonIndex <= 0) {
+                index += 1;
+                continue;
+            }
+            const key = unquoteYamlScalar(line.content.slice(0, colonIndex));
+            const valueToken = line.content.slice(colonIndex + 1).trim();
+            index += 1;
+            if (valueToken) {
+                out[key] = parseYamlScalar(valueToken);
+                continue;
+            }
+            if (index < lines.length && lines[index].indent > indentLevel) {
+                out[key] = parseNode(lines[index].indent);
+            }
+            else {
+                out[key] = null;
+            }
+        }
+        return out;
+    };
+    const parseSequence = (indentLevel) => {
+        const values = [];
+        while (index < lines.length) {
+            const line = lines[index];
+            if (line.indent < indentLevel)
+                break;
+            if (line.indent !== indentLevel || !line.content.startsWith("- "))
+                break;
+            const valueToken = line.content.slice(2).trim();
+            index += 1;
+            if (valueToken) {
+                values.push(parseYamlScalar(valueToken));
+                if (index < lines.length && lines[index].indent > indentLevel) {
+                    // Consume malformed continuation lines to keep parser state stable.
+                    parseNode(lines[index].indent);
+                }
+                continue;
+            }
+            if (index < lines.length && lines[index].indent > indentLevel) {
+                values.push(parseNode(lines[index].indent));
+            }
+            else {
+                values.push(null);
+            }
+        }
+        return values;
+    };
+    const root = parseNode(0);
+    return toObjectRecord(root) || {};
+}
+function parsePnpmWorkspacePackagesFallback(yaml) {
+    const patterns = [];
+    const lines = yaml.split(/\r?\n/);
+    let inPackages = false;
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed)
+            continue;
+        if (/^packages\s*:\s*$/.test(trimmed)) {
+            inPackages = true;
+            continue;
+        }
+        if (inPackages) {
+            if (/^[A-Za-z0-9_-]+\s*:/.test(trimmed) && !trimmed.startsWith("-")) {
+                inPackages = false;
+                continue;
+            }
+            const m = trimmed.match(/^[-]\s*["']?([^"']+)["']?\s*$/);
+            if (m && m[1])
+                patterns.push(m[1].trim());
+        }
+    }
+    return patterns;
+}
+function parsePnpmWorkspaceFile(yaml) {
+    var _a;
+    const parsed = parseSimpleYaml(yaml);
+    const fromYaml = normalizeStringArray(parsed.packages);
+    const fromFallback = fromYaml.length > 0
+        ? fromYaml
+        : parsePnpmWorkspacePackagesFallback(yaml);
+    const topLevelOverrides = toObjectRecord(parsed.overrides);
+    const pnpmOverrides = toObjectRecord((_a = toObjectRecord(parsed.pnpm)) === null || _a === void 0 ? void 0 : _a.overrides);
+    const overrides = mergeRecordObjects(topLevelOverrides, pnpmOverrides);
+    return {
+        packages: fromFallback,
+        ...(overrides ? { overrides } : {}),
+    };
+}
 async function getToolVersion(tool, cwd) {
     try {
         const result = await (0, utils_1.runCommand)(tool, ["--version"], { cwd });
@@ -110,55 +338,45 @@ function compactToolVersions(versions) {
     }
     return Object.keys(out).length > 0 ? out : undefined;
 }
+async function detectYarnPnP(projectPath) {
+    if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, ".pnp.cjs"))) ||
+        (await (0, utils_1.pathExists)(path_1.default.join(projectPath, ".pnp.js")))) {
+        return true;
+    }
+    const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
+    if (!(await (0, utils_1.pathExists)(yarnrc)))
+        return false;
+    const content = await promises_1.default.readFile(yarnrc, "utf8").catch(() => "");
+    return /nodeLinker\s*:\s*pnp\b/.test(content);
+}
 async function detectWorkspace(projectPath) {
     const rootPkgPath = path_1.default.join(projectPath, "package.json");
     const rootPkg = await readJsonFile(rootPkgPath);
     const inferredManager = inferPackageManager(rootPkg);
+    const hasYarnLock = await (0, utils_1.pathExists)(path_1.default.join(projectPath, "yarn.lock"));
+    const hasYarnPnp = await detectYarnPnP(projectPath);
     const pnpmWorkspacePath = path_1.default.join(projectPath, "pnpm-workspace.yaml");
     const hasPnpmWorkspace = await (0, utils_1.pathExists)(pnpmWorkspacePath);
     let type = "none";
     let patterns = [];
+    let pnpmWorkspaceOverrides;
     if (hasPnpmWorkspace) {
         type = "pnpm";
-        // very small YAML parser for the only thing we care about: `packages:` list.
         const yaml = await promises_1.default.readFile(pnpmWorkspacePath, "utf8");
-        const lines = yaml.split(/\r?\n/);
-        let inPackages = false;
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed)
-                continue;
-            if (/^packages\s*:\s*$/.test(trimmed)) {
-                inPackages = true;
-                continue;
-            }
-            if (inPackages) {
-                // stop when we hit a new top-level key
-                if (/^[A-Za-z0-9_-]+\s*:/.test(trimmed) && !trimmed.startsWith("-")) {
-                    inPackages = false;
-                    continue;
-                }
-                const m = trimmed.match(/^[-]\s*["']?([^"']+)["']?\s*$/);
-                if (m && m[1])
-                    patterns.push(m[1].trim());
-            }
-        }
+        const workspaceFile = parsePnpmWorkspaceFile(yaml);
+        patterns = workspaceFile.packages;
+        pnpmWorkspaceOverrides = workspaceFile.overrides;
+    }
+    if (hasYarnPnp) {
+        return { type: "yarn", packagePaths: [] };
     }
     // npm/yarn workspaces
     if (type === "none" && rootPkg && rootPkg.workspaces) {
-        type = inferredManager || "npm";
+        type = inferredManager || (hasYarnLock ? "yarn" : "npm");
         if (Array.isArray(rootPkg.workspaces))
             patterns = rootPkg.workspaces;
         else if (Array.isArray(rootPkg.workspaces.packages))
             patterns = rootPkg.workspaces.packages;
-        // try to detect yarn berry pnp (unsupported) later via .yarnrc.yml
-        const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
-        if (await (0, utils_1.pathExists)(yarnrc)) {
-            const y = await promises_1.default.readFile(yarnrc, "utf8");
-            if (/nodeLinker\s*:\s*pnp/.test(y)) {
-                return { type: "yarn", packagePaths: [] };
-            }
-        }
     }
     if (type === "none") {
         return { type: "none", packagePaths: [projectPath] };
@@ -189,7 +407,11 @@ async function detectWorkspace(projectPath) {
             }
         }
     }
-    return { type, packagePaths: packagePaths.sort() };
+    return {
+        type,
+        packagePaths: packagePaths.sort(),
+        ...(pnpmWorkspaceOverrides ? { pnpmWorkspaceOverrides } : {}),
+    };
 }
 function inferPackageManager(rootPkg) {
     const raw = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === "string"
@@ -211,13 +433,8 @@ async function detectPackageManager(projectPath, rootPkg, workspaceType) {
         return inferred;
     if (workspaceType === "pnpm" || workspaceType === "yarn")
         return workspaceType;
-    const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
-    if (await (0, utils_1.pathExists)(yarnrc)) {
-        const y = await promises_1.default.readFile(yarnrc, "utf8");
-        if (/nodeLinker\s*:\s*pnp/.test(y)) {
-            return "yarn";
-        }
-    }
+    if (await detectYarnPnP(projectPath))
+        return "yarn";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".pnpm")))
         return "pnpm";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".yarn-state.yml")))
@@ -250,20 +467,120 @@ async function readWorkspacePackageMeta(rootPath, packagePaths) {
     }
     return out;
 }
-function mergeDepsFromWorkspace(pkgs) {
-    var _a, _b, _c;
+function isWorkspaceLocalSpecifier(value) {
+    if (typeof value !== "string")
+        return false;
+    const trimmed = value.trim().toLowerCase();
+    return (trimmed.startsWith("workspace:") ||
+        trimmed.startsWith("link:") ||
+        trimmed.startsWith("file:"));
+}
+function normalizeRelativePath(rootPath, packagePath) {
+    const relative = path_1.default.relative(rootPath, packagePath);
+    const normalized = relative.split(path_1.default.sep).join("/");
+    return normalized && normalized.length > 0 ? normalized : ".";
+}
+function readDependencyEntries(source) {
+    if (!source || typeof source !== "object")
+        return [];
+    const entries = [];
+    for (const [name, spec] of Object.entries(source)) {
+        if (typeof name !== "string" || !name.trim())
+            continue;
+        if (typeof spec !== "string" || !spec.trim())
+            continue;
+        entries.push([name, spec.trim()]);
+    }
+    return entries;
+}
+function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames) {
+    return workspacePackageNames.has(dependencyName) || isWorkspaceLocalSpecifier(spec);
+}
+function buildWorkspaceClassification(rootPath, packageMetas) {
+    var _a, _b, _c, _d, _e;
+    const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+    const workspacePackageIds = new Set();
+    const workspacePackagePaths = new Set();
+    const localDependencyNames = new Set();
+    const workspacePackages = [];
+    for (const meta of packageMetas) {
+        const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" && meta.pkg.version.trim().length > 0
+            ? meta.pkg.version.trim()
+            : "workspace";
+        workspacePackageIds.add(`${meta.name}@${version}`);
+        workspacePackagePaths.add(path_1.default.resolve(meta.path));
+        const runtimeExternal = new Set();
+        const devExternal = new Set();
+        const runtimeEntries = [
+            ...readDependencyEntries((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.dependencies),
+            ...readDependencyEntries((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies),
+        ];
+        const devEntries = readDependencyEntries((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.devDependencies);
+        const peerEntries = readDependencyEntries((_e = meta.pkg) === null || _e === void 0 ? void 0 : _e.peerDependencies);
+        for (const [depName, spec] of runtimeEntries) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+                continue;
+            }
+            runtimeExternal.add(depName);
+        }
+        for (const [depName, spec] of devEntries) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+                continue;
+            }
+            devExternal.add(depName);
+        }
+        for (const [depName, spec] of peerEntries) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+            }
+        }
+        workspacePackages.push({
+            name: meta.name,
+            relativePath: normalizeRelativePath(rootPath, meta.path),
+            directExternal: {
+                runtime: runtimeExternal.size,
+                dev: devExternal.size,
+            },
+        });
+    }
+    workspacePackages.sort((a, b) => {
+        const pathCompare = a.relativePath.localeCompare(b.relativePath);
+        if (pathCompare !== 0)
+            return pathCompare;
+        return a.name.localeCompare(b.name);
+    });
+    return {
+        workspacePackages,
+        workspacePackageNames,
+        workspacePackageIds,
+        workspacePackagePaths,
+        localDependencyNames,
+    };
+}
+function mergeDepsFromWorkspace(pkgs, workspacePackageNames, localDependencyNames) {
+    var _a, _b, _c, _d;
     const merged = {
         dependencies: {},
         devDependencies: {},
         optionalDependencies: {},
+        peerDependencies: {},
+    };
+    const mergeSection = (target, source) => {
+        for (const [depName, spec] of readDependencyEntries(source)) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+                localDependencyNames.add(depName);
+                continue;
+            }
+            target[depName] = spec;
+        }
     };
     for (const entry of pkgs) {
-        const deps = ((_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
-        const dev = ((_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
-        const opt = ((_c = entry.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
-        Object.assign(merged.dependencies, deps);
-        Object.assign(merged.devDependencies, dev);
-        Object.assign(merged.optionalDependencies, opt);
+        mergeSection(merged.dependencies, (_a = entry.pkg) === null || _a === void 0 ? void 0 : _a.dependencies);
+        mergeSection(merged.devDependencies, (_b = entry.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies);
+        mergeSection(merged.optionalDependencies, (_c = entry.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies);
+        mergeSection(merged.peerDependencies, (_d = entry.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies);
     }
     return merged;
 }
@@ -298,21 +615,6 @@ function mergeAuditResults(results) {
             base.metadata = r.metadata;
     }
     return base;
-}
-function collectDeclaredDeps(pkg) {
-    const out = new Set();
-    const sections = [
-        pkg === null || pkg === void 0 ? void 0 : pkg.dependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.devDependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.optionalDependencies,
-        pkg === null || pkg === void 0 ? void 0 : pkg.peerDependencies,
-    ];
-    for (const deps of sections) {
-        if (deps && typeof deps === "object") {
-            Object.keys(deps).forEach((name) => out.add(name));
-        }
-    }
-    return Array.from(out);
 }
 function parseOutdatedData(data, unknownNames) {
     const entries = [];
@@ -513,11 +815,15 @@ function mergeImportGraphs(rootPath, packageMetas, graphs) {
     }
     return { files, packages, packageCounts, unresolvedImports };
 }
-function buildWorkspaceUsageMap(packageMetas, dependencyGraphs) {
+function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackageNames, localDependencyNames) {
     var _a, _b, _c, _d;
     const usage = new Map();
     const add = (depName, pkgName) => {
         if (!depName)
+            return;
+        if (workspacePackageNames.has(depName))
+            return;
+        if (localDependencyNames.has(depName))
             return;
         if (!usage.has(depName))
             usage.set(depName, new Set());
@@ -717,8 +1023,9 @@ async function run() {
         // ignore, best-effort path normalization
     }
     const tempDir = path_1.default.join(projectPath, ".dependency-radar");
-    // Workspace detection and reporting
+    // Stage 1: detect workspace/package-manager context and collect tool versions.
     const workspace = await detectWorkspace(projectPath);
+    const yarnPnP = await detectYarnPnP(projectPath);
     if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
         console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
         console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
@@ -726,6 +1033,12 @@ async function run() {
         return;
     }
     const rootPkg = await readJsonFile(path_1.default.join(projectPath, "package.json"));
+    const projectDependencyPolicy = workspace.pnpmWorkspaceOverrides
+        ? {
+            overrides: workspace.pnpmWorkspaceOverrides,
+            sources: ["pnpm-workspace.yaml#overrides"],
+        }
+        : undefined;
     const packageManager = await detectPackageManager(projectPath, rootPkg, workspace.type);
     const scanManager = await detectScanManager(projectPath, packageManager);
     const packageManagerField = typeof (rootPkg === null || rootPkg === void 0 ? void 0 : rootPkg.packageManager) === "string"
@@ -746,17 +1059,11 @@ async function run() {
         : scanManager === "pnpm"
             ? pnpmVersion
             : yarnVersion;
-    if (packageManager === "yarn") {
-        const yarnrc = path_1.default.join(projectPath, ".yarnrc.yml");
-        if (await (0, utils_1.pathExists)(yarnrc)) {
-            const y = await promises_1.default.readFile(yarnrc, "utf8");
-            if (/nodeLinker\s*:\s*pnp/.test(y)) {
-                console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
-                console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
-                process.exit(1);
-                return;
-            }
-        }
+    if (packageManager === "yarn" && yarnPnP) {
+        console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
+        console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
+        process.exit(1);
+        return;
     }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === "none"
@@ -769,8 +1076,9 @@ async function run() {
     const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
     try {
         await (0, utils_1.ensureDir)(tempDir);
-        // Run tools per package for best coverage.
+        // Stage 2: run per-package collectors and persist raw tool outputs.
         const packageMetas = await readWorkspacePackageMeta(projectPath, packagePaths);
+        const workspaceClassification = buildWorkspaceClassification(projectPath, packageMetas);
         const perPackageAudit = [];
         const perPackageLs = [];
         const perPackageImportGraph = [];
@@ -797,6 +1105,7 @@ async function run() {
             perPackageImportGraph.push(ig);
             perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
         }
+        // Stage 3: merge per-package results into a workspace-level view.
         if (opts.audit) {
             const auditOk = perPackageAudit.every((r) => r && r.ok);
             if (auditOk) {
@@ -822,7 +1131,7 @@ async function run() {
                 : undefined
             : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
-        const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
+        const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)), workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
         const outdatedResult = mergeOutdatedResults(perPackageOutdated);
         const auditResult = mergedAuditData
             ? { ok: true, data: mergedAuditData }
@@ -830,7 +1139,7 @@ async function run() {
         const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
         // Build a merged package.json view for aggregator direct-dep checks.
-        const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas);
+        const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas, workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
         const auditFailure = opts.audit
             ? perPackageAudit.find((r) => r && !r.ok)
             : undefined;
@@ -849,6 +1158,7 @@ async function run() {
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
         }
+        // Stage 4: aggregate all signals into the final report model.
         const aggregated = await (0, aggregator_1.aggregateData)({
             projectPath,
             auditResult,
@@ -856,6 +1166,8 @@ async function run() {
             importGraphResult,
             outdatedResult,
             pkgOverride: mergedPkgForAggregator,
+            projectPackageJson: rootPkg,
+            ...(projectDependencyPolicy ? { projectDependencyPolicy } : {}),
             workspaceUsage,
             resolvePaths: [
                 projectPath,
@@ -864,6 +1176,15 @@ async function run() {
             workspaceEnabled: workspace.type !== "none",
             workspaceType: workspace.type,
             workspacePackageCount: packagePaths.length,
+            ...(workspace.type !== "none"
+                ? {
+                    workspacePackages: workspaceClassification.workspacePackages,
+                    workspacePackageNames: workspaceClassification.workspacePackageNames,
+                    workspacePackageIds: workspaceClassification.workspacePackageIds,
+                    workspacePackagePaths: workspaceClassification.workspacePackagePaths,
+                    workspaceLocalDependencyNames: workspaceClassification.localDependencyNames,
+                }
+                : {}),
             packageManager: scanManager,
             packageManagerVersion,
             packageManagerField,

@@ -246,11 +246,20 @@ function normalizeNpmNode(name: string, node: any): ResolvedNode | undefined {
 }
 
 function normalizePnpmTree(data: any): ResolvedTree | undefined {
-  const roots = Array.isArray(data) ? data : [data];
-  const root = roots.find((entry) => entry && typeof entry === 'object');
+  const roots = (Array.isArray(data) ? data : [data]).filter(
+    (entry) => entry && typeof entry === 'object'
+  );
+  const root = roots.find((entry) => !isPnpmErrorPayload(entry));
   if (!root || typeof root !== 'object') return undefined;
   const dependencies = collectPnpmDependencyMap(root);
   return { dependencies };
+}
+
+function isPnpmErrorPayload(node: any): boolean {
+  if (!node || typeof node !== 'object') return false;
+  if (!('error' in node)) return false;
+  const error = (node as { error?: unknown }).error;
+  return typeof error === 'string' || (error !== null && typeof error === 'object');
 }
 
 function collectPnpmDependencyMap(node: any): Record<string, ResolvedNode> {

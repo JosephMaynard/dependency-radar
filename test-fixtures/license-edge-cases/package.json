@@ -1,0 +1,13 @@
+{
+  "name": "dr-license-edge-cases",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@dr-license/match-mit": "file:./packages/license-match-mit",
+    "@dr-license/invalid-spdx": "file:./packages/license-invalid-spdx",
+    "@dr-license/mismatch": "file:./packages/license-mismatch",
+    "@dr-license/inferred-only": "file:./packages/license-inferred-only"
+  }
+}
