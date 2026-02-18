@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { ToolResult } from '../types';
 import { runCommand, writeJsonFile } from '../utils';
 
@@ -12,6 +13,13 @@ type ResolvedNode = {
 
 type ResolvedTree = {
   dependencies: Record<string, ResolvedNode>;
+};
+
+type PnpmInstallState = {
+  enabled: boolean;
+  virtualStoreEntries: Set<string>;
+  nodeModulesRoots: string[];
+  installedCache: Map<string, boolean>;
 };
 
 const PNPM_DEPTH_ATTEMPTS = ['Infinity', '8', '4', '2', '1'];
@@ -65,7 +73,7 @@ function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normal
 }
 
 async function runPnpmLsWithFallback(projectPath: string, targetFile: string, options: LsProgressOptions): Promise<ToolResult<any>> {
-  const normalize = normalizePnpmTree;
+  const installState = createPnpmInstallState(projectPath);
   const attempts: Array<{
     depth: string;
     code: number | null;
@@ -84,7 +92,7 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
       env
     });
     const parsed = parseJsonOutput(result.stdout);
-    const normalized = normalize(parsed);
+    const normalized = normalizePnpmTree(parsed, installState);
     const outOfMemory = isOutOfMemoryError(result.stderr);
     attempts.push({
       depth,
@@ -245,13 +253,13 @@ function normalizeNpmNode(name: string, node: any): ResolvedNode | undefined {
   return out;
 }
 
-function normalizePnpmTree(data: any): ResolvedTree | undefined {
+function normalizePnpmTree(data: any, installState: PnpmInstallState): ResolvedTree | undefined {
   const roots = (Array.isArray(data) ? data : [data]).filter(
     (entry) => entry && typeof entry === 'object'
   );
   const root = roots.find((entry) => !isPnpmErrorPayload(entry));
   if (!root || typeof root !== 'object') return undefined;
-  const dependencies = collectPnpmDependencyMap(root);
+  const dependencies = collectPnpmDependencyMap(root, installState);
   return { dependencies };
 }
 
@@ -262,7 +270,7 @@ function isPnpmErrorPayload(node: any): boolean {
   return typeof error === 'string' || (error !== null && typeof error === 'object');
 }
 
-function collectPnpmDependencyMap(node: any): Record<string, ResolvedNode> {
+function collectPnpmDependencyMap(node: any, installState: PnpmInstallState): Record<string, ResolvedNode> {
   const out: Record<string, ResolvedNode> = {};
   const groups = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
   for (const group of groups) {
@@ -273,7 +281,7 @@ function collectPnpmDependencyMap(node: any): Record<string, ResolvedNode> {
         if (!entry || typeof entry !== 'object') continue;
         const name = typeof entry.name === 'string' ? entry.name : undefined;
         if (!name) continue;
-        const normalized = normalizePnpmNode(name, entry);
+        const normalized = normalizePnpmNode(name, entry, installState);
         if (normalized) out[name] = normalized;
       }
       continue;
@@ -281,7 +289,7 @@ function collectPnpmDependencyMap(node: any): Record<string, ResolvedNode> {
     if (typeof value === 'object') {
       for (const [name, entry] of Object.entries<any>(value)) {
         if (!entry || typeof entry !== 'object') continue;
-        const normalized = normalizePnpmNode(name, entry);
+        const normalized = normalizePnpmNode(name, entry, installState);
         if (normalized) out[name] = normalized;
       }
     }
@@ -289,18 +297,19 @@ function collectPnpmDependencyMap(node: any): Record<string, ResolvedNode> {
   if (Object.keys(out).length > 0) return out;
   if (node?.dependencies && typeof node.dependencies === 'object') {
     for (const [name, entry] of Object.entries<any>(node.dependencies)) {
-      const normalized = normalizePnpmNode(name, entry);
+      const normalized = normalizePnpmNode(name, entry, installState);
       if (normalized) out[name] = normalized;
     }
   }
   return out;
 }
 
-function normalizePnpmNode(name: string, node: any): ResolvedNode | undefined {
+function normalizePnpmNode(name: string, node: any, installState: PnpmInstallState): ResolvedNode | undefined {
   const version = typeof node?.version === 'string' ? node.version.trim() : '';
   if (!version || version === 'unknown' || version === 'missing' || version === 'invalid') return undefined;
+  if (!isPnpmPackageInstalled(name, version, installState)) return undefined;
   const out: ResolvedNode = { name, version, dependencies: {} };
-  const childMap = collectPnpmDependencyMap(node);
+  const childMap = collectPnpmDependencyMap(node, installState);
   if (Object.keys(childMap).length > 0) {
     out.dependencies = childMap;
   } else {
@@ -308,6 +317,103 @@ function normalizePnpmNode(name: string, node: any): ResolvedNode | undefined {
   }
   if (node?.dev !== undefined) out.dev = Boolean(node.dev);
   return out;
+}
+
+function createPnpmInstallState(projectPath: string): PnpmInstallState {
+  const nodeModulesRoots = findNodeModulesRoots(projectPath);
+  const virtualStoreEntries = new Set<string>();
+  for (const root of nodeModulesRoots) {
+    const virtualStoreDir = path.join(root, '.pnpm');
+    if (!safePathExists(virtualStoreDir)) continue;
+    for (const entry of safeReadDirNames(virtualStoreDir)) {
+      virtualStoreEntries.add(entry);
+    }
+  }
+  return {
+    enabled: virtualStoreEntries.size > 0 || nodeModulesRoots.length > 0,
+    virtualStoreEntries,
+    nodeModulesRoots,
+    installedCache: new Map<string, boolean>()
+  };
+}
+
+function findNodeModulesRoots(startPath: string): string[] {
+  const roots: string[] = [];
+  let current = path.resolve(startPath);
+  while (true) {
+    const candidate = path.join(current, 'node_modules');
+    if (safePathExists(candidate)) {
+      roots.push(candidate);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return roots;
+}
+
+function isPnpmPackageInstalled(name: string, version: string, installState: PnpmInstallState): boolean {
+  if (!installState.enabled) return true;
+  const cacheKey = `${name}@${version}`;
+  const cached = installState.installedCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const normalizedName = normalizeScopedPackageNameForPnpmStore(name);
+  const storePrefix = `${normalizedName}@${version}`;
+  for (const entry of installState.virtualStoreEntries) {
+    if (entry === storePrefix || entry.startsWith(`${storePrefix}_`) || entry.startsWith(`${storePrefix}(`)) {
+      installState.installedCache.set(cacheKey, true);
+      return true;
+    }
+  }
+
+  // Workspace links may resolve outside the virtual store, but still exist in node_modules.
+  for (const nodeModulesRoot of installState.nodeModulesRoots) {
+    const packageDir = path.join(nodeModulesRoot, ...name.split('/'));
+    if (safePathExists(packageDir) && packageDirectoryMatchesVersion(packageDir, version)) {
+      installState.installedCache.set(cacheKey, true);
+      return true;
+    }
+  }
+
+  installState.installedCache.set(cacheKey, false);
+  return false;
+}
+
+function normalizeScopedPackageNameForPnpmStore(name: string): string {
+  if (!name.startsWith('@')) return name;
+  const slashIndex = name.indexOf('/');
+  if (slashIndex <= 0) return name;
+  return `${name.slice(0, slashIndex)}+${name.slice(slashIndex + 1)}`;
+}
+
+function safePathExists(targetPath: string): boolean {
+  try {
+    return fs.existsSync(targetPath);
+  } catch {
+    return false;
+  }
+}
+
+function safeReadDirNames(dirPath: string): string[] {
+  try {
+    return fs.readdirSync(dirPath);
+  } catch {
+    return [];
+  }
+}
+
+function packageDirectoryMatchesVersion(packageDir: string, expectedVersion: string): boolean {
+  const pkgJsonPath = path.join(packageDir, 'package.json');
+  if (!safePathExists(pkgJsonPath)) return true;
+  try {
+    const raw = fs.readFileSync(pkgJsonPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const version = typeof parsed?.version === 'string' ? parsed.version.trim() : '';
+    return !version || version === expectedVersion;
+  } catch {
+    return true;
+  }
 }
 
 function normalizeYarnTree(data: any): ResolvedTree | undefined {

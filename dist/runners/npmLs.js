@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runNpmLs = runNpmLs;
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const utils_1 = require("../utils");
 const PNPM_DEPTH_ATTEMPTS = ['Infinity', '8', '4', '2', '1'];
 const PNPM_MAX_OLD_SPACE_SIZE_MB = '8192';
@@ -45,7 +46,7 @@ function buildLsCommand(tool) {
     };
 }
 async function runPnpmLsWithFallback(projectPath, targetFile, options) {
-    const normalize = normalizePnpmTree;
+    const installState = createPnpmInstallState(projectPath);
     const attempts = [];
     const env = {
         NODE_OPTIONS: ensureNodeMaxOldSpaceSize(process.env.NODE_OPTIONS, PNPM_MAX_OLD_SPACE_SIZE_MB)
@@ -57,7 +58,7 @@ async function runPnpmLsWithFallback(projectPath, targetFile, options) {
             env
         });
         const parsed = parseJsonOutput(result.stdout);
-        const normalized = normalize(parsed);
+        const normalized = normalizePnpmTree(parsed, installState);
         const outOfMemory = isOutOfMemoryError(result.stderr);
         attempts.push({
             depth,
@@ -212,12 +213,12 @@ function normalizeNpmNode(name, node) {
     }
     return out;
 }
-function normalizePnpmTree(data) {
+function normalizePnpmTree(data, installState) {
     const roots = (Array.isArray(data) ? data : [data]).filter((entry) => entry && typeof entry === 'object');
     const root = roots.find((entry) => !isPnpmErrorPayload(entry));
     if (!root || typeof root !== 'object')
         return undefined;
-    const dependencies = collectPnpmDependencyMap(root);
+    const dependencies = collectPnpmDependencyMap(root, installState);
     return { dependencies };
 }
 function isPnpmErrorPayload(node) {
@@ -228,7 +229,7 @@ function isPnpmErrorPayload(node) {
     const error = node.error;
     return typeof error === 'string' || (error !== null && typeof error === 'object');
 }
-function collectPnpmDependencyMap(node) {
+function collectPnpmDependencyMap(node, installState) {
     const out = {};
     const groups = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
     for (const group of groups) {
@@ -242,7 +243,7 @@ function collectPnpmDependencyMap(node) {
                 const name = typeof entry.name === 'string' ? entry.name : undefined;
                 if (!name)
                     continue;
-                const normalized = normalizePnpmNode(name, entry);
+                const normalized = normalizePnpmNode(name, entry, installState);
                 if (normalized)
                     out[name] = normalized;
             }
@@ -252,7 +253,7 @@ function collectPnpmDependencyMap(node) {
             for (const [name, entry] of Object.entries(value)) {
                 if (!entry || typeof entry !== 'object')
                     continue;
-                const normalized = normalizePnpmNode(name, entry);
+                const normalized = normalizePnpmNode(name, entry, installState);
                 if (normalized)
                     out[name] = normalized;
             }
@@ -262,19 +263,21 @@ function collectPnpmDependencyMap(node) {
         return out;
     if ((node === null || node === void 0 ? void 0 : node.dependencies) && typeof node.dependencies === 'object') {
         for (const [name, entry] of Object.entries(node.dependencies)) {
-            const normalized = normalizePnpmNode(name, entry);
+            const normalized = normalizePnpmNode(name, entry, installState);
             if (normalized)
                 out[name] = normalized;
         }
     }
     return out;
 }
-function normalizePnpmNode(name, node) {
+function normalizePnpmNode(name, node, installState) {
     const version = typeof (node === null || node === void 0 ? void 0 : node.version) === 'string' ? node.version.trim() : '';
     if (!version || version === 'unknown' || version === 'missing' || version === 'invalid')
         return undefined;
+    if (!isPnpmPackageInstalled(name, version, installState))
+        return undefined;
     const out = { name, version, dependencies: {} };
-    const childMap = collectPnpmDependencyMap(node);
+    const childMap = collectPnpmDependencyMap(node, installState);
     if (Object.keys(childMap).length > 0) {
         out.dependencies = childMap;
     }
@@ -284,6 +287,103 @@ function normalizePnpmNode(name, node) {
     if ((node === null || node === void 0 ? void 0 : node.dev) !== undefined)
         out.dev = Boolean(node.dev);
     return out;
+}
+function createPnpmInstallState(projectPath) {
+    const nodeModulesRoots = findNodeModulesRoots(projectPath);
+    const virtualStoreEntries = new Set();
+    for (const root of nodeModulesRoots) {
+        const virtualStoreDir = path_1.default.join(root, '.pnpm');
+        if (!safePathExists(virtualStoreDir))
+            continue;
+        for (const entry of safeReadDirNames(virtualStoreDir)) {
+            virtualStoreEntries.add(entry);
+        }
+    }
+    return {
+        enabled: virtualStoreEntries.size > 0 || nodeModulesRoots.length > 0,
+        virtualStoreEntries,
+        nodeModulesRoots,
+        installedCache: new Map()
+    };
+}
+function findNodeModulesRoots(startPath) {
+    const roots = [];
+    let current = path_1.default.resolve(startPath);
+    while (true) {
+        const candidate = path_1.default.join(current, 'node_modules');
+        if (safePathExists(candidate)) {
+            roots.push(candidate);
+        }
+        const parent = path_1.default.dirname(current);
+        if (parent === current)
+            break;
+        current = parent;
+    }
+    return roots;
+}
+function isPnpmPackageInstalled(name, version, installState) {
+    if (!installState.enabled)
+        return true;
+    const cacheKey = `${name}@${version}`;
+    const cached = installState.installedCache.get(cacheKey);
+    if (cached !== undefined)
+        return cached;
+    const normalizedName = normalizeScopedPackageNameForPnpmStore(name);
+    const storePrefix = `${normalizedName}@${version}`;
+    for (const entry of installState.virtualStoreEntries) {
+        if (entry === storePrefix || entry.startsWith(`${storePrefix}_`) || entry.startsWith(`${storePrefix}(`)) {
+            installState.installedCache.set(cacheKey, true);
+            return true;
+        }
+    }
+    // Workspace links may resolve outside the virtual store, but still exist in node_modules.
+    for (const nodeModulesRoot of installState.nodeModulesRoots) {
+        const packageDir = path_1.default.join(nodeModulesRoot, ...name.split('/'));
+        if (safePathExists(packageDir) && packageDirectoryMatchesVersion(packageDir, version)) {
+            installState.installedCache.set(cacheKey, true);
+            return true;
+        }
+    }
+    installState.installedCache.set(cacheKey, false);
+    return false;
+}
+function normalizeScopedPackageNameForPnpmStore(name) {
+    if (!name.startsWith('@'))
+        return name;
+    const slashIndex = name.indexOf('/');
+    if (slashIndex <= 0)
+        return name;
+    return `${name.slice(0, slashIndex)}+${name.slice(slashIndex + 1)}`;
+}
+function safePathExists(targetPath) {
+    try {
+        return fs_1.default.existsSync(targetPath);
+    }
+    catch {
+        return false;
+    }
+}
+function safeReadDirNames(dirPath) {
+    try {
+        return fs_1.default.readdirSync(dirPath);
+    }
+    catch {
+        return [];
+    }
+}
+function packageDirectoryMatchesVersion(packageDir, expectedVersion) {
+    const pkgJsonPath = path_1.default.join(packageDir, 'package.json');
+    if (!safePathExists(pkgJsonPath))
+        return true;
+    try {
+        const raw = fs_1.default.readFileSync(pkgJsonPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        const version = typeof (parsed === null || parsed === void 0 ? void 0 : parsed.version) === 'string' ? parsed.version.trim() : '';
+        return !version || version === expectedVersion;
+    }
+    catch {
+        return true;
+    }
 }
 function normalizeYarnTree(data) {
     const treePayload = resolveYarnTreePayload(data);
