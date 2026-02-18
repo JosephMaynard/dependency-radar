@@ -241,26 +241,16 @@ npx dependency-radar --help
 - `npm run build:report-ui` – build report UI assets
 - `npm run build:report` – rebuild report assets used by the CLI
 
-### Fixture scripts:
+### Test scripts:
 
-- `npm run fixtures:install` – install core fixture dependencies
-- `npm run fixtures:install:all` – install all fixture dependencies
-- `npm run fixtures:scan` – scan the core fixture set
-- `npm run fixtures:install:npm`
-- `npm run fixtures:install:npm-heavy`
-- `npm run fixtures:install:pnpm`
-- `npm run fixtures:install:pnpm-hoisted`
-- `npm run fixtures:install:yarn`
-- `npm run fixtures:install:yarn-berry`
-- `npm run fixtures:install:optional`
-- `npm run fixtures:scan:npm`
-- `npm run fixtures:scan:npm-heavy`
-- `npm run fixtures:scan:pnpm`
-- `npm run fixtures:scan:pnpm-hoisted`
-- `npm run fixtures:scan:yarn`
-- `npm run fixtures:scan:yarn-berry`
-- `npm run fixtures:scan:optional`
-- `npm run fixtures:scan:no-node-modules`
+- `npm run test:unit` – run Vitest unit tests
+- `npm run test:unit:watch` – watch mode for fast local iteration
+- `npm run test:fixtures` – run curated fixture integration tests (mostly offline scans)
+- `npm run test:fixtures:online` – run online fixture checks (audit/outdated regression coverage)
+- `npm run test:fixtures:all` – run all fixture integration tests
+- `npm run test:release` – full pre-release gate (`build` + unit + fixture + package dry run)
+
+Fixture orchestration lives in `/test-fixtures/package.json` with helper scripts under `/test-fixtures/scripts`.
 
 ## Notes
 

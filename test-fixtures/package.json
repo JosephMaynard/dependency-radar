@@ -1,0 +1,18 @@
+{
+  "name": "dependency-radar-test-fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fixture runner for dependency-radar integration regression tests.",
+  "scripts": {
+    "clean": "node scripts/clean.js",
+    "install": "node scripts/run-suite.js install core",
+    "scan": "node scripts/run-suite.js scan core",
+    "assert": "node scripts/assert-suite.js core",
+    "test": "npm run install && npm run scan && npm run assert",
+    "install:online": "node scripts/run-suite.js install online",
+    "scan:online": "node scripts/run-suite.js scan online",
+    "assert:online": "node scripts/assert-suite.js online",
+    "test:online": "npm run install:online && npm run scan:online && npm run assert:online",
+    "test:all": "npm run test && npm run test:online"
+  }
+}

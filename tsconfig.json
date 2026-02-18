@@ -12,5 +12,6 @@
     "lib": ["ES2019", "DOM"],
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
 }
