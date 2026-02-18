@@ -996,10 +996,20 @@ details[open] > summary .expand-icon {
   font-size: 12px;
   margin-left: 6px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  text-underline-offset: 2px;
 }
 
 .kv-inline-link:hover {
   text-decoration: underline;
+}
+
+.kv-inline-link-icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 .kv-inline-link:focus-visible {

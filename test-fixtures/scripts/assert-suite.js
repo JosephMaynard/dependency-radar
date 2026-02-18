@@ -32,7 +32,14 @@ function loadReport(fixtureName) {
     failures.push(`[${fixtureName}] missing report: ${reportPath}`);
     return null;
   }
-  return JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  try {
+    const reportRaw = fs.readFileSync(reportPath, 'utf8');
+    return JSON.parse(reportRaw);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    failures.push(`[${fixtureName}] invalid report: ${errorMessage}`);
+    return null;
+  }
 }
 
 function getDependencies(report) {
