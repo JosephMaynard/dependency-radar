@@ -1,0 +1,11 @@
+{
+  "name": "dr-npm-registry-signals",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "4.17.20",
+    "minimist": "0.0.8"
+  }
+}

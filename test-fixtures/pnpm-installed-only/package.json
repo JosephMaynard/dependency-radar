@@ -1,11 +1,11 @@
 {
-  "name": "@dr-berry/app-a",
+  "name": "dr-pnpm-installed-only",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.5.0",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "@dr-berry/pkg-a": "workspace:*",
-    "dayjs": "^1.11.10"
+    "esbuild": "0.25.4"
   }
 }

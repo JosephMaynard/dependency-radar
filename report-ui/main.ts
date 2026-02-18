@@ -4,6 +4,7 @@
  */
 
 import "./style.css";
+import { buildCtaUrl } from "../src/cta";
 import type {
   AggregatedData,
   DependencyRecord,
@@ -1079,7 +1080,10 @@ function appendGithubFileLink(value: string, fileUrl: string | undefined): strin
     escapeHtml(value) +
     ' <a class="kv-inline-link" href="' +
     escapeHtml(fileUrl) +
-    '" target="_blank" rel="noopener">GitHub file</a>'
+    '" target="_blank" rel="noopener">GitHub' +
+    '<svg class="kv-inline-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
+    '<path d="M7 17 17 7"/><path d="M9 7h8v8"/>' +
+    "</svg></a>"
   );
 }
 
@@ -1574,10 +1578,20 @@ async function init(): Promise<void> {
   const report = await loadReportData();
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
+  const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
 
   // Update header info with new chip-based layout
   const projectPathEl = document.getElementById("project-path");
   if (projectPathEl) projectPathEl.textContent = report.project.projectDir;
+
+  const ctaPrimaryLink = document.getElementById(
+    "cta-primary-link",
+  ) as HTMLAnchorElement | null;
+  const ctaSecondaryLink = document.getElementById(
+    "cta-secondary-link",
+  ) as HTMLAnchorElement | null;
+  if (ctaPrimaryLink) ctaPrimaryLink.href = ctaUrl;
+  if (ctaSecondaryLink) ctaSecondaryLink.href = ctaUrl;
 
   // Git branch chip
   const gitBranchItem = document.getElementById("git-branch-item");
