@@ -6,22 +6,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderReport = renderReport;
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
+const cta_1 = require("./cta");
 const report_assets_1 = require("./report-assets");
-const CTA_BASE_URL = 'https://dependency-radar.com/?source=standalone-report';
 async function renderReport(data, outputPath) {
     const html = buildHtml(data);
     await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
     await promises_1.default.writeFile(outputPath, html, 'utf8');
 }
-function buildCtaUrl(version) {
-    const normalizedVersion = typeof version === 'string' && version.trim().length > 0
-        ? version.trim()
-        : 'unknown';
-    return `${CTA_BASE_URL}&cli=${encodeURIComponent(normalizedVersion)}`;
-}
 function buildHtml(data) {
     const json = JSON.stringify(data).replace(/</g, '\\u003c');
-    const ctaUrl = buildCtaUrl(data.dependencyRadarVersion);
+    const ctaUrl = (0, cta_1.buildCtaUrl)(data.dependencyRadarVersion);
     // Format the generated date
     let formattedDate = data.generatedAt;
     try {

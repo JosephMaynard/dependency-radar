@@ -1,21 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { AggregatedData } from './types';
+import { buildCtaUrl } from './cta';
 import { CSS_CONTENT, JS_CONTENT } from './report-assets';
-
-const CTA_BASE_URL = 'https://dependency-radar.com/?source=standalone-report';
 
 export async function renderReport(data: AggregatedData, outputPath: string): Promise<void> {
   const html = buildHtml(data);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, html, 'utf8');
-}
-
-function buildCtaUrl(version: string | undefined): string {
-  const normalizedVersion = typeof version === 'string' && version.trim().length > 0
-    ? version.trim()
-    : 'unknown';
-  return `${CTA_BASE_URL}&cli=${encodeURIComponent(normalizedVersion)}`;
 }
 
 function buildHtml(data: AggregatedData): string {

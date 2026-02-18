@@ -4,6 +4,7 @@
  */
 
 import "./style.css";
+import { buildCtaUrl } from "../src/cta";
 import type {
   AggregatedData,
   DependencyRecord,
@@ -11,8 +12,6 @@ import type {
   LicenseStatus,
   Severity,
 } from "./types";
-
-const CTA_BASE_URL = "https://dependency-radar.com/?source=standalone-report";
 
 // In development, load sample data; in production, data is embedded
 async function loadReportData(): Promise<AggregatedData> {
@@ -1579,9 +1578,7 @@ async function init(): Promise<void> {
   const report = await loadReportData();
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
-  const ctaUrl = `${CTA_BASE_URL}&cli=${encodeURIComponent(
-    report.dependencyRadarVersion || "unknown",
-  )}`;
+  const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
 
   // Update header info with new chip-based layout
   const projectPathEl = document.getElementById("project-path");
