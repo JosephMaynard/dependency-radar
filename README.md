@@ -47,18 +47,34 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Version drift (`npm outdated` / `pnpm outdated` / `yarn outdated`, where available)
    - Source import graph (static import/require parsing in `src/` or project root)
 5. Normalize tool outputs into one internal shape and merge workspace package results.
-6. Aggregate dependency records by enriching each installed package with:
+   - PNPM dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
+6. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
+   - Resolve `package.json` paths via package-manager-aware lookups (including PNPM virtual store layouts)
+   - Read local package metadata and license artifacts from installed files
+7. Aggregate dependency records by enriching each installed package with:
    - License declaration + `LICENSE` file inference/validation
    - Advisory summaries and severity/risk rollups
    - Root-cause/origin and runtime-impact heuristics
    - Install-time execution signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
-7. Write final output as either:
+8. Write final output as either:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
-8. Remove `.dependency-radar/` unless `--keep-temp` is set.
+9. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
 The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
+
+### `node_modules` crawling details
+
+- Dependency metadata is read from installed package directories, not from registry documents.
+- Package resolution is workspace-aware and PNPM-aware, including `.pnpm` virtual store paths.
+- License discovery checks common file variants such as `LICENSE`, `LICENCE`, `COPYING`, and `NOTICE` (with or without extensions like `.md`).
+
+### PNPM workspace hardening (problems solved)
+
+- In real PNPM workspaces, `pnpm list --json` can include optional platform dependencies that are not installed on the current machine (for example `@esbuild/linux-*` on macOS ARM64).
+- Dependency Radar now verifies PNPM entries against installed artifacts (`node_modules/.pnpm` and workspace-linked `node_modules` paths) before including them in the report.
+- Result: reports now reflect only dependencies that actually exist on disk and can be inspected locally.
 
 ## Usage Heuristics (`usage.runtimeImpact` and `usage.introduction`)
 
