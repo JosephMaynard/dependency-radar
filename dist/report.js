@@ -43,44 +43,45 @@ function buildHtml(data) {
   <link
     rel="icon"
     type="image/svg+xml"
-    href="data:image/svg+xml;utf8,
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'>
-      <defs>
-        <style>
-          .st0, .st1 {fill: %23ff8000;}
-          .st2 {fill: %23191772;}
-          .st2, .st3, .st4 {stroke: %2355fffa; stroke-miterlimit: 10; stroke-width: 10px;}
-          .st5 {fill: %230a0a33;}
-          .st6 {opacity: .3;}
-          .st6, .st7 {fill: %2355fffa;}
-          .st8 {fill: url(%23linear-gradient);}
-          .st9, .st10 {fill: lime;}
-          .st3 {fill: %23161466;}
-          .st11, .st1, .st10 {opacity: .4;}
-          .st11, .st12 {fill: red;}
-          .st4 {fill: %231c197f;}
-        </style>
-        <linearGradient id='linear-gradient' x1='226.9' y1='288.6' x2='829.8' y2='288.6' gradientUnits='userSpaceOnUse'>
-          <stop offset='.4' stop-color='%2355fffa' stop-opacity='0'/>
-          <stop offset='1' stop-color='%2355fffa' stop-opacity='.5'/>
-        </linearGradient>
-      </defs>
-      <circle class='st5' cx='512.3' cy='512.3' r='512'/>
-      <circle class='st3' cx='512.3' cy='512.3' r='450'/>
-      <circle class='st2' cx='512.3' cy='512.3' r='276.9'/>
-      <circle class='st4' cx='512.3' cy='512.3' r='110.8'/>
-      <path class='st8' d='M518,512.3l311.9-315.4c-81.1-81.6-193.4-132.2-317.5-132.2s-208,38.6-285.4,102.8l291.1,344.7Z'/>
-      <path class='st6' d='M868.8,612.8c-28.4,117.2-118.9,216.6-232.4,257.3-143.4,52.4-306.1,11-407.7-102.8-101.2-110.9-126.2-275.5-65.8-412.6,38.7-88.4,111.2-161.5,199.5-200.7,126-56.8,276.4-42.7,389.9,36.1,18.1,12.6,35.3,26.6,51.3,41.8l-59.3,59.3c-29.7-31.1-65.5-56.2-104.9-73.5-25.4-10.8-52.5-18.9-79.8-23.1-53.1-8.3-108.4-3.4-159.2,14.4-47,16.2-90.5,43.8-125.5,79.1-123.6,122.9-131,322.8-19.8,456.4,51.2,62.6,125.1,106.3,204.8,120.8,180.1,34.2,357.3-77,409-252.6h0Z'/>
-      <path class='st6' d='M707.1,569.7c-19,87.3-100.1,153.3-189.7,156-69.8,3.1-138-30.8-178.8-87.4-107.1-151.8,6.3-354.3,190.1-352.4,58.2.7,115.3,23.9,157.8,63.7,0,0-61.1,61.1-61.1,61.1-16.9-18.7-38.6-33.5-62.5-42.1-41.2-14.9-88.5-11.8-127.4,8.4-87.7,45-116.3,156.6-65.4,240.2,25.4,42.3,69,73.1,117.4,83,94.5,20.6,191-38.2,219.7-130.6h0Z'/>
-      <rect class='st7' x='663.7' y='131.9' width='16.6' height='447.5' transform='translate(448.3 -371) rotate(45)'/>
-      <circle class='st7' cx='512.3' cy='512.3' r='50'/>
-      <circle class='st1' cx='284.5' cy='673.3' r='90'/>
-      <circle class='st0' cx='284.5' cy='673.3' r='45'/>
-      <circle class='st11' cx='512.3' cy='237' r='90'/>
-      <circle class='st12' cx='512.3' cy='237' r='45'/>
-      <circle class='st10' cx='754.3' cy='661.3' r='90'/>
-      <circle class='st9' cx='754.3' cy='661.3' r='45'/>
-    </svg>"
+      href="data:image/svg+xml;utf8,
+        <svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.1' viewBox='0 0 1024 1024'>
+          <defs>
+            <style>
+              .st0, .st1 {fill: %23ff8000;}
+              .st2, .st3 {fill: %2340ff40;}
+              .st3, .st4, .st1 {opacity: .4;}
+              .st5 {fill: url(%23linear-gradient);}
+              .st4, .st6 {fill: red;}
+              .st7 {stroke-width: 16px;}
+              .st7, .st8 {fill: %23171772;}
+              .st7, .st8, .st9 {stroke: %2355fffa; stroke-miterlimit: 10;}
+              .st8 {stroke-width: 10px;}
+              .st10 {fill: %2314145e;}
+              .st9 {fill: none; opacity: .3; stroke-width: 6px;}
+              .st11 {fill: %2355fffa;}
+            </style>
+            <linearGradient id='linear-gradient' x1='239.3' y1='298.2' x2='815.3' y2='298.2' gradientTransform='translate(150 -115.1) rotate(15)' gradientUnits='userSpaceOnUse'>
+              <stop offset='.4' stop-color='%2355fffa' stop-opacity='0'/>
+              <stop offset='1' stop-color='%2355fffa' stop-opacity='.5'/>
+            </linearGradient>
+          </defs>
+          <circle class='st10' cx='512' cy='512' r='512'/>
+          <circle class='st7' cx='512' cy='512' r='430'/>
+          <circle class='st8' cx='512' cy='512' r='256'/>
+          <circle class='st9' cx='512' cy='512' r='160'/>
+          <circle class='st9' cx='512' cy='512' r='379.5'/>
+          <circle class='st9' cx='512' cy='512' r='339'/>
+          <circle class='st9' cx='512' cy='512' r='210'/>
+          <rect class='st11' x='690.2' y='193.1' width='15.8' height='427.6' transform='translate(701.4 -401.1) rotate(60)'/>
+          <circle class='st11' cx='512' cy='514.4' r='64'/>
+          <path class='st5' d='M517.2,513.4l365.8-213.9c-54.6-95.4-145.8-169.8-260.3-200.5-100.1-26.8-201.5-15.8-288.8,24.3l183.4,390Z'/>
+          <circle class='st4' cx='512' cy='256' r='96'/>
+          <circle class='st6' cx='512' cy='256' r='56'/>
+          <circle class='st3' cx='733.7' cy='640' r='96' transform='translate(-237.7 706.3) rotate(-45)'/>
+          <circle class='st2' cx='733.7' cy='640' r='56' transform='translate(-237.7 706.3) rotate(-45)'/>
+          <ellipse class='st1' cx='290.3' cy='640' rx='96' ry='96' transform='translate(-367.5 392.7) rotate(-45)'/>
+          <circle class='st0' cx='290.3' cy='640' r='56'/>
+        </svg>"
   >
   <style>
 ${report_assets_1.CSS_CONTENT}
@@ -94,76 +95,40 @@ ${report_assets_1.CSS_CONTENT}
         <svg class="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 1024 1024">
           <defs>
             <style>
-              .st0, .st1 {
-                fill: #ff8000;
-              }
-
-              .st2 {
-                fill: #191772;
-              }
-
-              .st2, .st3, .st4 {
-                stroke: #55fffa;
-                stroke-miterlimit: 10;
-                stroke-width: 10px;
-              }
-
-              .st5 {
-                fill: #0a0a33;
-              }
-
-              .st6 {
-                opacity: .3;
-              }
-
-              .st6, .st7 {
-                fill: #55fffa;
-              }
-
-              .st8 {
-                fill: url(#linear-gradient);
-              }
-
-              .st9, .st10 {
-                fill: lime;
-              }
-
-              .st3 {
-                fill: #161466;
-              }
-
-              .st11, .st1, .st10 {
-                opacity: .4;
-              }
-
-              .st11, .st12 {
-                fill: red;
-              }
-
-              .st4 {
-                fill: #1c197f;
-              }
+              .st0, .st1 {fill: #ff8000;}
+              .st2, .st3 {fill: #40ff40;}
+              .st3, .st4, .st1 {opacity: .4;}
+              .st5 {fill: url(#linear-gradient);}
+              .st4, .st6 {fill: red;}
+              .st7 {stroke-width: 16px;}
+              .st7, .st8 {fill: #171772;}
+              .st7, .st8, .st9 {stroke: #55fffa; stroke-miterlimit: 10;}
+              .st8 {stroke-width: 10px;}
+              .st10 {fill: #14145e;}
+              .st9 {fill: none; opacity: .3; stroke-width: 6px;}
+              .st11 {fill: #55fffa;}
             </style>
-            <linearGradient id="linear-gradient" x1="226.9" y1="288.6" x2="829.8" y2="288.6" gradientUnits="userSpaceOnUse">
+            <linearGradient id="linear-gradient" x1="239.3" y1="298.2" x2="815.3" y2="298.2" gradientTransform="translate(150 -115.1) rotate(15)" gradientUnits="userSpaceOnUse">
               <stop offset=".4" stop-color="#55fffa" stop-opacity="0"/>
               <stop offset="1" stop-color="#55fffa" stop-opacity=".5"/>
             </linearGradient>
           </defs>
-          <circle class="st5" cx="512.3" cy="512.3" r="512"/>
-          <circle class="st3" cx="512.3" cy="512.3" r="450"/>
-          <circle class="st2" cx="512.3" cy="512.3" r="276.9"/>
-          <circle class="st4" cx="512.3" cy="512.3" r="110.8"/>
-          <path class="st8" d="M518,512.3l311.9-315.4c-81.1-81.6-193.4-132.2-317.5-132.2s-208,38.6-285.4,102.8l291.1,344.7Z"/>
-          <path class="st6" d="M868.8,612.8c-28.4,117.2-118.9,216.6-232.4,257.3-143.4,52.4-306.1,11-407.7-102.8-101.2-110.9-126.2-275.5-65.8-412.6,38.7-88.4,111.2-161.5,199.5-200.7,126-56.8,276.4-42.7,389.9,36.1,18.1,12.6,35.3,26.6,51.3,41.8l-59.3,59.3c-29.7-31.1-65.5-56.2-104.9-73.5-25.4-10.8-52.5-18.9-79.8-23.1-53.1-8.3-108.4-3.4-159.2,14.4-47,16.2-90.5,43.8-125.5,79.1-123.6,122.9-131,322.8-19.8,456.4,51.2,62.6,125.1,106.3,204.8,120.8,180.1,34.2,357.3-77,409-252.6h0Z"/>
-          <path class="st6" d="M707.1,569.7c-19,87.3-100.1,153.3-189.7,156-69.8,3.1-138-30.8-178.8-87.4-107.1-151.8,6.3-354.3,190.1-352.4,58.2.7,115.3,23.9,157.8,63.7,0,0-61.1,61.1-61.1,61.1-16.9-18.7-38.6-33.5-62.5-42.1-41.2-14.9-88.5-11.8-127.4,8.4-87.7,45-116.3,156.6-65.4,240.2,25.4,42.3,69,73.1,117.4,83,94.5,20.6,191-38.2,219.7-130.6h0Z"/>
-          <rect class="st7" x="663.7" y="131.9" width="16.6" height="447.5" transform="translate(448.3 -371) rotate(45)"/>
-          <circle class="st7" cx="512.3" cy="512.3" r="50"/>
-          <circle class="st1" cx="284.5" cy="673.3" r="90"/>
-          <circle class="st0" cx="284.5" cy="673.3" r="45"/>
-          <circle class="st11" cx="512.3" cy="237" r="90"/>
-          <circle class="st12" cx="512.3" cy="237" r="45"/>
-          <circle class="st10" cx="754.3" cy="661.3" r="90"/>
-          <circle class="st9" cx="754.3" cy="661.3" r="45"/>
+          <circle class="st10" cx="512" cy="512" r="512"/>
+          <circle class="st7" cx="512" cy="512" r="430"/>
+          <circle class="st8" cx="512" cy="512" r="256"/>
+          <circle class="st9" cx="512" cy="512" r="160"/>
+          <circle class="st9" cx="512" cy="512" r="379.5"/>
+          <circle class="st9" cx="512" cy="512" r="339"/>
+          <circle class="st9" cx="512" cy="512" r="210"/>
+          <rect class="st11" x="690.2" y="193.1" width="15.8" height="427.6" transform="translate(701.4 -401.1) rotate(60)"/>
+          <circle class="st11" cx="512" cy="514.4" r="64"/>
+          <path class="st5" d="M517.2,513.4l365.8-213.9c-54.6-95.4-145.8-169.8-260.3-200.5-100.1-26.8-201.5-15.8-288.8,24.3l183.4,390Z"/>
+          <circle class="st4" cx="512" cy="256" r="96"/>
+          <circle class="st6" cx="512" cy="256" r="56"/>
+          <circle class="st3" cx="733.7" cy="640" r="96" transform="translate(-237.7 706.3) rotate(-45)"/>
+          <circle class="st2" cx="733.7" cy="640" r="56" transform="translate(-237.7 706.3) rotate(-45)"/>
+          <ellipse class="st1" cx="290.3" cy="640" rx="96" ry="96" transform="translate(-367.5 392.7) rotate(-45)"/>
+          <circle class="st0" cx="290.3" cy="640" r="56"/>
         </svg>
         <div class="header-text">
           <h1>Dependency Radar</h1>
