@@ -24,7 +24,8 @@
     "test:fixtures:online": "npm --prefix test-fixtures run test:online",
     "test:fixtures:all": "npm --prefix test-fixtures run test:all",
     "test:pack": "npm pack --dry-run",
-    "test:release": "npm run build && npm run test:unit && npm run test:fixtures:all && npm run test:pack",
+    "test:release:ok": "node -e \"console.log('\\n✅ test:release passed')\"",
+    "test:release": "npm run build && npm run test:unit && npm run test:fixtures:all && npm run test:pack && npm run test:release:ok",
     "prepublishOnly": "npm run build"
   },
   "author": " ",
