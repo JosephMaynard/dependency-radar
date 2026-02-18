@@ -149,7 +149,8 @@ function checkOnlineRegistrySignals() {
     const installed = entry?.package?.version;
     const latest = entry?.upgrade?.latestVersion;
     const status = entry?.upgrade?.outdatedStatus;
-    return (typeof latest === 'string' && latest.length > 0 && latest !== installed) || status === 'outdated';
+    const hasUpdateStatus = typeof status === 'string' && ['patch', 'minor', 'major'].includes(status);
+    return (typeof latest === 'string' && latest.length > 0 && latest !== installed) || hasUpdateStatus;
   });
   assert(hasOutdated, `[${fixtureName}] expected outdated data to mark at least one target dependency`);
 }

@@ -28,13 +28,16 @@ describe('aggregateData', () => {
       license: 'MIT'
     }));
 
+    const projectPackageJson = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { 'left-pad': '1.3.0' }
+    };
+
     const data = await aggregateData({
       projectPath,
-      packageJson: {
-        name: 'fixture-root',
-        version: '1.0.0',
-        dependencies: { 'left-pad': '1.3.0' }
-      },
+      pkgOverride: projectPackageJson,
+      projectPackageJson,
       npmLsResult: {
         ok: true,
         data: {

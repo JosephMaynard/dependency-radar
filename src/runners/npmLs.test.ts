@@ -33,7 +33,17 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
-function buildPnpmTreePayload() {
+type PnpmTreeNode = {
+  name: string;
+  version: string;
+  dependencies?: Record<string, PnpmTreeNode>;
+};
+
+type PnpmTreePayload = Array<{
+  dependencies: Record<string, PnpmTreeNode>;
+}>;
+
+function buildPnpmTreePayload(): PnpmTreePayload {
   return [
     {
       dependencies: {
