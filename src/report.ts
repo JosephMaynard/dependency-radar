@@ -3,14 +3,24 @@ import path from 'path';
 import { AggregatedData } from './types';
 import { CSS_CONTENT, JS_CONTENT } from './report-assets';
 
+const CTA_BASE_URL = 'https://dependency-radar.com/?source=standalone-report';
+
 export async function renderReport(data: AggregatedData, outputPath: string): Promise<void> {
   const html = buildHtml(data);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, html, 'utf8');
 }
 
+function buildCtaUrl(version: string | undefined): string {
+  const normalizedVersion = typeof version === 'string' && version.trim().length > 0
+    ? version.trim()
+    : 'unknown';
+  return `${CTA_BASE_URL}&cli=${encodeURIComponent(normalizedVersion)}`;
+}
+
 function buildHtml(data: AggregatedData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  const ctaUrl = buildCtaUrl(data.dependencyRadarVersion);
   
   // Format the generated date
   let formattedDate = data.generatedAt;
@@ -139,16 +149,12 @@ ${CSS_CONTENT}
         </div>
       </div>
       <div class="cta-section">
-        <a href="https://dependency-radar.com" class="cta-link" target="_blank" rel="noopener">
-          Get full analysis report
+        <a href="${escapeHtml(ctaUrl)}" class="cta-link" target="_blank" rel="noopener" id="cta-primary-link">
+          Enrich this scan
           <span class="cta-arrow">→</span>
         </a>
-        <div class="cta-benefits">
-          <span>AI-powered risk summary for stakeholders</span>
-          <span>Charts & assets for presentations</span>
-          <span>Actionable upgrade recommendations</span>
-        </div>
-        <div class="cta-text">dependency-radar.com</div>
+        <p class="cta-text">Beyond the standalone report</p>
+        <a href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener" class="cta-url" id="cta-secondary-link">dependency-radar.com</a>
       </div>
     </div>
   </header>

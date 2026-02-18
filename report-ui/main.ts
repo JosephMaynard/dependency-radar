@@ -12,6 +12,8 @@ import type {
   Severity,
 } from "./types";
 
+const CTA_BASE_URL = "https://dependency-radar.com/?source=standalone-report";
+
 // In development, load sample data; in production, data is embedded
 async function loadReportData(): Promise<AggregatedData> {
   const dataEl = document.getElementById("radar-data");
@@ -1574,10 +1576,22 @@ async function init(): Promise<void> {
   const report = await loadReportData();
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
+  const ctaUrl = `${CTA_BASE_URL}&cli=${encodeURIComponent(
+    report.dependencyRadarVersion || "unknown",
+  )}`;
 
   // Update header info with new chip-based layout
   const projectPathEl = document.getElementById("project-path");
   if (projectPathEl) projectPathEl.textContent = report.project.projectDir;
+
+  const ctaPrimaryLink = document.getElementById(
+    "cta-primary-link",
+  ) as HTMLAnchorElement | null;
+  const ctaSecondaryLink = document.getElementById(
+    "cta-secondary-link",
+  ) as HTMLAnchorElement | null;
+  if (ctaPrimaryLink) ctaPrimaryLink.href = ctaUrl;
+  if (ctaSecondaryLink) ctaSecondaryLink.href = ctaUrl;
 
   // Git branch chip
   const gitBranchItem = document.getElementById("git-branch-item");
