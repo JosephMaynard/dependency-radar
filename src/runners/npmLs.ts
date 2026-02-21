@@ -2,18 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { ToolResult } from '../types';
 import { runCommand, writeJsonFile } from '../utils';
-
-type ResolvedNode = {
-  name: string;
-  version: string;
-  path?: string;
-  dependencies?: Record<string, ResolvedNode>;
-  dev?: boolean;
-};
-
-type ResolvedTree = {
-  dependencies: Record<string, ResolvedNode>;
-};
+import { ResolvedNode, ResolvedTree, tryBuildDependencyTreeFromLockfile } from './lockfileGraph';
 
 type PnpmInstallState = {
   enabled: boolean;
@@ -27,10 +16,19 @@ const PNPM_MAX_OLD_SPACE_SIZE_MB = '8192';
 
 type LsProgressOptions = {
   contextLabel?: string;
+  lockfileSearchRoot?: string;
   onProgress?: (line: string) => void;
 };
 
-// Normalize package-manager-specific list output into a shared dependency tree.
+/**
+ * Produce a unified dependency tree for a project by using a lockfile if available or by running the package manager's list command and normalizing its output.
+ *
+ * @param projectPath - Path to the project whose dependencies should be listed
+ * @param tempDir - Directory where the resulting JSON file and any diagnostics will be written
+ * @param tool - Package manager to use (`npm`, `pnpm`, or `yarn`)
+ * @param options - Optional progress callbacks and context; if `lockfileSearchRoot` is provided it will be used as the root when searching for a lockfile
+ * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON; on failure, `error` contains a message suitable for users and `file` points to the diagnostics JSON written to disk.
+ */
 export async function runNpmLs(
   projectPath: string,
   tempDir: string,
@@ -39,6 +37,15 @@ export async function runNpmLs(
 ): Promise<ToolResult<any>> {
   const targetFile = path.join(tempDir, `${tool}-ls.json`);
   try {
+    const lockfileTree = await tryBuildDependencyTreeFromLockfile(
+      projectPath,
+      tool,
+      options.lockfileSearchRoot
+    );
+    if (lockfileTree) {
+      await writeJsonFile(targetFile, lockfileTree.data);
+      return { ok: true, data: lockfileTree.data, file: targetFile };
+    }
     if (tool === 'pnpm') {
       return await runPnpmLsWithFallback(projectPath, targetFile, options);
     }

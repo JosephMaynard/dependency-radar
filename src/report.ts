@@ -4,15 +4,51 @@ import { AggregatedData } from './types';
 import { buildCtaUrl } from './cta';
 import { CSS_CONTENT, JS_CONTENT } from './report-assets';
 
+/**
+ * Escape occurrences of closing `</style` tags in a CSS payload to prevent premature termination when inlined into HTML.
+ *
+ * @param value - The CSS text to sanitize
+ * @returns The sanitized string with each `</style` sequence replaced by `<\/style` (case-insensitive)
+ */
+function sanitizeInlineStyleTagPayload(value: string): string {
+  return value.replace(/<\/style/gi, '<\\/style');
+}
+
+/**
+ * Escapes closing `</script` sequences so a string can be embedded safely inside an inline `<script>` tag.
+ *
+ * @param value - The script content to sanitize
+ * @returns The input with every `</script` (case-insensitive) replaced by `<\/script`
+ */
+function sanitizeInlineScriptTagPayload(value: string): string {
+  return value.replace(/<\/script/gi, '<\\/script');
+}
+
+/**
+ * Generate the HTML report from aggregated data and write it to the given file path.
+ *
+ * @param data - Aggregated radar data used to build the report
+ * @param outputPath - Filesystem path where the generated HTML report will be written; parent directories are created if missing
+ */
 export async function renderReport(data: AggregatedData, outputPath: string): Promise<void> {
   const html = buildHtml(data);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, html, 'utf8');
 }
 
+/**
+ * Build a complete HTML report string populated from the provided aggregated data.
+ *
+ * The returned document embeds sanitized CSS and JS assets, a JSON-serialized copy of `data` (with `<` characters escaped), a computed CTA URL derived from `data.dependencyRadarVersion`, and a human-friendly formatted `generatedAt` timestamp when parsable. Dynamic interpolations that appear in the HTML (e.g., project path, formatted date, CTA URL) are HTML-escaped.
+ *
+ * @param data - Aggregated data used to populate the report (includes project metadata, generatedAt timestamp, dependencyRadarVersion, and dependency list)
+ * @returns The full HTML document for the dependency radar report as a string
+ */
 function buildHtml(data: AggregatedData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const ctaUrl = buildCtaUrl(data.dependencyRadarVersion);
+  const safeCssContent = sanitizeInlineStyleTagPayload(CSS_CONTENT);
+  const safeJsContent = sanitizeInlineScriptTagPayload(JS_CONTENT);
   
   // Format the generated date
   let formattedDate = data.generatedAt;
@@ -83,7 +119,7 @@ function buildHtml(data: AggregatedData): string {
         </svg>"
   >
   <style>
-${CSS_CONTENT}
+${safeCssContent}
   </style>
 </head>
 <body>
@@ -291,9 +327,9 @@ ${CSS_CONTENT}
   </footer>
   
   <script type="application/json" id="radar-data">${json}</script>
-  <script>
-${JS_CONTENT}
-  </script>
+<script>
+${safeJsContent}
+</script>
 </body>
 </html>`;
 }

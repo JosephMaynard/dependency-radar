@@ -12,7 +12,7 @@ This runs a scan against the current project and writes a self-contained `depend
 
 ## What it does
 
-- Analyses installed dependencies by running standard package manager tooling (npm, pnpm, or yarn)
+- Analyses installed dependencies from lockfiles first (`pnpm-lock.yaml`, `package-lock.json`/`npm-shrinkwrap.json`, `yarn.lock`), with package-manager CLI fallback when needed
 - Combines multiple signals (audit results, dependency graph data, import usage, and heuristics) into a single report
 - Shows direct vs transitive dependencies, dependency depth, and parent relationships
 - Highlights licences, known vulnerabilities, install-time scripts, native modules, and package footprint (including installed file counts)
@@ -41,26 +41,29 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Package manager from `packageManager`, lockfiles, and installed metadata
    - Yarn Plug'n'Play detection (`.pnp.cjs`/`.pnp.js` or `.yarnrc.yml nodeLinker: pnp`)
 3. Create a temporary `.dependency-radar/` directory inside the scanned project.
-4. For each workspace package (or just the project root in single-package mode), run collectors:
-   - Dependency tree (`npm ls` / `pnpm list` / `yarn list`)
+4. For each workspace package (or just the project root in single-package mode), collect dependency graph data:
+   - Lockfile-first graph parsing (`pnpm-lock.yaml`, `npm-shrinkwrap.json`/`package-lock.json`, `yarn.lock`)
+   - Fallback to package-manager tree commands (`npm ls` / `pnpm list` / `yarn list`) only when lockfile parsing is unavailable
+   - PNPM CLI fallback keeps depth retries for very large trees
+5. Run additional collectors:
    - Vulnerabilities (`npm audit` / `pnpm audit` / `yarn audit` or `yarn npm audit`)
    - Version drift (`npm outdated` / `pnpm outdated` / `yarn outdated`, where available)
    - Source import graph (static import/require parsing in `src/` or project root)
-5. Normalize tool outputs into one internal shape and merge workspace package results.
-   - PNPM dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
-6. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
+6. Normalize outputs into one internal shape and merge workspace package results.
+   - PNPM lock/CLI dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
+7. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
    - Resolve `package.json` paths via package-manager-aware lookups (including PNPM virtual store layouts)
    - Read local package metadata and license artifacts from installed files
-7. Aggregate dependency records by enriching each installed package with:
+8. Aggregate dependency records by enriching each installed package with:
    - License declaration + `LICENSE` file inference/validation
    - Advisory summaries and severity/risk rollups
    - Root-cause/origin and runtime-impact heuristics
    - Install-time execution signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
-8. Write final output as either:
+9. Write final output as either:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
-9. Remove `.dependency-radar/` unless `--keep-temp` is set.
+10. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
 The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
 
@@ -70,10 +73,17 @@ The scan is local-first: package metadata is read from `node_modules`; only audi
 - Package resolution is workspace-aware and PNPM-aware, including `.pnpm` virtual store paths.
 - License discovery checks common file variants such as `LICENSE`, `LICENCE`, `COPYING`, and `NOTICE` (with or without extensions like `.md`).
 
+### Lockfile-first dependency graphing
+
+- Dependency graph construction starts from lockfiles so deep transitive packages are captured without relying on large `* ls` JSON payloads.
+- Lockfile detection is scoped to the scan root/workspace root (it does not walk outside the scanned project).
+- If lockfile parsing cannot be used, Dependency Radar falls back to package-manager tree commands and continues with warnings when partial failures occur.
+
 ### PNPM workspace hardening (problems solved)
 
 - In real PNPM workspaces, `pnpm list --json` can include optional platform dependencies that are not installed on the current machine (for example `@esbuild/linux-*` on macOS ARM64).
-- Dependency Radar now verifies PNPM entries against installed artifacts (`node_modules/.pnpm` and workspace-linked `node_modules` paths) before including them in the report.
+- Dependency Radar verifies PNPM entries against installed artifacts (`node_modules/.pnpm` and workspace-linked `node_modules` paths) before including them in the report.
+- Dependency Radar uses `pnpm-lock.yaml` as the primary graph source and only falls back to `pnpm list` when needed, reducing OOM/string-length failures on large workspaces.
 - Result: reports now reflect only dependencies that actually exist on disk and can be inspected locally.
 
 ## Usage Heuristics (`usage.runtimeImpact` and `usage.introduction`)
@@ -225,10 +235,10 @@ npx dependency-radar --help
 
 ## Package Manager Support
 
-- npm: Supported for dependency tree, audit, outdated, single-package, and workspaces.
-- pnpm: Supported for dependency tree, audit, outdated, and workspaces (with ls depth fallbacks for large projects).
-- Yarn Classic (v1, node_modules linker): Supported for dependency tree, audit, outdated, and workspaces.
-- Yarn Berry (v2+, node-modules linker): Dependency tree and audit work; outdated support depends on available Yarn commands/plugins and may be unavailable.
+- npm: Supported for lockfile-first dependency tree (`npm-shrinkwrap.json` or `package-lock.json`), audit, outdated, single-package, and workspaces.
+- pnpm: Supported for lockfile-first dependency tree (`pnpm-lock.yaml`), audit, outdated, and workspaces (with `pnpm list` fallback depth retries when required).
+- Yarn Classic (v1, node_modules linker): Supported for lockfile-first dependency tree (`yarn.lock`), audit, outdated, and workspaces.
+- Yarn Berry (v2+, node-modules linker): Supported for lockfile-first dependency tree (`yarn.lock`) and audit; outdated support depends on available Yarn commands/plugins and may be unavailable.
 - Yarn Plug'n'Play (`nodeLinker: pnp`): Not supported yet.
 
 ## Scripts

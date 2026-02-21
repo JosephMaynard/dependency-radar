@@ -7,12 +7,26 @@ exports.runNpmLs = runNpmLs;
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const utils_1 = require("../utils");
+const lockfileGraph_1 = require("./lockfileGraph");
 const PNPM_DEPTH_ATTEMPTS = ['Infinity', '8', '4', '2', '1'];
 const PNPM_MAX_OLD_SPACE_SIZE_MB = '8192';
-// Normalize package-manager-specific list output into a shared dependency tree.
+/**
+ * Produce a unified dependency tree for a project by using a lockfile if available or by running the package manager's list command and normalizing its output.
+ *
+ * @param projectPath - Path to the project whose dependencies should be listed
+ * @param tempDir - Directory where the resulting JSON file and any diagnostics will be written
+ * @param tool - Package manager to use (`npm`, `pnpm`, or `yarn`)
+ * @param options - Optional progress callbacks and context; if `lockfileSearchRoot` is provided it will be used as the root when searching for a lockfile
+ * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON; on failure, `error` contains a message suitable for users and `file` points to the diagnostics JSON written to disk.
+ */
 async function runNpmLs(projectPath, tempDir, tool = 'npm', options = {}) {
     const targetFile = path_1.default.join(tempDir, `${tool}-ls.json`);
     try {
+        const lockfileTree = await (0, lockfileGraph_1.tryBuildDependencyTreeFromLockfile)(projectPath, tool, options.lockfileSearchRoot);
+        if (lockfileTree) {
+            await (0, utils_1.writeJsonFile)(targetFile, lockfileTree.data);
+            return { ok: true, data: lockfileTree.data, file: targetFile };
+        }
         if (tool === 'pnpm') {
             return await runPnpmLsWithFallback(projectPath, targetFile, options);
         }
