@@ -1135,6 +1135,14 @@ function openInBrowser(filePath: string): void {
   child.unref();
 }
 
+/**
+ * Orchestrates the CLI "scan" command to collect, merge, and output dependency data for a project or workspace.
+ *
+ * Detects workspace type and package manager, runs per-package collectors (audit, dependency tree, import graph, outdated),
+ * merges collected signals into a workspace-level model, and writes a JSON or HTML report to the configured output path.
+ * Manages a temporary working directory (created under the project as .dependency-radar), respects CLI options such as
+ * JSON output, audit/outdated toggles, keeping the temp directory, and optionally opening the generated output with the
+ * system default application. Exits the process with a non-zero code on fatal errors. */
 async function run(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.command !== "scan") {

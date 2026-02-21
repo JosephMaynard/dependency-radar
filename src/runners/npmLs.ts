@@ -20,7 +20,15 @@ type LsProgressOptions = {
   onProgress?: (line: string) => void;
 };
 
-// Normalize package-manager-specific list output into a shared dependency tree.
+/**
+ * Produce a unified dependency tree for a project by using a lockfile if available or by running the package manager's list command and normalizing its output.
+ *
+ * @param projectPath - Path to the project whose dependencies should be listed
+ * @param tempDir - Directory where the resulting JSON file and any diagnostics will be written
+ * @param tool - Package manager to use (`npm`, `pnpm`, or `yarn`)
+ * @param options - Optional progress callbacks and context; if `lockfileSearchRoot` is provided it will be used as the root when searching for a lockfile
+ * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON; on failure, `error` contains a message suitable for users and `file` points to the diagnostics JSON written to disk.
+ */
 export async function runNpmLs(
   projectPath: string,
   tempDir: string,
