@@ -1191,6 +1191,21 @@ async function run(): Promise<void> {
     process.exit(1);
     return;
   }
+  const hasProjectNodeModules = await pathExists(
+    path.join(projectPath, "node_modules"),
+  );
+  if (!hasProjectNodeModules) {
+    const workspaceHint =
+      workspace.type === "none"
+        ? "single project"
+        : `${workspace.type.toUpperCase()} workspace`;
+    const yarnHint = yarnPnP
+      ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
+      : "";
+    console.warn(
+      `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+    );
+  }
   const rootPkg = await readJsonFile(path.join(projectPath, "package.json"));
   const projectDependencyPolicy = workspace.pnpmWorkspaceOverrides
     ? {

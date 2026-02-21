@@ -506,7 +506,10 @@ function parseNpmTreeFromPackages(
 ): ResolvedTree | undefined {
   const projectRel = toPosixRelative(lockDir, projectPath);
   const rootKey = projectRel === '' ? '' : projectRel;
-  const packageKey = rootKey in packages ? rootKey : '';
+  if (!(rootKey in packages) && rootKey !== '') {
+    return undefined;
+  }
+  const packageKey = rootKey;
   const rootEntry = packages[packageKey];
   if (!rootEntry || typeof rootEntry !== 'object') return undefined;
 

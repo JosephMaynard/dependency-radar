@@ -280,4 +280,50 @@ b@1.0.0:
     expect(result.data?.dependencies.inside).toBeDefined();
     expect(result.data?.dependencies.outside).toBeUndefined();
   });
+
+  it('falls back to npm ls when workspace package key is missing in lockfile packages map', async () => {
+    const rootPath = await makeTempDir('dr-lock-workspace-root');
+    const projectPath = path.join(rootPath, 'packages', 'app');
+    const tempDir = await makeTempDir('dr-lock-workspace-out');
+    await fs.mkdir(projectPath, { recursive: true });
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'workspace-app',
+      version: '1.0.0'
+    }));
+    await fs.writeFile(path.join(rootPath, 'package-lock.json'), JSON.stringify({
+      name: 'workspace-root',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'workspace-root',
+          version: '1.0.0',
+          dependencies: { outside: '1.0.0' }
+        },
+        'node_modules/outside': {
+          version: '1.0.0'
+        }
+      }
+    }));
+
+    runCommandMock.mockResolvedValue({
+      code: 0,
+      stdout: JSON.stringify({
+        dependencies: {
+          inside: {
+            version: '1.0.0'
+          }
+        }
+      }),
+      stderr: ''
+    });
+
+    const result = await runNpmLs(projectPath, tempDir, 'npm', {
+      lockfileSearchRoot: rootPath
+    });
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).toHaveBeenCalledTimes(1);
+    expect(result.data?.dependencies.inside).toBeDefined();
+    expect(result.data?.dependencies.outside).toBeUndefined();
+  });
 });

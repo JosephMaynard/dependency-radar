@@ -9,6 +9,14 @@ const path_1 = __importDefault(require("path"));
 const yaml_1 = __importDefault(require("yaml"));
 const treeCache = new Map();
 const parseCache = new Map();
+/**
+ * Builds a dependency tree from the project's package manager lockfile, using cached results when available.
+ *
+ * @param projectPath - Filesystem path of the project (used to locate package.json and determine the lockfile context)
+ * @param tool - Package manager to parse (`npm`, `pnpm`, or `yarn`)
+ * @param lockfileSearchRoot - Optional directory to start upward lockfile lookup; defaults to `projectPath`
+ * @returns A LockfileTreeResult containing the lockfile `sourceFile` and resolved dependency `data`, or `undefined` if no valid lockfile could be found or parsed
+ */
 async function tryBuildDependencyTreeFromLockfile(projectPath, tool, lockfileSearchRoot) {
     const searchRoot = path_1.default.resolve(lockfileSearchRoot || projectPath);
     const cacheKey = `${tool}:${path_1.default.resolve(projectPath)}:${searchRoot}`;
@@ -35,6 +43,17 @@ async function tryBuildDependencyTreeFromLockfile(projectPath, tool, lockfileSea
         return undefined;
     }
 }
+/**
+ * Builds a dependency tree from a pnpm lockfile for the given project path.
+ *
+ * Locates the nearest pnpm-lock.yaml, resolves the appropriate importer for the project,
+ * and constructs a normalized ResolvedTree of root dependencies by traversing pnpm package snapshots.
+ *
+ * @param projectPath - Filesystem path to the project directory used to locate the lockfile and determine the importer
+ * @param searchRoot - Optional directory at which to stop the upward search for pnpm-lock.yaml
+ * @returns A LockfileTreeResult containing `sourceFile` (the resolved lockfile path) and `data` (the resolved dependency tree),
+ * or `undefined` if the lockfile, importer, or required parsed data cannot be found or parsed
+ */
 function parsePnpmTree(projectPath, searchRoot) {
     const lockPath = findUpwards(projectPath, ['pnpm-lock.yaml'], searchRoot);
     if (!lockPath)
@@ -71,6 +90,14 @@ function parsePnpmTree(projectPath, searchRoot) {
         data: { dependencies }
     };
 }
+/**
+ * Determine the importer key in a pnpm lockfile that corresponds to a project path.
+ *
+ * @param projectPath - Absolute path to the project whose importer key should be resolved
+ * @param lockDir - Directory containing the pnpm lockfile
+ * @param importers - The `importers` object from the parsed pnpm lockfile
+ * @returns The matching importer key from `importers`, or `undefined` if no match is found
+ */
 function resolvePnpmImporterKey(projectPath, lockDir, importers) {
     const rel = toPosixRelative(lockDir, projectPath);
     const normalized = rel === '' ? '.' : rel;
@@ -87,6 +114,13 @@ function resolvePnpmImporterKey(projectPath, lockDir, importers) {
     }
     return undefined;
 }
+/**
+ * Merge pnpm `packages` and `snapshots` maps into a single map of package keys to combined metadata.
+ *
+ * @param packages - Map of packageKey to package metadata (may be undefined)
+ * @param snapshots - Map of packageKey to snapshot metadata (may be undefined)
+ * @returns A map where each key is a packageKey and the value is the merged metadata object. Top-level snapshot fields override package fields when present; `dependencies`, `optionalDependencies`, and `peerDependencies` are merged with snapshot entries taking precedence over package entries.
+ */
 function buildPnpmSnapshotMap(packages, snapshots) {
     const out = {};
     const keys = new Set([
@@ -106,6 +140,17 @@ function buildPnpmSnapshotMap(packages, snapshots) {
     }
     return out;
 }
+/**
+ * Build lookup maps that resolve pnpm package keys by exact and stripped package identifiers.
+ *
+ * Creates two maps: one mapping the full `name@ref` (exact) to the original package key, and
+ * another mapping `name@ref` with any pnpm peer suffix removed (stripped) to the original package key.
+ *
+ * @param snapshots - The pnpm packages/snapshots object keyed by packageKey from the lockfile
+ * @returns An object containing:
+ *  - `byExact`: Map from `name@ref` to the original packageKey
+ *  - `byStripped`: Map from `name@ref` (with peer suffix removed) to the original packageKey
+ */
 function buildPnpmIndex(snapshots) {
     const byExact = new Map();
     const byStripped = new Map();
@@ -122,6 +167,12 @@ function buildPnpmIndex(snapshots) {
     }
     return { byExact, byStripped };
 }
+/**
+ * Collects declared dependency references from a pnpm importer section.
+ *
+ * @param importer - The importer object from a pnpm lockfile (an entry under `importers`) containing dependency sections.
+ * @returns A map from dependency name to its lockfile reference string; excludes entries with missing/invalid refs or workspace-like specifiers.
+ */
 function collectPnpmImporterDependencies(importer) {
     const out = {};
     for (const key of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
@@ -139,6 +190,14 @@ function collectPnpmImporterDependencies(importer) {
     }
     return out;
 }
+/**
+ * Resolve a pnpm dependency reference to the corresponding lockfile package key.
+ *
+ * @param dependencyName - The dependency name used when resolving aliases.
+ * @param rawRef - The raw pnpm reference string from the lockfile.
+ * @param index - Lookup maps: `byExact` maps exact `name@ref` keys to package keys, `byStripped` maps peer-stripped `name@ref` keys to package keys.
+ * @returns `{ packageKey }` with the matched package key, or `undefined` if the reference cannot be resolved.
+ */
 function resolvePnpmDependency(dependencyName, rawRef, index) {
     const normalized = normalizePnpmRef(rawRef, dependencyName);
     if (!normalized)
@@ -152,6 +211,17 @@ function resolvePnpmDependency(dependencyName, rawRef, index) {
         return undefined;
     return { packageKey };
 }
+/**
+ * Build a ResolvedNode for a pnpm package key by resolving its snapshot entry and recursively attaching installed child dependencies.
+ *
+ * @param packageKey - The pnpm package key (as found in lockfile snapshots) to resolve.
+ * @param snapshots - Map of packageKey to merged snapshot/package metadata used to look up dependency refs.
+ * @param index - Lookup maps (`byExact`, `byStripped`) used to resolve dependency refs to package keys.
+ * @param memo - Memoization cache mapping packageKey to previously built ResolvedNode or `undefined`; populated with the result before returning.
+ * @param installState - pnpm install state used to determine whether a package is considered installed locally.
+ * @param stack - Set used for cycle detection during recursive construction; the function adds and removes entries as it descends.
+ * @returns The constructed ResolvedNode for `packageKey`, or `undefined` if the package cannot be parsed, is not installed, or would create a cycle.
+ */
 function buildPnpmNode(packageKey, snapshots, index, memo, installState, stack) {
     if (memo.has(packageKey))
         return memo.get(packageKey);
@@ -193,6 +263,12 @@ function buildPnpmNode(packageKey, snapshots, index, memo, installState, stack) 
     memo.set(packageKey, out);
     return out;
 }
+/**
+ * Parse a pnpm package key into its package name and reference.
+ *
+ * @param key - The raw package key from a pnpm lockfile (may be prefixed with '/')
+ * @returns An object with `name` and `ref` when `key` follows pnpm's package-key format, `undefined` otherwise.
+ */
 function parsePnpmPackageKey(key) {
     const normalized = key.startsWith('/') ? key.slice(1) : key;
     if (!normalized)
@@ -219,9 +295,21 @@ function parsePnpmPackageKey(key) {
         return undefined;
     return { name, ref };
 }
+/**
+ * Removes a trailing parenthesized peer-dependency suffix from a pnpm package reference.
+ *
+ * @param ref - A pnpm package reference that may end with a parenthesized peer suffix (e.g., "pkg@1.2.3 (peer)")
+ * @returns The reference with a trailing "(...)" suffix removed, if present
+ */
 function stripPnpmPeerSuffix(ref) {
     return ref.replace(/\(.+\)$/g, '');
 }
+/**
+ * Extracts a version string from a pnpm package reference.
+ *
+ * @param ref - Raw pnpm package reference (e.g., `npm:pkg@1.2.3`, `@scope/pkg@1.0.0`, or values with peer-suffixes like `pkg@1.0.0 (peer)`). Workspace-like specifiers (`link:`, `workspace:`, `file:`, `portal:`) may be provided.
+ * @returns The version portion of the reference, or an empty string if a version cannot be determined (including when the reference is a workspace-like specifier).
+ */
 function extractVersionFromPnpmRef(ref) {
     const stripped = stripPnpmPeerSuffix(ref).trim();
     if (!stripped || isWorkspaceLikeSpecifier(stripped))
@@ -235,6 +323,12 @@ function extractVersionFromPnpmRef(ref) {
     }
     return stripped;
 }
+/**
+ * Extracts a string reference from a pnpm package value.
+ *
+ * @param value - A pnpm package reference which may be a string or an object containing a `version` field.
+ * @returns The trimmed string reference if present, `undefined` otherwise.
+ */
 function extractPnpmRef(value) {
     if (typeof value === 'string') {
         const trimmed = value.trim();
@@ -249,6 +343,13 @@ function extractPnpmRef(value) {
     }
     return undefined;
 }
+/**
+ * Normalize a pnpm dependency reference into a { name, ref } shape or skip workspace-like/empty refs.
+ *
+ * @param rawRef - The raw reference string from the lockfile (may be an npm alias like `npm:pkg@1.0.0`, a path, or a workspace-like specifier).
+ * @param dependencyName - The dependency name to use when the ref does not provide an explicit package name.
+ * @returns The resolved `{ name, ref }` pair with a cleaned `ref`, or `undefined` if `rawRef` is empty or a workspace-like specifier.
+ */
 function normalizePnpmRef(rawRef, dependencyName) {
     const trimmed = rawRef.trim();
     if (!trimmed || isWorkspaceLikeSpecifier(trimmed))
@@ -264,6 +365,12 @@ function normalizePnpmRef(rawRef, dependencyName) {
     }
     return parsed;
 }
+/**
+ * Parse a package alias target string (e.g. `pkg@1.2.3` or `@scope/pkg@1.2.3`) into its package name and reference.
+ *
+ * @param value - The alias target string to parse.
+ * @returns An object with `name` (package name or scoped name) and `ref` (the part after the `@`), or `undefined` if `value` is not a valid alias target.
+ */
 function parsePackageAliasTarget(value) {
     if (!value)
         return undefined;
@@ -287,6 +394,16 @@ function parsePackageAliasTarget(value) {
         ref: value.slice(atIndex + 1)
     };
 }
+/**
+ * Builds a dependency tree from an npm lockfile found by searching upwards from the project path.
+ *
+ * Searches for `npm-shrinkwrap.json` or `package-lock.json`. If a lockfile is found and contains a resolvable
+ * dependency structure (either a `packages` map or legacy `dependencies`), returns a LockfileTreeResult for that lockfile.
+ *
+ * @param projectPath - Path inside the project where the search for a lockfile starts
+ * @param searchRoot - Directory at which to stop the upward search (optional)
+ * @returns A LockfileTreeResult when a suitable npm lockfile and dependency tree are found, `undefined` otherwise
+ */
 function parseNpmTree(projectPath, searchRoot) {
     const lockPath = findUpwards(projectPath, ['npm-shrinkwrap.json', 'package-lock.json'], searchRoot);
     if (!lockPath)
@@ -311,10 +428,21 @@ function parseNpmTree(projectPath, searchRoot) {
     }
     return undefined;
 }
+/**
+ * Builds a dependency tree from an npm lockfile "packages" map for the specified project.
+ *
+ * @param packages - The lockfile `packages` map (keys are normalized package paths from package-lock.json or npm-shrinkwrap.json)
+ * @param projectPath - The project directory to resolve as the root for dependency collection
+ * @param lockDir - The directory containing the lockfile; used to compute the root package key
+ * @returns A ResolvedTree mapping root dependency names to resolved nodes, or `undefined` if no valid root entry exists in `packages`
+ */
 function parseNpmTreeFromPackages(packages, projectPath, lockDir) {
     const projectRel = toPosixRelative(lockDir, projectPath);
     const rootKey = projectRel === '' ? '' : projectRel;
-    const packageKey = rootKey in packages ? rootKey : '';
+    if (!(rootKey in packages) && rootKey !== '') {
+        return undefined;
+    }
+    const packageKey = rootKey;
     const rootEntry = packages[packageKey];
     if (!rootEntry || typeof rootEntry !== 'object')
         return undefined;
@@ -332,6 +460,16 @@ function parseNpmTreeFromPackages(packages, projectPath, lockDir) {
     }
     return { dependencies };
 }
+/**
+ * Builds a ResolvedNode for an npm lockfile package entry.
+ *
+ * @param packageKey - Normalized key identifying the package entry within the lockfile `packages` map.
+ * @param fallbackName - Package name to use when the entry does not provide a valid `name` field.
+ * @param packages - The lockfile `packages` map containing package entry objects indexed by package keys.
+ * @param memo - Memoization map used to cache previously built nodes (or `undefined` for unresolved entries).
+ * @param stack - Recursion stack used to detect and avoid cycles while building the dependency graph.
+ * @returns The constructed `ResolvedNode` for `packageKey`, or `undefined` if the entry is missing, invalid, cyclic, or cannot be resolved.
+ */
 function buildNpmNodeFromPackages(packageKey, fallbackName, packages, memo, stack) {
     if (memo.has(packageKey))
         return memo.get(packageKey);
@@ -380,12 +518,29 @@ function buildNpmNodeFromPackages(packageKey, fallbackName, packages, memo, stac
     memo.set(packageKey, out);
     return out;
 }
+/**
+ * Normalize a lockfile package key into a POSIX-style relative path.
+ *
+ * @param value - The raw package key or path from a lockfile
+ * @returns The normalized package key with any leading "./" or "/" removed, path separators converted to `/`, or an empty string if `value` is empty or whitespace
+ */
 function normalizeLockPackageKey(value) {
     const trimmed = value.trim();
     if (!trimmed)
         return '';
     return trimmed.replace(/^\.?\//, '').split(path_1.default.sep).join('/');
 }
+/**
+ * Resolve the lockfile packages map key for a dependency by searching node_modules upward from a starting package path.
+ *
+ * Searches for "<fromPackageKey>/node_modules/<depName>" and climbs parent directories until the repository root,
+ * then falls back to "node_modules/<depName>".
+ *
+ * @param fromPackageKey - The package key/path in the lockfile packages map to start from (posix-style, may be empty)
+ * @param depName - The dependency name to resolve
+ * @param packages - The lockfile `packages` map (keys are package paths)
+ * @returns The matching package key (e.g. "node_modules/dep" or "some/dir/node_modules/dep") if found, `undefined` otherwise
+ */
 function resolveNpmPackagePath(fromPackageKey, depName, packages) {
     const from = fromPackageKey || '';
     let dir = from;
@@ -401,6 +556,16 @@ function resolveNpmPackagePath(fromPackageKey, depName, packages) {
     const rootCandidate = `node_modules/${depName}`;
     return rootCandidate in packages ? rootCandidate : undefined;
 }
+/**
+ * Normalize a legacy npm lockfile node into a ResolvedNode.
+ *
+ * Recursively converts a legacy lockfile node structure into the module's ResolvedNode shape,
+ * preserving the package name, validated version, transitive dependencies, and the dev flag.
+ *
+ * @param name - The dependency name as declared in the lockfile
+ * @param node - The legacy lockfile node object to normalize (may contain version, dependencies, dev, missing, extraneous)
+ * @returns A ResolvedNode for the package, or `undefined` if the input node is missing, extraneous, or has an invalid/unknown/missing version
+ */
 function normalizeLegacyNpmNode(name, node) {
     if (!node || typeof node !== 'object')
         return undefined;
@@ -429,6 +594,15 @@ function normalizeLegacyNpmNode(name, node) {
     }
     return out;
 }
+/**
+ * Builds a resolved dependency tree from a Yarn lockfile for the given project.
+ *
+ * Searches upward for a yarn.lock from the provided project path (stopping at `searchRoot`), ensures the project's package.json is present and readable, parses the lockfile as Yarn v1 or v2, and constructs a LockfileTreeResult.
+ *
+ * @param projectPath - The project directory containing package.json used as the resolution root
+ * @param searchRoot - Directory at which to stop searching upward for a yarn.lock
+ * @returns A LockfileTreeResult with `sourceFile` set to the located yarn.lock and `data` containing the resolved dependency tree, or `undefined` if the lockfile or package.json cannot be found or parsed
+ */
 function parseYarnTree(projectPath, searchRoot) {
     const lockPath = findUpwards(projectPath, ['yarn.lock'], searchRoot);
     if (!lockPath)
@@ -455,6 +629,12 @@ function parseYarnTree(projectPath, searchRoot) {
     const data = buildYarnResolvedTree(parsedYaml, packageJson);
     return { sourceFile: lockPath, data };
 }
+/**
+ * Parse a Yarn v1 lockfile string into a selector-to-entry map.
+ *
+ * @param raw - The raw contents of a yarn.lock file (Yarn v1 format)
+ * @returns A Map where each selector string maps to its YarnV1Entry, or `undefined` if parsing fails or the lockfile is not a Yarn v1 success parse
+ */
 function parseYarnV1(raw) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const lockfile = require('@yarnpkg/lockfile');
@@ -471,6 +651,12 @@ function parseYarnV1(raw) {
     }
     return map;
 }
+/**
+ * Parse a Yarn v2 (Berry) lockfile YAML string into a selector-to-entry map.
+ *
+ * @param raw - Raw contents of a yarn.lock (Yarn v2+) file
+ * @returns A Map where each lockfile selector maps to its YarnV2Entry, or `undefined` if the input could not be parsed into an object
+ */
 function parseYarnV2(raw) {
     const parsed = yaml_1.default.parse(raw);
     if (!parsed || typeof parsed !== 'object')
@@ -489,6 +675,16 @@ function parseYarnV2(raw) {
     }
     return map;
 }
+/**
+ * Build a resolved dependency tree from Yarn lockfile entries and a project package.json.
+ *
+ * Uses the package.json dependency sections to find root dependency ranges, resolves each range
+ * against the provided Yarn lock entries, and constructs a map of resolved package nodes.
+ *
+ * @param lockEntries - Map of selector keys to Yarn v1 or v2 lockfile entries used to resolve selectors.
+ * @param packageJson - The project's parsed package.json object whose dependency sections are consulted.
+ * @returns A ResolvedTree whose `dependencies` map contains resolved top-level ResolvedNode objects; workspace-like specifiers and unresolved selectors are omitted.
+ */
 function buildYarnResolvedTree(lockEntries, packageJson) {
     const memo = new Map();
     const stack = new Set();
@@ -506,6 +702,20 @@ function buildYarnResolvedTree(lockEntries, packageJson) {
     }
     return { dependencies };
 }
+/**
+ * Resolve a Yarn lockfile entry into a ResolvedNode, including its child dependencies.
+ *
+ * Builds a normalized ResolvedNode for the package identified by `name` and `selector` from `lockEntries`.
+ * Skips workspace-like specs and invalid/missing versions. Uses `memo` to cache results and `stack` to
+ * detect and avoid cycles during recursive resolution.
+ *
+ * @param name - The dependency name to resolve
+ * @param selector - The lockfile selector/key that identifies the specific locked entry
+ * @param lockEntries - Map of lockfile selectors to Yarn lock entries (v1 or v2)
+ * @param memo - Memoization map used to cache previously resolved nodes or unresolved results
+ * @param stack - Set tracking the current recursion path to prevent cycles
+ * @returns `ResolvedNode` for the resolved dependency, or `undefined` if the entry cannot be resolved or is invalid
+ */
 function buildYarnNode(name, selector, lockEntries, memo, stack) {
     const memoKey = `${name}|${selector}`;
     if (memo.has(memoKey))
@@ -545,6 +755,18 @@ function buildYarnNode(name, selector, lockEntries, memo, stack) {
     memo.set(memoKey, out);
     return out;
 }
+/**
+ * Resolve a Yarn lockfile selector key that corresponds to a dependency name and range.
+ *
+ * Attempts to match exact selector forms (including `npm:`-prefixed variants), then falls back
+ * to selectors that start with `name@` and contain the range; if multiple fallback matches
+ * exist the lexicographically first is chosen.
+ *
+ * @param dependencyName - The dependency package name
+ * @param dependencyRange - The version range or specifier (may be prefixed with `npm:`)
+ * @param lockEntries - Map of lockfile selector keys to their entries
+ * @returns A lockfile selector key that matches the dependency, or `undefined` if none found
+ */
 function resolveYarnSelector(dependencyName, dependencyRange, lockEntries) {
     const trimmedRange = dependencyRange.trim();
     const candidates = new Set([
@@ -574,6 +796,14 @@ function resolveYarnSelector(dependencyName, dependencyRange, lockEntries) {
     }
     return undefined;
 }
+/**
+ * Extracts all dependency specifiers declared in a package.json-like object.
+ *
+ * Aggregates entries from "dependencies", "devDependencies", "optionalDependencies", and "peerDependencies".
+ *
+ * @param pkg - The parsed package.json object to read dependency sections from
+ * @returns A map of dependency name to its version or range string for every declared dependency
+ */
 function collectPackageJsonDependencySpecs(pkg) {
     const out = {};
     for (const sectionName of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
@@ -588,12 +818,27 @@ function collectPackageJsonDependencySpecs(pkg) {
     }
     return out;
 }
+/**
+ * Split a Yarn selector key into individual selector strings.
+ *
+ * @param selectorKey - A comma-separated selector string from a lockfile entry
+ * @returns An array of trimmed, non-empty selector strings
+ */
 function splitSelectors(selectorKey) {
     return selectorKey
         .split(',')
         .map((part) => part.trim())
         .filter(Boolean);
 }
+/**
+ * Merge two arbitrary values into a string-to-string record, with entries from the second overriding the first.
+ *
+ * Non-object values are ignored; only own enumerable properties whose values are strings are included.
+ *
+ * @param first - Source whose string-valued properties are copied first
+ * @param second - Source whose string-valued properties override those from `first`
+ * @returns A record mapping property names to their string values collected from `first` and `second`
+ */
 function mergeStringRecord(first, second) {
     const out = {};
     const assign = (value) => {
@@ -609,6 +854,12 @@ function mergeStringRecord(first, second) {
     assign(second);
     return out;
 }
+/**
+ * Collects all dependency names referenced by a lockfile or package entry.
+ *
+ * @param entry - An object that may contain dependency sections (`dependencies`, `devDependencies`, `optionalDependencies`, `peerDependencies`)
+ * @returns An array of unique dependency names aggregated from the entry's dependency sections
+ */
 function collectDependencyNames(entry) {
     const names = new Set();
     for (const sectionName of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
@@ -621,6 +872,12 @@ function collectDependencyNames(entry) {
     }
     return Array.from(names);
 }
+/**
+ * Check if a dependency specifier refers to a workspace or local reference.
+ *
+ * @param value - The dependency specifier to test (e.g., "file:../pkg", "workspace:^1.0.0")
+ * @returns `true` if the specifier starts with `link:`, `workspace:`, `file:`, or `portal:`, `false` otherwise.
+ */
 function isWorkspaceLikeSpecifier(value) {
     const trimmed = value.trim();
     return (trimmed.startsWith('link:') ||
@@ -628,6 +885,14 @@ function isWorkspaceLikeSpecifier(value) {
         trimmed.startsWith('file:') ||
         trimmed.startsWith('portal:'));
 }
+/**
+ * Search upward from a starting directory for any of the given filenames and return the first match.
+ *
+ * @param startPath - Directory path to begin the upward search from
+ * @param fileNames - List of filenames to look for in each directory
+ * @param stopPath - Directory path at which to stop searching (inclusive)
+ * @returns The resolved path to the first matching file found, or `undefined` if none is found before `stopPath`
+ */
 function findUpwards(startPath, fileNames, stopPath) {
     const stop = path_1.default.resolve(stopPath);
     let current = path_1.default.resolve(startPath);
@@ -647,12 +912,25 @@ function findUpwards(startPath, fileNames, stopPath) {
         current = parent;
     }
 }
+/**
+ * Compute the POSIX-style relative path from one filesystem path to another.
+ *
+ * @param fromPath - The base path to resolve from
+ * @param toPath - The target path to resolve to
+ * @returns The relative path using forward slashes (`/`), or an empty string when the target is the same as the base
+ */
 function toPosixRelative(fromPath, toPath) {
     const relative = path_1.default.relative(fromPath, toPath);
     if (!relative || relative === '.')
         return '';
     return relative.split(path_1.default.sep).join('/');
 }
+/**
+ * Checks whether a filesystem path exists and is accessible, returning false on any error.
+ *
+ * @param targetPath - The filesystem path to check
+ * @returns `true` if the path exists and is accessible, `false` otherwise.
+ */
 function safePathExists(targetPath) {
     try {
         return fs_1.default.existsSync(targetPath);
@@ -661,6 +939,12 @@ function safePathExists(targetPath) {
         return false;
     }
 }
+/**
+ * Read a text file and cache its contents in memory.
+ *
+ * @param filePath - Path to the file to read
+ * @returns The file contents decoded as UTF-8, or `undefined` if the file cannot be read
+ */
 function readCachedText(filePath) {
     if (parseCache.has(filePath)) {
         const cached = parseCache.get(filePath);
@@ -675,6 +959,13 @@ function readCachedText(filePath) {
         return undefined;
     }
 }
+/**
+ * Read and cache the parsed JSON content of a file.
+ *
+ * @param filePath - Path to the JSON file
+ * @returns The parsed JSON value, or `undefined` if the file cannot be read
+ * @throws SyntaxError if the file is read but contains invalid JSON
+ */
 function getCachedJson(filePath) {
     const cacheKey = `${filePath}:json`;
     if (parseCache.has(cacheKey))
@@ -686,6 +977,12 @@ function getCachedJson(filePath) {
     parseCache.set(cacheKey, parsed);
     return parsed;
 }
+/**
+ * Parse YAML content from the given file path and cache the result for subsequent calls.
+ *
+ * @param filePath - Path to the YAML file to read and parse
+ * @returns The parsed YAML value, or `undefined` if the file could not be read or is empty
+ */
 function getCachedYaml(filePath) {
     const cacheKey = `${filePath}:yaml`;
     if (parseCache.has(cacheKey))
@@ -697,6 +994,12 @@ function getCachedYaml(filePath) {
     parseCache.set(cacheKey, parsed);
     return parsed;
 }
+/**
+ * Read and parse a JSON file, returning its contents or undefined on failure.
+ *
+ * @param filePath - Path to the JSON file to read
+ * @returns The parsed JSON value, or `undefined` if the file cannot be read or parsed
+ */
 function readJsonSafe(filePath) {
     try {
         const raw = fs_1.default.readFileSync(filePath, 'utf8');
@@ -706,6 +1009,16 @@ function readJsonSafe(filePath) {
         return undefined;
     }
 }
+/**
+ * Create a pnpm installation state by discovering node_modules roots and .pnpm virtual store entries for a project path.
+ *
+ * @param projectPath - Filesystem path inside the project to start discovery from
+ * @returns An object containing:
+ *  - `enabled`: `true` if any virtual store entries or node_modules roots were found, `false` otherwise;
+ *  - `virtualStoreEntries`: a set of directory names found under each discovered `.pnpm` folder;
+ *  - `nodeModulesRoots`: array of discovered `node_modules` root paths;
+ *  - `installedCache`: an initially empty cache map for package installation checks
+ */
 function createPnpmInstallState(projectPath) {
     const nodeModulesRoots = findNodeModulesRoots(projectPath);
     const virtualStoreEntries = new Set();
@@ -724,6 +1037,12 @@ function createPnpmInstallState(projectPath) {
         installedCache: new Map()
     };
 }
+/**
+ * Discover node_modules directories by walking upward from a starting path.
+ *
+ * @param startPath - Path to begin the upward search from.
+ * @returns An array of absolute paths to `node_modules` directories found while traversing upward, ordered from nearest to farthest.
+ */
 function findNodeModulesRoots(startPath) {
     const roots = [];
     let current = path_1.default.resolve(startPath);
@@ -739,6 +1058,12 @@ function findNodeModulesRoots(startPath) {
     }
     return roots;
 }
+/**
+ * Read the names of entries in a directory, returning an empty array if the directory cannot be read.
+ *
+ * @param dirPath - Path to the directory to read
+ * @returns An array of directory entry names, or an empty array if the directory does not exist or cannot be read
+ */
 function safeReadDirNames(dirPath) {
     try {
         return fs_1.default.readdirSync(dirPath);
@@ -747,6 +1072,16 @@ function safeReadDirNames(dirPath) {
         return [];
     }
 }
+/**
+ * Determine whether a pnpm package with the given name and version is considered installed according to the provided pnpm install state.
+ *
+ * Looks up the package in the pnpm virtual store entries and in discovered node_modules roots. Results are cached on `installState.installedCache`.
+ *
+ * @param name - Package name (may be scoped)
+ * @param version - Expected package version
+ * @param installState - pnpm installation state used to inspect virtual store entries and node_modules roots
+ * @returns `true` if the package is considered installed (found in the pnpm virtual store or node_modules and matching the version), `false` otherwise.
+ */
 function isPnpmPackageInstalled(name, version, installState) {
     if (!installState.enabled)
         return true;
@@ -772,6 +1107,12 @@ function isPnpmPackageInstalled(name, version, installState) {
     installState.installedCache.set(cacheKey, false);
     return false;
 }
+/**
+ * Convert a scoped package name into the pnpm store form by replacing the scope/name slash with a plus.
+ *
+ * @param name - Package name, possibly scoped (for example, "@scope/pkg")
+ * @returns The pnpm-store form (for example, "@scope+pkg"); returns the original `name` if it is not a valid scoped package
+ */
 function normalizeScopedPackageNameForPnpmStore(name) {
     if (!name.startsWith('@'))
         return name;
@@ -780,6 +1121,15 @@ function normalizeScopedPackageNameForPnpmStore(name) {
         return name;
     return `${name.slice(0, slashIndex)}+${name.slice(slashIndex + 1)}`;
 }
+/**
+ * Checks whether a package directory's declared version matches an expected version.
+ *
+ * Treats a missing or unreadable package.json, or a package.json without a `version` field, as matching.
+ *
+ * @param packageDir - Path to the package directory containing a package.json
+ * @param expectedVersion - The version string to compare against the package's declared version
+ * @returns `true` if the package.json is missing/unreadable, lacks a `version`, or its `version` equals `expectedVersion`; `false` otherwise
+ */
 function packageDirectoryMatchesVersion(packageDir, expectedVersion) {
     const pkgJsonPath = path_1.default.join(packageDir, 'package.json');
     if (!safePathExists(pkgJsonPath))
