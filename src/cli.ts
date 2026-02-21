@@ -1279,6 +1279,7 @@ async function run(): Promise<void> {
           : Promise.resolve(undefined),
         runNpmLs(meta.path, pkgTempDir, scanManager, {
           contextLabel: meta.name,
+          lockfileSearchRoot: projectPath,
           onProgress: (line) => spinner.log(line),
         }).catch(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,

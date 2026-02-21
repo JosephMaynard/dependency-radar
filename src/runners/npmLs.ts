@@ -2,18 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { ToolResult } from '../types';
 import { runCommand, writeJsonFile } from '../utils';
-
-type ResolvedNode = {
-  name: string;
-  version: string;
-  path?: string;
-  dependencies?: Record<string, ResolvedNode>;
-  dev?: boolean;
-};
-
-type ResolvedTree = {
-  dependencies: Record<string, ResolvedNode>;
-};
+import { ResolvedNode, ResolvedTree, tryBuildDependencyTreeFromLockfile } from './lockfileGraph';
 
 type PnpmInstallState = {
   enabled: boolean;
@@ -27,6 +16,7 @@ const PNPM_MAX_OLD_SPACE_SIZE_MB = '8192';
 
 type LsProgressOptions = {
   contextLabel?: string;
+  lockfileSearchRoot?: string;
   onProgress?: (line: string) => void;
 };
 
@@ -39,6 +29,15 @@ export async function runNpmLs(
 ): Promise<ToolResult<any>> {
   const targetFile = path.join(tempDir, `${tool}-ls.json`);
   try {
+    const lockfileTree = await tryBuildDependencyTreeFromLockfile(
+      projectPath,
+      tool,
+      options.lockfileSearchRoot
+    );
+    if (lockfileTree) {
+      await writeJsonFile(targetFile, lockfileTree.data);
+      return { ok: true, data: lockfileTree.data, file: targetFile };
+    }
     if (tool === 'pnpm') {
       return await runPnpmLsWithFallback(projectPath, targetFile, options);
     }

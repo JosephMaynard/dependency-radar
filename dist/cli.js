@@ -1093,6 +1093,7 @@ async function run() {
                     : Promise.resolve(undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
                     contextLabel: meta.name,
+                    lockfileSearchRoot: projectPath,
                     onProgress: (line) => spinner.log(line),
                 }).catch((err) => ({ ok: false, error: String(err) })),
                 (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),

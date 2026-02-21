@@ -139,3 +139,145 @@ describe('runNpmLs pnpm normalization', () => {
     expect(result.data?.dependencies['@scope/linked']).toBeUndefined();
   });
 });
+
+describe('runNpmLs lockfile-first parsing', () => {
+  it('builds pnpm tree from pnpm-lock.yaml without running pnpm list', async () => {
+    const projectPath = await makeTempDir('dr-lock-pnpm');
+    const tempDir = await makeTempDir('dr-lock-pnpm-out');
+
+    await fs.mkdir(path.join(projectPath, 'node_modules', '.pnpm', 'a@1.0.0'), { recursive: true });
+    await fs.mkdir(path.join(projectPath, 'node_modules', '.pnpm', 'b@1.0.0'), { recursive: true });
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-pnpm',
+      version: '1.0.0',
+      dependencies: { a: '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'pnpm-lock.yaml'), `
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      a:
+        specifier: 1.0.0
+        version: 1.0.0
+packages:
+  a@1.0.0: {}
+  b@1.0.0: {}
+snapshots:
+  a@1.0.0:
+    dependencies:
+      b: 1.0.0
+  b@1.0.0: {}
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'pnpm');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
+  });
+
+  it('builds npm tree from package-lock.json without running npm ls', async () => {
+    const projectPath = await makeTempDir('dr-lock-npm');
+    const tempDir = await makeTempDir('dr-lock-npm-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-npm',
+      version: '1.0.0',
+      dependencies: { a: '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+      name: 'lock-npm',
+      version: '1.0.0',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'lock-npm',
+          version: '1.0.0',
+          dependencies: { a: '1.0.0' }
+        },
+        'node_modules/a': {
+          version: '1.0.0',
+          dependencies: { b: '1.0.0' }
+        },
+        'node_modules/b': {
+          version: '1.0.0'
+        }
+      }
+    }));
+
+    const result = await runNpmLs(projectPath, tempDir, 'npm');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
+  });
+
+  it('builds yarn tree from yarn.lock without running yarn list', async () => {
+    const projectPath = await makeTempDir('dr-lock-yarn');
+    const tempDir = await makeTempDir('dr-lock-yarn-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-yarn',
+      version: '1.0.0',
+      dependencies: { a: '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), `
+# yarn lockfile v1
+
+a@1.0.0:
+  version "1.0.0"
+  dependencies:
+    b "1.0.0"
+
+b@1.0.0:
+  version "1.0.0"
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'yarn');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
+  });
+
+  it('does not read lockfiles above the project path boundary', async () => {
+    const rootPath = await makeTempDir('dr-lock-boundary-root');
+    const projectPath = path.join(rootPath, 'project');
+    const tempDir = await makeTempDir('dr-lock-boundary-out');
+    await fs.mkdir(projectPath, { recursive: true });
+
+    await fs.writeFile(path.join(rootPath, 'package-lock.json'), JSON.stringify({
+      name: 'outside-root',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'outside-root',
+          version: '1.0.0',
+          dependencies: { outside: '1.0.0' }
+        },
+        'node_modules/outside': {
+          version: '1.0.0'
+        }
+      }
+    }));
+
+    runCommandMock.mockResolvedValue({
+      code: 0,
+      stdout: JSON.stringify({
+        dependencies: {
+          inside: {
+            version: '1.0.0'
+          }
+        }
+      }),
+      stderr: ''
+    });
+
+    const result = await runNpmLs(projectPath, tempDir, 'npm');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).toHaveBeenCalledTimes(1);
+    expect(result.data?.dependencies.inside).toBeDefined();
+    expect(result.data?.dependencies.outside).toBeUndefined();
+  });
+});
