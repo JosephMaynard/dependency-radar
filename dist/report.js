@@ -8,6 +8,12 @@ const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const cta_1 = require("./cta");
 const report_assets_1 = require("./report-assets");
+function sanitizeInlineStyleTagPayload(value) {
+    return value.replace(/<\/style/gi, '<\\/style');
+}
+function sanitizeInlineScriptTagPayload(value) {
+    return value.replace(/<\/script/gi, '<\\/script');
+}
 async function renderReport(data, outputPath) {
     const html = buildHtml(data);
     await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
@@ -16,6 +22,8 @@ async function renderReport(data, outputPath) {
 function buildHtml(data) {
     const json = JSON.stringify(data).replace(/</g, '\\u003c');
     const ctaUrl = (0, cta_1.buildCtaUrl)(data.dependencyRadarVersion);
+    const safeCssContent = sanitizeInlineStyleTagPayload(report_assets_1.CSS_CONTENT);
+    const safeJsContent = sanitizeInlineScriptTagPayload(report_assets_1.JS_CONTENT);
     // Format the generated date
     let formattedDate = data.generatedAt;
     try {
@@ -86,7 +94,7 @@ function buildHtml(data) {
         </svg>"
   >
   <style>
-${report_assets_1.CSS_CONTENT}
+${safeCssContent}
   </style>
 </head>
 <body>
@@ -294,9 +302,9 @@ ${report_assets_1.CSS_CONTENT}
   </footer>
   
   <script type="application/json" id="radar-data">${json}</script>
-  <script>
-${report_assets_1.JS_CONTENT}
-  </script>
+<script>
+${safeJsContent}
+</script>
 </body>
 </html>`;
 }

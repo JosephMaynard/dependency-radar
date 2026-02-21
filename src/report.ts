@@ -4,6 +4,14 @@ import { AggregatedData } from './types';
 import { buildCtaUrl } from './cta';
 import { CSS_CONTENT, JS_CONTENT } from './report-assets';
 
+function sanitizeInlineStyleTagPayload(value: string): string {
+  return value.replace(/<\/style/gi, '<\\/style');
+}
+
+function sanitizeInlineScriptTagPayload(value: string): string {
+  return value.replace(/<\/script/gi, '<\\/script');
+}
+
 export async function renderReport(data: AggregatedData, outputPath: string): Promise<void> {
   const html = buildHtml(data);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
@@ -13,6 +21,8 @@ export async function renderReport(data: AggregatedData, outputPath: string): Pr
 function buildHtml(data: AggregatedData): string {
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const ctaUrl = buildCtaUrl(data.dependencyRadarVersion);
+  const safeCssContent = sanitizeInlineStyleTagPayload(CSS_CONTENT);
+  const safeJsContent = sanitizeInlineScriptTagPayload(JS_CONTENT);
   
   // Format the generated date
   let formattedDate = data.generatedAt;
@@ -83,7 +93,7 @@ function buildHtml(data: AggregatedData): string {
         </svg>"
   >
   <style>
-${CSS_CONTENT}
+${safeCssContent}
   </style>
 </head>
 <body>
@@ -291,9 +301,9 @@ ${CSS_CONTENT}
   </footer>
   
   <script type="application/json" id="radar-data">${json}</script>
-  <script>
-${JS_CONTENT}
-  </script>
+<script>
+${safeJsContent}
+</script>
 </body>
 </html>`;
 }
