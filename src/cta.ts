@@ -1,4 +1,4 @@
-export const CTA_BASE_URL = 'https://dependency-radar.com/?source=standalone-report';
+export const CTA_BASE_URL = 'https://dependency-radar.com/next-steps?source=standalone-report';
 
 export function buildCtaUrl(version: string | undefined): string {
   const normalizedVersion = typeof version === 'string' && version.trim().length > 0
