@@ -54,6 +54,15 @@ export async function ensureDir(dir: string): Promise<void> {
   await fsp.mkdir(dir, { recursive: true });
 }
 
+/**
+ * Write JSON data to a file, creating parent directories as needed.
+ *
+ * Attempts to write a pretty-printed JSON representation of `data` to `filePath`. If pretty-printing fails due to an "Invalid string length" RangeError, falls back to a compact JSON representation.
+ *
+ * @param filePath - The path of the file to write
+ * @param data - The value to serialize to JSON (typically JSON-serializable)
+ * @throws Rethrows errors from JSON serialization (except handled "Invalid string length" for pretty-printing) and filesystem write operations
+ */
 export async function writeJsonFile(filePath: string, data: any): Promise<void> {
   await ensureDir(path.dirname(filePath));
   let content: string;
@@ -67,11 +76,23 @@ export async function writeJsonFile(filePath: string, data: any): Promise<void> 
   await fsp.writeFile(filePath, content, 'utf8');
 }
 
+/**
+ * Determines whether a value is a RangeError whose message indicates an "Invalid string length".
+ *
+ * @param error - The value to inspect
+ * @returns `true` if `error` is a `RangeError` with a message matching "Invalid string length" (case-insensitive), `false` otherwise.
+ */
 function isInvalidStringLengthError(error: unknown): boolean {
   if (!(error instanceof RangeError)) return false;
   return /Invalid string length/i.test(error.message || '');
 }
 
+/**
+ * Check whether a filesystem path exists and is accessible.
+ *
+ * @param target - The path to check
+ * @returns `true` if the path exists and is accessible, `false` otherwise
+ */
 export async function pathExists(target: string): Promise<boolean> {
   try {
     await fsp.access(target);
