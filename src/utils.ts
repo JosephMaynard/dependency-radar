@@ -56,8 +56,20 @@ export async function ensureDir(dir: string): Promise<void> {
 
 export async function writeJsonFile(filePath: string, data: any): Promise<void> {
   await ensureDir(path.dirname(filePath));
-  const content = JSON.stringify(data, null, 2);
+  let content: string;
+  try {
+    content = JSON.stringify(data, null, 2);
+  } catch (err) {
+    // Large lockfile-derived trees can overflow string length when pretty-printing.
+    if (!isInvalidStringLengthError(err)) throw err;
+    content = JSON.stringify(data);
+  }
   await fsp.writeFile(filePath, content, 'utf8');
+}
+
+function isInvalidStringLengthError(error: unknown): boolean {
+  if (!(error instanceof RangeError)) return false;
+  return /Invalid string length/i.test(error.message || '');
 }
 
 export async function pathExists(target: string): Promise<boolean> {

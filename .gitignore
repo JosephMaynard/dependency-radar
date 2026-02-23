@@ -12,3 +12,4 @@ test-fixtures/**/pnpm-lock.yaml
 test-fixtures/**/.pnp.*
 test-fixtures/**/.yarn/*
 test-fixtures/**/.yarnrc.yml
+test-repos/
