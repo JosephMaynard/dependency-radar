@@ -213,6 +213,52 @@ snapshots:
     expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
   });
 
+  it('filters npm optional platform packages that are not installed', async () => {
+    const projectPath = await makeTempDir('dr-lock-npm-installed-only');
+    const tempDir = await makeTempDir('dr-lock-npm-installed-only-out');
+
+    await fs.mkdir(path.join(projectPath, 'node_modules', 'esbuild'), { recursive: true });
+    await fs.mkdir(path.join(projectPath, 'node_modules', '@esbuild', 'darwin-arm64'), { recursive: true });
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-npm-installed-only',
+      version: '1.0.0',
+      dependencies: { esbuild: '0.21.5' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+      name: 'lock-npm-installed-only',
+      version: '1.0.0',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'lock-npm-installed-only',
+          version: '1.0.0',
+          dependencies: { esbuild: '0.21.5' }
+        },
+        'node_modules/esbuild': {
+          version: '0.21.5',
+          optionalDependencies: {
+            '@esbuild/darwin-arm64': '0.21.5',
+            '@esbuild/linux-arm64': '0.21.5'
+          }
+        },
+        'node_modules/@esbuild/darwin-arm64': {
+          version: '0.21.5'
+        },
+        'node_modules/@esbuild/linux-arm64': {
+          version: '0.21.5'
+        }
+      }
+    }));
+
+    const result = await runNpmLs(projectPath, tempDir, 'npm');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.esbuild).toBeDefined();
+    expect(result.data?.dependencies.esbuild?.dependencies?.['@esbuild/darwin-arm64']).toBeDefined();
+    expect(result.data?.dependencies.esbuild?.dependencies?.['@esbuild/linux-arm64']).toBeUndefined();
+  });
+
   it('builds yarn tree from yarn.lock without running yarn list', async () => {
     const projectPath = await makeTempDir('dr-lock-yarn');
     const tempDir = await makeTempDir('dr-lock-yarn-out');

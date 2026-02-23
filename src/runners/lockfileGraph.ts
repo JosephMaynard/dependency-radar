@@ -28,6 +28,12 @@ type PnpmInstallState = {
   installedCache: Map<string, boolean>;
 };
 
+type NpmInstallState = {
+  enabled: boolean;
+  lockDir: string;
+  installedByKeyCache: Map<string, boolean>;
+};
+
 type YarnV1Entry = {
   version?: string;
   dependencies?: Record<string, string>;
@@ -504,6 +510,7 @@ function parseNpmTreeFromPackages(
   projectPath: string,
   lockDir: string
 ): ResolvedTree | undefined {
+  const installState = createNpmInstallState(projectPath, lockDir);
   const projectRel = toPosixRelative(lockDir, projectPath);
   const rootKey = projectRel === '' ? '' : projectRel;
   if (!(rootKey in packages) && rootKey !== '') {
@@ -521,7 +528,7 @@ function parseNpmTreeFromPackages(
   for (const depName of rootDepNames) {
     const childKey = resolveNpmPackagePath(packageKey, depName, packages);
     if (!childKey) continue;
-    const childNode = buildNpmNodeFromPackages(childKey, depName, packages, memo, stack);
+    const childNode = buildNpmNodeFromPackages(childKey, depName, packages, memo, stack, installState);
     if (childNode) dependencies[childNode.name] = childNode;
   }
 
@@ -543,17 +550,22 @@ function buildNpmNodeFromPackages(
   fallbackName: string,
   packages: Record<string, any>,
   memo: Map<string, ResolvedNode | undefined>,
-  stack: Set<string>
+  stack: Set<string>,
+  installState: NpmInstallState
 ): ResolvedNode | undefined {
   if (memo.has(packageKey)) return memo.get(packageKey);
   if (stack.has(packageKey)) return undefined;
+  if (!isNpmPackageInstalled(packageKey, installState)) {
+    memo.set(packageKey, undefined);
+    return undefined;
+  }
   const entry = packages[packageKey];
   if (!entry || typeof entry !== 'object') return undefined;
 
   if (entry.link === true && typeof entry.resolved === 'string') {
     const linkedKey = normalizeLockPackageKey(entry.resolved);
     if (linkedKey && linkedKey in packages) {
-      const linkedNode = buildNpmNodeFromPackages(linkedKey, fallbackName, packages, memo, stack);
+      const linkedNode = buildNpmNodeFromPackages(linkedKey, fallbackName, packages, memo, stack, installState);
       memo.set(packageKey, linkedNode);
       return linkedNode;
     }
@@ -580,7 +592,7 @@ function buildNpmNodeFromPackages(
   for (const depName of depNames) {
     const childKey = resolveNpmPackagePath(packageKey, depName, packages);
     if (!childKey) continue;
-    const childNode = buildNpmNodeFromPackages(childKey, depName, packages, memo, stack);
+    const childNode = buildNpmNodeFromPackages(childKey, depName, packages, memo, stack, installState);
     if (!childNode) continue;
     out.dependencies![childNode.name] = childNode;
   }
@@ -1138,6 +1150,22 @@ function createPnpmInstallState(projectPath: string): PnpmInstallState {
 }
 
 /**
+ * Create npm installation state used to filter lockfile package entries to actually installed paths.
+ *
+ * @param projectPath - Filesystem path inside the project to start discovery from
+ * @param lockDir - Directory containing the npm lockfile
+ * @returns Installation state with detected node_modules roots and per-package-key cache
+ */
+function createNpmInstallState(projectPath: string, lockDir: string): NpmInstallState {
+  const nodeModulesRoots = findNodeModulesRoots(projectPath);
+  return {
+    enabled: nodeModulesRoots.length > 0,
+    lockDir,
+    installedByKeyCache: new Map<string, boolean>()
+  };
+}
+
+/**
  * Discover node_modules directories by walking upward from a starting path.
  *
  * @param startPath - Path to begin the upward search from.
@@ -1156,6 +1184,27 @@ function findNodeModulesRoots(startPath: string): string[] {
     current = parent;
   }
   return roots;
+}
+
+/**
+ * Determine whether a package-lock `packages` entry key points to an installed package path.
+ *
+ * @param packageKey - Key from package-lock `packages` map
+ * @param installState - npm installation state with lockDir and cache
+ * @returns `true` when the key should be considered installed, `false` otherwise
+ */
+function isNpmPackageInstalled(packageKey: string, installState: NpmInstallState): boolean {
+  if (!installState.enabled) return true;
+  const normalizedKey = normalizeLockPackageKey(packageKey);
+  if (!normalizedKey) return true;
+
+  const cached = installState.installedByKeyCache.get(normalizedKey);
+  if (cached !== undefined) return cached;
+
+  const candidate = path.join(installState.lockDir, ...normalizedKey.split('/'));
+  const installed = safePathExists(candidate);
+  installState.installedByKeyCache.set(normalizedKey, installed);
+  return installed;
 }
 
 /**
