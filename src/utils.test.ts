@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { parseJsonOutput, readLicenseFromPackageDir, resolvePackageJsonPath } from './utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { parseJsonOutput, readLicenseFromPackageDir, resolvePackageJsonPath, writeJsonFile } from './utils';
 
 const tempDirs: string[] = [];
 
@@ -13,6 +13,7 @@ async function makeTempDir(prefix: string): Promise<string> {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
@@ -77,5 +78,23 @@ describe('resolvePackageJsonPath', () => {
 
     const resolved = await resolvePackageJsonPath('plain-demo', [root]);
     expect(resolved?.endsWith(path.join('node_modules', 'plain-demo', 'package.json'))).toBe(true);
+  });
+});
+
+describe('writeJsonFile', () => {
+  it('falls back to compact JSON when pretty serialization overflows', async () => {
+    const dir = await makeTempDir('dr-write-json');
+    const filePath = path.join(dir, 'large.json');
+    const originalStringify = JSON.stringify.bind(JSON);
+    vi.spyOn(JSON, 'stringify').mockImplementation((value: any, replacer?: any, space?: any) => {
+      if (space === 2) {
+        throw new RangeError('Invalid string length');
+      }
+      return originalStringify(value, replacer, space);
+    });
+
+    await writeJsonFile(filePath, { hello: 'world' });
+    const content = await fs.readFile(filePath, 'utf8');
+    expect(content).toBe('{"hello":"world"}');
   });
 });

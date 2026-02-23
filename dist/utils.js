@@ -60,8 +60,22 @@ async function ensureDir(dir) {
 }
 async function writeJsonFile(filePath, data) {
     await ensureDir(path_1.default.dirname(filePath));
-    const content = JSON.stringify(data, null, 2);
+    let content;
+    try {
+        content = JSON.stringify(data, null, 2);
+    }
+    catch (err) {
+        // Large lockfile-derived trees can overflow string length when pretty-printing.
+        if (!isInvalidStringLengthError(err))
+            throw err;
+        content = JSON.stringify(data);
+    }
     await promises_1.default.writeFile(filePath, content, 'utf8');
+}
+function isInvalidStringLengthError(error) {
+    if (!(error instanceof RangeError))
+        return false;
+    return /Invalid string length/i.test(error.message || '');
 }
 async function pathExists(target) {
     try {
