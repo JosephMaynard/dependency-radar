@@ -583,6 +583,10 @@ function buildNpmNodeFromPackages(
     version,
     dependencies: {}
   };
+  const packagePath = resolveNpmInstalledPath(packageKey, installState.lockDir);
+  if (packagePath) {
+    out.path = packagePath;
+  }
   if (entry?.dev !== undefined) {
     out.dev = Boolean(entry.dev);
   }
@@ -647,6 +651,12 @@ function resolveNpmPackagePath(
 
   const rootCandidate = `node_modules/${depName}`;
   return rootCandidate in packages ? rootCandidate : undefined;
+}
+
+function resolveNpmInstalledPath(packageKey: string, lockDir: string): string | undefined {
+  const normalizedKey = normalizeLockPackageKey(packageKey);
+  if (!normalizedKey) return undefined;
+  return path.join(lockDir, ...normalizedKey.split('/'));
 }
 
 /**

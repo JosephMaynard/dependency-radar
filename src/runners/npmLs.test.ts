@@ -210,7 +210,9 @@ snapshots:
     expect(result.ok).toBe(true);
     expect(runCommandMock).not.toHaveBeenCalled();
     expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.path).toBe(path.join(projectPath, 'node_modules', 'a'));
     expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b?.path).toBe(path.join(projectPath, 'node_modules', 'b'));
   });
 
   it('filters npm optional platform packages that are not installed', async () => {
