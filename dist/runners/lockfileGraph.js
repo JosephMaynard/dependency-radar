@@ -502,6 +502,10 @@ function buildNpmNodeFromPackages(packageKey, fallbackName, packages, memo, stac
         version,
         dependencies: {}
     };
+    const packagePath = resolveNpmInstalledPath(packageKey, installState.lockDir);
+    if (packagePath) {
+        out.path = packagePath;
+    }
     if ((entry === null || entry === void 0 ? void 0 : entry.dev) !== undefined) {
         out.dev = Boolean(entry.dev);
     }
@@ -560,6 +564,12 @@ function resolveNpmPackagePath(fromPackageKey, depName, packages) {
     }
     const rootCandidate = `node_modules/${depName}`;
     return rootCandidate in packages ? rootCandidate : undefined;
+}
+function resolveNpmInstalledPath(packageKey, lockDir) {
+    const normalizedKey = normalizeLockPackageKey(packageKey);
+    if (!normalizedKey)
+        return undefined;
+    return path_1.default.join(lockDir, ...normalizedKey.split('/'));
 }
 /**
  * Normalize a legacy npm lockfile node into a ResolvedNode.

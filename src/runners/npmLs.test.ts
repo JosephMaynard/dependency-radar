@@ -210,7 +210,9 @@ snapshots:
     expect(result.ok).toBe(true);
     expect(runCommandMock).not.toHaveBeenCalled();
     expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.path).toBe(path.join(projectPath, 'node_modules', 'a'));
     expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b?.path).toBe(path.join(projectPath, 'node_modules', 'b'));
   });
 
   it('filters npm optional platform packages that are not installed', async () => {
@@ -257,6 +259,38 @@ snapshots:
     expect(result.data?.dependencies.esbuild).toBeDefined();
     expect(result.data?.dependencies.esbuild?.dependencies?.['@esbuild/darwin-arm64']).toBeDefined();
     expect(result.data?.dependencies.esbuild?.dependencies?.['@esbuild/linux-arm64']).toBeUndefined();
+  });
+
+  it('does not resolve lockfile package paths that traverse outside lock dir', async () => {
+    const projectPath = await makeTempDir('dr-lock-npm-traversal-path');
+    const tempDir = await makeTempDir('dr-lock-npm-traversal-path-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-npm-traversal-path',
+      version: '1.0.0',
+      dependencies: { '../evil': '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+      name: 'lock-npm-traversal-path',
+      version: '1.0.0',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'lock-npm-traversal-path',
+          version: '1.0.0',
+          dependencies: { '../evil': '1.0.0' }
+        },
+        'node_modules/../evil': {
+          version: '1.0.0'
+        }
+      }
+    }));
+
+    const result = await runNpmLs(projectPath, tempDir, 'npm');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies['../evil']).toBeDefined();
+    expect(result.data?.dependencies['../evil']?.path).toBeUndefined();
   });
 
   it('builds yarn tree from yarn.lock without running yarn list', async () => {
