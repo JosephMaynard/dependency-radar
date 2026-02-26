@@ -443,7 +443,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
-  function fitGraph(): void {
+  function updateFitMetrics(): void {
     if (!currentGraph) return;
     const bounds = currentGraph.bounds;
     const graphWidth = Math.max(1, bounds.maxX - bounds.minX);
@@ -454,6 +454,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     minZoom = clamp(fitZoom * 0.95, 0.05, MAX_ZOOM);
     defaultPanX = (width - graphWidth * fitZoom) * 0.5 - bounds.minX * fitZoom;
     defaultPanY = (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
+  }
+
+  function fitGraph(): void {
+    if (!currentGraph) return;
+    updateFitMetrics();
     zoom = fitZoom;
     panX = defaultPanX;
     panY = defaultPanY;
@@ -1223,6 +1228,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     });
 
     document.addEventListener('mousedown', (event) => {
+      if (!active) return;
       const target = event.target as Node;
       if (options.popover.hidden) return;
       if (options.popover.contains(target)) return;
@@ -1276,15 +1282,21 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     if (typeof ResizeObserver !== 'undefined') {
       const resizeObserver = new ResizeObserver(() => {
+        if (!active) return;
         updateCanvasSize();
-        fitGraph();
+        if (width <= 1 || height <= 1) return;
+        updateFitMetrics();
+        zoom = clamp(zoom, minZoom, MAX_ZOOM);
         requestRender();
       });
       resizeObserver.observe(options.canvasHost);
     } else {
       window.addEventListener('resize', () => {
+        if (!active) return;
         updateCanvasSize();
-        fitGraph();
+        if (width <= 1 || height <= 1) return;
+        updateFitMetrics();
+        zoom = clamp(zoom, minZoom, MAX_ZOOM);
         requestRender();
       });
     }
@@ -1297,11 +1309,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function setActive(next: boolean): void {
     active = next;
     if (active) {
+      updateCanvasSize();
+      if (width > 1 && height > 1) {
+        updateFitMetrics();
+        zoom = clamp(zoom, minZoom, MAX_ZOOM);
+      }
       renderLoop();
       requestRender();
       return;
     }
-    hidePopover();
     if (frameId) {
       window.cancelAnimationFrame(frameId);
       frameId = 0;
