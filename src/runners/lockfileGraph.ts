@@ -656,7 +656,17 @@ function resolveNpmPackagePath(
 function resolveNpmInstalledPath(packageKey: string, lockDir: string): string | undefined {
   const normalizedKey = normalizeLockPackageKey(packageKey);
   if (!normalizedKey) return undefined;
-  return path.join(lockDir, ...normalizedKey.split('/'));
+  const segments = normalizedKey.split('/').filter(Boolean);
+  if (segments.length === 0) return undefined;
+  for (const segment of segments) {
+    if (segment === '.' || segment === '..') return undefined;
+    if (path.isAbsolute(segment)) return undefined;
+  }
+  const lockRoot = path.resolve(lockDir);
+  const resolved = path.resolve(lockRoot, ...segments);
+  const relative = path.relative(lockRoot, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return undefined;
+  return resolved;
 }
 
 /**
