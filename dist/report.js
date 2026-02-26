@@ -351,13 +351,21 @@ ${safeCssContent}
           <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
           <select id="graph-workspace" class="graph-workspace-select"></select>
         </div>
-        <div class="graph-overlay graph-overlay-right" id="graph-controls">
-          <button type="button" class="graph-control-btn" id="graph-zoom-in" aria-label="Zoom In">+</button>
-          <button type="button" class="graph-control-btn" id="graph-zoom-out" aria-label="Zoom Out">-</button>
-          <button type="button" class="graph-control-btn" id="graph-pan-left" aria-label="Pan Left">◀</button>
-          <button type="button" class="graph-control-btn" id="graph-pan-right" aria-label="Pan Right">▶</button>
-          <button type="button" class="graph-control-btn" id="graph-pan-up" aria-label="Pan Up">▲</button>
-          <button type="button" class="graph-control-btn" id="graph-pan-down" aria-label="Pan Down">▼</button>
+        <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
+          <div class="zoom-controls">
+            <button type="button" class="graph-control-btn" data-action="zoom-in" aria-label="Zoom In">+</button>
+            <button type="button" class="graph-control-btn" data-action="zoom-out" aria-label="Zoom Out">−</button>
+          </div>
+          <div class="dpad">
+            <button type="button" class="graph-control-btn" data-action="pan-up" aria-label="Pan Up">▲</button>
+            <div class="dpad-middle">
+              <button type="button" class="graph-control-btn" data-action="pan-left" aria-label="Pan Left">◀</button>
+              <div class="dpad-center" aria-hidden="true"></div>
+              <button type="button" class="graph-control-btn" data-action="pan-right" aria-label="Pan Right">▶</button>
+            </div>
+            <button type="button" class="graph-control-btn" data-action="pan-down" aria-label="Pan Down">▼</button>
+          </div>
+          <button type="button" class="graph-control-btn reset-btn" data-action="reset">reset</button>
         </div>
         <div class="graph-popover" id="graph-popover" hidden>
           <div class="graph-popover-name" id="graph-popover-name"></div>

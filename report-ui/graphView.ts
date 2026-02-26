@@ -70,14 +70,9 @@ export type GraphViewOptions = {
   resolveDepKey: (depKey: string) => string | null;
   workspaceSelect: HTMLSelectElement;
   workspaceWrap: HTMLElement;
+  controlsRoot: HTMLElement;
   canvas: HTMLCanvasElement;
   canvasHost: HTMLElement;
-  zoomInButton: HTMLButtonElement;
-  zoomOutButton: HTMLButtonElement;
-  panLeftButton: HTMLButtonElement;
-  panRightButton: HTMLButtonElement;
-  panUpButton: HTMLButtonElement;
-  panDownButton: HTMLButtonElement;
   popover: HTMLElement;
   popoverName: HTMLElement;
   popoverVersion: HTMLElement;
@@ -337,6 +332,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let zoom = 1;
   let panX = 0;
   let panY = 0;
+  let defaultPanX = 0;
+  let defaultPanY = 0;
 
   let active = false;
   let dirty = true;
@@ -404,6 +401,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const bounds = currentGraph.bounds;
     const graphWidth = Math.max(1, bounds.maxX - bounds.minX);
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
+    defaultPanX = (width - graphWidth) * 0.5 - bounds.minX;
+    defaultPanY = 24 - bounds.minY;
     const scaleX = (width - 130) / graphWidth;
     const scaleY = (height - 110) / graphHeight;
     zoom = clamp(Math.min(scaleX, scaleY, 1), MIN_ZOOM, MAX_ZOOM);
@@ -574,15 +573,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       node.amplification = 0;
     });
 
-    graph.directAll.forEach((rootSlug) => {
-      const rootNode = graph.nodes.get(rootSlug);
-      if (!rootNode) return;
+    graph.nodes.forEach((rootNode) => {
+      if (rootNode.depth !== 0) return;
+      if (!graph.directAll.has(rootNode.slug)) return;
       const visited = new Set<string>();
       const stack = [...rootNode.children];
       while (stack.length > 0) {
         const current = stack.pop();
         if (!current) continue;
-        if (current === rootSlug) continue;
+        if (current === rootNode.slug) continue;
         if (visited.has(current)) continue;
         visited.add(current);
         const currentNode = graph.nodes.get(current);
@@ -669,8 +668,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         node.renderX = node.baseX;
         node.renderY = node.baseY;
 
-        const amplificationFactor = Math.log(node.amplification + 1);
-        node.radius = 7 + amplificationFactor * 1.4;
+        const relationshipFactor = Math.log(node.children.size + node.parents.size + 1) * 0.55;
+        const amplificationFactor =
+          node.depth === 0 && graph.directAll.has(node.slug)
+            ? Math.log(node.amplification + 1) * 1.05
+            : 0;
+        node.radius = 6.7 + relationshipFactor + amplificationFactor;
 
         graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX - node.radius);
         graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX + node.radius);
@@ -813,12 +816,17 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (!currentGraph) return;
     const node = currentGraph.nodes.get(slug);
     if (!node) return;
+    const isDirect = node.depth === 0 && currentGraph.directAll.has(node.slug);
     popoverSlug = slug;
     options.popoverName.textContent = node.ref.name;
     options.popoverVersion.textContent = `Version: ${node.ref.version}`;
     options.popoverLicense.textContent = `License: ${node.ref.license || 'Unknown'}`;
     options.popoverVulns.textContent = `Vulnerabilities: ${node.ref.vulnerabilityCount || 0}`;
-    options.popoverAmplification.textContent = `Amplification: ${node.amplification}`;
+    if (isDirect) {
+      options.popoverAmplification.textContent = `Amplification: ${node.amplification}`;
+    } else {
+      options.popoverAmplification.textContent = `Dependencies: ${node.children.size} • Dependents: ${node.parents.size}`;
+    }
     options.popover.hidden = false;
     updatePopoverPosition();
   }
@@ -857,11 +865,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.95;
   }
 
-  function edgeOpacity(highlighted: boolean): number {
-    const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.12, 1);
-    if (highlighted) return 0.95 * zoomFactor;
-    if (focusSlug || hoverSlug) return 0.1 * zoomFactor;
-    return 0.34 * zoomFactor;
+  function mutedEdgeOpacity(): number {
+    const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.16, 1);
+    if (focusSlug || hoverSlug) return 0.04 * zoomFactor;
+    return 0.25 * zoomFactor;
+  }
+
+  function highlightedEdgeOpacity(): number {
+    const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.2, 1);
+    return 0.36 * zoomFactor;
   }
 
   function renderGraph(): void {
@@ -896,20 +908,19 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
+    context.globalCompositeOperation = 'source-over';
+    context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
+    context.lineWidth = 1.05;
+    context.globalAlpha = mutedEdgeOpacity();
     currentGraph.edges.forEach((edge) => {
       const from = currentGraph.nodes.get(edge.from);
       const to = currentGraph.nodes.get(edge.to);
       if (!from || !to) return;
       if (!visible.has(from.slug) && !visible.has(to.slug)) return;
-
       const key = edgeKey(edge.from, edge.to);
-      const highlighted = focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
-
-      context.globalAlpha = edgeOpacity(highlighted);
-      context.strokeStyle = highlighted ? colorHighlight : focusSlug || hoverSlug ? colorMuted : colorEdge;
-      context.lineWidth = highlighted ? 1.6 : edge.direct ? 1.3 : 1.1;
-      context.shadowBlur = highlighted ? 8 : 0;
-      context.shadowColor = highlighted ? colorHighlight : 'transparent';
+      const highlighted =
+        focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
+      if (highlighted) return;
 
       const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
       const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
@@ -919,7 +930,29 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.stroke();
     });
 
-    context.shadowBlur = 0;
+    context.globalCompositeOperation = 'lighter';
+    context.strokeStyle = colorHighlight;
+    context.lineWidth = 1.2;
+    context.globalAlpha = highlightedEdgeOpacity();
+    currentGraph.edges.forEach((edge) => {
+      const from = currentGraph.nodes.get(edge.from);
+      const to = currentGraph.nodes.get(edge.to);
+      if (!from || !to) return;
+      if (!visible.has(from.slug) && !visible.has(to.slug)) return;
+
+      const key = edgeKey(edge.from, edge.to);
+      const highlighted =
+        focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
+      if (!highlighted) return;
+
+      const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
+      const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
+      context.beginPath();
+      context.moveTo(from.renderX, from.renderY);
+      context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
+      context.stroke();
+    });
+    context.globalCompositeOperation = 'source-over';
 
     currentGraph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
@@ -1065,16 +1098,45 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function setupControls(): void {
-    options.zoomInButton.addEventListener('click', () => {
-      applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
+    options.controlsRoot.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      const button = target.closest<HTMLButtonElement>('button[data-action]');
+      if (!button) return;
+      const action = button.dataset.action;
+      if (!action) return;
+      if (action === 'zoom-in') {
+        applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
+        return;
+      }
+      if (action === 'zoom-out') {
+        applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
+        return;
+      }
+      if (action === 'pan-left') {
+        panBy(52, 0);
+        return;
+      }
+      if (action === 'pan-right') {
+        panBy(-52, 0);
+        return;
+      }
+      if (action === 'pan-up') {
+        panBy(0, 52);
+        return;
+      }
+      if (action === 'pan-down') {
+        panBy(0, -52);
+        return;
+      }
+      if (action === 'reset') {
+        zoom = 1;
+        panX = defaultPanX;
+        panY = defaultPanY;
+        clearFocus();
+        hidePopover();
+        requestRender();
+      }
     });
-    options.zoomOutButton.addEventListener('click', () => {
-      applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
-    });
-    options.panLeftButton.addEventListener('click', () => panBy(52, 0));
-    options.panRightButton.addEventListener('click', () => panBy(-52, 0));
-    options.panUpButton.addEventListener('click', () => panBy(0, 52));
-    options.panDownButton.addEventListener('click', () => panBy(0, -52));
 
     options.popoverOpenButton.addEventListener('click', () => {
       if (!popoverSlug) return;

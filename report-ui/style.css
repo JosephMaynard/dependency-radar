@@ -746,9 +746,38 @@ select:focus {
 .graph-overlay-right {
   top: 12px;
   right: 12px;
+}
+
+.graph-controls {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.zoom-controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(34px, 1fr));
+  grid-template-columns: repeat(2, 34px);
   gap: 6px;
+}
+
+.dpad {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.dpad-middle {
+  display: grid;
+  grid-template-columns: 34px 34px 34px;
+  gap: 6px;
+}
+
+.dpad-center {
+  width: 34px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
 }
 
 .graph-control-btn {
@@ -761,11 +790,20 @@ select:focus {
   border-radius: 6px;
   cursor: pointer;
   line-height: 1;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition), color var(--transition);
 }
 
 .graph-control-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.reset-btn {
+  width: 112px;
+  text-transform: lowercase;
+  letter-spacing: 0.2px;
 }
 
 .graph-popover {
