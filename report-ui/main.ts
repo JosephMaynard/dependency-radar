@@ -1685,8 +1685,23 @@ async function init(): Promise<void> {
     listViewPanel: document.getElementById("list-view") as HTMLElement,
     graphViewPanel: document.getElementById("graph-view") as HTMLElement,
     graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement,
+    graphWorkspaceWrap: document.getElementById("graph-workspace-wrap") as HTMLElement,
     graphCanvas: document.getElementById("graph-canvas") as HTMLCanvasElement,
     graphCanvasShell: document.getElementById("graph-canvas-shell") as HTMLElement,
+    graphZoomIn: document.getElementById("graph-zoom-in") as HTMLButtonElement,
+    graphZoomOut: document.getElementById("graph-zoom-out") as HTMLButtonElement,
+    graphPanLeft: document.getElementById("graph-pan-left") as HTMLButtonElement,
+    graphPanRight: document.getElementById("graph-pan-right") as HTMLButtonElement,
+    graphPanUp: document.getElementById("graph-pan-up") as HTMLButtonElement,
+    graphPanDown: document.getElementById("graph-pan-down") as HTMLButtonElement,
+    graphPopover: document.getElementById("graph-popover") as HTMLElement,
+    graphPopoverName: document.getElementById("graph-popover-name") as HTMLElement,
+    graphPopoverVersion: document.getElementById("graph-popover-version") as HTMLElement,
+    graphPopoverLicense: document.getElementById("graph-popover-license") as HTMLElement,
+    graphPopoverVulns: document.getElementById("graph-popover-vulns") as HTMLElement,
+    graphPopoverAmplification: document.getElementById("graph-popover-amplification") as HTMLElement,
+    graphOpenList: document.getElementById("graph-open-list") as HTMLButtonElement,
+    reportFooter: document.querySelector(".report-footer") as HTMLElement,
   };
 
   // Sorting state - "name" is the default (Package name ascending)
@@ -2084,6 +2099,7 @@ async function init(): Promise<void> {
     controls.graphViewPanel.classList.toggle("active", !isList);
     controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
     controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
+    controls.reportFooter.classList.toggle("hidden", !isList);
     if (isList) {
       graphView?.setActive(false);
       return;
@@ -2094,8 +2110,22 @@ async function init(): Promise<void> {
         knownDepKeys,
         resolveDepKey,
         workspaceSelect: controls.graphWorkspaceSelect,
+        workspaceWrap: controls.graphWorkspaceWrap,
         canvas: controls.graphCanvas,
         canvasHost: controls.graphCanvasShell,
+        zoomInButton: controls.graphZoomIn,
+        zoomOutButton: controls.graphZoomOut,
+        panLeftButton: controls.graphPanLeft,
+        panRightButton: controls.graphPanRight,
+        panUpButton: controls.graphPanUp,
+        panDownButton: controls.graphPanDown,
+        popover: controls.graphPopover,
+        popoverName: controls.graphPopoverName,
+        popoverVersion: controls.graphPopoverVersion,
+        popoverLicense: controls.graphPopoverLicense,
+        popoverVulns: controls.graphPopoverVulns,
+        popoverAmplification: controls.graphPopoverAmplification,
+        popoverOpenButton: controls.graphOpenList,
         onOpenList: (slug: string) => {
           openListFromGraph(slug);
         },

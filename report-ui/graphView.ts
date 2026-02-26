@@ -15,7 +15,6 @@ type GraphDependency = {
   vulnerabilityCount: number;
   isDevOnly: boolean;
   workspaceOrigins: string[];
-  sourceRef?: DependencyRecord;
 };
 
 type GraphDataset = {
@@ -32,12 +31,15 @@ type GraphNode = {
   children: Set<string>;
   depth: number;
   order: number;
+  amplification: number;
+  kind: GraphNodeKind;
   baseX: number;
   baseY: number;
+  targetX: number;
+  targetY: number;
   renderX: number;
   renderY: number;
   radius: number;
-  kind: GraphNodeKind;
 };
 
 type GraphEdge = {
@@ -49,10 +51,11 @@ type GraphEdge = {
 type WorkspaceGraph = {
   workspaceName: string;
   nodes: Map<string, GraphNode>;
-  layers: string[][];
   edges: GraphEdge[];
+  layers: string[][];
   directRuntime: Set<string>;
   directDev: Set<string>;
+  directAll: Set<string>;
   bounds: {
     minX: number;
     maxX: number;
@@ -66,33 +69,39 @@ export type GraphViewOptions = {
   knownDepKeys: Set<string>;
   resolveDepKey: (depKey: string) => string | null;
   workspaceSelect: HTMLSelectElement;
+  workspaceWrap: HTMLElement;
   canvas: HTMLCanvasElement;
   canvasHost: HTMLElement;
+  zoomInButton: HTMLButtonElement;
+  zoomOutButton: HTMLButtonElement;
+  panLeftButton: HTMLButtonElement;
+  panRightButton: HTMLButtonElement;
+  panUpButton: HTMLButtonElement;
+  panDownButton: HTMLButtonElement;
+  popover: HTMLElement;
+  popoverName: HTMLElement;
+  popoverVersion: HTMLElement;
+  popoverLicense: HTMLElement;
+  popoverVulns: HTMLElement;
+  popoverAmplification: HTMLElement;
+  popoverOpenButton: HTMLButtonElement;
   onOpenList: (slug: string) => void;
 };
 
 export type GraphViewHandle = {
   initGraphView: () => void;
-  buildWorkspaceGraph: (workspaceName: string) => WorkspaceGraph | null;
+  buildWorkspaceGraph: (name: string) => WorkspaceGraph | null;
+  computeAmplification: (graph: WorkspaceGraph) => void;
   layoutGraph: (graph: WorkspaceGraph) => void;
-  renderGraph: () => void;
+  renderLoop: () => void;
   applyFocus: (slug: string) => void;
-  resetFocus: () => void;
-  switchWorkspace: (workspaceName: string) => void;
+  clearFocus: () => void;
+  showPopover: (slug: string) => void;
+  hidePopover: () => void;
+  switchWorkspace: (name: string) => void;
   setActive: (active: boolean) => void;
   requestRender: () => void;
 };
-
-const GRAPH_LAYER_GAP = 250;
-const GRAPH_ROW_GAP = 74;
-const GRAPH_PADDING_X = 110;
-const GRAPH_PADDING_Y = 70;
-const GRAPH_NODE_BASE_RADIUS = 8;
-const GRAPH_NODE_RADIUS_SCALE = 2.2;
-const GRAPH_PUSH_RADIUS = 115;
-const GRAPH_ANIMATION_EASE = 0.18;
-const GRAPH_MIN_ZOOM = 0.32;
-const GRAPH_MAX_ZOOM = 2.8;
 
 declare global {
   interface Window {
@@ -100,26 +109,50 @@ declare global {
   }
 }
 
+const LAYER_GAP = 240;
+const ROW_GAP = 72;
+const PADDING_X = 96;
+const PADDING_Y = 64;
+const PUSH_RADIUS = 120;
+const MIN_ZOOM = 0.28;
+const MAX_ZOOM = 2.8;
+const EDGE_CURVE = 0.2;
+
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min;
   if (value > max) return max;
   return value;
 }
 
+function getCssColor(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 function getDepKey(name: string, version: string): string {
   return `${name}@${version}`;
 }
 
-function getPrimaryLicense(dep: DependencyRecord): string {
+function edgeKey(from: string, to: string): string {
+  return `${from}->${to}`;
+}
+
+function isGraphDataset(value: unknown): value is GraphDataset {
+  if (!value || typeof value !== 'object') return false;
+  const input = value as Record<string, unknown>;
+  if (!Array.isArray(input.workspaces)) return false;
+  if (!input.dependencies || typeof input.dependencies !== 'object') return false;
+  return true;
+}
+
+function primaryLicense(dep: DependencyRecord): string {
   const declared = dep.compliance.license.declared?.valid
     ? dep.compliance.license.declared.spdxId
     : undefined;
   if (declared) return declared;
-  const inferred = dep.compliance.license.inferred?.spdxId;
-  return inferred || 'Unknown';
+  return dep.compliance.license.inferred?.spdxId || 'Unknown';
 }
 
-function getVulnerabilityCount(dep: DependencyRecord): number {
+function vulnerabilityCount(dep: DependencyRecord): number {
   const summary = dep.security?.summary;
   if (!summary) return 0;
   return (
@@ -130,27 +163,9 @@ function getVulnerabilityCount(dep: DependencyRecord): number {
   );
 }
 
-function isGraphDatasetLike(value: unknown): value is GraphDataset {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Record<string, unknown>;
-  if (!Array.isArray(candidate.workspaces)) return false;
-  if (!candidate.dependencies || typeof candidate.dependencies !== 'object') {
-    return false;
-  }
-  return true;
-}
-
-function edgeKey(from: string, to: string): string {
-  return `${from}->${to}`;
-}
-
-function collectAncestors(
-  graph: WorkspaceGraph | null,
-  slug: string,
-): Set<string> {
+function collectAncestors(graph: WorkspaceGraph, slug: string): Set<string> {
   const result = new Set<string>();
-  if (!graph) return result;
-  const stack: string[] = [slug];
+  const stack = [slug];
   while (stack.length > 0) {
     const current = stack.pop();
     if (!current) continue;
@@ -165,13 +180,9 @@ function collectAncestors(
   return result;
 }
 
-function collectDescendants(
-  graph: WorkspaceGraph | null,
-  slug: string,
-): Set<string> {
+function collectDescendants(graph: WorkspaceGraph, slug: string): Set<string> {
   const result = new Set<string>();
-  if (!graph) return result;
-  const stack: string[] = [slug];
+  const stack = [slug];
   while (stack.length > 0) {
     const current = stack.pop();
     if (!current) continue;
@@ -186,74 +197,56 @@ function collectDescendants(
   return result;
 }
 
-function getCssColor(varName: string): string {
-  return (
-    getComputedStyle(document.documentElement)
-      .getPropertyValue(varName)
-      .trim() || 'currentColor'
-  );
-}
-
-function buildGraphDataset(
+function adaptDataset(
   report: AggregatedData,
   knownDepKeys: Set<string>,
   resolveDepKey: (depKey: string) => string | null,
 ): GraphDataset {
   const globalData = window.__DEPENDENCY_DATA__;
-  if (isGraphDatasetLike(globalData)) {
-    const dependencies = globalData.dependencies as Record<string, GraphDependency>;
-    Object.values(dependencies).forEach((dep) => {
-      if (!Array.isArray(dep.dependencies)) dep.dependencies = [];
-    });
-    return {
-      workspaces: globalData.workspaces as GraphWorkspace[],
-      dependencies,
-    };
+  if (isGraphDataset(globalData)) {
+    return globalData;
   }
 
   const dependencies: Record<string, GraphDependency> = {};
-  const allDependencies = Object.values(report.dependencies || {});
+  const records = Object.values(report.dependencies || {});
 
-  allDependencies.forEach((dep) => {
+  records.forEach((dep) => {
     const slug = getDepKey(dep.package.name, dep.package.version);
     dependencies[slug] = {
       slug,
       name: dep.package.name,
       version: dep.package.version,
       dependencies: [],
-      license: getPrimaryLicense(dep),
-      vulnerabilityCount: getVulnerabilityCount(dep),
+      license: primaryLicense(dep),
+      vulnerabilityCount: vulnerabilityCount(dep),
       isDevOnly: dep.usage.scope === 'dev',
-      workspaceOrigins: dep.usage.origins.workspaces
-        ? [...dep.usage.origins.workspaces]
-        : [],
-      sourceRef: dep,
+      workspaceOrigins: dep.usage.origins.workspaces || [],
     };
   });
 
-  allDependencies.forEach((dep) => {
+  records.forEach((dep) => {
     const slug = getDepKey(dep.package.name, dep.package.version);
-    const childSet = new Set<string>();
     const subDeps = dep.graph.subDeps;
     if (!subDeps) return;
+    const next = new Set<string>();
     (['dep', 'dev', 'opt', 'peer'] as const).forEach((bucket) => {
       const entries = subDeps[bucket];
       if (!entries) return;
-      Object.values(entries).forEach((entry) => {
-        const tuple = entry as [string, string | null];
-        const resolved = tuple[1];
+      Object.values(entries).forEach((tuple) => {
+        const resolved = (tuple as [string, string | null])[1];
         if (!resolved) return;
         const normalized = resolveDepKey(resolved);
         if (!normalized) return;
         if (!knownDepKeys.has(normalized)) return;
+        if (!dependencies[normalized]) return;
         if (normalized === slug) return;
-        childSet.add(normalized);
+        next.add(normalized);
       });
     });
-    dependencies[slug].dependencies = [...childSet];
+    dependencies[slug].dependencies = [...next];
   });
 
-  const workspaceStore = new Map<
+  const workspaceMap = new Map<
     string,
     { directDependencies: Set<string>; directDevDependencies: Set<string> }
   >();
@@ -261,105 +254,103 @@ function buildGraphDataset(
   const ensureWorkspace = (
     name: string,
   ): { directDependencies: Set<string>; directDevDependencies: Set<string> } => {
-    const existing = workspaceStore.get(name);
+    const existing = workspaceMap.get(name);
     if (existing) return existing;
-    const next = {
+    const created = {
       directDependencies: new Set<string>(),
       directDevDependencies: new Set<string>(),
     };
-    workspaceStore.set(name, next);
-    return next;
+    workspaceMap.set(name, created);
+    return created;
   };
 
-  const declaredWorkspaces = report.workspaces.workspacePackages || [];
-  declaredWorkspaces.forEach((workspace) => ensureWorkspace(workspace.name));
   ensureWorkspace('root');
+  (report.workspaces.workspacePackages || []).forEach((workspace) => {
+    ensureWorkspace(workspace.name);
+  });
 
-  allDependencies.forEach((dep) => {
+  records.forEach((dep) => {
     if (!dep.usage.direct) return;
     const slug = getDepKey(dep.package.name, dep.package.version);
-    const origins =
-      dep.usage.origins.workspaces && dep.usage.origins.workspaces.length > 0
-        ? dep.usage.origins.workspaces
-        : ['root'];
+    const origins = dep.usage.origins.workspaces?.length
+      ? dep.usage.origins.workspaces
+      : ['root'];
     origins.forEach((workspaceName) => {
       const workspace = ensureWorkspace(workspaceName);
       if (dep.usage.scope === 'dev') {
         workspace.directDevDependencies.add(slug);
-        return;
+      } else {
+        workspace.directDependencies.add(slug);
       }
-      workspace.directDependencies.add(slug);
     });
   });
 
-  const workspaces: GraphWorkspace[] = [...workspaceStore.entries()]
-    .map(([name, data]) => ({
+  const workspaces: GraphWorkspace[] = [...workspaceMap.entries()]
+    .map(([name, deps]) => ({
       name,
-      directDependencies: [...data.directDependencies].sort(),
-      directDevDependencies: [...data.directDevDependencies].sort(),
+      directDependencies: [...deps.directDependencies],
+      directDevDependencies: [...deps.directDevDependencies],
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return {
-    workspaces,
-    dependencies,
-  };
+  return { workspaces, dependencies };
 }
 
 export function initGraphView(options: GraphViewOptions): GraphViewHandle {
-  const dataset = buildGraphDataset(
+  const dataset = adaptDataset(
     options.report,
     options.knownDepKeys,
     options.resolveDepKey,
   );
+
   const workspaceByName = new Map(
     dataset.workspaces.map((workspace) => [workspace.name, workspace]),
   );
 
-  const childrenBySlug = new Map<string, string[]>();
   const parentsBySlug = new Map<string, string[]>();
+  const childrenBySlug = new Map<string, string[]>();
 
   Object.values(dataset.dependencies).forEach((dep) => {
-    const validChildren = dep.dependencies.filter(
-      (child) => child !== dep.slug && Boolean(dataset.dependencies[child]),
+    const children = (dep.dependencies || []).filter(
+      (slug) => slug !== dep.slug && Boolean(dataset.dependencies[slug]),
     );
-    childrenBySlug.set(dep.slug, validChildren);
-    validChildren.forEach((child) => {
-      const existingParents = parentsBySlug.get(child) || [];
-      existingParents.push(dep.slug);
-      parentsBySlug.set(child, existingParents);
+    childrenBySlug.set(dep.slug, children);
+    children.forEach((child) => {
+      const current = parentsBySlug.get(child) || [];
+      current.push(dep.slug);
+      parentsBySlug.set(child, current);
     });
   });
 
   let currentGraph: WorkspaceGraph | null = null;
-  let currentWorkspaceName = '';
+  let currentWorkspace = '';
+
   let focusSlug: string | null = null;
   let hoverSlug: string | null = null;
-  let focusAncestors = new Set<string>();
-  let focusDescendants = new Set<string>();
   let focusNodes = new Set<string>();
   let focusEdges = new Set<string>();
+  let focusPushNodes = new Set<string>();
   let hoverNodes = new Set<string>();
   let hoverEdges = new Set<string>();
-  let pushNodes = new Set<string>();
-  let lockedFocus = false;
-  let active = false;
+  let popoverSlug: string | null = null;
 
   let zoom = 1;
   let panX = 0;
   let panY = 0;
-  let needsRender = true;
 
-  let rafId = 0;
-  let canvasWidth = 0;
-  let canvasHeight = 0;
+  let active = false;
+  let dirty = true;
+  let frameId = 0;
+
   let dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+  let width = 1;
+  let height = 1;
 
   const panState = {
-    pointerDown: false,
+    down: false,
     moved: false,
-    startClientX: 0,
-    startClientY: 0,
+    startX: 0,
+    startY: 0,
     startPanX: 0,
     startPanY: 0,
   };
@@ -369,400 +360,101 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     throw new Error('Unable to initialize graph canvas context');
   }
 
-  const updateCanvasSize = (): void => {
-    const rect = options.canvasHost.getBoundingClientRect();
-    canvasWidth = Math.max(1, Math.floor(rect.width));
-    canvasHeight = Math.max(1, Math.floor(rect.height));
-    dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-    options.canvas.width = canvasWidth * dpr;
-    options.canvas.height = canvasHeight * dpr;
-    options.canvas.style.width = `${canvasWidth}px`;
-    options.canvas.style.height = `${canvasHeight}px`;
-    needsRender = true;
+  function worldX(screenX: number): number {
+    return (screenX - panX) / zoom;
+  }
+
+  function worldY(screenY: number): number {
+    return (screenY - panY) / zoom;
+  }
+
+  function applyZoom(nextZoom: number, anchorX: number, anchorY: number): void {
+    const clamped = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+    const wx = worldX(anchorX);
+    const wy = worldY(anchorY);
+    zoom = clamped;
+    panX = anchorX - wx * zoom;
+    panY = anchorY - wy * zoom;
+    dirty = true;
     requestRender();
-  };
+  }
 
-  const toWorldX = (screenX: number): number => (screenX - panX) / zoom;
-  const toWorldY = (screenY: number): number => (screenY - panY) / zoom;
+  function panBy(dx: number, dy: number): void {
+    panX += dx;
+    panY += dy;
+    dirty = true;
+    requestRender();
+  }
 
-  const findNodeAt = (clientX: number, clientY: number): GraphNode | null => {
-    if (!currentGraph) return null;
-    const rect = options.canvas.getBoundingClientRect();
-    const localX = clientX - rect.left;
-    const localY = clientY - rect.top;
-    const worldX = toWorldX(localX);
-    const worldY = toWorldY(localY);
-    let hit: GraphNode | null = null;
-    currentGraph.nodes.forEach((node) => {
-      const dx = worldX - node.renderX;
-      const dy = worldY - node.renderY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance <= node.radius + 5) hit = node;
-    });
-    return hit;
-  };
+  function updateCanvasSize(): void {
+    const rect = options.canvasHost.getBoundingClientRect();
+    width = Math.max(1, Math.floor(rect.width));
+    height = Math.max(1, Math.floor(rect.height));
+    dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    options.canvas.width = width * dpr;
+    options.canvas.height = height * dpr;
+    options.canvas.style.width = `${width}px`;
+    options.canvas.style.height = `${height}px`;
+    dirty = true;
+    requestRender();
+  }
 
-  const fitGraphToViewport = (): void => {
+  function fitGraph(): void {
     if (!currentGraph) return;
     const bounds = currentGraph.bounds;
-    const width = Math.max(1, bounds.maxX - bounds.minX);
-    const height = Math.max(1, bounds.maxY - bounds.minY);
-    const horizontalScale = (canvasWidth - 120) / width;
-    const verticalScale = (canvasHeight - 100) / height;
-    zoom = clamp(Math.min(horizontalScale, verticalScale, 1.08), GRAPH_MIN_ZOOM, GRAPH_MAX_ZOOM);
-    panX = (canvasWidth - width * zoom) * 0.5 - bounds.minX * zoom;
-    panY = (canvasHeight - height * zoom) * 0.5 - bounds.minY * zoom;
-    needsRender = true;
-  };
+    const graphWidth = Math.max(1, bounds.maxX - bounds.minX);
+    const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
+    const scaleX = (width - 130) / graphWidth;
+    const scaleY = (height - 110) / graphHeight;
+    zoom = clamp(Math.min(scaleX, scaleY, 1), MIN_ZOOM, MAX_ZOOM);
+    panX = (width - graphWidth * zoom) * 0.5 - bounds.minX * zoom;
+    panY = 20 - bounds.minY * zoom;
+  }
 
-  const updateHoverState = (slug: string | null): void => {
-    if (lockedFocus) return;
-    hoverSlug = slug;
-    hoverNodes = new Set<string>();
-    hoverEdges = new Set<string>();
-    if (!currentGraph || !slug || !currentGraph.nodes.has(slug)) {
-      needsRender = true;
-      requestRender();
-      return;
-    }
-    const ancestors = collectAncestors(currentGraph, slug);
-    const descendants = collectDescendants(currentGraph, slug);
-    hoverNodes = new Set<string>([slug]);
-    ancestors.forEach((nodeSlug) => hoverNodes.add(nodeSlug));
-    descendants.forEach((nodeSlug) => hoverNodes.add(nodeSlug));
-    const node = currentGraph.nodes.get(slug);
-    if (node) {
-      node.parents.forEach((parent) => hoverNodes.add(parent));
-      node.children.forEach((child) => hoverNodes.add(child));
-    }
-    currentGraph.edges.forEach((edge) => {
-      if (!hoverNodes.has(edge.from) || !hoverNodes.has(edge.to)) return;
-      hoverEdges.add(edgeKey(edge.from, edge.to));
-    });
-    needsRender = true;
-    requestRender();
-  };
+  function findNode(clientX: number, clientY: number): GraphNode | null {
+    if (!currentGraph) return null;
+    const rect = options.canvas.getBoundingClientRect();
+    const x = worldX(clientX - rect.left);
+    const y = worldY(clientY - rect.top);
 
-  const updateFocusEdgeSet = (): void => {
-    focusEdges = new Set<string>();
-    if (!currentGraph || !focusSlug) return;
-    currentGraph.edges.forEach((edge) => {
-      if (!focusNodes.has(edge.from) || !focusNodes.has(edge.to)) return;
-      focusEdges.add(edgeKey(edge.from, edge.to));
-    });
-  };
-
-  const updateNodePositions = (): boolean => {
-    if (!currentGraph) return false;
-    const selectedNode =
-      focusSlug && currentGraph.nodes.has(focusSlug)
-        ? currentGraph.nodes.get(focusSlug) || null
-        : null;
-    let animating = false;
+    let hit: GraphNode | null = null;
     currentGraph.nodes.forEach((node) => {
-      let targetX = node.baseX;
-      let targetY = node.baseY;
-      if (selectedNode && pushNodes.has(node.slug)) {
-        const dx = node.baseX - selectedNode.baseX;
-        const dy = node.baseY - selectedNode.baseY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const scale = 1 + GRAPH_PUSH_RADIUS / (dist + 1);
-        targetX = selectedNode.baseX + dx * scale;
-        targetY = selectedNode.baseY + dy * scale;
-      }
-      node.renderX += (targetX - node.renderX) * GRAPH_ANIMATION_EASE;
-      node.renderY += (targetY - node.renderY) * GRAPH_ANIMATION_EASE;
-      const xSettled = Math.abs(targetX - node.renderX) < 0.08;
-      const ySettled = Math.abs(targetY - node.renderY) < 0.08;
-      if (!xSettled || !ySettled) animating = true;
+      const dx = x - node.renderX;
+      const dy = y - node.renderY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= node.radius + 5) hit = node;
     });
-    return animating;
-  };
+    return hit;
+  }
 
-  const getNodeOpacity = (slug: string): number => {
-    if (lockedFocus && focusSlug) {
-      return focusNodes.has(slug) ? 1 : 0.14;
-    }
-    if (hoverSlug) {
-      return hoverNodes.has(slug) ? 1 : 0.16;
-    }
-    return 0.96;
-  };
-
-  const getEdgeOpacity = (key: string, highlighted: boolean): number => {
-    if (highlighted) return 0.95;
-    if (lockedFocus && focusSlug) return 0.08;
-    if (hoverSlug) return 0.09;
-    return 0.34;
-  };
-
-  const isVisible = (
-    node: GraphNode,
-    worldMinX: number,
-    worldMaxX: number,
-    worldMinY: number,
-    worldMaxY: number,
-  ): boolean =>
-    node.renderX + node.radius >= worldMinX &&
-    node.renderX - node.radius <= worldMaxX &&
-    node.renderY + node.radius >= worldMinY &&
-    node.renderY - node.radius <= worldMaxY;
-
-  const renderGraph = (): void => {
-    if (!active) return;
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    context.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    if (!currentGraph) return;
-    const worldMinX = toWorldX(0) - 60;
-    const worldMaxX = toWorldX(canvasWidth) + 60;
-    const worldMinY = toWorldY(0) - 60;
-    const worldMaxY = toWorldY(canvasHeight) + 60;
-
-    context.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * panX, dpr * panY);
-
-    const directRuntimeColor = getCssColor('--graph-direct-runtime');
-    const directDevColor = getCssColor('--graph-direct-dev');
-    const transitiveColor = getCssColor('--graph-transitive');
-    const edgeColor = getCssColor('--graph-edge');
-    const highlightColor = getCssColor('--graph-highlight');
-
-    const visibleNodes = new Set<string>();
-    currentGraph.nodes.forEach((node, slug) => {
-      if (isVisible(node, worldMinX, worldMaxX, worldMinY, worldMaxY)) {
-        visibleNodes.add(slug);
-      }
-    });
-
-    currentGraph.edges.forEach((edge) => {
-      const from = currentGraph.nodes.get(edge.from);
-      const to = currentGraph.nodes.get(edge.to);
-      if (!from || !to) return;
-      if (!visibleNodes.has(from.slug) && !visibleNodes.has(to.slug)) return;
-      const key = edgeKey(edge.from, edge.to);
-      const highlighted =
-        focusEdges.has(key) || (!lockedFocus && hoverEdges.has(key));
-      context.globalAlpha = getEdgeOpacity(key, highlighted);
-      context.strokeStyle = highlighted ? highlightColor : edgeColor;
-      context.lineWidth = edge.direct ? 2.25 : 1.25;
-      if (highlighted) context.lineWidth += 0.8;
-
-      const controlX = from.renderX + (to.renderX - from.renderX) * 0.52;
-      const controlY = from.renderY + (to.renderY - from.renderY) * 0.18;
-      context.beginPath();
-      context.moveTo(from.renderX, from.renderY);
-      context.quadraticCurveTo(controlX, controlY, to.renderX, to.renderY);
-      context.stroke();
-    });
-
-    currentGraph.nodes.forEach((node) => {
-      if (!visibleNodes.has(node.slug)) return;
-      const opacity = getNodeOpacity(node.slug);
-      context.globalAlpha = opacity;
-      if (node.kind === 'direct-runtime') context.fillStyle = directRuntimeColor;
-      else if (node.kind === 'direct-dev') context.fillStyle = directDevColor;
-      else context.fillStyle = transitiveColor;
-
-      context.beginPath();
-      context.arc(node.renderX, node.renderY, node.radius, 0, Math.PI * 2);
-      context.fill();
-
-      const selected = focusSlug === node.slug;
-      if (selected) {
-        context.globalAlpha = 1;
-        context.strokeStyle = highlightColor;
-        context.lineWidth = 2.4;
-        context.beginPath();
-        context.arc(node.renderX, node.renderY, node.radius + 3, 0, Math.PI * 2);
-        context.stroke();
-      }
-    });
-
-    if (zoom > 0.62) {
-      context.textBaseline = 'middle';
-      context.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-      currentGraph.nodes.forEach((node) => {
-        if (!visibleNodes.has(node.slug)) return;
-        context.globalAlpha = getNodeOpacity(node.slug);
-        context.fillStyle = getCssColor('--text-primary');
-        const label = node.ref.name;
-        context.fillText(label, node.renderX + node.radius + 6, node.renderY);
-      });
-    }
-
-    context.globalAlpha = 1;
-  };
-
-  const frame = (): void => {
-    rafId = 0;
-    const animating = updateNodePositions();
-    if (needsRender || animating) {
-      renderGraph();
-      needsRender = false;
-    }
-    if ((active && currentGraph) || animating) {
-      requestRender();
-    }
-  };
-
-  const requestRender = (): void => {
-    if (rafId !== 0) return;
-    rafId = window.requestAnimationFrame(frame);
-  };
-
-  const resetFocus = (): void => {
-    focusSlug = null;
-    lockedFocus = false;
-    focusAncestors = new Set<string>();
-    focusDescendants = new Set<string>();
-    focusNodes = new Set<string>();
-    focusEdges = new Set<string>();
-    pushNodes = new Set<string>();
-    needsRender = true;
-    requestRender();
-  };
-
-  const applyFocus = (slug: string): void => {
-    if (!currentGraph || !currentGraph.nodes.has(slug)) return;
-    focusSlug = slug;
-    lockedFocus = true;
-    focusAncestors = collectAncestors(currentGraph, slug);
-    focusDescendants = collectDescendants(currentGraph, slug);
-    focusNodes = new Set<string>([slug]);
-    focusAncestors.forEach((nodeSlug) => focusNodes.add(nodeSlug));
-    focusDescendants.forEach((nodeSlug) => focusNodes.add(nodeSlug));
-    pushNodes = new Set<string>(focusNodes);
-    const selected = currentGraph.nodes.get(slug);
-    if (selected) {
-      selected.parents.forEach((nodeSlug) => pushNodes.add(nodeSlug));
-      selected.children.forEach((nodeSlug) => pushNodes.add(nodeSlug));
-    }
-    updateFocusEdgeSet();
-    needsRender = true;
-    requestRender();
-  };
-
-  const layoutGraph = (graph: WorkspaceGraph): void => {
-    const maxLayerSize = graph.layers.reduce(
-      (max, layer) => Math.max(max, layer.length),
-      1,
-    );
-
-    const depthOrder = [...graph.layers.keys()];
-    const layerOrderIndex = new Map<string, number>();
-    depthOrder.forEach((depth) => {
-      const layer = graph.layers[depth];
-      if (!layer || layer.length === 0) return;
-      if (depth === 0) {
-        layer.sort((a, b) => {
-          const aRuntime = graph.directRuntime.has(a);
-          const bRuntime = graph.directRuntime.has(b);
-          if (aRuntime !== bRuntime) return aRuntime ? -1 : 1;
-          const aDev = graph.directDev.has(a);
-          const bDev = graph.directDev.has(b);
-          if (aDev !== bDev) return aDev ? -1 : 1;
-          return graph.nodes.get(a)!.ref.name.localeCompare(graph.nodes.get(b)!.ref.name);
-        });
-      } else {
-        layer.sort((a, b) => {
-          const nodeA = graph.nodes.get(a);
-          const nodeB = graph.nodes.get(b);
-          if (!nodeA || !nodeB) return 0;
-          const centerA = (() => {
-            let count = 0;
-            let sum = 0;
-            nodeA.parents.forEach((parent) => {
-              const pos = layerOrderIndex.get(parent);
-              if (typeof pos !== 'number') return;
-              sum += pos;
-              count += 1;
-            });
-            return count > 0 ? sum / count : Number.MAX_SAFE_INTEGER;
-          })();
-          const centerB = (() => {
-            let count = 0;
-            let sum = 0;
-            nodeB.parents.forEach((parent) => {
-              const pos = layerOrderIndex.get(parent);
-              if (typeof pos !== 'number') return;
-              sum += pos;
-              count += 1;
-            });
-            return count > 0 ? sum / count : Number.MAX_SAFE_INTEGER;
-          })();
-          if (centerA !== centerB) return centerA - centerB;
-          return nodeA.ref.name.localeCompare(nodeB.ref.name);
-        });
-      }
-
-      layer.forEach((slug, index) => {
-        layerOrderIndex.set(slug, index);
-      });
-    });
-
-    graph.bounds = {
-      minX: Number.POSITIVE_INFINITY,
-      maxX: Number.NEGATIVE_INFINITY,
-      minY: Number.POSITIVE_INFINITY,
-      maxY: Number.NEGATIVE_INFINITY,
-    };
-
-    graph.layers.forEach((layer, depth) => {
-      const columnHeight = (layer.length - 1) * GRAPH_ROW_GAP;
-      const centeredTop =
-        GRAPH_PADDING_Y + (maxLayerSize * GRAPH_ROW_GAP - columnHeight) * 0.5;
-      layer.forEach((slug, order) => {
-        const node = graph.nodes.get(slug);
-        if (!node) return;
-        node.order = order;
-        node.baseX = GRAPH_PADDING_X + depth * GRAPH_LAYER_GAP;
-        node.baseY = centeredTop + order * GRAPH_ROW_GAP;
-        if (!Number.isFinite(node.renderX)) {
-          node.renderX = node.baseX;
-          node.renderY = node.baseY;
-        }
-        node.radius =
-          GRAPH_NODE_BASE_RADIUS +
-          Math.log(node.parents.size + 1) * GRAPH_NODE_RADIUS_SCALE;
-        graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX - node.radius);
-        graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX + node.radius);
-        graph.bounds.minY = Math.min(graph.bounds.minY, node.baseY - node.radius);
-        graph.bounds.maxY = Math.max(graph.bounds.maxY, node.baseY + node.radius);
-      });
-    });
-
-    if (!Number.isFinite(graph.bounds.minX)) {
-      graph.bounds = { minX: 0, maxX: 1, minY: 0, maxY: 1 };
-    }
-  };
-
-  const buildWorkspaceGraph = (workspaceName: string): WorkspaceGraph | null => {
-    const workspace = workspaceByName.get(workspaceName);
+  function buildWorkspaceGraph(name: string): WorkspaceGraph | null {
+    const workspace = workspaceByName.get(name);
     if (!workspace) return null;
+
     const directRuntime = new Set(
       workspace.directDependencies.filter((slug) => Boolean(dataset.dependencies[slug])),
     );
     const directDev = new Set(
       workspace.directDevDependencies.filter((slug) => Boolean(dataset.dependencies[slug])),
     );
+
     const roots = new Set<string>([...directRuntime, ...directDev]);
     if (roots.size === 0) {
       Object.keys(dataset.dependencies)
         .filter((slug) => (parentsBySlug.get(slug) || []).length === 0)
-        .slice(0, 24)
+        .slice(0, 40)
         .forEach((slug) => roots.add(slug));
     }
 
     const included = new Set<string>();
     const queue = [...roots];
     while (queue.length > 0) {
-      const current = queue.shift();
-      if (!current) continue;
-      if (included.has(current)) continue;
-      if (!dataset.dependencies[current]) continue;
-      included.add(current);
-      const children = childrenBySlug.get(current) || [];
-      children.forEach((child) => {
+      const slug = queue.shift();
+      if (!slug) continue;
+      if (included.has(slug)) continue;
+      if (!dataset.dependencies[slug]) continue;
+      included.add(slug);
+      (childrenBySlug.get(slug) || []).forEach((child) => {
         if (included.has(child)) return;
         queue.push(child);
       });
@@ -772,7 +464,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const nodes = new Map<string, GraphNode>();
     included.forEach((slug) => {
-      const dependency = dataset.dependencies[slug];
       const kind: GraphNodeKind = directRuntime.has(slug)
         ? 'direct-runtime'
         : directDev.has(slug)
@@ -780,28 +471,29 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           : 'transitive';
       nodes.set(slug, {
         slug,
-        ref: dependency,
+        ref: dataset.dependencies[slug],
         parents: new Set<string>(),
         children: new Set<string>(),
         depth: Number.POSITIVE_INFINITY,
         order: 0,
-        baseX: Number.NaN,
-        baseY: Number.NaN,
-        renderX: Number.NaN,
-        renderY: Number.NaN,
-        radius: GRAPH_NODE_BASE_RADIUS,
+        amplification: 0,
         kind,
+        baseX: 0,
+        baseY: 0,
+        targetX: 0,
+        targetY: 0,
+        renderX: 0,
+        renderY: 0,
+        radius: 8,
       });
     });
 
     nodes.forEach((node) => {
-      const parents = parentsBySlug.get(node.slug) || [];
-      const children = childrenBySlug.get(node.slug) || [];
-      parents.forEach((parent) => {
+      (parentsBySlug.get(node.slug) || []).forEach((parent) => {
         if (!nodes.has(parent)) return;
         node.parents.add(parent);
       });
-      children.forEach((child) => {
+      (childrenBySlug.get(node.slug) || []).forEach((child) => {
         if (!nodes.has(child)) return;
         node.children.add(child);
       });
@@ -820,23 +512,23 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (!slug) continue;
       const node = nodes.get(slug);
       if (!node) continue;
-      node.children.forEach((child) => {
-        const childNode = nodes.get(child);
-        if (!childNode) return;
+      node.children.forEach((childSlug) => {
+        const child = nodes.get(childSlug);
+        if (!child) return;
         const nextDepth = node.depth + 1;
-        if (nextDepth >= childNode.depth) return;
-        childNode.depth = nextDepth;
-        depthQueue.push(child);
+        if (nextDepth >= child.depth) return;
+        child.depth = nextDepth;
+        depthQueue.push(childSlug);
       });
     }
 
     nodes.forEach((node) => {
       if (Number.isFinite(node.depth)) return;
       let minDepth = Number.POSITIVE_INFINITY;
-      node.parents.forEach((parent) => {
-        const parentNode = nodes.get(parent);
-        if (!parentNode || !Number.isFinite(parentNode.depth)) return;
-        minDepth = Math.min(minDepth, parentNode.depth + 1);
+      node.parents.forEach((parentSlug) => {
+        const parent = nodes.get(parentSlug);
+        if (!parent || !Number.isFinite(parent.depth)) return;
+        minDepth = Math.min(minDepth, parent.depth + 1);
       });
       node.depth = Number.isFinite(minDepth) ? minDepth : 0;
     });
@@ -847,193 +539,646 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     );
     const layers = Array.from({ length: maxDepth + 1 }, () => [] as string[]);
     nodes.forEach((node) => {
-      if (!layers[node.depth]) layers[node.depth] = [];
       layers[node.depth].push(node.slug);
     });
 
     const edges: GraphEdge[] = [];
     nodes.forEach((node) => {
-      node.children.forEach((child) => {
+      node.children.forEach((childSlug) => {
         edges.push({
           from: node.slug,
-          to: child,
+          to: childSlug,
           direct: node.depth === 0,
         });
       });
     });
 
     const graph: WorkspaceGraph = {
-      workspaceName,
+      workspaceName: name,
       nodes,
-      layers,
       edges,
+      layers,
       directRuntime,
       directDev,
-      bounds: {
-        minX: 0,
-        maxX: 1,
-        minY: 0,
-        maxY: 1,
-      },
+      directAll: new Set([...directRuntime, ...directDev]),
+      bounds: { minX: 0, maxX: 1, minY: 0, maxY: 1 },
     };
+
+    computeAmplification(graph);
     layoutGraph(graph);
     return graph;
-  };
+  }
 
-  const switchWorkspace = (workspaceName: string): void => {
-    const built = buildWorkspaceGraph(workspaceName);
-    if (!built) return;
-    currentWorkspaceName = workspaceName;
-    currentGraph = built;
-    resetFocus();
-    updateHoverState(null);
-    fitGraphToViewport();
-    needsRender = true;
+  function computeAmplification(graph: WorkspaceGraph): void {
+    graph.nodes.forEach((node) => {
+      node.amplification = 0;
+    });
+
+    graph.directAll.forEach((rootSlug) => {
+      const rootNode = graph.nodes.get(rootSlug);
+      if (!rootNode) return;
+      const visited = new Set<string>();
+      const stack = [...rootNode.children];
+      while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current) continue;
+        if (current === rootSlug) continue;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        const currentNode = graph.nodes.get(current);
+        if (!currentNode) continue;
+        currentNode.children.forEach((child) => {
+          if (visited.has(child)) return;
+          stack.push(child);
+        });
+      }
+      rootNode.amplification = visited.size;
+    });
+  }
+
+  function layoutGraph(graph: WorkspaceGraph): void {
+    const layerOrder = new Map<string, number>();
+
+    graph.layers.forEach((layer, depth) => {
+      if (depth === 0) {
+        layer.sort((a, b) => {
+          const nodeA = graph.nodes.get(a)!;
+          const nodeB = graph.nodes.get(b)!;
+          if (nodeA.amplification !== nodeB.amplification) {
+            return nodeB.amplification - nodeA.amplification;
+          }
+          if (nodeA.kind !== nodeB.kind) {
+            if (nodeA.kind === 'direct-runtime') return -1;
+            if (nodeB.kind === 'direct-runtime') return 1;
+          }
+          return nodeA.ref.name.localeCompare(nodeB.ref.name);
+        });
+      } else {
+        layer.sort((a, b) => {
+          const nodeA = graph.nodes.get(a)!;
+          const nodeB = graph.nodes.get(b)!;
+          const baryA = (() => {
+            let count = 0;
+            let sum = 0;
+            nodeA.parents.forEach((parent) => {
+              const index = layerOrder.get(parent);
+              if (typeof index !== 'number') return;
+              count += 1;
+              sum += index;
+            });
+            return count > 0 ? sum / count : Number.MAX_SAFE_INTEGER;
+          })();
+          const baryB = (() => {
+            let count = 0;
+            let sum = 0;
+            nodeB.parents.forEach((parent) => {
+              const index = layerOrder.get(parent);
+              if (typeof index !== 'number') return;
+              count += 1;
+              sum += index;
+            });
+            return count > 0 ? sum / count : Number.MAX_SAFE_INTEGER;
+          })();
+          if (baryA !== baryB) return baryA - baryB;
+          return nodeA.ref.name.localeCompare(nodeB.ref.name);
+        });
+      }
+      layer.forEach((slug, index) => layerOrder.set(slug, index));
+    });
+
+    const maxRows = graph.layers.reduce((max, layer) => Math.max(max, layer.length), 1);
+
+    graph.bounds = {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minY: Number.POSITIVE_INFINITY,
+      maxY: Number.NEGATIVE_INFINITY,
+    };
+
+    graph.layers.forEach((layer, depth) => {
+      const columnHeight = Math.max(0, (layer.length - 1) * ROW_GAP);
+      const top = PADDING_Y + (maxRows * ROW_GAP - columnHeight) * 0.5;
+      layer.forEach((slug, index) => {
+        const node = graph.nodes.get(slug);
+        if (!node) return;
+        node.order = index;
+        node.baseX = PADDING_X + depth * LAYER_GAP;
+        node.baseY = top + index * ROW_GAP;
+        node.targetX = node.baseX;
+        node.targetY = node.baseY;
+        node.renderX = node.baseX;
+        node.renderY = node.baseY;
+
+        const amplificationFactor = Math.log(node.amplification + 1);
+        node.radius = 7 + amplificationFactor * 1.4;
+
+        graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX - node.radius);
+        graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX + node.radius);
+        graph.bounds.minY = Math.min(graph.bounds.minY, node.baseY - node.radius);
+        graph.bounds.maxY = Math.max(graph.bounds.maxY, node.baseY + node.radius);
+      });
+    });
+
+    if (!Number.isFinite(graph.bounds.minX)) {
+      graph.bounds = { minX: 0, maxX: 1, minY: 0, maxY: 1 };
+    }
+  }
+
+  function applyFocus(slug: string): void {
+    if (!currentGraph || !currentGraph.nodes.has(slug)) return;
+    focusSlug = slug;
+    const ancestors = collectAncestors(currentGraph, slug);
+    const descendants = collectDescendants(currentGraph, slug);
+
+    focusNodes = new Set([slug]);
+    ancestors.forEach((nodeSlug) => focusNodes.add(nodeSlug));
+    descendants.forEach((nodeSlug) => focusNodes.add(nodeSlug));
+
+    focusEdges = new Set<string>();
+
+    const ancestorStack = [slug];
+    const ancestorSeen = new Set<string>([slug]);
+    while (ancestorStack.length > 0) {
+      const current = ancestorStack.pop();
+      if (!current) continue;
+      const node = currentGraph.nodes.get(current);
+      if (!node) continue;
+      node.parents.forEach((parent) => {
+        focusEdges.add(edgeKey(parent, current));
+        if (ancestorSeen.has(parent)) return;
+        ancestorSeen.add(parent);
+        ancestorStack.push(parent);
+      });
+    }
+
+    const descendantStack = [slug];
+    const descendantSeen = new Set<string>([slug]);
+    while (descendantStack.length > 0) {
+      const current = descendantStack.pop();
+      if (!current) continue;
+      const node = currentGraph.nodes.get(current);
+      if (!node) continue;
+      node.children.forEach((child) => {
+        focusEdges.add(edgeKey(current, child));
+        if (descendantSeen.has(child)) return;
+        descendantSeen.add(child);
+        descendantStack.push(child);
+      });
+    }
+
+    focusPushNodes = new Set(focusNodes);
+    const selected = currentGraph.nodes.get(slug)!;
+    selected.parents.forEach((nodeSlug) => focusPushNodes.add(nodeSlug));
+    selected.children.forEach((nodeSlug) => focusPushNodes.add(nodeSlug));
+
+    dirty = true;
     requestRender();
-  };
+  }
 
-  const handlePointerDown = (event: MouseEvent): void => {
+  function clearFocus(): void {
+    focusSlug = null;
+    focusNodes = new Set();
+    focusEdges = new Set();
+    focusPushNodes = new Set();
+    dirty = true;
+    requestRender();
+  }
+
+  function updateTargets(): void {
+    if (!currentGraph) return;
+    const selected = focusSlug ? currentGraph.nodes.get(focusSlug) || null : null;
+
+    currentGraph.nodes.forEach((node) => {
+      if (!selected || !focusPushNodes.has(node.slug)) {
+        node.targetX = node.baseX;
+        node.targetY = node.baseY;
+        return;
+      }
+      const dx = node.baseX - selected.baseX;
+      const dy = node.baseY - selected.baseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scale = 1 + PUSH_RADIUS / (dist + 1);
+      node.targetX = selected.baseX + dx * scale;
+      node.targetY = selected.baseY + dy * scale;
+    });
+  }
+
+  function animateNodes(): boolean {
+    if (!currentGraph) return false;
+    let moving = false;
+    currentGraph.nodes.forEach((node) => {
+      node.renderX += (node.targetX - node.renderX) * 0.15;
+      node.renderY += (node.targetY - node.renderY) * 0.15;
+      const settled =
+        Math.abs(node.targetX - node.renderX) < 0.06 &&
+        Math.abs(node.targetY - node.renderY) < 0.06;
+      if (!settled) moving = true;
+    });
+    return moving;
+  }
+
+  function updateHover(slug: string | null): void {
+    if (focusSlug) return;
+    hoverSlug = slug;
+    hoverNodes = new Set();
+    hoverEdges = new Set();
+    if (!currentGraph || !slug || !currentGraph.nodes.has(slug)) {
+      dirty = true;
+      requestRender();
+      return;
+    }
+
+    const ancestors = collectAncestors(currentGraph, slug);
+    const descendants = collectDescendants(currentGraph, slug);
+    hoverNodes = new Set([slug]);
+    ancestors.forEach((nodeSlug) => hoverNodes.add(nodeSlug));
+    descendants.forEach((nodeSlug) => hoverNodes.add(nodeSlug));
+
+    const node = currentGraph.nodes.get(slug);
+    if (node) {
+      node.parents.forEach((parent) => hoverNodes.add(parent));
+      node.children.forEach((child) => hoverNodes.add(child));
+    }
+
+    currentGraph.edges.forEach((edge) => {
+      if (!hoverNodes.has(edge.from) || !hoverNodes.has(edge.to)) return;
+      hoverEdges.add(edgeKey(edge.from, edge.to));
+    });
+
+    dirty = true;
+    requestRender();
+  }
+
+  function showPopover(slug: string): void {
+    if (!currentGraph) return;
+    const node = currentGraph.nodes.get(slug);
+    if (!node) return;
+    popoverSlug = slug;
+    options.popoverName.textContent = node.ref.name;
+    options.popoverVersion.textContent = `Version: ${node.ref.version}`;
+    options.popoverLicense.textContent = `License: ${node.ref.license || 'Unknown'}`;
+    options.popoverVulns.textContent = `Vulnerabilities: ${node.ref.vulnerabilityCount || 0}`;
+    options.popoverAmplification.textContent = `Amplification: ${node.amplification}`;
+    options.popover.hidden = false;
+    updatePopoverPosition();
+  }
+
+  function hidePopover(): void {
+    popoverSlug = null;
+    options.popover.hidden = true;
+  }
+
+  function updatePopoverPosition(): void {
+    if (!currentGraph || !popoverSlug || options.popover.hidden) return;
+    const node = currentGraph.nodes.get(popoverSlug);
+    if (!node) {
+      hidePopover();
+      return;
+    }
+
+    const x = node.renderX * zoom + panX;
+    const y = node.renderY * zoom + panY;
+
+    const hostRect = options.canvasHost.getBoundingClientRect();
+    const popoverRect = options.popover.getBoundingClientRect();
+    const maxLeft = Math.max(8, hostRect.width - popoverRect.width - 8);
+    const maxTop = Math.max(8, hostRect.height - popoverRect.height - 8);
+
+    const left = clamp(x + 14, 8, maxLeft);
+    const top = clamp(y + 14, 8, maxTop);
+
+    options.popover.style.left = `${left}px`;
+    options.popover.style.top = `${top}px`;
+  }
+
+  function nodeOpacity(slug: string): number {
+    if (focusSlug) return focusNodes.has(slug) ? 1 : 0.14;
+    if (hoverSlug) return hoverNodes.has(slug) ? 1 : 0.16;
+    return 0.95;
+  }
+
+  function edgeOpacity(highlighted: boolean): number {
+    const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.12, 1);
+    if (highlighted) return 0.95 * zoomFactor;
+    if (focusSlug || hoverSlug) return 0.1 * zoomFactor;
+    return 0.34 * zoomFactor;
+  }
+
+  function renderGraph(): void {
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+    if (!currentGraph) return;
+
+    const worldMinX = worldX(0) - 80;
+    const worldMaxX = worldX(width) + 80;
+    const worldMinY = worldY(0) - 80;
+    const worldMaxY = worldY(height) + 80;
+
+    context.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * panX, dpr * panY);
+
+    const colorRuntime = getCssColor('--graph-direct-runtime') || '#10b981';
+    const colorDev = getCssColor('--graph-direct-dev') || '#f59e0b';
+    const colorTransitive = getCssColor('--graph-transitive') || '#06b6d4';
+    const colorEdge = getCssColor('--graph-edge') || '#64748b';
+    const colorHighlight = getCssColor('--graph-highlight') || '#22d3ee';
+    const colorMuted = getCssColor('--graph-muted') || '#64748b';
+    const labelColor = getCssColor('--text-primary') || '#e8edf5';
+
+    const visible = new Set<string>();
+    currentGraph.nodes.forEach((node) => {
+      if (
+        node.renderX + node.radius >= worldMinX &&
+        node.renderX - node.radius <= worldMaxX &&
+        node.renderY + node.radius >= worldMinY &&
+        node.renderY - node.radius <= worldMaxY
+      ) {
+        visible.add(node.slug);
+      }
+    });
+
+    currentGraph.edges.forEach((edge) => {
+      const from = currentGraph.nodes.get(edge.from);
+      const to = currentGraph.nodes.get(edge.to);
+      if (!from || !to) return;
+      if (!visible.has(from.slug) && !visible.has(to.slug)) return;
+
+      const key = edgeKey(edge.from, edge.to);
+      const highlighted = focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
+
+      context.globalAlpha = edgeOpacity(highlighted);
+      context.strokeStyle = highlighted ? colorHighlight : focusSlug || hoverSlug ? colorMuted : colorEdge;
+      context.lineWidth = highlighted ? 1.6 : edge.direct ? 1.3 : 1.1;
+      context.shadowBlur = highlighted ? 8 : 0;
+      context.shadowColor = highlighted ? colorHighlight : 'transparent';
+
+      const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
+      const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
+      context.beginPath();
+      context.moveTo(from.renderX, from.renderY);
+      context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
+      context.stroke();
+    });
+
+    context.shadowBlur = 0;
+
+    currentGraph.nodes.forEach((node) => {
+      if (!visible.has(node.slug)) return;
+      const selected = focusSlug === node.slug;
+      const inFocus = focusNodes.has(node.slug);
+
+      let radius = node.radius;
+      if (selected) radius *= 1.85;
+      else if (focusSlug && inFocus) radius *= 1.22;
+      else if (focusSlug && !inFocus) radius *= 0.84;
+      else if (hoverSlug && hoverNodes.has(node.slug)) radius *= 1.1;
+      else if (hoverSlug) radius *= 0.9;
+
+      context.globalAlpha = nodeOpacity(node.slug);
+      if (node.kind === 'direct-runtime') context.fillStyle = colorRuntime;
+      else if (node.kind === 'direct-dev') context.fillStyle = colorDev;
+      else context.fillStyle = colorTransitive;
+
+      context.beginPath();
+      context.arc(node.renderX, node.renderY, radius, 0, Math.PI * 2);
+      context.fill();
+
+      if (selected) {
+        context.globalAlpha = 0.95;
+        context.strokeStyle = colorHighlight;
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.arc(node.renderX, node.renderY, radius + 4, 0, Math.PI * 2);
+        context.stroke();
+      }
+    });
+
+    if (zoom >= 0.72) {
+      context.textBaseline = 'middle';
+      context.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+      context.fillStyle = labelColor;
+      currentGraph.nodes.forEach((node) => {
+        if (!visible.has(node.slug)) return;
+        context.globalAlpha = nodeOpacity(node.slug);
+        context.fillText(node.ref.name, node.renderX + node.radius + 6, node.renderY);
+      });
+    }
+
+    context.globalAlpha = 1;
+    updatePopoverPosition();
+  }
+
+  function tick(): void {
+    if (!active) {
+      frameId = 0;
+      return;
+    }
+
+    updateTargets();
+    const moving = animateNodes();
+
+    if (dirty || moving) {
+      renderGraph();
+      dirty = false;
+    }
+
+    frameId = window.requestAnimationFrame(tick);
+  }
+
+  function renderLoop(): void {
+    if (frameId) return;
+    frameId = window.requestAnimationFrame(tick);
+  }
+
+  function requestRender(): void {
+    dirty = true;
+    if (active) renderLoop();
+  }
+
+  function switchWorkspace(name: string): void {
+    const graph = buildWorkspaceGraph(name);
+    if (!graph) return;
+    currentWorkspace = name;
+    currentGraph = graph;
+    clearFocus();
+    hidePopover();
+    hoverSlug = null;
+    hoverNodes = new Set();
+    hoverEdges = new Set();
+    fitGraph();
+    dirty = true;
+    requestRender();
+  }
+
+  function handleCanvasMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
-    panState.pointerDown = true;
+    panState.down = true;
     panState.moved = false;
-    panState.startClientX = event.clientX;
-    panState.startClientY = event.clientY;
+    panState.startX = event.clientX;
+    panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
     options.canvas.classList.add('is-panning');
-  };
+  }
 
-  const handlePointerMove = (event: MouseEvent): void => {
-    if (!panState.pointerDown) {
-      const node = findNodeAt(event.clientX, event.clientY);
-      updateHoverState(node ? node.slug : null);
+  function handleWindowMouseMove(event: MouseEvent): void {
+    if (!panState.down) {
+      const node = findNode(event.clientX, event.clientY);
+      updateHover(node ? node.slug : null);
       return;
     }
-    const dx = event.clientX - panState.startClientX;
-    const dy = event.clientY - panState.startClientY;
-    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-      panState.moved = true;
-    }
+
+    const dx = event.clientX - panState.startX;
+    const dy = event.clientY - panState.startY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
     panX = panState.startPanX + dx;
     panY = panState.startPanY + dy;
-    needsRender = true;
     requestRender();
-  };
+  }
 
-  const handlePointerUp = (event: MouseEvent): void => {
-    if (!panState.pointerDown) return;
+  function handleWindowMouseUp(event: MouseEvent): void {
+    if (!panState.down) return;
     options.canvas.classList.remove('is-panning');
-    const wasMoved = panState.moved;
-    panState.pointerDown = false;
+    const moved = panState.moved;
+    panState.down = false;
     panState.moved = false;
-    if (wasMoved) return;
-    const node = findNodeAt(event.clientX, event.clientY);
+
+    if (moved) return;
+
+    const node = findNode(event.clientX, event.clientY);
     if (!node) {
-      resetFocus();
+      clearFocus();
+      hidePopover();
       return;
     }
-    applyFocus(node.slug);
-  };
 
-  const handleWheel = (event: WheelEvent): void => {
+    applyFocus(node.slug);
+    showPopover(node.slug);
+  }
+
+  function handleWheel(event: WheelEvent): void {
     event.preventDefault();
     const rect = options.canvas.getBoundingClientRect();
-    const localX = event.clientX - rect.left;
-    const localY = event.clientY - rect.top;
-    const worldX = toWorldX(localX);
-    const worldY = toWorldY(localY);
-    const factor = Math.exp(-event.deltaY * 0.0012);
-    const nextZoom = clamp(zoom * factor, GRAPH_MIN_ZOOM, GRAPH_MAX_ZOOM);
-    zoom = nextZoom;
-    panX = localX - worldX * zoom;
-    panY = localY - worldY * zoom;
-    needsRender = true;
-    requestRender();
-  };
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const factor = Math.exp(-event.deltaY * 0.0013);
+    applyZoom(zoom * factor, x, y);
+  }
 
-  const handleDoubleClick = (event: MouseEvent): void => {
-    const node = findNodeAt(event.clientX, event.clientY);
-    if (!node) return;
-    event.preventDefault();
-    options.onOpenList(node.slug);
-  };
+  function setupControls(): void {
+    options.zoomInButton.addEventListener('click', () => {
+      applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
+    });
+    options.zoomOutButton.addEventListener('click', () => {
+      applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
+    });
+    options.panLeftButton.addEventListener('click', () => panBy(52, 0));
+    options.panRightButton.addEventListener('click', () => panBy(-52, 0));
+    options.panUpButton.addEventListener('click', () => panBy(0, 52));
+    options.panDownButton.addEventListener('click', () => panBy(0, -52));
 
-  const setActive = (next: boolean): void => {
-    active = next;
-    if (!active) return;
-    needsRender = true;
-    requestRender();
-  };
+    options.popoverOpenButton.addEventListener('click', () => {
+      if (!popoverSlug) return;
+      options.onOpenList(popoverSlug);
+    });
 
-  const initGraphViewInternal = (): void => {
-    options.workspaceSelect.innerHTML = dataset.workspaces
+    document.addEventListener('mousedown', (event) => {
+      const target = event.target as Node;
+      if (options.popover.hidden) return;
+      if (options.popover.contains(target)) return;
+      if (options.canvasHost.contains(target)) return;
+      hidePopover();
+    });
+  }
+
+  function initGraphViewInternal(): void {
+    const workspaces = dataset.workspaces.length
+      ? dataset.workspaces
+      : [
+          {
+            name: 'root',
+            directDependencies: [],
+            directDevDependencies: [],
+          },
+        ];
+
+    options.workspaceSelect.innerHTML = workspaces
       .map(
         (workspace) =>
           `<option value="${workspace.name.replace(/"/g, '&quot;')}">${workspace.name}</option>`,
       )
       .join('');
 
-    if (!dataset.workspaces.length) {
-      options.workspaceSelect.innerHTML =
-        '<option value="root">root</option>';
-      workspaceByName.set('root', {
-        name: 'root',
-        directDependencies: [],
-        directDevDependencies: [],
-      });
+    options.workspaceWrap.classList.toggle('hidden', workspaces.length <= 1);
+
+    if (!workspaceByName.has('root') && workspaces.length === 1) {
+      workspaceByName.set('root', workspaces[0]);
     }
 
-    const initialWorkspace =
-      dataset.workspaces[0]?.name ||
-      options.workspaceSelect.value ||
-      'root';
-    options.workspaceSelect.value = initialWorkspace;
+    currentWorkspace = workspaces[0].name;
+    options.workspaceSelect.value = currentWorkspace;
 
     options.workspaceSelect.addEventListener('change', () => {
       switchWorkspace(options.workspaceSelect.value);
     });
 
-    options.canvas.addEventListener('mousedown', handlePointerDown);
-    window.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('mouseup', handlePointerUp);
+    options.canvas.addEventListener('mousedown', handleCanvasMouseDown);
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
     options.canvas.addEventListener('wheel', handleWheel, { passive: false });
-    options.canvas.addEventListener('dblclick', handleDoubleClick);
-    options.canvas.addEventListener('mouseleave', () => updateHoverState(null));
+    options.canvas.addEventListener('mouseleave', () => updateHover(null));
 
-    const themeObserver = new MutationObserver(() => {
-      needsRender = true;
-      requestRender();
-    });
-    themeObserver.observe(document.documentElement, {
+    const observer = new MutationObserver(() => requestRender());
+    observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class', 'data-theme'],
     });
 
     if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => {
+      const resizeObserver = new ResizeObserver(() => {
         updateCanvasSize();
+        fitGraph();
+        requestRender();
       });
-      observer.observe(options.canvasHost);
+      resizeObserver.observe(options.canvasHost);
     } else {
-      window.addEventListener('resize', updateCanvasSize);
+      window.addEventListener('resize', () => {
+        updateCanvasSize();
+        fitGraph();
+        requestRender();
+      });
     }
 
+    setupControls();
     updateCanvasSize();
-    switchWorkspace(initialWorkspace);
-  };
+    switchWorkspace(currentWorkspace);
+  }
+
+  function setActive(next: boolean): void {
+    active = next;
+    if (active) {
+      renderLoop();
+      requestRender();
+      return;
+    }
+    hidePopover();
+    if (frameId) {
+      window.cancelAnimationFrame(frameId);
+      frameId = 0;
+    }
+  }
 
   return {
     initGraphView: initGraphViewInternal,
     buildWorkspaceGraph,
+    computeAmplification,
     layoutGraph,
-    renderGraph,
+    renderLoop,
     applyFocus,
-    resetFocus,
+    clearFocus,
+    showPopover,
+    hidePopover,
     switchWorkspace,
     setActive,
-    requestRender: () => {
-      needsRender = true;
-      requestRender();
-    },
+    requestRender,
   };
 }

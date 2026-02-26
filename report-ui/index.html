@@ -440,13 +440,28 @@
         <div id="dependency-list" class="dependency-grid"></div>
       </section>
       <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
-        <div class="graph-toolbar">
-          <label class="graph-workspace-label" for="graph-workspace">Workspace:</label>
-          <select id="graph-workspace" class="graph-workspace-select"></select>
-          <span class="graph-toolbar-note">Wheel: zoom • Drag: pan • Double-click node: open in list</span>
-        </div>
         <div class="graph-canvas-shell" id="graph-canvas-shell">
           <canvas id="graph-canvas"></canvas>
+          <div class="graph-overlay graph-overlay-left" id="graph-workspace-wrap">
+            <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
+            <select id="graph-workspace" class="graph-workspace-select"></select>
+          </div>
+          <div class="graph-overlay graph-overlay-right" id="graph-controls">
+            <button type="button" class="graph-control-btn" id="graph-zoom-in" aria-label="Zoom In">+</button>
+            <button type="button" class="graph-control-btn" id="graph-zoom-out" aria-label="Zoom Out">-</button>
+            <button type="button" class="graph-control-btn" id="graph-pan-left" aria-label="Pan Left">◀</button>
+            <button type="button" class="graph-control-btn" id="graph-pan-right" aria-label="Pan Right">▶</button>
+            <button type="button" class="graph-control-btn" id="graph-pan-up" aria-label="Pan Up">▲</button>
+            <button type="button" class="graph-control-btn" id="graph-pan-down" aria-label="Pan Down">▼</button>
+          </div>
+          <div class="graph-popover" id="graph-popover" hidden>
+            <div class="graph-popover-name" id="graph-popover-name"></div>
+            <div class="graph-popover-meta" id="graph-popover-version"></div>
+            <div class="graph-popover-meta" id="graph-popover-license"></div>
+            <div class="graph-popover-meta" id="graph-popover-vulns"></div>
+            <div class="graph-popover-meta" id="graph-popover-amplification"></div>
+            <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
+          </div>
         </div>
       </section>
     </main>
