@@ -201,7 +201,7 @@ ${safeCssContent}
           <div class="view-switch" id="view-switch">
             <button
               type="button"
-              class="view-switch-btn active"
+              class="view-switch-btn"
               id="view-graph-btn"
               data-view="graph"
             >

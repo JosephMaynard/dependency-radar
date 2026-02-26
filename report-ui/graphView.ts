@@ -1248,12 +1248,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           },
         ];
 
-    options.workspaceSelect.innerHTML = workspaces
-      .map(
-        (workspace) =>
-          `<option value="${workspace.name.replace(/"/g, '&quot;')}">${workspace.name}</option>`,
-      )
-      .join('');
+    options.workspaceSelect.textContent = '';
+    workspaces.forEach((workspace) => {
+      const option = document.createElement('option');
+      option.value = workspace.name;
+      option.textContent = workspace.name;
+      options.workspaceSelect.appendChild(option);
+    });
 
     options.workspaceWrap.classList.toggle('hidden', workspaces.length <= 1);
 

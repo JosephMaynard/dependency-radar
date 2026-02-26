@@ -67,36 +67,13 @@
   --accent-subtle: rgba(8, 145, 178, 0.1);
   --title-gradient: linear-gradient(135deg, #0891b2 0%, #059669 100%);
 
-  --graph-direct-runtime: var(--green);
-  --graph-direct-dev: var(--amber);
-  --graph-transitive: var(--accent);
-  --graph-edge: var(--border-color-strong);
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
-  --graph-vuln-high: var(--red);
-  --graph-vuln-medium: var(--amber);
-}
-
-[data-theme="dark"] {
-  --graph-direct-runtime: var(--green);
-  --graph-direct-dev: var(--amber);
-  --graph-transitive: var(--accent);
-  --graph-edge: var(--border-color-strong);
-  --graph-highlight: var(--accent-hover);
-  --graph-muted: var(--text-muted);
-  --graph-vuln-high: var(--red);
-  --graph-vuln-medium: var(--amber);
 }
 
 [data-theme="light"] {
-  --graph-direct-runtime: var(--green);
-  --graph-direct-dev: var(--amber);
-  --graph-transitive: var(--accent);
-  --graph-edge: var(--border-color-strong);
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
-  --graph-vuln-high: var(--red);
-  --graph-vuln-medium: var(--amber);
 }
 
 html { scroll-behavior: smooth; }

@@ -2128,15 +2128,11 @@ async function init(): Promise<void> {
 
   function openListFromGraph(slug: string): void {
     setActiveView("list");
-    let target = document.getElementById(`dep-${slug}`);
-    if (!target) {
-      target = document.getElementById(getDepDomId(slug));
-    }
+    let target = document.getElementById(getDepDomId(slug));
     if (!target && depByKey.has(slug)) {
       forcedVisibleDepKeys.add(slug);
       renderList();
-      target = document.getElementById(`dep-${slug}`);
-      if (!target) target = document.getElementById(getDepDomId(slug));
+      target = document.getElementById(getDepDomId(slug));
     }
     if (!target) return;
 
