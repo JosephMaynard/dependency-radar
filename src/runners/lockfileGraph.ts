@@ -653,6 +653,13 @@ function resolveNpmPackagePath(
   return rootCandidate in packages ? rootCandidate : undefined;
 }
 
+/**
+ * Resolve an npm lockfile package key to the absolute filesystem path where that package would be installed under a given lock directory.
+ *
+ * @param packageKey - The package key from a lockfile (e.g., a normalized/package-relative path or package identifier).
+ * @param lockDir - The lockfile directory to treat as the installation root.
+ * @returns The absolute path inside `lockDir` corresponding to `packageKey` if it resolves to a location contained within `lockDir`, `undefined` otherwise.
+ */
 function resolveNpmInstalledPath(packageKey: string, lockDir: string): string | undefined {
   const normalizedKey = normalizeLockPackageKey(packageKey);
   if (!normalizedKey) return undefined;
