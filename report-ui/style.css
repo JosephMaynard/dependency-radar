@@ -41,6 +41,13 @@
   --transition: 0.2s ease;
   --radius: 8px;
   --radius-lg: 12px;
+
+  --graph-direct-runtime: var(--green);
+  --graph-direct-dev: var(--amber);
+  --graph-transitive: var(--accent);
+  --graph-edge: var(--border-color-strong);
+  --graph-highlight: var(--accent-hover);
+  --graph-muted: var(--text-muted);
 }
 
 :root.light {
@@ -57,6 +64,31 @@
   --accent-hover: #06b6d4;
   --accent-subtle: rgba(8, 145, 178, 0.1);
   --title-gradient: linear-gradient(135deg, #0891b2 0%, #059669 100%);
+
+  --graph-direct-runtime: var(--green);
+  --graph-direct-dev: var(--amber);
+  --graph-transitive: var(--accent);
+  --graph-edge: var(--border-color-strong);
+  --graph-highlight: var(--accent);
+  --graph-muted: var(--text-secondary);
+}
+
+[data-theme="dark"] {
+  --graph-direct-runtime: var(--green);
+  --graph-direct-dev: var(--amber);
+  --graph-transitive: var(--accent);
+  --graph-edge: var(--border-color-strong);
+  --graph-highlight: var(--accent-hover);
+  --graph-muted: var(--text-muted);
+}
+
+[data-theme="light"] {
+  --graph-direct-runtime: var(--green);
+  --graph-direct-dev: var(--amber);
+  --graph-transitive: var(--accent);
+  --graph-edge: var(--border-color-strong);
+  --graph-highlight: var(--accent);
+  --graph-muted: var(--text-secondary);
 }
 
 html { scroll-behavior: smooth; }
@@ -259,6 +291,37 @@ body {
   flex: 1;
   min-width: 0;
   max-width: none;
+}
+
+.view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+}
+
+.view-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+  white-space: nowrap;
+}
+
+.view-switch-btn:hover {
+  color: var(--text-primary);
+}
+
+.view-switch-btn.active {
+  color: var(--text-primary);
+  background: var(--accent-subtle);
 }
 
 .filter-controls {
@@ -618,6 +681,83 @@ select:focus {
   max-width: 1400px;
   margin: 0 auto;
   padding: 8px 24px 48px;
+}
+
+.view-panel {
+  display: none;
+}
+
+.view-panel.active {
+  display: block;
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+
+.graph-workspace-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.graph-workspace-select {
+  min-width: 220px;
+}
+
+.graph-toolbar-note {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.graph-canvas-shell {
+  position: relative;
+  width: 100%;
+  height: 74vh;
+  min-height: 420px;
+  max-height: 980px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 15% 20%, var(--accent-subtle), transparent 35%),
+    radial-gradient(circle at 80% 80%, var(--accent-subtle), transparent 42%),
+    var(--bg-card);
+  overflow: hidden;
+}
+
+#graph-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+#graph-canvas.is-panning {
+  cursor: grabbing;
+}
+
+.dep-list-highlight {
+  animation: dep-list-highlight 2s ease-out;
+}
+
+@keyframes dep-list-highlight {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-subtle);
+    border-color: var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 18px transparent;
+    border-color: var(--border-color);
+  }
 }
 
 .report-footer {
@@ -1576,10 +1716,20 @@ details[open] > summary .expand-icon {
     gap: 10px;
     flex: 1 1 auto;
     min-width: 0;
+    flex-wrap: wrap;
   }
 
   .search-wrapper {
     max-width: none;
+    flex: 1 1 100%;
+  }
+
+  .view-switch {
+    order: 2;
+  }
+
+  .view-switch-btn {
+    padding: 6px 10px;
   }
 
   .filters-toggle {
@@ -1716,6 +1866,25 @@ details[open] > summary .expand-icon {
   
   .main-content {
     padding: 12px 16px 32px;
+  }
+
+  .graph-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .graph-workspace-select {
+    min-width: 170px;
+  }
+
+  .graph-toolbar-note {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .graph-canvas-shell {
+    height: 62vh;
+    min-height: 340px;
   }
 
   .report-footer {

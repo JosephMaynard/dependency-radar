@@ -198,6 +198,28 @@ ${safeCssContent}
             </svg>
             <input type="search" id="search" placeholder="Search packages..." />
           </div>
+          <div class="view-switch" id="view-switch" role="tablist" aria-label="Report views">
+            <button
+              type="button"
+              class="view-switch-btn active"
+              id="view-list-btn"
+              data-view="list"
+              role="tab"
+              aria-selected="true"
+            >
+              List View
+            </button>
+            <button
+              type="button"
+              class="view-switch-btn"
+              id="view-graph-btn"
+              data-view="graph"
+              role="tab"
+              aria-selected="false"
+            >
+              Graph View
+            </button>
+          </div>
           <button
             type="button"
             class="filters-toggle"
@@ -318,7 +340,19 @@ ${safeCssContent}
   
   <!-- Main Content -->
   <main class="main-content">
-    <div id="dependency-list" class="dependency-grid"></div>
+    <section class="view-panel active" id="list-view" data-view="list" aria-hidden="false">
+      <div id="dependency-list" class="dependency-grid"></div>
+    </section>
+    <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
+      <div class="graph-toolbar">
+        <label class="graph-workspace-label" for="graph-workspace">Workspace:</label>
+        <select id="graph-workspace" class="graph-workspace-select"></select>
+        <span class="graph-toolbar-note">Wheel: zoom • Drag: pan • Double-click node: open in list</span>
+      </div>
+      <div class="graph-canvas-shell" id="graph-canvas-shell">
+        <canvas id="graph-canvas"></canvas>
+      </div>
+    </section>
   </main>
 
   <footer class="report-footer">

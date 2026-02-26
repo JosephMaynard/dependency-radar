@@ -5,6 +5,7 @@
 
 import "./style.css";
 import { buildCtaUrl } from "../src/cta";
+import { initGraphView, type GraphViewHandle } from "./graphView";
 import type {
   AggregatedData,
   DependencyRecord,
@@ -669,7 +670,7 @@ function parseDepKey(depKey: string): { name: string; version: string } | null {
 }
 
 function getDepDomId(depKey: string): string {
-  return "dep-" + encodeURIComponent(depKey).replace(/%/g, "_");
+  return "dep-" + depKey;
 }
 
 function getDepKeysByNameIndex(linkableKeys: Set<string>): DepKeysByNameIndex {
@@ -1576,6 +1577,9 @@ function renderDepDetails(
 // Main application
 async function init(): Promise<void> {
   const report = await loadReportData();
+  if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
+    window.__DEPENDENCY_DATA__ = report;
+  }
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
   const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
@@ -1676,25 +1680,43 @@ async function init(): Promise<void> {
     filterControls: document.getElementById("filter-controls") as HTMLElement,
     columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
     packageHeader: document.getElementById("package-header") as HTMLButtonElement,
+    viewListButton: document.getElementById("view-list-btn") as HTMLButtonElement,
+    viewGraphButton: document.getElementById("view-graph-btn") as HTMLButtonElement,
+    listViewPanel: document.getElementById("list-view") as HTMLElement,
+    graphViewPanel: document.getElementById("graph-view") as HTMLElement,
+    graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement,
+    graphCanvas: document.getElementById("graph-canvas") as HTMLCanvasElement,
+    graphCanvasShell: document.getElementById("graph-canvas-shell") as HTMLElement,
   };
 
   // Sorting state - "name" is the default (Package name ascending)
   let sortColumn = "name";
   let sortAscending = true;
+  let currentView: "list" | "graph" = "list";
+  let graphView: GraphViewHandle | null = null;
+  let graphInitialized = false;
 
 
   // Theme handling
+  document.documentElement.setAttribute("data-theme", "dark");
   const savedTheme = localStorage.getItem("dependency-radar-theme");
   if (savedTheme === "light") {
     document.documentElement.classList.add("light");
     controls.themeSwitch.classList.add("light");
+    document.documentElement.setAttribute("data-theme", "light");
+  } else {
+    document.documentElement.classList.remove("light");
+    controls.themeSwitch.classList.remove("light");
+    document.documentElement.setAttribute("data-theme", "dark");
   }
 
   controls.themeSwitch.addEventListener("click", () => {
     document.documentElement.classList.toggle("light");
     controls.themeSwitch.classList.toggle("light");
     const isLight = document.documentElement.classList.contains("light");
+    document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
     localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
+    graphView?.requestRender();
   });
 
   const mobileFilterQuery = window.matchMedia("(max-width: 768px)");
@@ -2051,6 +2073,67 @@ async function init(): Promise<void> {
     return resolveDepKeyByName(parsed.name);
   }
 
+  function setActiveView(view: "list" | "graph"): void {
+    currentView = view;
+    const isList = view === "list";
+    controls.viewListButton.classList.toggle("active", isList);
+    controls.viewGraphButton.classList.toggle("active", !isList);
+    controls.viewListButton.setAttribute("aria-selected", String(isList));
+    controls.viewGraphButton.setAttribute("aria-selected", String(!isList));
+    controls.listViewPanel.classList.toggle("active", isList);
+    controls.graphViewPanel.classList.toggle("active", !isList);
+    controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
+    controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
+    if (isList) {
+      graphView?.setActive(false);
+      return;
+    }
+    if (!graphInitialized) {
+      graphView = initGraphView({
+        report,
+        knownDepKeys,
+        resolveDepKey,
+        workspaceSelect: controls.graphWorkspaceSelect,
+        canvas: controls.graphCanvas,
+        canvasHost: controls.graphCanvasShell,
+        onOpenList: (slug: string) => {
+          openListFromGraph(slug);
+        },
+      });
+      graphView.initGraphView();
+      graphInitialized = true;
+    }
+    graphView?.setActive(true);
+    graphView?.requestRender();
+  }
+
+  function openListFromGraph(slug: string): void {
+    setActiveView("list");
+    let target = document.getElementById(`dep-${slug}`);
+    if (!target) {
+      target = document.getElementById(getDepDomId(slug));
+    }
+    if (!target && depByKey.has(slug)) {
+      forcedVisibleDepKeys.add(slug);
+      renderList();
+      target = document.getElementById(`dep-${slug}`);
+      if (!target) target = document.getElementById(getDepDomId(slug));
+    }
+    if (!target) return;
+
+    if (target instanceof HTMLDetailsElement) {
+      const depKey = target.dataset.depKey;
+      if (depKey) openDepKeys.add(depKey);
+      if (!target.open) target.open = true;
+      ensureDepDetailsRendered(target);
+    }
+    target.classList.add("dep-list-highlight");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      target?.classList.remove("dep-list-highlight");
+    }, 2000);
+  }
+
   // Event listeners
   const filterControls = [
     controls.search,
@@ -2067,12 +2150,21 @@ async function init(): Promise<void> {
     // User-driven filtering should return to normal behavior.
     forcedVisibleDepKeys.clear();
     renderList();
+    graphView?.requestRender();
   };
 
   filterControls.forEach((ctrl) => {
     if (!ctrl) return;
     ctrl.addEventListener("input", handleFilterControlChange);
     ctrl.addEventListener("change", handleFilterControlChange);
+  });
+
+  controls.viewListButton.addEventListener("click", () => {
+    setActiveView("list");
+  });
+
+  controls.viewGraphButton.addEventListener("click", () => {
+    setActiveView("graph");
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
@@ -2151,6 +2243,7 @@ async function init(): Promise<void> {
   // Initial render
   updateColumnHeaders();
   renderList();
+  setActiveView("list");
 }
 
 
