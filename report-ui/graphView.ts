@@ -13,6 +13,7 @@ type GraphDependency = {
   dependencies: string[];
   license: string;
   vulnerabilityCount: number;
+  vulnerabilitySeverity: 'high' | 'moderate' | 'none';
   isDevOnly: boolean;
   workspaceOrigins: string[];
 };
@@ -105,11 +106,10 @@ declare global {
 }
 
 const LAYER_GAP = 240;
-const ROW_GAP = 72;
+const ROW_GAP = 43;
 const PADDING_X = 96;
 const PADDING_Y = 64;
 const PUSH_RADIUS = 120;
-const MIN_ZOOM = 0.28;
 const MAX_ZOOM = 2.8;
 const EDGE_CURVE = 0.2;
 
@@ -158,6 +158,15 @@ function vulnerabilityCount(dep: DependencyRecord): number {
   );
 }
 
+function vulnerabilitySeverityFromRecord(
+  dep: DependencyRecord,
+): 'high' | 'moderate' | 'none' {
+  const highest = dep.security?.summary?.highest;
+  if (highest === 'critical' || highest === 'high') return 'high';
+  if (highest === 'moderate' || highest === 'medium') return 'moderate';
+  return 'none';
+}
+
 function collectAncestors(graph: WorkspaceGraph, slug: string): Set<string> {
   const result = new Set<string>();
   const stack = [slug];
@@ -199,7 +208,42 @@ function adaptDataset(
 ): GraphDataset {
   const globalData = window.__DEPENDENCY_DATA__;
   if (isGraphDataset(globalData)) {
-    return globalData;
+    const normalizedDependencies: Record<string, GraphDependency> = {};
+    Object.entries(globalData.dependencies).forEach(([slug, rawDep]) => {
+      const dep = rawDep as Record<string, unknown>;
+      const rawSeverity =
+        (dep.vulnerabilitySeverity as string | undefined) ||
+        (dep.vulnerabilityHighest as string | undefined) ||
+        (dep.highestSeverity as string | undefined) ||
+        'none';
+      let vulnerabilitySeverity: 'high' | 'moderate' | 'none' = 'none';
+      if (rawSeverity === 'critical' || rawSeverity === 'high') {
+        vulnerabilitySeverity = 'high';
+      } else if (rawSeverity === 'moderate' || rawSeverity === 'medium') {
+        vulnerabilitySeverity = 'moderate';
+      }
+
+      normalizedDependencies[slug] = {
+        slug: String(dep.slug || slug),
+        name: String(dep.name || slug),
+        version: String(dep.version || ''),
+        dependencies: Array.isArray(dep.dependencies)
+          ? dep.dependencies.map((value) => String(value))
+          : [],
+        license: String(dep.license || 'Unknown'),
+        vulnerabilityCount: Number(dep.vulnerabilityCount || 0),
+        vulnerabilitySeverity,
+        isDevOnly: Boolean(dep.isDevOnly),
+        workspaceOrigins: Array.isArray(dep.workspaceOrigins)
+          ? dep.workspaceOrigins.map((value) => String(value))
+          : [],
+      };
+    });
+
+    return {
+      workspaces: globalData.workspaces,
+      dependencies: normalizedDependencies,
+    };
   }
 
   const dependencies: Record<string, GraphDependency> = {};
@@ -214,6 +258,7 @@ function adaptDataset(
       dependencies: [],
       license: primaryLicense(dep),
       vulnerabilityCount: vulnerabilityCount(dep),
+      vulnerabilitySeverity: vulnerabilitySeverityFromRecord(dep),
       isDevOnly: dep.usage.scope === 'dev',
       workspaceOrigins: dep.usage.origins.workspaces || [],
     };
@@ -332,6 +377,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let zoom = 1;
   let panX = 0;
   let panY = 0;
+  let fitZoom = 1;
+  let minZoom = 0.1;
   let defaultPanX = 0;
   let defaultPanY = 0;
 
@@ -366,7 +413,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function applyZoom(nextZoom: number, anchorX: number, anchorY: number): void {
-    const clamped = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+    const clamped = clamp(nextZoom, minZoom, MAX_ZOOM);
     const wx = worldX(anchorX);
     const wy = worldY(anchorY);
     zoom = clamped;
@@ -401,13 +448,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const bounds = currentGraph.bounds;
     const graphWidth = Math.max(1, bounds.maxX - bounds.minX);
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
-    defaultPanX = (width - graphWidth) * 0.5 - bounds.minX;
-    defaultPanY = 24 - bounds.minY;
-    const scaleX = (width - 130) / graphWidth;
-    const scaleY = (height - 110) / graphHeight;
-    zoom = clamp(Math.min(scaleX, scaleY, 1), MIN_ZOOM, MAX_ZOOM);
-    panX = (width - graphWidth * zoom) * 0.5 - bounds.minX * zoom;
-    panY = 20 - bounds.minY * zoom;
+    const fitZoomX = width / graphWidth;
+    const fitZoomY = height / graphHeight;
+    fitZoom = clamp(Math.min(fitZoomX, fitZoomY), 0.05, MAX_ZOOM);
+    minZoom = clamp(fitZoom * 0.95, 0.05, MAX_ZOOM);
+    defaultPanX = (width - graphWidth * fitZoom) * 0.5 - bounds.minX * fitZoom;
+    defaultPanY = (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
+    zoom = fitZoom;
+    panX = defaultPanX;
+    panY = defaultPanY;
   }
 
   function findNode(clientX: number, clientY: number): GraphNode | null {
@@ -675,10 +724,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             : 0;
         node.radius = 6.7 + relationshipFactor + amplificationFactor;
 
-        graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX - node.radius);
-        graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX + node.radius);
-        graph.bounds.minY = Math.min(graph.bounds.minY, node.baseY - node.radius);
-        graph.bounds.maxY = Math.max(graph.bounds.maxY, node.baseY + node.radius);
+        graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX);
+        graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX);
+        graph.bounds.minY = Math.min(graph.bounds.minY, node.baseY);
+        graph.bounds.maxY = Math.max(graph.bounds.maxY, node.baseY);
       });
     });
 
@@ -865,9 +914,24 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.95;
   }
 
+  function renderedNodeRadius(node: GraphNode): number {
+    const selected = focusSlug === node.slug;
+    const inFocus = focusNodes.has(node.slug);
+    let radius = node.radius;
+    if (selected) radius *= 1.85;
+    else if (focusSlug && inFocus) radius *= 1.22;
+    else if (focusSlug && !inFocus) radius *= 0.84;
+    else if (hoverSlug && hoverNodes.has(node.slug)) radius *= 1.1;
+    else if (hoverSlug) radius *= 0.9;
+    return radius;
+  }
+
   function mutedEdgeOpacity(): number {
-    const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.16, 1);
-    if (focusSlug || hoverSlug) return 0.04 * zoomFactor;
+    if (focusSlug || hoverSlug) {
+      const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.75, 1);
+      return 0.04 * zoomFactor;
+    }
+    const zoomFactor = clamp((zoom - 0.35) / 0.9, 0.2, 1);
     return 0.25 * zoomFactor;
   }
 
@@ -894,6 +958,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const colorEdge = getCssColor('--graph-edge') || '#64748b';
     const colorHighlight = getCssColor('--graph-highlight') || '#22d3ee';
     const colorMuted = getCssColor('--graph-muted') || '#64748b';
+    const colorRingHigh = getCssColor('--graph-vuln-high') || '#ef4444';
+    const colorRingModerate = getCssColor('--graph-vuln-medium') || '#f59e0b';
     const labelColor = getCssColor('--text-primary') || '#e8edf5';
 
     const visible = new Set<string>();
@@ -957,14 +1023,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     currentGraph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
       const selected = focusSlug === node.slug;
-      const inFocus = focusNodes.has(node.slug);
-
-      let radius = node.radius;
-      if (selected) radius *= 1.85;
-      else if (focusSlug && inFocus) radius *= 1.22;
-      else if (focusSlug && !inFocus) radius *= 0.84;
-      else if (hoverSlug && hoverNodes.has(node.slug)) radius *= 1.1;
-      else if (hoverSlug) radius *= 0.9;
+      const radius = renderedNodeRadius(node);
 
       context.globalAlpha = nodeOpacity(node.slug);
       if (node.kind === 'direct-runtime') context.fillStyle = colorRuntime;
@@ -985,6 +1044,22 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
+    currentGraph.nodes.forEach((node) => {
+      if (!visible.has(node.slug)) return;
+      if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0) return;
+      if (node.ref.vulnerabilitySeverity === 'none') return;
+      const radius = renderedNodeRadius(node);
+      context.globalAlpha = 0.8;
+      context.lineWidth = 2;
+      context.strokeStyle =
+        node.ref.vulnerabilitySeverity === 'high'
+          ? colorRingHigh
+          : colorRingModerate;
+      context.beginPath();
+      context.arc(node.renderX, node.renderY, radius + 4, 0, Math.PI * 2);
+      context.stroke();
+    });
+
     if (zoom >= 0.72) {
       context.textBaseline = 'middle';
       context.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -992,7 +1067,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       currentGraph.nodes.forEach((node) => {
         if (!visible.has(node.slug)) return;
         context.globalAlpha = nodeOpacity(node.slug);
-        context.fillText(node.ref.name, node.renderX + node.radius + 6, node.renderY);
+        context.fillText(
+          node.ref.name,
+          node.renderX + renderedNodeRadius(node) + 6,
+          node.renderY,
+        );
       });
     }
 
@@ -1113,23 +1192,23 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         return;
       }
       if (action === 'pan-left') {
-        panBy(52, 0);
-        return;
-      }
-      if (action === 'pan-right') {
         panBy(-52, 0);
         return;
       }
-      if (action === 'pan-up') {
-        panBy(0, 52);
+      if (action === 'pan-right') {
+        panBy(52, 0);
         return;
       }
-      if (action === 'pan-down') {
+      if (action === 'pan-up') {
         panBy(0, -52);
         return;
       }
+      if (action === 'pan-down') {
+        panBy(0, 52);
+        return;
+      }
       if (action === 'reset') {
-        zoom = 1;
+        zoom = fitZoom;
         panX = defaultPanX;
         panY = defaultPanY;
         clearFocus();

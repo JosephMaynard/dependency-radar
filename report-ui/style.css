@@ -48,6 +48,8 @@
   --graph-edge: var(--border-color-strong);
   --graph-highlight: var(--accent-hover);
   --graph-muted: var(--text-muted);
+  --graph-vuln-high: var(--red);
+  --graph-vuln-medium: var(--amber);
 }
 
 :root.light {
@@ -71,6 +73,8 @@
   --graph-edge: var(--border-color-strong);
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
+  --graph-vuln-high: var(--red);
+  --graph-vuln-medium: var(--amber);
 }
 
 [data-theme="dark"] {
@@ -80,6 +84,8 @@
   --graph-edge: var(--border-color-strong);
   --graph-highlight: var(--accent-hover);
   --graph-muted: var(--text-muted);
+  --graph-vuln-high: var(--red);
+  --graph-vuln-medium: var(--amber);
 }
 
 [data-theme="light"] {
@@ -89,6 +95,8 @@
   --graph-edge: var(--border-color-strong);
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
+  --graph-vuln-high: var(--red);
+  --graph-vuln-medium: var(--amber);
 }
 
 html { scroll-behavior: smooth; }
@@ -691,6 +699,23 @@ select:focus {
   display: block;
 }
 
+.graph-mode .filter-bar {
+  display: none;
+}
+
+.graph-mode .results-summary {
+  display: none;
+}
+
+.graph-mode .report-footer {
+  display: none;
+}
+
+.graph-mode .main-content {
+  max-width: none;
+  padding: 0 24px 0;
+}
+
 .graph-workspace-label {
   color: var(--text-muted);
   font-size: 10px;
@@ -718,6 +743,12 @@ select:focus {
   overflow: hidden;
 }
 
+.graph-mode .graph-canvas-shell {
+  height: calc(100vh - 120px);
+  min-height: 520px;
+  max-height: none;
+}
+
 .graph-overlay {
   position: absolute;
   z-index: 8;
@@ -737,7 +768,7 @@ select:focus {
 }
 
 .graph-overlay-left {
-  top: 12px;
+  top: 56px;
   left: 12px;
   flex-direction: column;
   align-items: flex-start;
@@ -746,6 +777,26 @@ select:focus {
 .graph-overlay-right {
   top: 12px;
   right: 12px;
+}
+
+.graph-back-btn {
+  top: 12px;
+  left: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition), color var(--transition), box-shadow var(--transition);
+}
+
+.graph-back-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
 }
 
 .graph-controls {
@@ -763,21 +814,38 @@ select:focus {
 
 .dpad {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 32px 32px 32px;
+  grid-template-rows: 32px 32px 32px;
+  grid-template-areas:
+    '. up .'
+    'left . right'
+    '. down .';
   gap: 6px;
 }
 
-.dpad-middle {
-  display: grid;
-  grid-template-columns: 34px 34px 34px;
-  gap: 6px;
+.dpad .up {
+  grid-area: up;
 }
 
-.dpad-center {
-  width: 34px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid transparent;
+.dpad .left {
+  grid-area: left;
+}
+
+.dpad .right {
+  grid-area: right;
+}
+
+.dpad .down {
+  grid-area: down;
+}
+
+.center-spacer {
+  grid-column: 2;
+  grid-row: 2;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
 }
 
 .graph-control-btn {
@@ -2012,7 +2080,21 @@ details[open] > summary .expand-icon {
 
   .graph-overlay-left {
     left: 8px;
+    top: 48px;
+  }
+
+  .graph-back-btn {
+    left: 8px;
     top: 8px;
+  }
+
+  .graph-mode .main-content {
+    padding: 0 8px 0;
+  }
+
+  .graph-mode .graph-canvas-shell {
+    height: calc(100vh - 94px);
+    min-height: 420px;
   }
 
   .report-footer {

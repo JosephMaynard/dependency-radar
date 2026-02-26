@@ -1680,8 +1680,8 @@ async function init(): Promise<void> {
     filterControls: document.getElementById("filter-controls") as HTMLElement,
     columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
     packageHeader: document.getElementById("package-header") as HTMLButtonElement,
-    viewListButton: document.getElementById("view-list-btn") as HTMLButtonElement,
     viewGraphButton: document.getElementById("view-graph-btn") as HTMLButtonElement,
+    graphBackButton: document.getElementById("graph-back-btn") as HTMLButtonElement,
     listViewPanel: document.getElementById("list-view") as HTMLElement,
     graphViewPanel: document.getElementById("graph-view") as HTMLElement,
     graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement,
@@ -2086,15 +2086,14 @@ async function init(): Promise<void> {
   function setActiveView(view: "list" | "graph"): void {
     currentView = view;
     const isList = view === "list";
-    controls.viewListButton.classList.toggle("active", isList);
-    controls.viewGraphButton.classList.toggle("active", !isList);
-    controls.viewListButton.setAttribute("aria-selected", String(isList));
-    controls.viewGraphButton.setAttribute("aria-selected", String(!isList));
     controls.listViewPanel.classList.toggle("active", isList);
     controls.graphViewPanel.classList.toggle("active", !isList);
     controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
     controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
+    controls.viewGraphButton.style.display = isList ? "" : "none";
+    controls.graphBackButton.style.display = isList ? "none" : "";
     controls.reportFooter.classList.toggle("hidden", !isList);
+    document.body.classList.toggle("graph-mode", !isList);
     if (isList) {
       graphView?.setActive(false);
       return;
@@ -2179,12 +2178,12 @@ async function init(): Promise<void> {
     ctrl.addEventListener("change", handleFilterControlChange);
   });
 
-  controls.viewListButton.addEventListener("click", () => {
-    setActiveView("list");
-  });
-
   controls.viewGraphButton.addEventListener("click", () => {
     setActiveView("graph");
+  });
+
+  controls.graphBackButton.addEventListener("click", () => {
+    setActiveView("list");
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
