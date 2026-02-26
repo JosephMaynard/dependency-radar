@@ -703,6 +703,10 @@ select:focus {
   display: none;
 }
 
+.graph-mode .top-header {
+  display: none;
+}
+
 .graph-mode .results-summary {
   display: none;
 }
@@ -713,7 +717,7 @@ select:focus {
 
 .graph-mode .main-content {
   max-width: none;
-  padding: 0 24px 0;
+  padding: 24px;
 }
 
 .graph-workspace-label {
@@ -744,7 +748,7 @@ select:focus {
 }
 
 .graph-mode .graph-canvas-shell {
-  height: calc(100vh - 120px);
+  height: calc(100dvh - 48px);
   min-height: 520px;
   max-height: none;
 }
@@ -2089,11 +2093,11 @@ details[open] > summary .expand-icon {
   }
 
   .graph-mode .main-content {
-    padding: 0 8px 0;
+    padding: 8px;
   }
 
   .graph-mode .graph-canvas-shell {
-    height: calc(100vh - 94px);
+    height: calc(100dvh - 16px);
     min-height: 420px;
   }
 
