@@ -5,6 +5,7 @@
 
 import "./style.css";
 import { buildCtaUrl } from "../src/cta";
+import { initGraphView, type GraphViewHandle } from "./graphView";
 import type {
   AggregatedData,
   DependencyRecord,
@@ -669,7 +670,7 @@ function parseDepKey(depKey: string): { name: string; version: string } | null {
 }
 
 function getDepDomId(depKey: string): string {
-  return "dep-" + encodeURIComponent(depKey).replace(/%/g, "_");
+  return `dep-${depKey}`;
 }
 
 function getDepKeysByNameIndex(linkableKeys: Set<string>): DepKeysByNameIndex {
@@ -1576,6 +1577,9 @@ function renderDepDetails(
 // Main application
 async function init(): Promise<void> {
   const report = await loadReportData();
+  if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
+    window.__DEPENDENCY_DATA__ = report;
+  }
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
   const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
@@ -1676,25 +1680,53 @@ async function init(): Promise<void> {
     filterControls: document.getElementById("filter-controls") as HTMLElement,
     columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
     packageHeader: document.getElementById("package-header") as HTMLButtonElement,
+    viewGraphButton: document.getElementById("view-graph-btn") as HTMLButtonElement | null,
+    graphBackButton: document.getElementById("graph-back-btn") as HTMLButtonElement | null,
+    listViewPanel: document.getElementById("list-view") as HTMLElement | null,
+    graphViewPanel: document.getElementById("graph-view") as HTMLElement | null,
+    graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement | null,
+    graphWorkspaceWrap: document.getElementById("graph-workspace-wrap") as HTMLElement | null,
+    graphControls: document.getElementById("graph-controls") as HTMLElement | null,
+    graphCanvas: document.getElementById("graph-canvas") as HTMLCanvasElement | null,
+    graphCanvasShell: document.getElementById("graph-canvas-shell") as HTMLElement | null,
+    graphPopover: document.getElementById("graph-popover") as HTMLElement | null,
+    graphPopoverName: document.getElementById("graph-popover-name") as HTMLElement | null,
+    graphPopoverVersion: document.getElementById("graph-popover-version") as HTMLElement | null,
+    graphPopoverLicense: document.getElementById("graph-popover-license") as HTMLElement | null,
+    graphPopoverVulns: document.getElementById("graph-popover-vulns") as HTMLElement | null,
+    graphPopoverAmplification: document.getElementById("graph-popover-amplification") as HTMLElement | null,
+    graphOpenList: document.getElementById("graph-open-list") as HTMLButtonElement | null,
+    reportFooter: document.querySelector(".report-footer") as HTMLElement | null,
   };
 
   // Sorting state - "name" is the default (Package name ascending)
   let sortColumn = "name";
   let sortAscending = true;
+  let currentView: "list" | "graph" = "list";
+  let graphView: GraphViewHandle | null = null;
+  let graphInitialized = false;
 
 
   // Theme handling
+  document.documentElement.setAttribute("data-theme", "dark");
   const savedTheme = localStorage.getItem("dependency-radar-theme");
   if (savedTheme === "light") {
     document.documentElement.classList.add("light");
     controls.themeSwitch.classList.add("light");
+    document.documentElement.setAttribute("data-theme", "light");
+  } else {
+    document.documentElement.classList.remove("light");
+    controls.themeSwitch.classList.remove("light");
+    document.documentElement.setAttribute("data-theme", "dark");
   }
 
   controls.themeSwitch.addEventListener("click", () => {
     document.documentElement.classList.toggle("light");
     controls.themeSwitch.classList.toggle("light");
     const isLight = document.documentElement.classList.contains("light");
+    document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
     localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
+    graphView?.requestRender();
   });
 
   const mobileFilterQuery = window.matchMedia("(max-width: 768px)");
@@ -2051,6 +2083,102 @@ async function init(): Promise<void> {
     return resolveDepKeyByName(parsed.name);
   }
 
+  function hasGraphDomNodes(): boolean {
+    return Boolean(
+      controls.graphWorkspaceSelect &&
+      controls.graphWorkspaceWrap &&
+      controls.graphControls &&
+      controls.graphCanvas &&
+      controls.graphCanvasShell &&
+      controls.graphPopover &&
+      controls.graphPopoverName &&
+      controls.graphPopoverVersion &&
+      controls.graphPopoverLicense &&
+      controls.graphPopoverVulns &&
+      controls.graphPopoverAmplification &&
+      controls.graphOpenList,
+    );
+  }
+
+  function setActiveView(view: "list" | "graph"): void {
+    if (!controls.listViewPanel || !controls.graphViewPanel) {
+      console.warn("Dependency Radar: view panels are missing from the report DOM.");
+      return;
+    }
+    const isList = view === "list";
+    if (!isList && !hasGraphDomNodes()) {
+      console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+      return;
+    }
+
+    currentView = view;
+    controls.listViewPanel.classList.toggle("active", isList);
+    controls.graphViewPanel.classList.toggle("active", !isList);
+    controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
+    controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
+    if (controls.viewGraphButton) {
+      controls.viewGraphButton.style.display = isList ? "" : "none";
+    }
+    if (controls.graphBackButton) {
+      controls.graphBackButton.style.display = isList ? "none" : "";
+    }
+    controls.reportFooter?.classList.toggle("hidden", !isList);
+    document.body.classList.toggle("graph-mode", !isList);
+    if (isList) {
+      graphView?.setActive(false);
+      return;
+    }
+    if (!graphInitialized) {
+      graphView = initGraphView({
+        report,
+        knownDepKeys,
+        resolveDepKey,
+        workspaceSelect: controls.graphWorkspaceSelect,
+        workspaceWrap: controls.graphWorkspaceWrap,
+        controlsRoot: controls.graphControls,
+        canvas: controls.graphCanvas,
+        canvasHost: controls.graphCanvasShell,
+        popover: controls.graphPopover,
+        popoverName: controls.graphPopoverName,
+        popoverVersion: controls.graphPopoverVersion,
+        popoverLicense: controls.graphPopoverLicense,
+        popoverVulns: controls.graphPopoverVulns,
+        popoverAmplification: controls.graphPopoverAmplification,
+        popoverOpenButton: controls.graphOpenList,
+        onOpenList: (slug: string) => {
+          openListFromGraph(slug);
+        },
+      });
+      graphView.initGraphView();
+      graphInitialized = true;
+    }
+    graphView?.setActive(true);
+    graphView?.requestRender();
+  }
+
+  function openListFromGraph(slug: string): void {
+    setActiveView("list");
+    let target = document.getElementById(getDepDomId(slug));
+    if (!target && depByKey.has(slug)) {
+      forcedVisibleDepKeys.add(slug);
+      renderList();
+      target = document.getElementById(getDepDomId(slug));
+    }
+    if (!target) return;
+
+    if (target instanceof HTMLDetailsElement) {
+      const depKey = target.dataset.depKey;
+      if (depKey) openDepKeys.add(depKey);
+      if (!target.open) target.open = true;
+      ensureDepDetailsRendered(target);
+    }
+    target.classList.add("dep-list-highlight");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      target?.classList.remove("dep-list-highlight");
+    }, 2000);
+  }
+
   // Event listeners
   const filterControls = [
     controls.search,
@@ -2073,6 +2201,14 @@ async function init(): Promise<void> {
     if (!ctrl) return;
     ctrl.addEventListener("input", handleFilterControlChange);
     ctrl.addEventListener("change", handleFilterControlChange);
+  });
+
+  controls.viewGraphButton?.addEventListener("click", () => {
+    setActiveView("graph");
+  });
+
+  controls.graphBackButton?.addEventListener("click", () => {
+    setActiveView("list");
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
@@ -2151,6 +2287,7 @@ async function init(): Promise<void> {
   // Initial render
   updateColumnHeaders();
   renderList();
+  setActiveView("list");
 }
 
 

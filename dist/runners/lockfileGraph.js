@@ -565,11 +565,32 @@ function resolveNpmPackagePath(fromPackageKey, depName, packages) {
     const rootCandidate = `node_modules/${depName}`;
     return rootCandidate in packages ? rootCandidate : undefined;
 }
+/**
+ * Resolve an npm lockfile package key to the absolute filesystem path where that package would be installed under a given lock directory.
+ *
+ * @param packageKey - The package key from a lockfile (e.g., a normalized/package-relative path or package identifier).
+ * @param lockDir - The lockfile directory to treat as the installation root.
+ * @returns The absolute path inside `lockDir` corresponding to `packageKey` if it resolves to a location contained within `lockDir`, `undefined` otherwise.
+ */
 function resolveNpmInstalledPath(packageKey, lockDir) {
     const normalizedKey = normalizeLockPackageKey(packageKey);
     if (!normalizedKey)
         return undefined;
-    return path_1.default.join(lockDir, ...normalizedKey.split('/'));
+    const segments = normalizedKey.split('/').filter(Boolean);
+    if (segments.length === 0)
+        return undefined;
+    for (const segment of segments) {
+        if (segment === '.' || segment === '..')
+            return undefined;
+        if (path_1.default.isAbsolute(segment))
+            return undefined;
+    }
+    const lockRoot = path_1.default.resolve(lockDir);
+    const resolved = path_1.default.resolve(lockRoot, ...segments);
+    const relative = path_1.default.relative(lockRoot, resolved);
+    if (relative.startsWith('..') || path_1.default.isAbsolute(relative))
+        return undefined;
+    return resolved;
 }
 /**
  * Normalize a legacy npm lockfile node into a ResolvedNode.

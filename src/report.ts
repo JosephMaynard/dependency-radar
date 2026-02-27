@@ -198,6 +198,16 @@ ${safeCssContent}
             </svg>
             <input type="search" id="search" placeholder="Search packages..." />
           </div>
+          <div class="view-switch" id="view-switch">
+            <button
+              type="button"
+              class="view-switch-btn"
+              id="view-graph-btn"
+              data-view="graph"
+            >
+              Graph View
+            </button>
+          </div>
           <button
             type="button"
             class="filters-toggle"
@@ -318,7 +328,41 @@ ${safeCssContent}
   
   <!-- Main Content -->
   <main class="main-content">
-    <div id="dependency-list" class="dependency-grid"></div>
+    <section class="view-panel active" id="list-view" data-view="list" aria-hidden="false">
+      <div id="dependency-list" class="dependency-grid"></div>
+    </section>
+    <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
+      <div class="graph-canvas-shell" id="graph-canvas-shell">
+        <canvas id="graph-canvas"></canvas>
+        <button type="button" class="graph-overlay graph-back-btn" id="graph-back-btn">Back to List</button>
+        <div class="graph-overlay graph-overlay-left" id="graph-workspace-wrap">
+          <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
+          <select id="graph-workspace" class="graph-workspace-select"></select>
+        </div>
+        <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
+          <div class="zoom-controls">
+            <button type="button" class="graph-control-btn" data-action="zoom-in" aria-label="Zoom In">+</button>
+            <button type="button" class="graph-control-btn" data-action="zoom-out" aria-label="Zoom Out">−</button>
+          </div>
+          <div class="dpad">
+            <button type="button" class="graph-control-btn up" data-action="pan-up" aria-label="Pan Up">▲</button>
+            <button type="button" class="graph-control-btn left" data-action="pan-left" aria-label="Pan Left">◀</button>
+            <div class="center-spacer" aria-hidden="true"></div>
+            <button type="button" class="graph-control-btn right" data-action="pan-right" aria-label="Pan Right">▶</button>
+            <button type="button" class="graph-control-btn down" data-action="pan-down" aria-label="Pan Down">▼</button>
+          </div>
+          <button type="button" class="graph-control-btn reset-btn" data-action="reset">reset</button>
+        </div>
+        <div class="graph-popover" id="graph-popover" hidden>
+          <div class="graph-popover-name" id="graph-popover-name"></div>
+          <div class="graph-popover-meta" id="graph-popover-version"></div>
+          <div class="graph-popover-meta" id="graph-popover-license"></div>
+          <div class="graph-popover-meta" id="graph-popover-vulns"></div>
+          <div class="graph-popover-meta" id="graph-popover-amplification"></div>
+          <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="report-footer">
