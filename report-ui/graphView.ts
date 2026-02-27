@@ -513,8 +513,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const included = new Set<string>();
     const queue = [...roots];
-    while (queue.length > 0) {
-      const slug = queue.shift();
+    let queueIndex = 0;
+    while (queueIndex < queue.length) {
+      const slug = queue[queueIndex++];
       if (!slug) continue;
       if (included.has(slug)) continue;
       if (!dataset.dependencies[slug]) continue;

@@ -1680,23 +1680,23 @@ async function init(): Promise<void> {
     filterControls: document.getElementById("filter-controls") as HTMLElement,
     columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
     packageHeader: document.getElementById("package-header") as HTMLButtonElement,
-    viewGraphButton: document.getElementById("view-graph-btn") as HTMLButtonElement,
-    graphBackButton: document.getElementById("graph-back-btn") as HTMLButtonElement,
-    listViewPanel: document.getElementById("list-view") as HTMLElement,
-    graphViewPanel: document.getElementById("graph-view") as HTMLElement,
-    graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement,
-    graphWorkspaceWrap: document.getElementById("graph-workspace-wrap") as HTMLElement,
-    graphControls: document.getElementById("graph-controls") as HTMLElement,
-    graphCanvas: document.getElementById("graph-canvas") as HTMLCanvasElement,
-    graphCanvasShell: document.getElementById("graph-canvas-shell") as HTMLElement,
-    graphPopover: document.getElementById("graph-popover") as HTMLElement,
-    graphPopoverName: document.getElementById("graph-popover-name") as HTMLElement,
-    graphPopoverVersion: document.getElementById("graph-popover-version") as HTMLElement,
-    graphPopoverLicense: document.getElementById("graph-popover-license") as HTMLElement,
-    graphPopoverVulns: document.getElementById("graph-popover-vulns") as HTMLElement,
-    graphPopoverAmplification: document.getElementById("graph-popover-amplification") as HTMLElement,
-    graphOpenList: document.getElementById("graph-open-list") as HTMLButtonElement,
-    reportFooter: document.querySelector(".report-footer") as HTMLElement,
+    viewGraphButton: document.getElementById("view-graph-btn") as HTMLButtonElement | null,
+    graphBackButton: document.getElementById("graph-back-btn") as HTMLButtonElement | null,
+    listViewPanel: document.getElementById("list-view") as HTMLElement | null,
+    graphViewPanel: document.getElementById("graph-view") as HTMLElement | null,
+    graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement | null,
+    graphWorkspaceWrap: document.getElementById("graph-workspace-wrap") as HTMLElement | null,
+    graphControls: document.getElementById("graph-controls") as HTMLElement | null,
+    graphCanvas: document.getElementById("graph-canvas") as HTMLCanvasElement | null,
+    graphCanvasShell: document.getElementById("graph-canvas-shell") as HTMLElement | null,
+    graphPopover: document.getElementById("graph-popover") as HTMLElement | null,
+    graphPopoverName: document.getElementById("graph-popover-name") as HTMLElement | null,
+    graphPopoverVersion: document.getElementById("graph-popover-version") as HTMLElement | null,
+    graphPopoverLicense: document.getElementById("graph-popover-license") as HTMLElement | null,
+    graphPopoverVulns: document.getElementById("graph-popover-vulns") as HTMLElement | null,
+    graphPopoverAmplification: document.getElementById("graph-popover-amplification") as HTMLElement | null,
+    graphOpenList: document.getElementById("graph-open-list") as HTMLButtonElement | null,
+    reportFooter: document.querySelector(".report-footer") as HTMLElement | null,
   };
 
   // Sorting state - "name" is the default (Package name ascending)
@@ -2084,21 +2084,46 @@ async function init(): Promise<void> {
   }
 
   function setActiveView(view: "list" | "graph"): void {
+    if (!controls.listViewPanel || !controls.graphViewPanel) {
+      console.warn("Dependency Radar: view panels are missing from the report DOM.");
+      return;
+    }
     currentView = view;
     const isList = view === "list";
     controls.listViewPanel.classList.toggle("active", isList);
     controls.graphViewPanel.classList.toggle("active", !isList);
     controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
     controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
-    controls.viewGraphButton.style.display = isList ? "" : "none";
-    controls.graphBackButton.style.display = isList ? "none" : "";
-    controls.reportFooter.classList.toggle("hidden", !isList);
+    if (controls.viewGraphButton) {
+      controls.viewGraphButton.style.display = isList ? "" : "none";
+    }
+    if (controls.graphBackButton) {
+      controls.graphBackButton.style.display = isList ? "none" : "";
+    }
+    controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
     if (isList) {
       graphView?.setActive(false);
       return;
     }
     if (!graphInitialized) {
+      if (
+        !controls.graphWorkspaceSelect ||
+        !controls.graphWorkspaceWrap ||
+        !controls.graphControls ||
+        !controls.graphCanvas ||
+        !controls.graphCanvasShell ||
+        !controls.graphPopover ||
+        !controls.graphPopoverName ||
+        !controls.graphPopoverVersion ||
+        !controls.graphPopoverLicense ||
+        !controls.graphPopoverVulns ||
+        !controls.graphPopoverAmplification ||
+        !controls.graphOpenList
+      ) {
+        console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+        return;
+      }
       graphView = initGraphView({
         report,
         knownDepKeys,
@@ -2165,7 +2190,6 @@ async function init(): Promise<void> {
     // User-driven filtering should return to normal behavior.
     forcedVisibleDepKeys.clear();
     renderList();
-    graphView?.requestRender();
   };
 
   filterControls.forEach((ctrl) => {
@@ -2174,11 +2198,11 @@ async function init(): Promise<void> {
     ctrl.addEventListener("change", handleFilterControlChange);
   });
 
-  controls.viewGraphButton.addEventListener("click", () => {
+  controls.viewGraphButton?.addEventListener("click", () => {
     setActiveView("graph");
   });
 
-  controls.graphBackButton.addEventListener("click", () => {
+  controls.graphBackButton?.addEventListener("click", () => {
     setActiveView("list");
   });
 
