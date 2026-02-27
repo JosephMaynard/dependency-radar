@@ -2105,8 +2105,13 @@ async function init(): Promise<void> {
       console.warn("Dependency Radar: view panels are missing from the report DOM.");
       return;
     }
-    currentView = view;
     const isList = view === "list";
+    if (!isList && !hasGraphDomNodes()) {
+      console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+      return;
+    }
+
+    currentView = view;
     controls.listViewPanel.classList.toggle("active", isList);
     controls.graphViewPanel.classList.toggle("active", !isList);
     controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
@@ -2124,10 +2129,6 @@ async function init(): Promise<void> {
       return;
     }
     if (!graphInitialized) {
-      if (!hasGraphDomNodes()) {
-        console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
-        return;
-      }
       graphView = initGraphView({
         report,
         knownDepKeys,

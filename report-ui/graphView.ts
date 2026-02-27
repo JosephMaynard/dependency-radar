@@ -510,7 +510,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       Object.keys(dataset.dependencies)
         .filter((slug) => (parentsBySlug.get(slug) || []).length === 0)
         .slice(0, 40)
-        .forEach((slug) => roots.add(slug));
+        .forEach((slug) => {
+          roots.add(slug);
+        });
     }
 
     const included = new Set<string>();
@@ -717,7 +719,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           return nodeA.ref.name.localeCompare(nodeB.ref.name);
         });
       }
-      layer.forEach((slug, index) => layerOrder.set(slug, index));
+      layer.forEach((slug, index) => {
+        layerOrder.set(slug, index);
+      });
     });
 
     const maxRows = graph.layers.reduce((max, layer) => Math.max(max, layer.length), 1);
@@ -769,8 +773,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const descendants = collectDescendants(currentGraph, slug);
 
     focusNodes = new Set([slug]);
-    ancestors.forEach((nodeSlug) => focusNodes.add(nodeSlug));
-    descendants.forEach((nodeSlug) => focusNodes.add(nodeSlug));
+    ancestors.forEach((nodeSlug) => {
+      focusNodes.add(nodeSlug);
+    });
+    descendants.forEach((nodeSlug) => {
+      focusNodes.add(nodeSlug);
+    });
 
     focusEdges = new Set<string>();
 
@@ -806,8 +814,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     focusPushNodes = new Set(focusNodes);
     const selected = currentGraph.nodes.get(slug)!;
-    selected.parents.forEach((nodeSlug) => focusPushNodes.add(nodeSlug));
-    selected.children.forEach((nodeSlug) => focusPushNodes.add(nodeSlug));
+    selected.parents.forEach((nodeSlug) => {
+      focusPushNodes.add(nodeSlug);
+    });
+    selected.children.forEach((nodeSlug) => {
+      focusPushNodes.add(nodeSlug);
+    });
 
     dirty = true;
     requestRender();
@@ -869,13 +881,21 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const ancestors = collectAncestors(currentGraph, slug);
     const descendants = collectDescendants(currentGraph, slug);
     hoverNodes = new Set([slug]);
-    ancestors.forEach((nodeSlug) => hoverNodes.add(nodeSlug));
-    descendants.forEach((nodeSlug) => hoverNodes.add(nodeSlug));
+    ancestors.forEach((nodeSlug) => {
+      hoverNodes.add(nodeSlug);
+    });
+    descendants.forEach((nodeSlug) => {
+      hoverNodes.add(nodeSlug);
+    });
 
     const node = currentGraph.nodes.get(slug);
     if (node) {
-      node.parents.forEach((parent) => hoverNodes.add(parent));
-      node.children.forEach((child) => hoverNodes.add(child));
+      node.parents.forEach((parent) => {
+        hoverNodes.add(parent);
+      });
+      node.children.forEach((child) => {
+        hoverNodes.add(child);
+      });
     }
 
     currentGraph.edges.forEach((edge) => {
@@ -1118,13 +1138,19 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (dirty || moving) {
       renderGraph();
       dirty = false;
+      if (active && (dirty || moving)) {
+        frameId = window.requestAnimationFrame(tick);
+      } else {
+        frameId = 0;
+      }
+      return;
     }
 
-    frameId = window.requestAnimationFrame(tick);
+    frameId = 0;
   }
 
   function renderLoop(): void {
-    if (frameId) return;
+    if (!active || frameId || !dirty) return;
     frameId = window.requestAnimationFrame(tick);
   }
 
