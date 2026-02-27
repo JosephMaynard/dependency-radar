@@ -114,9 +114,7 @@ const MAX_ZOOM = 2.8;
 const EDGE_CURVE = 0.2;
 
 function clamp(value: number, min: number, max: number): number {
-  if (value < min) return min;
-  if (value > max) return max;
-  return value;
+  return Math.min(max, Math.max(min, value));
 }
 
 function getCssColor(name: string): string {
@@ -400,8 +398,22 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   };
 
   const context = options.canvas.getContext('2d');
-  if (!context) {
-    throw new Error('Unable to initialize graph canvas context');
+  const hasCanvas = Boolean(context);
+  let interactionsBound = false;
+  let fallbackShown = false;
+
+  function showCanvasFallback(): void {
+    if (fallbackShown) return;
+    fallbackShown = true;
+    console.warn('Dependency Radar: unable to initialize 2D canvas; graph rendering disabled.');
+    options.controlsRoot.classList.add('hidden');
+    options.workspaceWrap.classList.add('hidden');
+    options.canvas.style.display = 'none';
+    const fallback = document.createElement('div');
+    fallback.className = 'empty-state';
+    fallback.innerHTML =
+      '<div class="empty-state-text">Graph view is unavailable in this browser context.</div>';
+    options.canvasHost.appendChild(fallback);
   }
 
   function worldX(screenX: number): number {
@@ -655,8 +667,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     graph.layers.forEach((layer, depth) => {
       if (depth === 0) {
         layer.sort((a, b) => {
-          const nodeA = graph.nodes.get(a)!;
-          const nodeB = graph.nodes.get(b)!;
+          const nodeA = graph.nodes.get(a);
+          const nodeB = graph.nodes.get(b);
+          if (!nodeA && !nodeB) return 0;
+          if (!nodeA) return 1;
+          if (!nodeB) return -1;
           if (nodeA.amplification !== nodeB.amplification) {
             return nodeB.amplification - nodeA.amplification;
           }
@@ -668,8 +683,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         });
       } else {
         layer.sort((a, b) => {
-          const nodeA = graph.nodes.get(a)!;
-          const nodeB = graph.nodes.get(b)!;
+          const nodeA = graph.nodes.get(a);
+          const nodeB = graph.nodes.get(b);
+          if (!nodeA && !nodeB) return 0;
+          if (!nodeA) return 1;
+          if (!nodeB) return -1;
           const baryA = (() => {
             let count = 0;
             let sum = 0;
@@ -946,6 +964,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function renderGraph(): void {
+    if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
     if (!currentGraph) return;
@@ -1181,6 +1200,33 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     applyZoom(zoom * factor, x, y);
   }
 
+  function handleCanvasMouseLeave(): void {
+    updateHover(null);
+  }
+
+  function bindInteractionListeners(): void {
+    if (interactionsBound || !hasCanvas) return;
+    options.canvas.addEventListener('mousedown', handleCanvasMouseDown);
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    options.canvas.addEventListener('wheel', handleWheel, { passive: false });
+    options.canvas.addEventListener('mouseleave', handleCanvasMouseLeave);
+    interactionsBound = true;
+  }
+
+  function unbindInteractionListeners(): void {
+    if (!interactionsBound) return;
+    options.canvas.removeEventListener('mousedown', handleCanvasMouseDown);
+    window.removeEventListener('mousemove', handleWindowMouseMove);
+    window.removeEventListener('mouseup', handleWindowMouseUp);
+    options.canvas.removeEventListener('wheel', handleWheel);
+    options.canvas.removeEventListener('mouseleave', handleCanvasMouseLeave);
+    options.canvas.classList.remove('is-panning');
+    panState.down = false;
+    panState.moved = false;
+    interactionsBound = false;
+  }
+
   function setupControls(): void {
     options.controlsRoot.addEventListener('click', (event) => {
       const target = event.target as HTMLElement;
@@ -1269,12 +1315,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       switchWorkspace(options.workspaceSelect.value);
     });
 
-    options.canvas.addEventListener('mousedown', handleCanvasMouseDown);
-    window.addEventListener('mousemove', handleWindowMouseMove);
-    window.addEventListener('mouseup', handleWindowMouseUp);
-    options.canvas.addEventListener('wheel', handleWheel, { passive: false });
-    options.canvas.addEventListener('mouseleave', () => updateHover(null));
-
     const observer = new MutationObserver(() => requestRender());
     observer.observe(document.documentElement, {
       attributes: true,
@@ -1303,6 +1343,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
 
     setupControls();
+    if (!hasCanvas) {
+      showCanvasFallback();
+      return;
+    }
     updateCanvasSize();
     switchWorkspace(currentWorkspace);
   }
@@ -1310,6 +1354,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function setActive(next: boolean): void {
     active = next;
     if (active) {
+      if (!hasCanvas) {
+        showCanvasFallback();
+        return;
+      }
+      bindInteractionListeners();
       updateCanvasSize();
       if (width > 1 && height > 1) {
         updateFitMetrics();
@@ -1319,6 +1368,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       requestRender();
       return;
     }
+    unbindInteractionListeners();
     if (frameId) {
       window.cancelAnimationFrame(frameId);
       frameId = 0;

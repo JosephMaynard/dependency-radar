@@ -670,7 +670,7 @@ function parseDepKey(depKey: string): { name: string; version: string } | null {
 }
 
 function getDepDomId(depKey: string): string {
-  return "dep-" + depKey;
+  return `dep-${depKey}`;
 }
 
 function getDepKeysByNameIndex(linkableKeys: Set<string>): DepKeysByNameIndex {
