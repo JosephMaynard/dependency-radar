@@ -2083,6 +2083,23 @@ async function init(): Promise<void> {
     return resolveDepKeyByName(parsed.name);
   }
 
+  function hasGraphDomNodes(): boolean {
+    return Boolean(
+      controls.graphWorkspaceSelect &&
+      controls.graphWorkspaceWrap &&
+      controls.graphControls &&
+      controls.graphCanvas &&
+      controls.graphCanvasShell &&
+      controls.graphPopover &&
+      controls.graphPopoverName &&
+      controls.graphPopoverVersion &&
+      controls.graphPopoverLicense &&
+      controls.graphPopoverVulns &&
+      controls.graphPopoverAmplification &&
+      controls.graphOpenList,
+    );
+  }
+
   function setActiveView(view: "list" | "graph"): void {
     if (!controls.listViewPanel || !controls.graphViewPanel) {
       console.warn("Dependency Radar: view panels are missing from the report DOM.");
@@ -2107,20 +2124,7 @@ async function init(): Promise<void> {
       return;
     }
     if (!graphInitialized) {
-      if (
-        !controls.graphWorkspaceSelect ||
-        !controls.graphWorkspaceWrap ||
-        !controls.graphControls ||
-        !controls.graphCanvas ||
-        !controls.graphCanvasShell ||
-        !controls.graphPopover ||
-        !controls.graphPopoverName ||
-        !controls.graphPopoverVersion ||
-        !controls.graphPopoverLicense ||
-        !controls.graphPopoverVulns ||
-        !controls.graphPopoverAmplification ||
-        !controls.graphOpenList
-      ) {
+      if (!hasGraphDomNodes()) {
         console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
         return;
       }

@@ -411,8 +411,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     options.canvas.style.display = 'none';
     const fallback = document.createElement('div');
     fallback.className = 'empty-state';
-    fallback.innerHTML =
-      '<div class="empty-state-text">Graph view is unavailable in this browser context.</div>';
+    const text = document.createElement('div');
+    text.className = 'empty-state-text';
+    text.textContent = 'Graph view is unavailable in this browser context.';
+    fallback.appendChild(text);
     options.canvasHost.appendChild(fallback);
   }
 
@@ -1193,6 +1195,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function handleWheel(event: WheelEvent): void {
+    if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
     const rect = options.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -1205,6 +1208,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     updateHover(null);
   }
 
+  function handleDocumentMouseDown(event: MouseEvent): void {
+    if (!active) return;
+    const target = event.target as Node;
+    if (options.popover.hidden) return;
+    if (options.popover.contains(target)) return;
+    if (options.canvasHost.contains(target)) return;
+    hidePopover();
+  }
+
   function bindInteractionListeners(): void {
     if (interactionsBound || !hasCanvas) return;
     options.canvas.addEventListener('mousedown', handleCanvasMouseDown);
@@ -1212,6 +1224,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     window.addEventListener('mouseup', handleWindowMouseUp);
     options.canvas.addEventListener('wheel', handleWheel, { passive: false });
     options.canvas.addEventListener('mouseleave', handleCanvasMouseLeave);
+    document.addEventListener('mousedown', handleDocumentMouseDown);
     interactionsBound = true;
   }
 
@@ -1222,6 +1235,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     window.removeEventListener('mouseup', handleWindowMouseUp);
     options.canvas.removeEventListener('wheel', handleWheel);
     options.canvas.removeEventListener('mouseleave', handleCanvasMouseLeave);
+    document.removeEventListener('mousedown', handleDocumentMouseDown);
     options.canvas.classList.remove('is-panning');
     panState.down = false;
     panState.moved = false;
@@ -1272,15 +1286,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     options.popoverOpenButton.addEventListener('click', () => {
       if (!popoverSlug) return;
       options.onOpenList(popoverSlug);
-    });
-
-    document.addEventListener('mousedown', (event) => {
-      if (!active) return;
-      const target = event.target as Node;
-      if (options.popover.hidden) return;
-      if (options.popover.contains(target)) return;
-      if (options.canvasHost.contains(target)) return;
-      hidePopover();
     });
   }
 
