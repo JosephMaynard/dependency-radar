@@ -84,6 +84,18 @@ function buildOutdatedCommand(tool) {
         lockFiles: ["package-lock.json", "npm-shrinkwrap.json"],
     };
 }
+/**
+ * Run the package manager's `outdated` command for a project, normalize the output, and optionally persist results to disk.
+ *
+ * Executes the appropriate `outdated` command for `npm`, `pnpm`, or `yarn` in the repository lockfile directory (if found) and normalizes the tool-specific output into a consistent map of package names to `{ current, latest, wanted }`.
+ *
+ * @param projectPath - Path to the project root where the command should be executed if no lockfile directory is found
+ * @param tempDir - Directory used to write the tool-specific output file when persistence is enabled
+ * @param tool - Package manager to run (`"npm" | "pnpm" | "yarn"`)
+ * @param options - Optional settings
+ * @param options.persistToDisk - When `false`, do not write any output file to `tempDir`; defaults to `true`
+ * @returns A ToolResult containing `data` with the normalized outdated mapping on success, or `error` on failure. When persistence is enabled the result includes `file` with the path to the written JSON file.
+ */
 async function runPackageOutdated(projectPath, tempDir, tool, options = {}) {
     const persistToDisk = options.persistToDisk !== false;
     const targetFile = path_1.default.join(tempDir, `${tool}-outdated.json`);

@@ -60,6 +60,12 @@ async function runNpmLs(projectPath, tempDir, tool = 'npm', options = {}) {
         };
     }
 }
+/**
+ * Selects the package-manager-specific list command arguments and the corresponding normalizer.
+ *
+ * @param tool - The package manager identifier ('npm', 'pnpm', or 'yarn') used to choose arguments and normalizer.
+ * @returns An object with `args`, the CLI arguments to run the tool's list command, and `normalize`, a function that converts the tool's parsed output into a `ResolvedTree` or `undefined` when parsing/normalization fails.
+ */
 function buildLsCommand(tool) {
     if (tool === 'yarn') {
         return {
@@ -72,6 +78,16 @@ function buildLsCommand(tool) {
         normalize: normalizeNpmTree
     };
 }
+/**
+ * Attempt to build a normalized dependency tree for a pnpm workspace by running `pnpm list` with progressively lower depths until a parseable result is produced.
+ *
+ * Tries multiple depth levels, detects out-of-memory conditions, and optionally persists the normalized tree or diagnostic JSON to `targetFile` when `options.persistToDisk` is not explicitly `false`.
+ *
+ * @param projectPath - Filesystem path of the project/workspace to inspect
+ * @param targetFile - Path where the normalized tree or diagnostics will be written when persistence is enabled
+ * @param options - Progress and persistence options; when `options.persistToDisk` is omitted or `true`, successful results include `file: targetFile` and diagnostic output is written on failure
+ * @returns On success: an object with `ok: true` and `data` containing the normalized dependency tree (and `file` when persisted). On failure: an object with `ok: false` and an `error` message describing the failure (and `file` when diagnostics were persisted).
+ */
 async function runPnpmLsWithFallback(projectPath, targetFile, options) {
     const persistToDisk = options.persistToDisk !== false;
     const installState = createPnpmInstallState(projectPath);
@@ -464,6 +480,12 @@ function normalizeYarnNode(node) {
     }
     return { name: parsed.name, node: out };
 }
+/**
+ * Parse a Yarn node label into a package name and version.
+ *
+ * @param label - The Yarn label, typically in the form `name@version` (the version may be prefixed with `npm:`).
+ * @returns An object with `name` containing the package name and `version` containing the package version; if the label or either part is missing, that field is `"unknown"`.
+ */
 function splitYarnLabel(label) {
     if (!label)
         return { name: 'unknown', version: 'unknown' };

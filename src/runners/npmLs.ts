@@ -108,6 +108,7 @@ function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normal
  * @param targetFile - Path where the normalized tree or diagnostics will be written when persistence is enabled
  * @param options - Progress and persistence options; when `options.persistToDisk` is omitted or `true`, successful results include `file: targetFile` and diagnostic output is written on failure
  * @returns On success: an object with `ok: true` and `data` containing the normalized dependency tree (and `file` when persisted). On failure: an object with `ok: false` and an `error` message describing the failure (and `file` when diagnostics were persisted).
+ */
 async function runPnpmLsWithFallback(projectPath: string, targetFile: string, options: LsProgressOptions): Promise<ToolResult<any>> {
   const persistToDisk = options.persistToDisk !== false;
   const installState = createPnpmInstallState(projectPath);

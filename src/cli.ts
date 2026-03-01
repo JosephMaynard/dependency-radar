@@ -1337,6 +1337,7 @@ function buildCliSummary(
       }
     }
     // Count "unused" only when import graph collection succeeded for all packages.
+    // `importUsage` is an optional object (or undefined), not a boolean/string state.
     // Otherwise, missing importUsage can mean "unknown" rather than "unused".
     if (
       options.importGraphComplete &&
@@ -1409,7 +1410,7 @@ function printCliSummary(summary: CliSummary): void {
     `${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.reachableVulnerablePackages} reachable)`,
   );
   console.log(`${bullet} Unused installed deps: ${summary.unusedInstalledDeps}`);
-  console.log(`${bullet} Licence mismatches: ${summary.licenseMismatches}`);
+  console.log(`${bullet} License mismatches: ${summary.licenseMismatches}`);
   console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
   const blockerDetails: string[] = [];
   if (summary.majorUpgradeBlockerBreakdown.peerDependency > 0) {
@@ -1642,7 +1643,7 @@ async function run(): Promise<void> {
               pkgTempDir,
               scanManager,
               yarnVersion,
-              shouldWriteArtifacts,
+              { persistToDisk: shouldWriteArtifacts },
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )

@@ -61,7 +61,18 @@ function buildAuditCommand(tool, yarnVersion) {
         lockFiles: ["package-lock.json", "npm-shrinkwrap.json"],
     };
 }
-async function runPackageAudit(projectPath, tempDir, tool, yarnVersion, persistToDisk = true) {
+/**
+ * Run a dependency audit using the specified package manager, normalize the audit output, and optionally write the result to disk.
+ *
+ * @param projectPath - Path to the project whose dependencies should be audited
+ * @param tempDir - Directory where the audit output file may be written
+ * @param tool - Package manager to use: `"npm"`, `"pnpm"`, or `"yarn"`
+ * @param yarnVersion - Optional Yarn version string used to select the correct Yarn audit command
+ * @param options - Optional persistence settings; when `options.persistToDisk` is omitted or `true`, write audit output/diagnostics to `${tempDir}/${tool}-audit.json` and include `file` in the result
+ * @returns An object with `ok: true` and `data` containing the normalized audit output (and `file` when persisted) on success; otherwise `ok: false` and `error` with an optional `file` when persisted
+ */
+async function runPackageAudit(projectPath, tempDir, tool, yarnVersion, options = {}) {
+    const persistToDisk = options.persistToDisk !== false;
     const targetFile = path_1.default.join(tempDir, `${tool}-audit.json`);
     try {
         const { cmd, args, lockFiles } = buildAuditCommand(tool, yarnVersion);

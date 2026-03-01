@@ -78,7 +78,7 @@ function buildAuditCommand(
  * @param tempDir - Directory where the audit output file may be written
  * @param tool - Package manager to use: `"npm"`, `"pnpm"`, or `"yarn"`
  * @param yarnVersion - Optional Yarn version string used to select the correct Yarn audit command
- * @param persistToDisk - If true, write audit output or diagnostics to `${tempDir}/${tool}-audit.json` and include `file` in the result
+ * @param options - Optional persistence settings; when `options.persistToDisk` is omitted or `true`, write audit output/diagnostics to `${tempDir}/${tool}-audit.json` and include `file` in the result
  * @returns An object with `ok: true` and `data` containing the normalized audit output (and `file` when persisted) on success; otherwise `ok: false` and `error` with an optional `file` when persisted
  */
 export async function runPackageAudit(
@@ -86,8 +86,9 @@ export async function runPackageAudit(
   tempDir: string,
   tool: "npm" | "pnpm" | "yarn",
   yarnVersion?: string,
-  persistToDisk = true,
+  options: { persistToDisk?: boolean } = {},
 ): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, `${tool}-audit.json`);
   try {
     const { cmd, args, lockFiles } = buildAuditCommand(tool, yarnVersion);
