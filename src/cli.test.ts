@@ -62,4 +62,54 @@ describe('cli summary output', () => {
       )).toBe(true);
     },
   );
+
+  it(
+    'exits non-zero and prints policy violations when --fail-on is triggered',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const tsNodeBin = path.join(
+        repoRoot,
+        'node_modules',
+        'ts-node',
+        'dist',
+        'bin.js',
+      );
+      const cliPath = path.join(repoRoot, 'src', 'cli.ts');
+      const fixtureProject = path.join(
+        repoRoot,
+        'test-fixtures',
+        'license-edge-cases',
+      );
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          tsNodeBin,
+          cliPath,
+          'scan',
+          '--project',
+          fixtureProject,
+          '--offline',
+          '--no-report',
+          '--fail-on',
+          'licence-mismatch',
+        ],
+        {
+          cwd: repoRoot,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            NO_COLOR: '1',
+          },
+        },
+      );
+
+      expect(result.status).not.toBe(0);
+
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Policy violations detected');
+      expect(output).toContain('licence mismatch');
+    },
+  );
 });
