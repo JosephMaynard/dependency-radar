@@ -1069,6 +1069,13 @@ function buildCliSummary(aggregated, options) {
     let unusedInstalledDeps = 0;
     let licenseMismatches = 0;
     let majorUpgradeBlockers = 0;
+    const majorUpgradeBlockerBreakdown = {
+        peerDependency: 0,
+        nodeEngine: 0,
+        deprecated: 0,
+        nativeBindings: 0,
+        installScripts: 0,
+    };
     const deps = Object.values(aggregated.dependencies || {});
     for (const dep of deps) {
         const vulnTotal = (dep.security.summary.critical || 0) +
@@ -1092,8 +1099,24 @@ function buildCliSummary(aggregated, options) {
         if (dep.compliance.license.status === "mismatch") {
             licenseMismatches += 1;
         }
-        if (dep.upgrade.blocksNodeMajor) {
+        const blockers = dep.upgrade.blockers || [];
+        if (blockers.length > 0) {
             majorUpgradeBlockers += 1;
+        }
+        if (blockers.includes("peerDependency")) {
+            majorUpgradeBlockerBreakdown.peerDependency += 1;
+        }
+        if (blockers.includes("nodeEngine")) {
+            majorUpgradeBlockerBreakdown.nodeEngine += 1;
+        }
+        if (blockers.includes("deprecated")) {
+            majorUpgradeBlockerBreakdown.deprecated += 1;
+        }
+        if (blockers.includes("nativeBindings")) {
+            majorUpgradeBlockerBreakdown.nativeBindings += 1;
+        }
+        if (blockers.includes("installScripts")) {
+            majorUpgradeBlockerBreakdown.installScripts += 1;
         }
     }
     return {
@@ -1104,7 +1127,11 @@ function buildCliSummary(aggregated, options) {
         unusedInstalledDeps,
         licenseMismatches,
         majorUpgradeBlockers,
+        majorUpgradeBlockerBreakdown,
     };
+}
+function pluralize(value, singular, plural) {
+    return value === 1 ? singular : plural;
 }
 function printCliSummary(summary) {
     const bullet = "•";
@@ -1116,6 +1143,23 @@ function printCliSummary(summary) {
     console.log(`${bullet} Unused installed deps: ${summary.unusedInstalledDeps}`);
     console.log(`${bullet} Licence mismatches: ${summary.licenseMismatches}`);
     console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
+    const blockerDetails = [];
+    if (summary.majorUpgradeBlockerBreakdown.peerDependency > 0) {
+        blockerDetails.push(`   - ${summary.majorUpgradeBlockerBreakdown.peerDependency} ${pluralize(summary.majorUpgradeBlockerBreakdown.peerDependency, "strict peer dependency constraint", "strict peer dependency constraints")}`);
+    }
+    if (summary.majorUpgradeBlockerBreakdown.nodeEngine > 0) {
+        blockerDetails.push(`   - ${summary.majorUpgradeBlockerBreakdown.nodeEngine} ${pluralize(summary.majorUpgradeBlockerBreakdown.nodeEngine, "narrow engine range", "narrow engine ranges")}`);
+    }
+    if (summary.majorUpgradeBlockerBreakdown.deprecated > 0) {
+        blockerDetails.push(`   - ${summary.majorUpgradeBlockerBreakdown.deprecated} ${pluralize(summary.majorUpgradeBlockerBreakdown.deprecated, "deprecated package", "deprecated packages")}`);
+    }
+    if (summary.majorUpgradeBlockerBreakdown.nativeBindings > 0) {
+        blockerDetails.push(`   - ${summary.majorUpgradeBlockerBreakdown.nativeBindings} ${pluralize(summary.majorUpgradeBlockerBreakdown.nativeBindings, "native binding", "native bindings")}`);
+    }
+    if (summary.majorUpgradeBlockerBreakdown.installScripts > 0) {
+        blockerDetails.push(`   - ${summary.majorUpgradeBlockerBreakdown.installScripts} ${pluralize(summary.majorUpgradeBlockerBreakdown.installScripts, "install lifecycle script", "install lifecycle scripts")}`);
+    }
+    blockerDetails.forEach((line) => console.log(line));
     console.log("");
 }
 /**
