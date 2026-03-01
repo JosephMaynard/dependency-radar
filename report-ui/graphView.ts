@@ -1,4 +1,4 @@
-import type { AggregatedData, DependencyRecord } from './types';
+import type { AggregatedData, DependencyRecord } from "./types";
 
 type GraphWorkspace = {
   name: string;
@@ -13,7 +13,7 @@ type GraphDependency = {
   dependencies: string[];
   license: string;
   vulnerabilityCount: number;
-  vulnerabilitySeverity: 'high' | 'moderate' | 'none';
+  vulnerabilitySeverity: "high" | "moderate" | "none";
   isDevOnly: boolean;
   workspaceOrigins: string[];
 };
@@ -23,7 +23,7 @@ type GraphDataset = {
   dependencies: Record<string, GraphDependency>;
 };
 
-type GraphNodeKind = 'direct-runtime' | 'direct-dev' | 'transitive';
+type GraphNodeKind = "direct-runtime" | "direct-dev" | "transitive";
 
 type GraphNode = {
   slug: string;
@@ -118,7 +118,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function getCssColor(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
 }
 
 function getDepKey(name: string, version: string): string {
@@ -130,10 +132,11 @@ function edgeKey(from: string, to: string): string {
 }
 
 function isGraphDataset(value: unknown): value is GraphDataset {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== "object") return false;
   const input = value as Record<string, unknown>;
   if (!Array.isArray(input.workspaces)) return false;
-  if (!input.dependencies || typeof input.dependencies !== 'object') return false;
+  if (!input.dependencies || typeof input.dependencies !== "object")
+    return false;
   return true;
 }
 
@@ -142,7 +145,7 @@ function primaryLicense(dep: DependencyRecord): string {
     ? dep.compliance.license.declared.spdxId
     : undefined;
   if (declared) return declared;
-  return dep.compliance.license.inferred?.spdxId || 'Unknown';
+  return dep.compliance.license.inferred?.spdxId || "Unknown";
 }
 
 function vulnerabilityCount(dep: DependencyRecord): number {
@@ -158,11 +161,11 @@ function vulnerabilityCount(dep: DependencyRecord): number {
 
 function vulnerabilitySeverityFromRecord(
   dep: DependencyRecord,
-): 'high' | 'moderate' | 'none' {
+): "high" | "moderate" | "none" {
   const highest = dep.security?.summary?.highest;
-  if (highest === 'critical' || highest === 'high') return 'high';
-  if (highest === 'moderate' || highest === 'medium') return 'moderate';
-  return 'none';
+  if (highest === "critical" || highest === "high") return "high";
+  if (highest === "moderate" || highest === "medium") return "moderate";
+  return "none";
 }
 
 function collectAncestors(graph: WorkspaceGraph, slug: string): Set<string> {
@@ -213,22 +216,22 @@ function adaptDataset(
         (dep.vulnerabilitySeverity as string | undefined) ||
         (dep.vulnerabilityHighest as string | undefined) ||
         (dep.highestSeverity as string | undefined) ||
-        'none';
-      let vulnerabilitySeverity: 'high' | 'moderate' | 'none' = 'none';
-      if (rawSeverity === 'critical' || rawSeverity === 'high') {
-        vulnerabilitySeverity = 'high';
-      } else if (rawSeverity === 'moderate' || rawSeverity === 'medium') {
-        vulnerabilitySeverity = 'moderate';
+        "none";
+      let vulnerabilitySeverity: "high" | "moderate" | "none" = "none";
+      if (rawSeverity === "critical" || rawSeverity === "high") {
+        vulnerabilitySeverity = "high";
+      } else if (rawSeverity === "moderate" || rawSeverity === "medium") {
+        vulnerabilitySeverity = "moderate";
       }
 
       normalizedDependencies[slug] = {
         slug: String(dep.slug || slug),
         name: String(dep.name || slug),
-        version: String(dep.version || ''),
+        version: String(dep.version || ""),
         dependencies: Array.isArray(dep.dependencies)
           ? dep.dependencies.map((value) => String(value))
           : [],
-        license: String(dep.license || 'Unknown'),
+        license: String(dep.license || "Unknown"),
         vulnerabilityCount: Number(dep.vulnerabilityCount || 0),
         vulnerabilitySeverity,
         isDevOnly: Boolean(dep.isDevOnly),
@@ -257,7 +260,7 @@ function adaptDataset(
       license: primaryLicense(dep),
       vulnerabilityCount: vulnerabilityCount(dep),
       vulnerabilitySeverity: vulnerabilitySeverityFromRecord(dep),
-      isDevOnly: dep.usage.scope === 'dev',
+      isDevOnly: dep.usage.scope === "dev",
       workspaceOrigins: dep.usage.origins.workspaces || [],
     };
   });
@@ -267,7 +270,7 @@ function adaptDataset(
     const subDeps = dep.graph.subDeps;
     if (!subDeps) return;
     const next = new Set<string>();
-    (['dep', 'dev', 'opt', 'peer'] as const).forEach((bucket) => {
+    (["dep", "dev", "opt", "peer"] as const).forEach((bucket) => {
       const entries = subDeps[bucket];
       if (!entries) return;
       Object.values(entries).forEach((tuple) => {
@@ -291,7 +294,10 @@ function adaptDataset(
 
   const ensureWorkspace = (
     name: string,
-  ): { directDependencies: Set<string>; directDevDependencies: Set<string> } => {
+  ): {
+    directDependencies: Set<string>;
+    directDevDependencies: Set<string>;
+  } => {
     const existing = workspaceMap.get(name);
     if (existing) return existing;
     const created = {
@@ -302,7 +308,7 @@ function adaptDataset(
     return created;
   };
 
-  ensureWorkspace('root');
+  ensureWorkspace("root");
   (report.workspaces.workspacePackages || []).forEach((workspace) => {
     ensureWorkspace(workspace.name);
   });
@@ -312,10 +318,10 @@ function adaptDataset(
     const slug = getDepKey(dep.package.name, dep.package.version);
     const origins = dep.usage.origins.workspaces?.length
       ? dep.usage.origins.workspaces
-      : ['root'];
+      : ["root"];
     origins.forEach((workspaceName) => {
       const workspace = ensureWorkspace(workspaceName);
-      if (dep.usage.scope === 'dev') {
+      if (dep.usage.scope === "dev") {
         workspace.directDevDependencies.add(slug);
       } else {
         workspace.directDependencies.add(slug);
@@ -361,7 +367,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   });
 
   let currentGraph: WorkspaceGraph | null = null;
-  let currentWorkspace = '';
+  let currentWorkspace = "";
 
   let focusSlug: string | null = null;
   let hoverSlug: string | null = null;
@@ -397,7 +403,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     startPanY: 0,
   };
 
-  const context = options.canvas.getContext('2d');
+  const context = options.canvas.getContext("2d");
   const hasCanvas = Boolean(context);
   let interactionsBound = false;
   let fallbackShown = false;
@@ -405,15 +411,17 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function showCanvasFallback(): void {
     if (fallbackShown) return;
     fallbackShown = true;
-    console.warn('Dependency Radar: unable to initialize 2D canvas; graph rendering disabled.');
-    options.controlsRoot.classList.add('hidden');
-    options.workspaceWrap.classList.add('hidden');
-    options.canvas.style.display = 'none';
-    const fallback = document.createElement('div');
-    fallback.className = 'empty-state';
-    const text = document.createElement('div');
-    text.className = 'empty-state-text';
-    text.textContent = 'Graph view is unavailable in this browser context.';
+    console.warn(
+      "Dependency Radar: unable to initialize 2D canvas; graph rendering disabled.",
+    );
+    options.controlsRoot.classList.add("hidden");
+    options.workspaceWrap.classList.add("hidden");
+    options.canvas.style.display = "none";
+    const fallback = document.createElement("div");
+    fallback.className = "empty-state";
+    const text = document.createElement("div");
+    text.className = "empty-state-text";
+    text.textContent = "Graph view is unavailable in this browser context.";
     fallback.appendChild(text);
     options.canvasHost.appendChild(fallback);
   }
@@ -467,7 +475,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     fitZoom = clamp(Math.min(fitZoomX, fitZoomY), 0.05, MAX_ZOOM);
     minZoom = clamp(fitZoom * 0.95, 0.05, MAX_ZOOM);
     defaultPanX = (width - graphWidth * fitZoom) * 0.5 - bounds.minX * fitZoom;
-    defaultPanY = (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
+    defaultPanY =
+      (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
   }
 
   function fitGraph(): void {
@@ -499,10 +508,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (!workspace) return null;
 
     const directRuntime = new Set(
-      workspace.directDependencies.filter((slug) => Boolean(dataset.dependencies[slug])),
+      workspace.directDependencies.filter((slug) =>
+        Boolean(dataset.dependencies[slug]),
+      ),
     );
     const directDev = new Set(
-      workspace.directDevDependencies.filter((slug) => Boolean(dataset.dependencies[slug])),
+      workspace.directDevDependencies.filter((slug) =>
+        Boolean(dataset.dependencies[slug]),
+      ),
     );
 
     const roots = new Set<string>([...directRuntime, ...directDev]);
@@ -535,10 +548,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const nodes = new Map<string, GraphNode>();
     included.forEach((slug) => {
       const kind: GraphNodeKind = directRuntime.has(slug)
-        ? 'direct-runtime'
+        ? "direct-runtime"
         : directDev.has(slug)
-          ? 'direct-dev'
-          : 'transitive';
+          ? "direct-dev"
+          : "transitive";
       nodes.set(slug, {
         slug,
         ref: dataset.dependencies[slug],
@@ -681,8 +694,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             return nodeB.amplification - nodeA.amplification;
           }
           if (nodeA.kind !== nodeB.kind) {
-            if (nodeA.kind === 'direct-runtime') return -1;
-            if (nodeB.kind === 'direct-runtime') return 1;
+            if (nodeA.kind === "direct-runtime") return -1;
+            if (nodeB.kind === "direct-runtime") return 1;
           }
           return nodeA.ref.name.localeCompare(nodeB.ref.name);
         });
@@ -698,7 +711,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             let sum = 0;
             nodeA.parents.forEach((parent) => {
               const index = layerOrder.get(parent);
-              if (typeof index !== 'number') return;
+              if (typeof index !== "number") return;
               count += 1;
               sum += index;
             });
@@ -709,7 +722,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             let sum = 0;
             nodeB.parents.forEach((parent) => {
               const index = layerOrder.get(parent);
-              if (typeof index !== 'number') return;
+              if (typeof index !== "number") return;
               count += 1;
               sum += index;
             });
@@ -724,7 +737,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       });
     });
 
-    const maxRows = graph.layers.reduce((max, layer) => Math.max(max, layer.length), 1);
+    const maxRows = graph.layers.reduce(
+      (max, layer) => Math.max(max, layer.length),
+      1,
+    );
 
     graph.bounds = {
       minX: Number.POSITIVE_INFINITY,
@@ -747,7 +763,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         node.renderX = node.baseX;
         node.renderY = node.baseY;
 
-        const relationshipFactor = Math.log(node.children.size + node.parents.size + 1) * 0.55;
+        const relationshipFactor =
+          Math.log(node.children.size + node.parents.size + 1) * 0.55;
         const amplificationFactor =
           node.depth === 0 && graph.directAll.has(node.slug)
             ? Math.log(node.amplification + 1) * 1.05
@@ -836,7 +853,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function updateTargets(): void {
     if (!currentGraph) return;
-    const selected = focusSlug ? currentGraph.nodes.get(focusSlug) || null : null;
+    const selected = focusSlug
+      ? currentGraph.nodes.get(focusSlug) || null
+      : null;
 
     currentGraph.nodes.forEach((node) => {
       if (!selected || !focusPushNodes.has(node.slug)) {
@@ -915,7 +934,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     popoverSlug = slug;
     options.popoverName.textContent = node.ref.name;
     options.popoverVersion.textContent = `Version: ${node.ref.version}`;
-    options.popoverLicense.textContent = `License: ${node.ref.license || 'Unknown'}`;
+    options.popoverLicense.textContent = `License: ${node.ref.license || "Unknown"}`;
     options.popoverVulns.textContent = `Vulnerabilities: ${node.ref.vulnerabilityCount || 0}`;
     if (isDirect) {
       options.popoverAmplification.textContent = `Amplification: ${node.amplification}`;
@@ -999,15 +1018,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     context.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * panX, dpr * panY);
 
-    const colorRuntime = getCssColor('--graph-direct-runtime') || '#10b981';
-    const colorDev = getCssColor('--graph-direct-dev') || '#f59e0b';
-    const colorTransitive = getCssColor('--graph-transitive') || '#06b6d4';
-    const colorEdge = getCssColor('--graph-edge') || '#64748b';
-    const colorHighlight = getCssColor('--graph-highlight') || '#22d3ee';
-    const colorMuted = getCssColor('--graph-muted') || '#64748b';
-    const colorRingHigh = getCssColor('--graph-vuln-high') || '#ef4444';
-    const colorRingModerate = getCssColor('--graph-vuln-medium') || '#f59e0b';
-    const labelColor = getCssColor('--text-primary') || '#e8edf5';
+    const colorRuntime = getCssColor("--graph-direct-runtime") || "#10b981";
+    const colorDev = getCssColor("--graph-direct-dev") || "#f59e0b";
+    const colorTransitive = getCssColor("--graph-transitive") || "#06b6d4";
+    const colorEdge = getCssColor("--graph-edge") || "#64748b";
+    const colorHighlight = getCssColor("--graph-highlight") || "#22d3ee";
+    const colorMuted = getCssColor("--graph-muted") || "#64748b";
+    const colorRingHigh = getCssColor("--graph-vuln-high") || "#ef4444";
+    const colorRingModerate = getCssColor("--graph-vuln-medium") || "#f59e0b";
+    const labelColor = getCssColor("--text-primary") || "#e8edf5";
 
     const visible = new Set<string>();
     currentGraph.nodes.forEach((node) => {
@@ -1021,7 +1040,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
-    context.globalCompositeOperation = 'source-over';
+    context.globalCompositeOperation = "source-over";
     context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
     context.lineWidth = 1.05;
     context.globalAlpha = mutedEdgeOpacity();
@@ -1043,10 +1062,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.stroke();
     });
 
-    context.globalCompositeOperation = 'lighter';
+    context.globalCompositeOperation = "lighter";
     context.strokeStyle = colorHighlight;
     context.lineWidth = 1.2;
     context.globalAlpha = highlightedEdgeOpacity();
+    context.shadowColor = colorHighlight;
+    context.shadowBlur = 8;
     currentGraph.edges.forEach((edge) => {
       const from = currentGraph.nodes.get(edge.from);
       const to = currentGraph.nodes.get(edge.to);
@@ -1065,21 +1086,52 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
       context.stroke();
     });
-    context.globalCompositeOperation = 'source-over';
+    context.shadowBlur = 0;
+    context.globalCompositeOperation = "source-over";
 
     currentGraph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
       const selected = focusSlug === node.slug;
       const radius = renderedNodeRadius(node);
+      const isHovered = hoverNodes && hoverNodes.has(node.slug);
 
       context.globalAlpha = nodeOpacity(node.slug);
-      if (node.kind === 'direct-runtime') context.fillStyle = colorRuntime;
-      else if (node.kind === 'direct-dev') context.fillStyle = colorDev;
-      else context.fillStyle = colorTransitive;
+
+      const grad = context.createRadialGradient(
+        node.renderX - radius * 0.3,
+        node.renderY - radius * 0.3,
+        0,
+        node.renderX,
+        node.renderY,
+        radius * 1.2,
+      );
+
+      if (node.kind === "direct-runtime") {
+        grad.addColorStop(0, "#34d399");
+        grad.addColorStop(1, colorRuntime);
+        context.shadowColor = colorRuntime;
+      } else if (node.kind === "direct-dev") {
+        grad.addColorStop(0, "#fcd34d");
+        grad.addColorStop(1, colorDev);
+        context.shadowColor = colorDev;
+      } else {
+        grad.addColorStop(0, "#67e8f9");
+        grad.addColorStop(1, colorTransitive);
+        context.shadowColor = colorTransitive;
+      }
+
+      context.fillStyle = grad;
+
+      if (selected || isHovered) {
+        context.shadowBlur = selected ? 16 : 8;
+      } else {
+        context.shadowBlur = 0;
+      }
 
       context.beginPath();
       context.arc(node.renderX, node.renderY, radius, 0, Math.PI * 2);
       context.fill();
+      context.shadowBlur = 0;
 
       if (selected) {
         context.globalAlpha = 0.95;
@@ -1093,13 +1145,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     currentGraph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
-      if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0) return;
-      if (node.ref.vulnerabilitySeverity === 'none') return;
+      if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0)
+        return;
+      if (node.ref.vulnerabilitySeverity === "none") return;
       const radius = renderedNodeRadius(node);
       context.globalAlpha = 0.8;
       context.lineWidth = 2;
       context.strokeStyle =
-        node.ref.vulnerabilitySeverity === 'high'
+        node.ref.vulnerabilitySeverity === "high"
           ? colorRingHigh
           : colorRingModerate;
       context.beginPath();
@@ -1108,9 +1161,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     });
 
     if (zoom >= 0.72) {
-      context.textBaseline = 'middle';
-      context.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+      context.textBaseline = "middle";
+      context.font =
+        '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       context.fillStyle = labelColor;
+      context.shadowColor = "rgba(0, 0, 0, 0.7)";
+      context.shadowBlur = 4;
       currentGraph.nodes.forEach((node) => {
         if (!visible.has(node.slug)) return;
         context.globalAlpha = nodeOpacity(node.slug);
@@ -1120,6 +1176,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           node.renderY,
         );
       });
+      context.shadowBlur = 0;
     }
 
     context.globalAlpha = 1;
@@ -1182,7 +1239,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
-    options.canvas.classList.add('is-panning');
+    options.canvas.classList.add("is-panning");
   }
 
   function handleWindowMouseMove(event: MouseEvent): void {
@@ -1202,7 +1259,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleWindowMouseUp(event: MouseEvent): void {
     if (!panState.down) return;
-    options.canvas.classList.remove('is-panning');
+    options.canvas.classList.remove("is-panning");
     const moved = panState.moved;
     panState.down = false;
     panState.moved = false;
@@ -1245,61 +1302,61 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function bindInteractionListeners(): void {
     if (interactionsBound || !hasCanvas) return;
-    options.canvas.addEventListener('mousedown', handleCanvasMouseDown);
-    window.addEventListener('mousemove', handleWindowMouseMove);
-    window.addEventListener('mouseup', handleWindowMouseUp);
-    options.canvas.addEventListener('wheel', handleWheel, { passive: false });
-    options.canvas.addEventListener('mouseleave', handleCanvasMouseLeave);
-    document.addEventListener('mousedown', handleDocumentMouseDown);
+    options.canvas.addEventListener("mousedown", handleCanvasMouseDown);
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    options.canvas.addEventListener("wheel", handleWheel, { passive: false });
+    options.canvas.addEventListener("mouseleave", handleCanvasMouseLeave);
+    document.addEventListener("mousedown", handleDocumentMouseDown);
     interactionsBound = true;
   }
 
   function unbindInteractionListeners(): void {
     if (!interactionsBound) return;
-    options.canvas.removeEventListener('mousedown', handleCanvasMouseDown);
-    window.removeEventListener('mousemove', handleWindowMouseMove);
-    window.removeEventListener('mouseup', handleWindowMouseUp);
-    options.canvas.removeEventListener('wheel', handleWheel);
-    options.canvas.removeEventListener('mouseleave', handleCanvasMouseLeave);
-    document.removeEventListener('mousedown', handleDocumentMouseDown);
-    options.canvas.classList.remove('is-panning');
+    options.canvas.removeEventListener("mousedown", handleCanvasMouseDown);
+    window.removeEventListener("mousemove", handleWindowMouseMove);
+    window.removeEventListener("mouseup", handleWindowMouseUp);
+    options.canvas.removeEventListener("wheel", handleWheel);
+    options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
+    document.removeEventListener("mousedown", handleDocumentMouseDown);
+    options.canvas.classList.remove("is-panning");
     panState.down = false;
     panState.moved = false;
     interactionsBound = false;
   }
 
   function setupControls(): void {
-    options.controlsRoot.addEventListener('click', (event) => {
+    options.controlsRoot.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
-      const button = target.closest<HTMLButtonElement>('button[data-action]');
+      const button = target.closest<HTMLButtonElement>("button[data-action]");
       if (!button) return;
       const action = button.dataset.action;
       if (!action) return;
-      if (action === 'zoom-in') {
+      if (action === "zoom-in") {
         applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
         return;
       }
-      if (action === 'zoom-out') {
+      if (action === "zoom-out") {
         applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
         return;
       }
-      if (action === 'pan-left') {
+      if (action === "pan-left") {
         panBy(-52, 0);
         return;
       }
-      if (action === 'pan-right') {
+      if (action === "pan-right") {
         panBy(52, 0);
         return;
       }
-      if (action === 'pan-up') {
+      if (action === "pan-up") {
         panBy(0, -52);
         return;
       }
-      if (action === 'pan-down') {
+      if (action === "pan-down") {
         panBy(0, 52);
         return;
       }
-      if (action === 'reset') {
+      if (action === "reset") {
         zoom = fitZoom;
         panX = defaultPanX;
         panY = defaultPanY;
@@ -1309,7 +1366,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
-    options.popoverOpenButton.addEventListener('click', () => {
+    options.popoverOpenButton.addEventListener("click", () => {
       if (!popoverSlug) return;
       options.onOpenList(popoverSlug);
     });
@@ -1320,40 +1377,40 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       ? dataset.workspaces
       : [
           {
-            name: 'root',
+            name: "root",
             directDependencies: [],
             directDevDependencies: [],
           },
         ];
 
-    options.workspaceSelect.textContent = '';
+    options.workspaceSelect.textContent = "";
     workspaces.forEach((workspace) => {
-      const option = document.createElement('option');
+      const option = document.createElement("option");
       option.value = workspace.name;
       option.textContent = workspace.name;
       options.workspaceSelect.appendChild(option);
     });
 
-    options.workspaceWrap.classList.toggle('hidden', workspaces.length <= 1);
+    options.workspaceWrap.classList.toggle("hidden", workspaces.length <= 1);
 
-    if (!workspaceByName.has('root') && workspaces.length === 1) {
-      workspaceByName.set('root', workspaces[0]);
+    if (!workspaceByName.has("root") && workspaces.length === 1) {
+      workspaceByName.set("root", workspaces[0]);
     }
 
     currentWorkspace = workspaces[0].name;
     options.workspaceSelect.value = currentWorkspace;
 
-    options.workspaceSelect.addEventListener('change', () => {
+    options.workspaceSelect.addEventListener("change", () => {
       switchWorkspace(options.workspaceSelect.value);
     });
 
     const observer = new MutationObserver(() => requestRender());
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['class', 'data-theme'],
+      attributeFilter: ["class", "data-theme"],
     });
 
-    if (typeof ResizeObserver !== 'undefined') {
+    if (typeof ResizeObserver !== "undefined") {
       const resizeObserver = new ResizeObserver(() => {
         if (!active) return;
         updateCanvasSize();
@@ -1364,7 +1421,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       });
       resizeObserver.observe(options.canvasHost);
     } else {
-      window.addEventListener('resize', () => {
+      window.addEventListener("resize", () => {
         if (!active) return;
         updateCanvasSize();
         if (width <= 1 || height <= 1) return;
