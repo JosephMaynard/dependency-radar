@@ -1062,18 +1062,6 @@ function colorLeadingSymbol(line) {
 function statusLine(symbol, message) {
     return `${colorSymbol(symbol)} ${message}`;
 }
-function formatMetricCount(value, risk = "neutral") {
-    const text = String(value);
-    if (!COLOR_ENABLED)
-        return text;
-    if (value === 0)
-        return styleText(text, "green");
-    if (risk === "danger")
-        return styleText(text, "red");
-    if (risk === "warn")
-        return styleText(text, "yellow");
-    return styleText(text, "cyan");
-}
 function buildCliSummary(aggregated) {
     var _a;
     let vulnerablePackages = 0;
@@ -1114,14 +1102,15 @@ function buildCliSummary(aggregated) {
     };
 }
 function printCliSummary(summary) {
+    const bullet = "•";
     console.log("");
-    console.log(styleText("Summary:", "bold"));
-    console.log(`${colorSymbol("✔︎")} Direct deps scanned: ${formatMetricCount(summary.directDeps)}`);
-    console.log(`${colorSymbol("✔︎")} Transitive deps scanned: ${formatMetricCount(summary.transitiveDeps)}`);
-    console.log(`${colorSymbol("⚠︎")} Vulnerable packages: ${formatMetricCount(summary.vulnerablePackages, "danger")} (${formatMetricCount(summary.reachableVulnerablePackages, "danger")} reachable)`);
-    console.log(`${colorSymbol("📦")} Unused installed deps: ${formatMetricCount(summary.unusedInstalledDeps, "warn")}`);
-    console.log(`${colorSymbol("⚠︎")} Licence mismatches: ${formatMetricCount(summary.licenseMismatches, "warn")}`);
-    console.log(`${colorSymbol("📉")} Major upgrade blockers: ${formatMetricCount(summary.majorUpgradeBlockers, "warn")}`);
+    console.log("Summary:");
+    console.log(`${bullet} Direct deps scanned: ${summary.directDeps}`);
+    console.log(`${bullet} Transitive deps scanned: ${summary.transitiveDeps}`);
+    console.log(`${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.reachableVulnerablePackages} reachable)`);
+    console.log(`${bullet} Unused installed deps: ${summary.unusedInstalledDeps}`);
+    console.log(`${bullet} Licence mismatches: ${summary.licenseMismatches}`);
+    console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
     console.log("");
 }
 /**
