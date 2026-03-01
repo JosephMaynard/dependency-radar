@@ -737,6 +737,32 @@ select:focus {
   max-width: 240px;
 }
 
+select.graph-workspace-select {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  color: var(--text-primary);
+  transition: all var(--transition);
+}
+
+select.graph-workspace-select:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+select.graph-workspace-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+[data-theme="light"] select.graph-workspace-select {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+[data-theme="light"] select.graph-workspace-select:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
 .graph-canvas-shell {
   position: relative;
   width: 100%;
@@ -803,8 +829,7 @@ select:focus {
 .graph-back-btn {
   top: 12px;
   left: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  /* removing border and background here so it inherits from .graph-overlay */
   color: var(--text-primary);
   border-radius: 8px;
   padding: 7px 12px;
@@ -812,16 +837,23 @@ select:focus {
   cursor: pointer;
   transition:
     transform var(--transition),
+    background var(--transition),
     border-color var(--transition),
     color var(--transition),
     box-shadow var(--transition);
 }
 
 .graph-back-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(100, 116, 139, 0.4);
+  color: var(--text-primary);
   transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .graph-back-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .graph-controls {
@@ -874,8 +906,8 @@ select:focus {
 }
 
 .graph-control-btn {
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
   font-size: 12px;
   width: 34px;
@@ -885,16 +917,28 @@ select:focus {
   line-height: 1;
   transition:
     transform var(--transition),
+    background var(--transition),
     border-color var(--transition),
     box-shadow var(--transition),
     color var(--transition);
 }
 
 .graph-control-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(100, 116, 139, 0.4);
   transform: translateY(-1px);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .graph-control-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(100, 116, 139, 0.15);
+}
+
+[data-theme="light"] .graph-control-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(100, 116, 139, 0.3);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
 
 .reset-btn {
