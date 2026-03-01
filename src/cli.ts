@@ -1051,6 +1051,16 @@ interface CliOptions {
   noReport: boolean;
 }
 
+/**
+ * Parse command-line tokens into a populated CliOptions object.
+ *
+ * Recognizes a leading non-flag token as the command and the following flags:
+ * --project, --out, --keep-temp, --offline, --json, --open, --no-report, and --help / -h.
+ * The --offline flag disables both audit and outdated checks.
+ *
+ * @param argv - Array of CLI tokens (typically process.argv.slice(2))
+ * @returns The resolved CliOptions with defaults applied and values overridden by argv
+ */
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     command: "scan",
@@ -1090,6 +1100,12 @@ function parseArgs(argv: string[]): CliOptions {
   return opts;
 }
 
+/**
+ * Print the CLI usage and available options to the console.
+ *
+ * Displays the command synopsis and descriptions for supported flags including
+ * --project, --out, --json, --no-report, --keep-temp, --offline, and --open.
+ */
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
 
@@ -1106,6 +1122,13 @@ Options:
 `);
 }
 
+/**
+ * Attempts to open the given file in the system's default application.
+ *
+ * Spawns a detached OS-specific opener process (so the function returns immediately). If the spawn fails, a warning is logged to the console.
+ *
+ * @param filePath - Path (absolute or relative) to the file to open
+ */
 function openInBrowser(filePath: string): void {
   const normalizedPath = filePath.replace(/\\/g, "/");
   let child: ChildProcess;
@@ -1149,6 +1172,13 @@ const ANSI = {
   cyan: "\x1b[36m",
 } as const;
 
+/**
+ * Determine whether ANSI color output should be enabled for the current process.
+ *
+ * Considers the `NO_COLOR` and `FORCE_COLOR` environment variables and falls back to whether `stdout` is a TTY.
+ *
+ * @returns `true` if ANSI color output should be enabled, `false` otherwise.
+ */
 function shouldUseColor(): boolean {
   if (process.env.NO_COLOR !== undefined) return false;
   const forceColor = process.env.FORCE_COLOR;
@@ -1159,6 +1189,13 @@ function shouldUseColor(): boolean {
 
 const COLOR_ENABLED = shouldUseColor();
 
+/**
+ * Wraps text with ANSI color or style escape sequences when terminal coloring is enabled.
+ *
+ * @param value - The text to style
+ * @param color - The style to apply; one of `'bold'`, `'green'`, `'red'`, `'yellow'`, or `'cyan'`
+ * @returns The input string wrapped with the selected ANSI escape codes if colors are enabled, otherwise the original `value`
+ */
 function styleText(
   value: string,
   color: "bold" | "green" | "red" | "yellow" | "cyan",
@@ -1167,6 +1204,12 @@ function styleText(
   return `${ANSI[color]}${value}${ANSI.reset}`;
 }
 
+/**
+ * Extracts the first Unicode character from a string and the remaining substring.
+ *
+ * @param value - The input string to split
+ * @returns An object with `head` set to the first character (empty string if input is empty) and `tail` set to the remainder of the string after `head`
+ */
 function splitFirstGlyph(value: string): { head: string; tail: string } {
   const chars = Array.from(value);
   const head = chars[0] || "";
@@ -1174,6 +1217,16 @@ function splitFirstGlyph(value: string): { head: string; tail: string } {
   return { head, tail };
 }
 
+/**
+ * Apply ANSI color styling to recognized status glyphs at the start of a string.
+ *
+ * Recognized leading glyphs are colored as follows: "✔" → green, "✖" → red, "⚠" → yellow,
+ * "↗", "ℹ", "📦" → cyan, and "📉" → yellow. If the first grapheme is not one of these,
+ * the input is returned unchanged.
+ *
+ * @param symbol - The string whose leading glyph should be colorized (if recognized)
+ * @returns The input string with the leading glyph wrapped in color styling when recognized, otherwise the original string
+ */
 function colorSymbol(symbol: string): string {
   const { head, tail } = splitFirstGlyph(symbol);
   if (!head) return symbol;
@@ -1187,6 +1240,12 @@ function colorSymbol(symbol: string): string {
   return symbol;
 }
 
+/**
+ * Applies ANSI color styling to a leading status glyph in a text line when present.
+ *
+ * @param line - The input line; if it starts with a recognized status glyph (e.g., ✔, ✖, ⚠, ↗, ℹ, 📦, 📉), that glyph will be replaced with its colored equivalent.
+ * @returns The line with the leading glyph colorized when applicable, or the original line unchanged.
+ */
 function colorLeadingSymbol(line: string): string {
   const { head } = splitFirstGlyph(line);
   if (!head) return line;
@@ -1204,6 +1263,13 @@ function colorLeadingSymbol(line: string): string {
   return `${colorSymbol(head)}${line.slice(head.length)}`;
 }
 
+/**
+ * Format a CLI status line with a colored leading symbol and message.
+ *
+ * @param symbol - The single-character or glyph to display as the leading symbol
+ * @param message - The text message that follows the symbol
+ * @returns The formatted status line with the colored symbol, a single separating space, and the message
+ */
 function statusLine(symbol: string, message: string): string {
   return `${colorSymbol(symbol)} ${message}`;
 }
@@ -1225,6 +1291,21 @@ type CliSummary = {
   };
 };
 
+/**
+ * Produce a concise CLI summary from aggregated workspace data.
+ *
+ * @param aggregated - Aggregated workspace data produced by the scan
+ * @param options.importGraphComplete - `true` when import graph collection completed for all packages; affects unused dependency counting
+ * @returns An object with:
+ * - `directDeps`: number of direct dependencies in the workspace
+ * - `transitiveDeps`: number of transitive dependencies in the workspace
+ * - `vulnerablePackages`: count of dependencies with at least one reported vulnerability
+ * - `reachableVulnerablePackages`: count of vulnerable dependencies that are reachable according to import usage
+ * - `unusedInstalledDeps`: count of direct runtime dependencies that appear unused (only when `importGraphComplete` is `true`)
+ * - `licenseMismatches`: count of dependencies whose license status is `mismatch`
+ * - `majorUpgradeBlockers`: count of dependencies that have one or more upgrade blockers
+ * - `majorUpgradeBlockerBreakdown`: object with counts for specific blocker types (`peerDependency`, `nodeEngine`, `deprecated`, `nativeBindings`, `installScripts`)
+ */
 function buildCliSummary(
   aggregated: AggregatedData,
   options: { importGraphComplete: boolean },
@@ -1301,10 +1382,23 @@ function buildCliSummary(
   };
 }
 
+/**
+ * Choose the correct singular or plural form based on a numeric count.
+ *
+ * @param value - The numeric count that determines which form to use
+ * @param singular - The singular form to use when `value` equals 1
+ * @param plural - The plural form to use for any other `value`
+ * @returns The `singular` string if `value` is 1, `plural` otherwise
+ */
 function pluralize(value: number, singular: string, plural: string): string {
   return value === 1 ? singular : plural;
 }
 
+/**
+ * Print a concise, human-readable CLI summary of scan results to standard output.
+ *
+ * @param summary - Aggregated counts and breakdowns (dependencies, vulnerabilities, unused deps, license mismatches, and major-upgrade blocker details) used to compose the printed summary
+ */
 function printCliSummary(summary: CliSummary): void {
   const bullet = "•";
   console.log("");
@@ -1808,6 +1902,15 @@ async function run(): Promise<void> {
 
 run();
 
+/**
+ * Displays a rotating CLI spinner with a message and returns controls to stop, update, or log lines.
+ *
+ * @param text - Initial message shown next to the spinner.
+ * @returns An object with control methods:
+ *  - `stop(success?)` - Stops the spinner and writes a final line using a check mark when `success` is `true` or a cross when `false` (defaults to `true`).
+ *  - `update(nextText)` - Replaces the spinner's message with `nextText`.
+ *  - `log(line)` - Writes `line` as a new output line above the active spinner without stopping it.
+ */
 function startSpinner(text: string): {
   stop: (success?: boolean) => void;
   update: (nextText: string) => void;

@@ -7,6 +7,20 @@ import { pathExists, writeJsonFile } from '../utils';
 const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.dependency-radar']);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 
+/**
+ * Builds an import graph for a project and optionally writes it to disk.
+ *
+ * The produced graph maps each project-relative source file to its resolved local file dependencies,
+ * referenced packages, per-file package usage counts, and any unresolved import specifiers.
+ *
+ * @param options - Optional settings.
+ * @param options.persistToDisk - When `false`, the graph is not written to disk; defaults to `true`.
+ * @returns An object with:
+ *  - `ok: true` and `data` containing `{ files, packages, packageCounts, unresolvedImports }` on success.
+ *    When the graph was persisted to disk, a `file` field points to the written JSON file (`<tempDir>/import-graph.json`).
+ *  - `ok: false` and `error` containing an error message on failure. If persistence was enabled, a `file` field may point to
+ *    the JSON file containing the error object.
+ */
 export async function runImportGraph(
   projectPath: string,
   tempDir: string,

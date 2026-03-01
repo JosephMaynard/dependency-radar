@@ -71,6 +71,16 @@ function buildAuditCommand(
   };
 }
 
+/**
+ * Run a dependency audit using the specified package manager, normalize the audit output, and optionally write the result to disk.
+ *
+ * @param projectPath - Path to the project whose dependencies should be audited
+ * @param tempDir - Directory where the audit output file may be written
+ * @param tool - Package manager to use: `"npm"`, `"pnpm"`, or `"yarn"`
+ * @param yarnVersion - Optional Yarn version string used to select the correct Yarn audit command
+ * @param persistToDisk - If true, write audit output or diagnostics to `${tempDir}/${tool}-audit.json` and include `file` in the result
+ * @returns An object with `ok: true` and `data` containing the normalized audit output (and `file` when persisted) on success; otherwise `ok: false` and `error` with an optional `file` when persisted
+ */
 export async function runPackageAudit(
   projectPath: string,
   tempDir: string,
