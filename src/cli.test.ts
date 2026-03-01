@@ -2,8 +2,10 @@ import { spawnSync } from 'child_process';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 
+const ANSI_ESCAPE_REGEX = new RegExp('\\x1b\\[[0-9;]*[A-Za-z]', 'g');
+
 function stripAnsi(value: string): string {
-  return value.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+  return value.replace(ANSI_ESCAPE_REGEX, '');
 }
 
 describe('cli summary output', () => {
@@ -105,7 +107,7 @@ describe('cli summary output', () => {
         },
       );
 
-      expect(result.status).not.toBe(0);
+      expect(result.status).toBe(1);
 
       const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
       expect(output).toContain('Policy violations detected');
