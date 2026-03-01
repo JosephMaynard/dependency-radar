@@ -226,6 +226,7 @@ Run analysis only (no HTML/JSON output and no `.dependency-radar` artifacts writ
 ```bash
 npx dependency-radar --no-report
 ```
+Note: `--keep-temp` has no effect with `--no-report`; temporary files in `.dependency-radar/` may contain dependency metadata and should not be committed (remove them unless debugging with `--keep-temp`).
 
 Open the generated report using the system default:
 

@@ -103,8 +103,9 @@ export async function runPackageOutdated(
   projectPath: string,
   tempDir: string,
   tool: "npm" | "pnpm" | "yarn",
-  persistToDisk = true,
+  options: { persistToDisk?: boolean } = {},
 ): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, `${tool}-outdated.json`);
   try {
     const { cmd, args, lockFiles } = buildOutdatedCommand(tool);

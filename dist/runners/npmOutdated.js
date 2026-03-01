@@ -84,7 +84,8 @@ function buildOutdatedCommand(tool) {
         lockFiles: ["package-lock.json", "npm-shrinkwrap.json"],
     };
 }
-async function runPackageOutdated(projectPath, tempDir, tool, persistToDisk = true) {
+async function runPackageOutdated(projectPath, tempDir, tool, options = {}) {
+    const persistToDisk = options.persistToDisk !== false;
     const targetFile = path_1.default.join(tempDir, `${tool}-outdated.json`);
     try {
         const { cmd, args, lockFiles } = buildOutdatedCommand(tool);

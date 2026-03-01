@@ -1062,7 +1062,7 @@ function colorLeadingSymbol(line) {
 function statusLine(symbol, message) {
     return `${colorSymbol(symbol)} ${message}`;
 }
-function buildCliSummary(aggregated) {
+function buildCliSummary(aggregated, options) {
     var _a;
     let vulnerablePackages = 0;
     let reachableVulnerablePackages = 0;
@@ -1081,7 +1081,12 @@ function buildCliSummary(aggregated) {
                 reachableVulnerablePackages += 1;
             }
         }
-        if (dep.usage.direct && dep.usage.scope === "runtime" && !dep.usage.importUsage) {
+        // Count "unused" only when import graph collection succeeded for all packages.
+        // Otherwise, missing importUsage can mean "unknown" rather than "unused".
+        if (options.importGraphComplete &&
+            dep.usage.direct &&
+            dep.usage.scope === "runtime" &&
+            !dep.usage.importUsage) {
             unusedInstalledDeps += 1;
         }
         if (dep.compliance.license.status === "mismatch") {
@@ -1250,7 +1255,7 @@ async function run() {
                     persistToDisk: shouldWriteArtifacts,
                 }).catch((err) => ({ ok: false, error: String(err) })),
                 opts.outdated
-                    ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager, shouldWriteArtifacts).catch((err) => ({ ok: false, error: String(err) }))
+                    ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
                     : Promise.resolve(undefined),
             ]);
             perPackageAudit.push(a);
@@ -1347,7 +1352,10 @@ async function run() {
             ...(toolVersions ? { toolVersions } : {}),
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
-        summary = buildCliSummary(aggregated);
+        const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
+        summary = buildCliSummary(aggregated, {
+            importGraphComplete,
+        });
         if (workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }

@@ -1218,7 +1218,10 @@ type CliSummary = {
   majorUpgradeBlockers: number;
 };
 
-function buildCliSummary(aggregated: AggregatedData): CliSummary {
+function buildCliSummary(
+  aggregated: AggregatedData,
+  options: { importGraphComplete: boolean },
+): CliSummary {
   let vulnerablePackages = 0;
   let reachableVulnerablePackages = 0;
   let unusedInstalledDeps = 0;
@@ -1238,7 +1241,14 @@ function buildCliSummary(aggregated: AggregatedData): CliSummary {
         reachableVulnerablePackages += 1;
       }
     }
-    if (dep.usage.direct && dep.usage.scope === "runtime" && !dep.usage.importUsage) {
+    // Count "unused" only when import graph collection succeeded for all packages.
+    // Otherwise, missing importUsage can mean "unknown" rather than "unused".
+    if (
+      options.importGraphComplete &&
+      dep.usage.direct &&
+      dep.usage.scope === "runtime" &&
+      !dep.usage.importUsage
+    ) {
       unusedInstalledDeps += 1;
     }
     if (dep.compliance.license.status === "mismatch") {
@@ -1477,7 +1487,7 @@ async function run(): Promise<void> {
               meta.path,
               pkgTempDir,
               scanManager,
-              shouldWriteArtifacts,
+              { persistToDisk: shouldWriteArtifacts },
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
@@ -1624,7 +1634,10 @@ async function run(): Promise<void> {
       ...(toolVersions ? { toolVersions } : {}),
     });
     dependencyCount = Object.keys(aggregated.dependencies).length;
-    summary = buildCliSummary(aggregated);
+    const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
+    summary = buildCliSummary(aggregated, {
+      importGraphComplete,
+    });
 
     if (workspace.type !== "none") {
       console.log(

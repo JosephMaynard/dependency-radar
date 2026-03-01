@@ -28,7 +28,7 @@ type LsProgressOptions = {
  * @param tempDir - Directory where the resulting JSON file and any diagnostics will be written
  * @param tool - Package manager to use (`npm`, `pnpm`, or `yarn`)
  * @param options - Optional progress callbacks and context; if `lockfileSearchRoot` is provided it will be used as the root when searching for a lockfile
- * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON; on failure, `error` contains a message suitable for users and `file` points to the diagnostics JSON written to disk.
+ * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON when `options.persistToDisk !== false` (omitted/undefined when `options.persistToDisk === false`); on failure, `error` contains a message suitable for users and `file` points to diagnostics only when persistence is enabled.
  */
 export async function runNpmLs(
   projectPath: string,
