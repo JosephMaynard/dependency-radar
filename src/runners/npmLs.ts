@@ -18,6 +18,7 @@ type LsProgressOptions = {
   contextLabel?: string;
   lockfileSearchRoot?: string;
   onProgress?: (line: string) => void;
+  persistToDisk?: boolean;
 };
 
 /**
@@ -27,7 +28,7 @@ type LsProgressOptions = {
  * @param tempDir - Directory where the resulting JSON file and any diagnostics will be written
  * @param tool - Package manager to use (`npm`, `pnpm`, or `yarn`)
  * @param options - Optional progress callbacks and context; if `lockfileSearchRoot` is provided it will be used as the root when searching for a lockfile
- * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON; on failure, `error` contains a message suitable for users and `file` points to the diagnostics JSON written to disk.
+ * @returns The tool result. On success, `data` is the normalized dependency tree and `file` is the path of the written JSON when `options.persistToDisk !== false` (omitted/undefined when `options.persistToDisk === false`); on failure, `error` contains a message suitable for users and `file` points to diagnostics only when persistence is enabled.
  */
 export async function runNpmLs(
   projectPath: string,
@@ -35,6 +36,7 @@ export async function runNpmLs(
   tool: 'npm' | 'pnpm' | 'yarn' = 'npm',
   options: LsProgressOptions = {}
 ): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, `${tool}-ls.json`);
   try {
     const lockfileTree = await tryBuildDependencyTreeFromLockfile(
@@ -43,8 +45,10 @@ export async function runNpmLs(
       options.lockfileSearchRoot
     );
     if (lockfileTree) {
-      await writeJsonFile(targetFile, lockfileTree.data);
-      return { ok: true, data: lockfileTree.data, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, lockfileTree.data);
+      }
+      return { ok: true, data: lockfileTree.data, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     if (tool === 'pnpm') {
       return await runPnpmLsWithFallback(projectPath, targetFile, options);
@@ -54,18 +58,34 @@ export async function runNpmLs(
     const parsed = parseJsonOutput(result.stdout);
     const normalized = normalize(parsed);
     if (normalized) {
-      await writeJsonFile(targetFile, normalized);
-      return { ok: true, data: normalized, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, normalized);
+      }
+      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
     }
-    await writeJsonFile(targetFile, { stdout: result.stdout, stderr: result.stderr, code: result.code });
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { stdout: result.stdout, stderr: result.stderr, code: result.code });
+    }
     const error = buildLsFailureMessage(tool, result.code, result.stderr);
-    return { ok: false, error, file: targetFile };
+    return { ok: false, error, ...(persistToDisk ? { file: targetFile } : {}) };
   } catch (err: any) {
-    await writeJsonFile(targetFile, { error: String(err) });
-    return { ok: false, error: `${tool} ls failed: ${String(err)}`, file: targetFile };
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { error: String(err) });
+    }
+    return {
+      ok: false,
+      error: `${tool} ls failed: ${String(err)}`,
+      ...(persistToDisk ? { file: targetFile } : {})
+    };
   }
 }
 
+/**
+ * Selects the package-manager-specific list command arguments and the corresponding normalizer.
+ *
+ * @param tool - The package manager identifier ('npm', 'pnpm', or 'yarn') used to choose arguments and normalizer.
+ * @returns An object with `args`, the CLI arguments to run the tool's list command, and `normalize`, a function that converts the tool's parsed output into a `ResolvedTree` or `undefined` when parsing/normalization fails.
+ */
 function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normalize: (data: any) => ResolvedTree | undefined } {
   if (tool === 'yarn') {
     return {
@@ -79,7 +99,18 @@ function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normal
   };
 }
 
+/**
+ * Attempt to build a normalized dependency tree for a pnpm workspace by running `pnpm list` with progressively lower depths until a parseable result is produced.
+ *
+ * Tries multiple depth levels, detects out-of-memory conditions, and optionally persists the normalized tree or diagnostic JSON to `targetFile` when `options.persistToDisk` is not explicitly `false`.
+ *
+ * @param projectPath - Filesystem path of the project/workspace to inspect
+ * @param targetFile - Path where the normalized tree or diagnostics will be written when persistence is enabled
+ * @param options - Progress and persistence options; when `options.persistToDisk` is omitted or `true`, successful results include `file: targetFile` and diagnostic output is written on failure
+ * @returns On success: an object with `ok: true` and `data` containing the normalized dependency tree (and `file` when persisted). On failure: an object with `ok: false` and an `error` message describing the failure (and `file` when diagnostics were persisted).
+ */
 async function runPnpmLsWithFallback(projectPath: string, targetFile: string, options: LsProgressOptions): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const installState = createPnpmInstallState(projectPath);
   const attempts: Array<{
     depth: string;
@@ -115,8 +146,10 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
           `✔ PNPM ls recovered for workspace: ${formatContextLabel(options)} (depth=${depth})`
         );
       }
-      await writeJsonFile(targetFile, normalized);
-      return { ok: true, data: normalized, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, normalized);
+      }
+      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     const reason = describeAttemptFailure(result.code, result.stderr);
     progress(
@@ -132,11 +165,13 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
     }
   }
 
-  await writeJsonFile(targetFile, {
-    error: 'pnpm ls retries exhausted',
-    nodeOptions: env.NODE_OPTIONS,
-    attempts
-  });
+  if (persistToDisk) {
+    await writeJsonFile(targetFile, {
+      error: 'pnpm ls retries exhausted',
+      nodeOptions: env.NODE_OPTIONS,
+      attempts
+    });
+  }
 
   const sawOom = attempts.some((attempt) => attempt.outOfMemory);
   const lastAttempt = attempts[attempts.length - 1];
@@ -144,7 +179,7 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
     return {
       ok: false,
       error: 'pnpm ls ran out of memory while building the dependency tree (retried with lower depths).',
-      file: targetFile
+      ...(persistToDisk ? { file: targetFile } : {})
     };
   }
   const suffix = lastAttempt && typeof lastAttempt.code === 'number'
@@ -153,7 +188,7 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
   return {
     ok: false,
     error: `Failed to parse pnpm ls output after retries.${suffix}`,
-    file: targetFile
+    ...(persistToDisk ? { file: targetFile } : {})
   };
 }
 
@@ -465,6 +500,12 @@ function normalizeYarnNode(node: any): { name: string; node: ResolvedNode } | un
   return { name: parsed.name, node: out };
 }
 
+/**
+ * Parse a Yarn node label into a package name and version.
+ *
+ * @param label - The Yarn label, typically in the form `name@version` (the version may be prefixed with `npm:`).
+ * @returns An object with `name` containing the package name and `version` containing the package version; if the label or either part is missing, that field is `"unknown"`. 
+ */
 function splitYarnLabel(label: string): { name: string; version: string } {
   if (!label) return { name: 'unknown', version: 'unknown' };
   const lastAt = label.lastIndexOf('@');

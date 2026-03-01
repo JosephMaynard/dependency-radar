@@ -99,11 +99,25 @@ function buildOutdatedCommand(tool: "npm" | "pnpm" | "yarn"): {
   };
 }
 
+/**
+ * Run the package manager's `outdated` command for a project, normalize the output, and optionally persist results to disk.
+ *
+ * Executes the appropriate `outdated` command for `npm`, `pnpm`, or `yarn` in the repository lockfile directory (if found) and normalizes the tool-specific output into a consistent map of package names to `{ current, latest, wanted }`.
+ *
+ * @param projectPath - Path to the project root where the command should be executed if no lockfile directory is found
+ * @param tempDir - Directory used to write the tool-specific output file when persistence is enabled
+ * @param tool - Package manager to run (`"npm" | "pnpm" | "yarn"`)
+ * @param options - Optional settings
+ * @param options.persistToDisk - When `false`, do not write any output file to `tempDir`; defaults to `true`
+ * @returns A ToolResult containing `data` with the normalized outdated mapping on success, or `error` on failure. When persistence is enabled the result includes `file` with the path to the written JSON file.
+ */
 export async function runPackageOutdated(
   projectPath: string,
   tempDir: string,
   tool: "npm" | "pnpm" | "yarn",
+  options: { persistToDisk?: boolean } = {},
 ): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, `${tool}-outdated.json`);
   try {
     const { cmd, args, lockFiles } = buildOutdatedCommand(tool);
@@ -113,38 +127,46 @@ export async function runPackageOutdated(
     const parsed = parseJsonOutput(result.stdout);
     const normalized = normalizeOutdatedOutput(tool, parsed);
     if (normalized && typeof normalized === "object") {
-      await writeJsonFile(targetFile, normalized);
-      return { ok: true, data: normalized, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, normalized);
+      }
+      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     if (tool === "yarn" && isYarnOutdatedUnsupported(result)) {
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          code: result.code,
+        });
+      }
+      return {
+        ok: false,
+        error:
+          'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
+        ...(persistToDisk ? { file: targetFile } : {}),
+      };
+    }
+    if (persistToDisk) {
       await writeJsonFile(targetFile, {
         stdout: result.stdout,
         stderr: result.stderr,
         code: result.code,
       });
-      return {
-        ok: false,
-        error:
-          'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
-        file: targetFile,
-      };
     }
-    await writeJsonFile(targetFile, {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      code: result.code,
-    });
     return {
       ok: false,
       error: `Failed to parse ${tool} outdated output`,
-      file: targetFile,
+      ...(persistToDisk ? { file: targetFile } : {}),
     };
   } catch (err: any) {
-    await writeJsonFile(targetFile, { error: String(err) });
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { error: String(err) });
+    }
     return {
       ok: false,
       error: `${tool} outdated failed: ${String(err)}`,
-      file: targetFile,
+      ...(persistToDisk ? { file: targetFile } : {}),
     };
   }
 }

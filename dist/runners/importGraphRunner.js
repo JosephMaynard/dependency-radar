@@ -10,7 +10,22 @@ const module_1 = require("module");
 const utils_1 = require("../utils");
 const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.dependency-radar']);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
-async function runImportGraph(projectPath, tempDir) {
+/**
+ * Builds an import graph for a project and optionally writes it to disk.
+ *
+ * The produced graph maps each project-relative source file to its resolved local file dependencies,
+ * referenced packages, per-file package usage counts, and any unresolved import specifiers.
+ *
+ * @param options - Optional settings.
+ * @param options.persistToDisk - When `false`, the graph is not written to disk; defaults to `true`.
+ * @returns An object with:
+ *  - `ok: true` and `data` containing `{ files, packages, packageCounts, unresolvedImports }` on success.
+ *    When the graph was persisted to disk, a `file` field points to the written JSON file (`<tempDir>/import-graph.json`).
+ *  - `ok: false` and `error` containing an error message on failure. If persistence was enabled, a `file` field may point to
+ *    the JSON file containing the error object.
+ */
+async function runImportGraph(projectPath, tempDir, options = {}) {
+    const persistToDisk = options.persistToDisk !== false;
     const targetFile = path_1.default.join(tempDir, 'import-graph.json');
     try {
         const srcPath = path_1.default.join(projectPath, 'src');
@@ -32,12 +47,20 @@ async function runImportGraph(projectPath, tempDir) {
             unresolvedImports.push(...resolved.unresolved.map((spec) => ({ importer: rel, specifier: spec })));
         }
         const output = { files: fileGraph, packages: packageGraph, packageCounts, unresolvedImports };
-        await (0, utils_1.writeJsonFile)(targetFile, output);
-        return { ok: true, data: output, file: targetFile };
+        if (persistToDisk) {
+            await (0, utils_1.writeJsonFile)(targetFile, output);
+        }
+        return { ok: true, data: output, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     catch (err) {
-        await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
-        return { ok: false, error: `import graph failed: ${String(err)}`, file: targetFile };
+        if (persistToDisk) {
+            await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
+        }
+        return {
+            ok: false,
+            error: `import graph failed: ${String(err)}`,
+            ...(persistToDisk ? { file: targetFile } : {})
+        };
     }
 }
 async function collectSourceFiles(rootDir) {

@@ -221,6 +221,13 @@ Output JSON instead of HTML report:
 npx dependency-radar --json
 ```
 
+Run analysis only (no HTML/JSON output and no `.dependency-radar` artifacts written):
+
+```bash
+npx dependency-radar --no-report
+```
+Note: `--keep-temp` has no effect with `--no-report`; temporary files in `.dependency-radar/` may contain dependency metadata and should not be committed (remove them unless debugging with `--keep-temp`).
+
 Open the generated report using the system default:
 
 ```bash
@@ -276,6 +283,26 @@ Fixture orchestration lives in `/test-fixtures/package.json` with helper scripts
 
 Dependency Radar writes a single HTML file (dependency-radar.html by default).  
 The file is fully self-contained and can be opened locally in a browser, shared with others, or attached to tickets and documentation.
+
+### CLI summary
+
+At the end of each scan, the CLI prints a summary block with high-level counts, for example:
+
+```text
+Summary:
+• Direct deps scanned: 8
+• Transitive deps scanned: 65
+• Vulnerable packages: 5 (1 reachable)
+• Unused installed deps: 0
+• Licence mismatches: 3
+• Major upgrade blockers: 28
+   - 14 strict peer dependency constraints
+   - 6 narrow engine ranges
+   - 4 deprecated packages
+   - 4 native bindings
+```
+
+The blocker detail counts can overlap: a single package may contribute to multiple blocker categories.
 
 ### JSON output
 

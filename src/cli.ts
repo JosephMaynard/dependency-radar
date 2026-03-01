@@ -9,6 +9,7 @@ import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
 import { renderReport } from "./report";
 import type {
+  AggregatedData,
   OutdatedEntry,
   OutdatedResult,
   ToolResult,
@@ -1047,8 +1048,19 @@ interface CliOptions {
   outdated: boolean;
   json: boolean;
   open: boolean;
+  noReport: boolean;
 }
 
+/**
+ * Parse command-line tokens into a populated CliOptions object.
+ *
+ * Recognizes a leading non-flag token as the command and the following flags:
+ * --project, --out, --keep-temp, --offline, --json, --open, --no-report, and --help / -h.
+ * The --offline flag disables both audit and outdated checks.
+ *
+ * @param argv - Array of CLI tokens (typically process.argv.slice(2))
+ * @returns The resolved CliOptions with defaults applied and values overridden by argv
+ */
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     command: "scan",
@@ -1059,6 +1071,7 @@ function parseArgs(argv: string[]): CliOptions {
     outdated: true,
     json: false,
     open: false,
+    noReport: false,
   };
 
   const args = [...argv];
@@ -1077,6 +1090,7 @@ function parseArgs(argv: string[]): CliOptions {
       opts.outdated = false;
     } else if (arg === "--json") opts.json = true;
     else if (arg === "--open") opts.open = true;
+    else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -1086,6 +1100,12 @@ function parseArgs(argv: string[]): CliOptions {
   return opts;
 }
 
+/**
+ * Print the CLI usage and available options to the console.
+ *
+ * Displays the command synopsis and descriptions for supported flags including
+ * --project, --out, --json, --no-report, --keep-temp, --offline, and --open.
+ */
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
 
@@ -1095,12 +1115,20 @@ Options:
   --project <path>   Project folder (default: cwd)
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
+  --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default application
 `);
 }
 
+/**
+ * Attempts to open the given file in the system's default application.
+ *
+ * Spawns a detached OS-specific opener process (so the function returns immediately). If the spawn fails, a warning is logged to the console.
+ *
+ * @param filePath - Path (absolute or relative) to the file to open
+ */
 function openInBrowser(filePath: string): void {
   const normalizedPath = filePath.replace(/\\/g, "/");
   let child: ChildProcess;
@@ -1135,6 +1163,307 @@ function openInBrowser(filePath: string): void {
   child.unref();
 }
 
+const ANSI = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+} as const;
+
+/**
+ * Determine whether ANSI color output should be enabled for the current process.
+ *
+ * Considers the `NO_COLOR` and `FORCE_COLOR` environment variables and falls back to whether `stdout` is a TTY.
+ *
+ * @returns `true` if ANSI color output should be enabled, `false` otherwise.
+ */
+function shouldUseColor(): boolean {
+  if (process.env.NO_COLOR !== undefined) return false;
+  const forceColor = process.env.FORCE_COLOR;
+  if (forceColor === "0") return false;
+  if (forceColor !== undefined) return true;
+  return Boolean(process.stdout.isTTY);
+}
+
+const COLOR_ENABLED = shouldUseColor();
+
+/**
+ * Wraps text with ANSI color or style escape sequences when terminal coloring is enabled.
+ *
+ * @param value - The text to style
+ * @param color - The style to apply; one of `'bold'`, `'green'`, `'red'`, `'yellow'`, or `'cyan'`
+ * @returns The input string wrapped with the selected ANSI escape codes if colors are enabled, otherwise the original `value`
+ */
+function styleText(
+  value: string,
+  color: "bold" | "green" | "red" | "yellow" | "cyan",
+): string {
+  if (!COLOR_ENABLED) return value;
+  return `${ANSI[color]}${value}${ANSI.reset}`;
+}
+
+/**
+ * Extracts the first Unicode character from a string and the remaining substring.
+ *
+ * @param value - The input string to split
+ * @returns An object with `head` set to the first character (empty string if input is empty) and `tail` set to the remainder of the string after `head`
+ */
+function splitFirstGlyph(value: string): { head: string; tail: string } {
+  const chars = Array.from(value);
+  const head = chars[0] || "";
+  const tail = value.slice(head.length);
+  return { head, tail };
+}
+
+/**
+ * Apply ANSI color styling to recognized status glyphs at the start of a string.
+ *
+ * Recognized leading glyphs are colored as follows: "✔" → green, "✖" → red, "⚠" → yellow,
+ * "↗", "ℹ", "📦" → cyan, and "📉" → yellow. If the first grapheme is not one of these,
+ * the input is returned unchanged.
+ *
+ * @param symbol - The string whose leading glyph should be colorized (if recognized)
+ * @returns The input string with the leading glyph wrapped in color styling when recognized, otherwise the original string
+ */
+function colorSymbol(symbol: string): string {
+  const { head, tail } = splitFirstGlyph(symbol);
+  if (!head) return symbol;
+  if (head === "✔") return `${styleText(head, "green")}${tail}`;
+  if (head === "✖") return `${styleText(head, "red")}${tail}`;
+  if (head === "⚠") return `${styleText(head, "yellow")}${tail}`;
+  if (head === "↗" || head === "ℹ" || head === "📦") {
+    return `${styleText(head, "cyan")}${tail}`;
+  }
+  if (head === "📉") return `${styleText(head, "yellow")}${tail}`;
+  return symbol;
+}
+
+/**
+ * Applies ANSI color styling to a leading status glyph in a text line when present.
+ *
+ * @param line - The input line; if it starts with a recognized status glyph (e.g., ✔, ✖, ⚠, ↗, ℹ, 📦, 📉), that glyph will be replaced with its colored equivalent.
+ * @returns The line with the leading glyph colorized when applicable, or the original line unchanged.
+ */
+function colorLeadingSymbol(line: string): string {
+  const { head } = splitFirstGlyph(line);
+  if (!head) return line;
+  if (
+    head !== "✔" &&
+    head !== "✖" &&
+    head !== "⚠" &&
+    head !== "↗" &&
+    head !== "ℹ" &&
+    head !== "📦" &&
+    head !== "📉"
+  ) {
+    return line;
+  }
+  return `${colorSymbol(head)}${line.slice(head.length)}`;
+}
+
+/**
+ * Format a CLI status line with a colored leading symbol and message.
+ *
+ * @param symbol - The single-character or glyph to display as the leading symbol
+ * @param message - The text message that follows the symbol
+ * @returns The formatted status line with the colored symbol, a single separating space, and the message
+ */
+function statusLine(symbol: string, message: string): string {
+  return `${colorSymbol(symbol)} ${message}`;
+}
+
+type CliSummary = {
+  directDeps: number;
+  transitiveDeps: number;
+  vulnerablePackages: number;
+  reachableVulnerablePackages: number;
+  unusedInstalledDeps: number;
+  licenseMismatches: number;
+  majorUpgradeBlockers: number;
+  majorUpgradeBlockerBreakdown: {
+    peerDependency: number;
+    nodeEngine: number;
+    deprecated: number;
+    nativeBindings: number;
+    installScripts: number;
+  };
+};
+
+/**
+ * Produce a concise CLI summary from aggregated workspace data.
+ *
+ * @param aggregated - Aggregated workspace data produced by the scan
+ * @param options.importGraphComplete - `true` when import graph collection completed for all packages; affects unused dependency counting
+ * @returns An object with:
+ * - `directDeps`: number of direct dependencies in the workspace
+ * - `transitiveDeps`: number of transitive dependencies in the workspace
+ * - `vulnerablePackages`: count of dependencies with at least one reported vulnerability
+ * - `reachableVulnerablePackages`: count of vulnerable dependencies that are reachable according to import usage
+ * - `unusedInstalledDeps`: count of direct runtime dependencies that appear unused (only when `importGraphComplete` is `true`)
+ * - `licenseMismatches`: count of dependencies whose license status is `mismatch`
+ * - `majorUpgradeBlockers`: count of dependencies that have one or more upgrade blockers
+ * - `majorUpgradeBlockerBreakdown`: object with counts for specific blocker types (`peerDependency`, `nodeEngine`, `deprecated`, `nativeBindings`, `installScripts`)
+ */
+function buildCliSummary(
+  aggregated: AggregatedData,
+  options: { importGraphComplete: boolean },
+): CliSummary {
+  let vulnerablePackages = 0;
+  let reachableVulnerablePackages = 0;
+  let unusedInstalledDeps = 0;
+  let licenseMismatches = 0;
+  let majorUpgradeBlockers = 0;
+  const majorUpgradeBlockerBreakdown = {
+    peerDependency: 0,
+    nodeEngine: 0,
+    deprecated: 0,
+    nativeBindings: 0,
+    installScripts: 0,
+  };
+
+  const deps = Object.values(aggregated.dependencies || {});
+  for (const dep of deps) {
+    const vulnTotal =
+      (dep.security.summary.critical || 0) +
+      (dep.security.summary.high || 0) +
+      (dep.security.summary.moderate || 0) +
+      (dep.security.summary.low || 0);
+    if (vulnTotal > 0) {
+      vulnerablePackages += 1;
+      if ((dep.usage.importUsage?.fileCount || 0) > 0) {
+        reachableVulnerablePackages += 1;
+      }
+    }
+    // Count "unused" only when import graph collection succeeded for all packages.
+    // `importUsage` is an optional object (or undefined), not a boolean/string state.
+    // Otherwise, missing importUsage can mean "unknown" rather than "unused".
+    if (
+      options.importGraphComplete &&
+      dep.usage.direct &&
+      dep.usage.scope === "runtime" &&
+      !dep.usage.importUsage
+    ) {
+      unusedInstalledDeps += 1;
+    }
+    if (dep.compliance.license.status === "mismatch") {
+      licenseMismatches += 1;
+    }
+    const blockers = dep.upgrade.blockers || [];
+    if (blockers.length > 0) {
+      majorUpgradeBlockers += 1;
+    }
+    if (blockers.includes("peerDependency")) {
+      majorUpgradeBlockerBreakdown.peerDependency += 1;
+    }
+    if (blockers.includes("nodeEngine")) {
+      majorUpgradeBlockerBreakdown.nodeEngine += 1;
+    }
+    if (blockers.includes("deprecated")) {
+      majorUpgradeBlockerBreakdown.deprecated += 1;
+    }
+    if (blockers.includes("nativeBindings")) {
+      majorUpgradeBlockerBreakdown.nativeBindings += 1;
+    }
+    if (blockers.includes("installScripts")) {
+      majorUpgradeBlockerBreakdown.installScripts += 1;
+    }
+  }
+
+  return {
+    directDeps: aggregated.summary.directCount,
+    transitiveDeps: aggregated.summary.transitiveCount,
+    vulnerablePackages,
+    reachableVulnerablePackages,
+    unusedInstalledDeps,
+    licenseMismatches,
+    majorUpgradeBlockers,
+    majorUpgradeBlockerBreakdown,
+  };
+}
+
+/**
+ * Choose the correct singular or plural form based on a numeric count.
+ *
+ * @param value - The numeric count that determines which form to use
+ * @param singular - The singular form to use when `value` equals 1
+ * @param plural - The plural form to use for any other `value`
+ * @returns The `singular` string if `value` is 1, `plural` otherwise
+ */
+function pluralize(value: number, singular: string, plural: string): string {
+  return value === 1 ? singular : plural;
+}
+
+/**
+ * Print a concise, human-readable CLI summary of scan results to standard output.
+ *
+ * @param summary - Aggregated counts and breakdowns (dependencies, vulnerabilities, unused deps, license mismatches, and major-upgrade blocker details) used to compose the printed summary
+ */
+function printCliSummary(summary: CliSummary): void {
+  const bullet = "•";
+  console.log("");
+  console.log("Summary:");
+  console.log(`${bullet} Direct deps scanned: ${summary.directDeps}`);
+  console.log(`${bullet} Transitive deps scanned: ${summary.transitiveDeps}`);
+  console.log(
+    `${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.reachableVulnerablePackages} reachable)`,
+  );
+  console.log(`${bullet} Unused installed deps: ${summary.unusedInstalledDeps}`);
+  console.log(`${bullet} License mismatches: ${summary.licenseMismatches}`);
+  console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
+  const blockerDetails: string[] = [];
+  if (summary.majorUpgradeBlockerBreakdown.peerDependency > 0) {
+    blockerDetails.push(
+      `   - ${summary.majorUpgradeBlockerBreakdown.peerDependency} ${pluralize(
+        summary.majorUpgradeBlockerBreakdown.peerDependency,
+        "strict peer dependency constraint",
+        "strict peer dependency constraints",
+      )}`,
+    );
+  }
+  if (summary.majorUpgradeBlockerBreakdown.nodeEngine > 0) {
+    blockerDetails.push(
+      `   - ${summary.majorUpgradeBlockerBreakdown.nodeEngine} ${pluralize(
+        summary.majorUpgradeBlockerBreakdown.nodeEngine,
+        "narrow engine range",
+        "narrow engine ranges",
+      )}`,
+    );
+  }
+  if (summary.majorUpgradeBlockerBreakdown.deprecated > 0) {
+    blockerDetails.push(
+      `   - ${summary.majorUpgradeBlockerBreakdown.deprecated} ${pluralize(
+        summary.majorUpgradeBlockerBreakdown.deprecated,
+        "deprecated package",
+        "deprecated packages",
+      )}`,
+    );
+  }
+  if (summary.majorUpgradeBlockerBreakdown.nativeBindings > 0) {
+    blockerDetails.push(
+      `   - ${summary.majorUpgradeBlockerBreakdown.nativeBindings} ${pluralize(
+        summary.majorUpgradeBlockerBreakdown.nativeBindings,
+        "native binding",
+        "native bindings",
+      )}`,
+    );
+  }
+  if (summary.majorUpgradeBlockerBreakdown.installScripts > 0) {
+    blockerDetails.push(
+      `   - ${summary.majorUpgradeBlockerBreakdown.installScripts} ${pluralize(
+        summary.majorUpgradeBlockerBreakdown.installScripts,
+        "install lifecycle script",
+        "install lifecycle scripts",
+      )}`,
+    );
+  }
+  for (const line of blockerDetails) {
+    console.log(line);
+  }
+  console.log("");
+}
+
 /**
  * Orchestrates the CLI "scan" command to collect, merge, and output dependency data for a project or workspace.
  *
@@ -1151,7 +1480,14 @@ async function run(): Promise<void> {
     return;
   }
 
+  const shouldWriteArtifacts = !opts.noReport;
   const projectPath = path.resolve(opts.project);
+  let summary: CliSummary | undefined;
+  if (opts.noReport && opts.keepTemp) {
+    console.log(
+      statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
+    );
+  }
   if (opts.json && opts.out === "dependency-radar.html") {
     opts.out = "dependency-radar.json";
   }
@@ -1159,22 +1495,24 @@ async function run(): Promise<void> {
   const startTime = Date.now();
   let dependencyCount = 0;
   let outputCreated = false;
-  try {
-    const stat = await fs.stat(outputPath).catch(() => undefined);
-    const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
-    const hasExtension = Boolean(path.extname(outputPath));
-    if (
-      (stat && stat.isDirectory()) ||
-      endsWithSeparator ||
-      (!stat && !hasExtension)
-    ) {
-      outputPath = path.join(
-        outputPath,
-        opts.json ? "dependency-radar.json" : "dependency-radar.html",
-      );
+  if (shouldWriteArtifacts) {
+    try {
+      const stat = await fs.stat(outputPath).catch(() => undefined);
+      const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
+      const hasExtension = Boolean(path.extname(outputPath));
+      if (
+        (stat && stat.isDirectory()) ||
+        endsWithSeparator ||
+        (!stat && !hasExtension)
+      ) {
+        outputPath = path.join(
+          outputPath,
+          opts.json ? "dependency-radar.json" : "dependency-radar.html",
+        );
+      }
+    } catch (e) {
+      // ignore, best-effort path normalization
     }
-  } catch (e) {
-    // ignore, best-effort path normalization
   }
   const tempDir = path.join(projectPath, ".dependency-radar");
 
@@ -1203,7 +1541,9 @@ async function run(): Promise<void> {
       ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
       : "";
     console.warn(
-      `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+      colorLeadingSymbol(
+        `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+      ),
     );
   }
   const rootPkg = await readJsonFile(path.join(projectPath, "package.json"));
@@ -1255,15 +1595,20 @@ async function run(): Promise<void> {
     workspace.type === "none"
       ? "Single project"
       : `${workspace.type.toUpperCase()} workspace`;
-  console.log(`✔ ${workspaceLabel} detected`);
+  console.log(statusLine("✔", `${workspaceLabel} detected`));
   if (workspace.type !== "none" && scanManager !== workspace.type) {
     console.log(
-      `✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`,
+      statusLine(
+        "✔",
+        `Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`,
+      ),
     );
   }
   const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
   try {
-    await ensureDir(tempDir);
+    if (shouldWriteArtifacts) {
+      await ensureDir(tempDir);
+    }
 
     // Stage 2: run per-package collectors and persist raw tool outputs.
     const packageMetas = await readWorkspacePackageMeta(
@@ -1288,7 +1633,9 @@ async function run(): Promise<void> {
         tempDir,
         meta.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
       );
-      await ensureDir(pkgTempDir);
+      if (shouldWriteArtifacts) {
+        await ensureDir(pkgTempDir);
+      }
       const [a, l, ig, o] = await Promise.all([
         opts.audit
           ? runPackageAudit(
@@ -1296,6 +1643,7 @@ async function run(): Promise<void> {
               pkgTempDir,
               scanManager,
               yarnVersion,
+              { persistToDisk: shouldWriteArtifacts },
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
@@ -1304,14 +1652,22 @@ async function run(): Promise<void> {
           contextLabel: meta.name,
           lockfileSearchRoot: projectPath,
           onProgress: (line) => spinner.log(line),
+          persistToDisk: shouldWriteArtifacts,
         }).catch(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
-        runImportGraph(meta.path, pkgTempDir).catch(
+        runImportGraph(meta.path, pkgTempDir, {
+          persistToDisk: shouldWriteArtifacts,
+        }).catch(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
         opts.outdated
-          ? runPackageOutdated(meta.path, pkgTempDir, scanManager).catch(
+          ? runPackageOutdated(
+              meta.path,
+              pkgTempDir,
+              scanManager,
+              { persistToDisk: shouldWriteArtifacts },
+            ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
           : Promise.resolve(undefined),
@@ -1326,9 +1682,13 @@ async function run(): Promise<void> {
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
       if (auditOk) {
-        spinner.log(`✔ ${scanManager.toUpperCase()} audit data collected`);
+        spinner.log(
+          statusLine("✔", `${scanManager.toUpperCase()} audit data collected`),
+        );
       } else {
-        spinner.log(`✖ ${scanManager.toUpperCase()} audit data unavailable`);
+        spinner.log(
+          statusLine("✖", `${scanManager.toUpperCase()} audit data unavailable`),
+        );
       }
     }
     if (opts.outdated) {
@@ -1336,9 +1696,19 @@ async function run(): Promise<void> {
         (r) => r.result && r.result.ok,
       );
       if (outdatedOk) {
-        spinner.log(`✔ ${scanManager.toUpperCase()} outdated data collected`);
+        spinner.log(
+          statusLine(
+            "✔",
+            `${scanManager.toUpperCase()} outdated data collected`,
+          ),
+        );
       } else {
-        spinner.log(`✖ ${scanManager.toUpperCase()} outdated data unavailable`);
+        spinner.log(
+          statusLine(
+            "✖",
+            `${scanManager.toUpperCase()} outdated data unavailable`,
+          ),
+        );
       }
     }
 
@@ -1443,6 +1813,10 @@ async function run(): Promise<void> {
       ...(toolVersions ? { toolVersions } : {}),
     });
     dependencyCount = Object.keys(aggregated.dependencies).length;
+    const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
+    summary = buildCliSummary(aggregated, {
+      importGraphComplete,
+    });
 
     if (workspace.type !== "none") {
       console.log(
@@ -1450,7 +1824,7 @@ async function run(): Promise<void> {
       );
     }
 
-    if (dependencyCount > 0) {
+    if (dependencyCount > 0 && shouldWriteArtifacts) {
       if (opts.json) {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(
@@ -1466,13 +1840,25 @@ async function run(): Promise<void> {
     spinner.stop(true);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(
-      `✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`,
+      statusLine(
+        "✔",
+        `Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`,
+      ),
     );
-    if (outputCreated) {
-      console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+    if (!shouldWriteArtifacts) {
+      console.log(
+        statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."),
+      );
+    } else if (outputCreated) {
+      console.log(
+        statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`),
+      );
     } else {
       console.log(
-        `✖ No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+        statusLine(
+          "✖",
+          `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+        ),
       );
     }
   } catch (err: any) {
@@ -1480,31 +1866,52 @@ async function run(): Promise<void> {
     console.error("Failed to generate report:", err);
     process.exit(1);
   } finally {
-    if (!opts.keepTemp) {
-      await removeDir(tempDir);
-    } else {
-      console.log(`✔ Temporary data kept at ${tempDir}`);
+    if (shouldWriteArtifacts) {
+      if (!opts.keepTemp) {
+        await removeDir(tempDir);
+      } else {
+        console.log(statusLine("✔", `Temporary data kept at ${tempDir}`));
+      }
     }
   }
 
-  if (opts.open && outputCreated && !isCI()) {
+  if (opts.open && !shouldWriteArtifacts) {
+    console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+  } else if (opts.open && outputCreated && !isCI()) {
     console.log(
-      `↗ Opening ${path.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+      statusLine(
+        "↗",
+        `Opening ${path.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+      ),
     );
     openInBrowser(outputPath);
   } else if (opts.open && outputCreated && isCI()) {
-    console.log("✖ Skipping auto-open in CI environment.");
+    console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+  }
+
+  if (summary) {
+    printCliSummary(summary);
+  } else {
+    console.log("");
   }
 
   // Always show CTA as the last output
-  console.log("");
   console.log(
-    "Get additional risk analysis and a management-ready summary at https://dependency-radar.com",
+    "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
   );
 }
 
 run();
 
+/**
+ * Displays a rotating CLI spinner with a message and returns controls to stop, update, or log lines.
+ *
+ * @param text - Initial message shown next to the spinner.
+ * @returns An object with control methods:
+ *  - `stop(success?)` - Stops the spinner and writes a final line using a check mark when `success` is `true` or a cross when `false` (defaults to `true`).
+ *  - `update(nextText)` - Replaces the spinner's message with `nextText`.
+ *  - `log(line)` - Writes `line` as a new output line above the active spinner without stopping it.
+ */
 function startSpinner(text: string): {
   stop: (success?: boolean) => void;
   update: (nextText: string) => void;
@@ -1527,16 +1934,17 @@ function startSpinner(text: string): {
   };
 
   const formatLine = (prefix: string, value: string): string => {
-    if (!process.stdout.isTTY) return `${prefix} ${value}`;
+    const coloredPrefix = colorSymbol(prefix);
+    if (!process.stdout.isTTY) return `${coloredPrefix} ${value}`;
     const displayValue = shortenPathInMessage(value);
     const columns = process.stdout.columns || 0;
-    if (columns <= 0) return `${prefix} ${displayValue}`;
+    if (columns <= 0) return `${coloredPrefix} ${displayValue}`;
     const max = columns - (prefix.length + 1);
-    if (max <= 0) return prefix;
-    if (displayValue.length <= max) return `${prefix} ${displayValue}`;
+    if (max <= 0) return coloredPrefix;
+    if (displayValue.length <= max) return `${coloredPrefix} ${displayValue}`;
     const ellipsis = "…";
     const keep = Math.max(0, max - ellipsis.length);
-    return `${prefix} ${displayValue.slice(0, keep)}${ellipsis}`;
+    return `${coloredPrefix} ${displayValue.slice(0, keep)}${ellipsis}`;
   };
 
   process.stdout.write(formatLine(frames[i], currentText));
@@ -1561,11 +1969,12 @@ function startSpinner(text: string): {
   };
 
   const log = (line: string) => {
+    const renderedLine = colorLeadingSymbol(line);
     if (stopped) {
-      process.stdout.write(`${line}\n`);
+      process.stdout.write(`${renderedLine}\n`);
       return;
     }
-    process.stdout.write(`\r\x1b[K${line}\n`);
+    process.stdout.write(`\r\x1b[K${renderedLine}\n`);
     process.stdout.write(formatLine(frames[i], currentText));
   };
 
