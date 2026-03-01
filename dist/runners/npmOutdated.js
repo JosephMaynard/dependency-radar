@@ -84,7 +84,7 @@ function buildOutdatedCommand(tool) {
         lockFiles: ["package-lock.json", "npm-shrinkwrap.json"],
     };
 }
-async function runPackageOutdated(projectPath, tempDir, tool) {
+async function runPackageOutdated(projectPath, tempDir, tool, persistToDisk = true) {
     const targetFile = path_1.default.join(tempDir, `${tool}-outdated.json`);
     try {
         const { cmd, args, lockFiles } = buildOutdatedCommand(tool);
@@ -94,38 +94,46 @@ async function runPackageOutdated(projectPath, tempDir, tool) {
         const parsed = (0, utils_1.parseJsonOutput)(result.stdout);
         const normalized = normalizeOutdatedOutput(tool, parsed);
         if (normalized && typeof normalized === "object") {
-            await (0, utils_1.writeJsonFile)(targetFile, normalized);
-            return { ok: true, data: normalized, file: targetFile };
+            if (persistToDisk) {
+                await (0, utils_1.writeJsonFile)(targetFile, normalized);
+            }
+            return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
         }
         if (tool === "yarn" && isYarnOutdatedUnsupported(result)) {
+            if (persistToDisk) {
+                await (0, utils_1.writeJsonFile)(targetFile, {
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    code: result.code,
+                });
+            }
+            return {
+                ok: false,
+                error: 'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
+                ...(persistToDisk ? { file: targetFile } : {}),
+            };
+        }
+        if (persistToDisk) {
             await (0, utils_1.writeJsonFile)(targetFile, {
                 stdout: result.stdout,
                 stderr: result.stderr,
                 code: result.code,
             });
-            return {
-                ok: false,
-                error: 'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
-                file: targetFile,
-            };
         }
-        await (0, utils_1.writeJsonFile)(targetFile, {
-            stdout: result.stdout,
-            stderr: result.stderr,
-            code: result.code,
-        });
         return {
             ok: false,
             error: `Failed to parse ${tool} outdated output`,
-            file: targetFile,
+            ...(persistToDisk ? { file: targetFile } : {}),
         };
     }
     catch (err) {
-        await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
+        if (persistToDisk) {
+            await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
+        }
         return {
             ok: false,
             error: `${tool} outdated failed: ${String(err)}`,
-            file: targetFile,
+            ...(persistToDisk ? { file: targetFile } : {}),
         };
     }
 }

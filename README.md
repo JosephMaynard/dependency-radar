@@ -221,6 +221,12 @@ Output JSON instead of HTML report:
 npx dependency-radar --json
 ```
 
+Run analysis only (no HTML/JSON output and no `.dependency-radar` artifacts written):
+
+```bash
+npx dependency-radar --no-report
+```
+
 Open the generated report using the system default:
 
 ```bash

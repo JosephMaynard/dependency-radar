@@ -18,6 +18,7 @@ type LsProgressOptions = {
   contextLabel?: string;
   lockfileSearchRoot?: string;
   onProgress?: (line: string) => void;
+  persistToDisk?: boolean;
 };
 
 /**
@@ -35,6 +36,7 @@ export async function runNpmLs(
   tool: 'npm' | 'pnpm' | 'yarn' = 'npm',
   options: LsProgressOptions = {}
 ): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, `${tool}-ls.json`);
   try {
     const lockfileTree = await tryBuildDependencyTreeFromLockfile(
@@ -43,8 +45,10 @@ export async function runNpmLs(
       options.lockfileSearchRoot
     );
     if (lockfileTree) {
-      await writeJsonFile(targetFile, lockfileTree.data);
-      return { ok: true, data: lockfileTree.data, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, lockfileTree.data);
+      }
+      return { ok: true, data: lockfileTree.data, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     if (tool === 'pnpm') {
       return await runPnpmLsWithFallback(projectPath, targetFile, options);
@@ -54,15 +58,25 @@ export async function runNpmLs(
     const parsed = parseJsonOutput(result.stdout);
     const normalized = normalize(parsed);
     if (normalized) {
-      await writeJsonFile(targetFile, normalized);
-      return { ok: true, data: normalized, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, normalized);
+      }
+      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
     }
-    await writeJsonFile(targetFile, { stdout: result.stdout, stderr: result.stderr, code: result.code });
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { stdout: result.stdout, stderr: result.stderr, code: result.code });
+    }
     const error = buildLsFailureMessage(tool, result.code, result.stderr);
-    return { ok: false, error, file: targetFile };
+    return { ok: false, error, ...(persistToDisk ? { file: targetFile } : {}) };
   } catch (err: any) {
-    await writeJsonFile(targetFile, { error: String(err) });
-    return { ok: false, error: `${tool} ls failed: ${String(err)}`, file: targetFile };
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { error: String(err) });
+    }
+    return {
+      ok: false,
+      error: `${tool} ls failed: ${String(err)}`,
+      ...(persistToDisk ? { file: targetFile } : {})
+    };
   }
 }
 
@@ -80,6 +94,7 @@ function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normal
 }
 
 async function runPnpmLsWithFallback(projectPath: string, targetFile: string, options: LsProgressOptions): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const installState = createPnpmInstallState(projectPath);
   const attempts: Array<{
     depth: string;
@@ -115,8 +130,10 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
           `✔ PNPM ls recovered for workspace: ${formatContextLabel(options)} (depth=${depth})`
         );
       }
-      await writeJsonFile(targetFile, normalized);
-      return { ok: true, data: normalized, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, normalized);
+      }
+      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     const reason = describeAttemptFailure(result.code, result.stderr);
     progress(
@@ -132,11 +149,13 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
     }
   }
 
-  await writeJsonFile(targetFile, {
-    error: 'pnpm ls retries exhausted',
-    nodeOptions: env.NODE_OPTIONS,
-    attempts
-  });
+  if (persistToDisk) {
+    await writeJsonFile(targetFile, {
+      error: 'pnpm ls retries exhausted',
+      nodeOptions: env.NODE_OPTIONS,
+      attempts
+    });
+  }
 
   const sawOom = attempts.some((attempt) => attempt.outOfMemory);
   const lastAttempt = attempts[attempts.length - 1];
@@ -144,7 +163,7 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
     return {
       ok: false,
       error: 'pnpm ls ran out of memory while building the dependency tree (retried with lower depths).',
-      file: targetFile
+      ...(persistToDisk ? { file: targetFile } : {})
     };
   }
   const suffix = lastAttempt && typeof lastAttempt.code === 'number'
@@ -153,7 +172,7 @@ async function runPnpmLsWithFallback(projectPath: string, targetFile: string, op
   return {
     ok: false,
     error: `Failed to parse pnpm ls output after retries.${suffix}`,
-    file: targetFile
+    ...(persistToDisk ? { file: targetFile } : {})
   };
 }
 

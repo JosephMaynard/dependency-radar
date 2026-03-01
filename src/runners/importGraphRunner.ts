@@ -7,7 +7,12 @@ import { pathExists, writeJsonFile } from '../utils';
 const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.dependency-radar']);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 
-export async function runImportGraph(projectPath: string, tempDir: string): Promise<ToolResult<any>> {
+export async function runImportGraph(
+  projectPath: string,
+  tempDir: string,
+  options: { persistToDisk?: boolean } = {}
+): Promise<ToolResult<any>> {
+  const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, 'import-graph.json');
   try {
     const srcPath = path.join(projectPath, 'src');
@@ -31,11 +36,19 @@ export async function runImportGraph(projectPath: string, tempDir: string): Prom
     }
 
     const output = { files: fileGraph, packages: packageGraph, packageCounts, unresolvedImports };
-    await writeJsonFile(targetFile, output);
-    return { ok: true, data: output, file: targetFile };
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, output);
+    }
+    return { ok: true, data: output, ...(persistToDisk ? { file: targetFile } : {}) };
   } catch (err: any) {
-    await writeJsonFile(targetFile, { error: String(err) });
-    return { ok: false, error: `import graph failed: ${String(err)}`, file: targetFile };
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { error: String(err) });
+    }
+    return {
+      ok: false,
+      error: `import graph failed: ${String(err)}`,
+      ...(persistToDisk ? { file: targetFile } : {})
+    };
   }
 }
 

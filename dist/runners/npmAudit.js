@@ -61,7 +61,7 @@ function buildAuditCommand(tool, yarnVersion) {
         lockFiles: ["package-lock.json", "npm-shrinkwrap.json"],
     };
 }
-async function runPackageAudit(projectPath, tempDir, tool, yarnVersion) {
+async function runPackageAudit(projectPath, tempDir, tool, yarnVersion, persistToDisk = true) {
     const targetFile = path_1.default.join(tempDir, `${tool}-audit.json`);
     try {
         const { cmd, args, lockFiles } = buildAuditCommand(tool, yarnVersion);
@@ -71,26 +71,32 @@ async function runPackageAudit(projectPath, tempDir, tool, yarnVersion) {
         const parsed = (0, utils_1.parseJsonOutput)(result.stdout);
         const normalized = normalizeAuditOutput(tool, parsed);
         if (normalized) {
-            await (0, utils_1.writeJsonFile)(targetFile, normalized);
-            return { ok: true, data: normalized, file: targetFile };
+            if (persistToDisk) {
+                await (0, utils_1.writeJsonFile)(targetFile, normalized);
+            }
+            return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
         }
-        await (0, utils_1.writeJsonFile)(targetFile, {
-            stdout: result.stdout,
-            stderr: result.stderr,
-            code: result.code,
-        });
+        if (persistToDisk) {
+            await (0, utils_1.writeJsonFile)(targetFile, {
+                stdout: result.stdout,
+                stderr: result.stderr,
+                code: result.code,
+            });
+        }
         return {
             ok: false,
             error: `Failed to parse ${tool} audit output`,
-            file: targetFile,
+            ...(persistToDisk ? { file: targetFile } : {}),
         };
     }
     catch (err) {
-        await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
+        if (persistToDisk) {
+            await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
+        }
         return {
             ok: false,
             error: `${tool} audit failed: ${String(err)}`,
-            file: targetFile,
+            ...(persistToDisk ? { file: targetFile } : {}),
         };
     }
 }

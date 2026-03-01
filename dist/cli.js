@@ -918,6 +918,7 @@ function parseArgs(argv) {
         outdated: true,
         json: false,
         open: false,
+        noReport: false,
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
@@ -941,6 +942,8 @@ function parseArgs(argv) {
             opts.json = true;
         else if (arg === "--open")
             opts.open = true;
+        else if (arg === "--no-report")
+            opts.noReport = true;
         else if (arg === "--help" || arg === "-h") {
             printHelp();
             process.exit(0);
@@ -957,6 +960,7 @@ Options:
   --project <path>   Project folder (default: cwd)
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
+  --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default application
@@ -993,6 +997,133 @@ function openInBrowser(filePath) {
     });
     child.unref();
 }
+const ANSI = {
+    reset: "\x1b[0m",
+    bold: "\x1b[1m",
+    green: "\x1b[32m",
+    red: "\x1b[31m",
+    yellow: "\x1b[33m",
+    cyan: "\x1b[36m",
+};
+function shouldUseColor() {
+    if (process.env.NO_COLOR !== undefined)
+        return false;
+    const forceColor = process.env.FORCE_COLOR;
+    if (forceColor === "0")
+        return false;
+    if (forceColor !== undefined)
+        return true;
+    return Boolean(process.stdout.isTTY);
+}
+const COLOR_ENABLED = shouldUseColor();
+function styleText(value, color) {
+    if (!COLOR_ENABLED)
+        return value;
+    return `${ANSI[color]}${value}${ANSI.reset}`;
+}
+function splitFirstGlyph(value) {
+    const chars = Array.from(value);
+    const head = chars[0] || "";
+    const tail = value.slice(head.length);
+    return { head, tail };
+}
+function colorSymbol(symbol) {
+    const { head, tail } = splitFirstGlyph(symbol);
+    if (!head)
+        return symbol;
+    if (head === "✔")
+        return `${styleText(head, "green")}${tail}`;
+    if (head === "✖")
+        return `${styleText(head, "red")}${tail}`;
+    if (head === "⚠")
+        return `${styleText(head, "yellow")}${tail}`;
+    if (head === "↗" || head === "ℹ" || head === "📦") {
+        return `${styleText(head, "cyan")}${tail}`;
+    }
+    if (head === "📉")
+        return `${styleText(head, "yellow")}${tail}`;
+    return symbol;
+}
+function colorLeadingSymbol(line) {
+    const { head } = splitFirstGlyph(line);
+    if (!head)
+        return line;
+    if (head !== "✔" &&
+        head !== "✖" &&
+        head !== "⚠" &&
+        head !== "↗" &&
+        head !== "ℹ" &&
+        head !== "📦" &&
+        head !== "📉") {
+        return line;
+    }
+    return `${colorSymbol(head)}${line.slice(head.length)}`;
+}
+function statusLine(symbol, message) {
+    return `${colorSymbol(symbol)} ${message}`;
+}
+function formatMetricCount(value, risk = "neutral") {
+    const text = String(value);
+    if (!COLOR_ENABLED)
+        return text;
+    if (value === 0)
+        return styleText(text, "green");
+    if (risk === "danger")
+        return styleText(text, "red");
+    if (risk === "warn")
+        return styleText(text, "yellow");
+    return styleText(text, "cyan");
+}
+function buildCliSummary(aggregated) {
+    var _a;
+    let vulnerablePackages = 0;
+    let reachableVulnerablePackages = 0;
+    let unusedInstalledDeps = 0;
+    let licenseMismatches = 0;
+    let majorUpgradeBlockers = 0;
+    const deps = Object.values(aggregated.dependencies || {});
+    for (const dep of deps) {
+        const vulnTotal = (dep.security.summary.critical || 0) +
+            (dep.security.summary.high || 0) +
+            (dep.security.summary.moderate || 0) +
+            (dep.security.summary.low || 0);
+        if (vulnTotal > 0) {
+            vulnerablePackages += 1;
+            if ((((_a = dep.usage.importUsage) === null || _a === void 0 ? void 0 : _a.fileCount) || 0) > 0) {
+                reachableVulnerablePackages += 1;
+            }
+        }
+        if (dep.usage.direct && dep.usage.scope === "runtime" && !dep.usage.importUsage) {
+            unusedInstalledDeps += 1;
+        }
+        if (dep.compliance.license.status === "mismatch") {
+            licenseMismatches += 1;
+        }
+        if (dep.upgrade.blocksNodeMajor) {
+            majorUpgradeBlockers += 1;
+        }
+    }
+    return {
+        directDeps: aggregated.summary.directCount,
+        transitiveDeps: aggregated.summary.transitiveCount,
+        vulnerablePackages,
+        reachableVulnerablePackages,
+        unusedInstalledDeps,
+        licenseMismatches,
+        majorUpgradeBlockers,
+    };
+}
+function printCliSummary(summary) {
+    console.log("");
+    console.log(styleText("Summary:", "bold"));
+    console.log(`${colorSymbol("✔︎")} Direct deps scanned: ${formatMetricCount(summary.directDeps)}`);
+    console.log(`${colorSymbol("✔︎")} Transitive deps scanned: ${formatMetricCount(summary.transitiveDeps)}`);
+    console.log(`${colorSymbol("⚠︎")} Vulnerable packages: ${formatMetricCount(summary.vulnerablePackages, "danger")} (${formatMetricCount(summary.reachableVulnerablePackages, "danger")} reachable)`);
+    console.log(`${colorSymbol("📦")} Unused installed deps: ${formatMetricCount(summary.unusedInstalledDeps, "warn")}`);
+    console.log(`${colorSymbol("⚠︎")} Licence mismatches: ${formatMetricCount(summary.licenseMismatches, "warn")}`);
+    console.log(`${colorSymbol("📉")} Major upgrade blockers: ${formatMetricCount(summary.majorUpgradeBlockers, "warn")}`);
+    console.log("");
+}
 /**
  * Orchestrates the CLI "scan" command to collect, merge, and output dependency data for a project or workspace.
  *
@@ -1009,7 +1140,12 @@ async function run() {
         process.exit(1);
         return;
     }
+    const shouldWriteArtifacts = !opts.noReport;
     const projectPath = path_1.default.resolve(opts.project);
+    let summary;
+    if (opts.noReport && opts.keepTemp) {
+        console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
+    }
     if (opts.json && opts.out === "dependency-radar.html") {
         opts.out = "dependency-radar.json";
     }
@@ -1017,18 +1153,20 @@ async function run() {
     const startTime = Date.now();
     let dependencyCount = 0;
     let outputCreated = false;
-    try {
-        const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
-        const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
-        const hasExtension = Boolean(path_1.default.extname(outputPath));
-        if ((stat && stat.isDirectory()) ||
-            endsWithSeparator ||
-            (!stat && !hasExtension)) {
-            outputPath = path_1.default.join(outputPath, opts.json ? "dependency-radar.json" : "dependency-radar.html");
+    if (shouldWriteArtifacts) {
+        try {
+            const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
+            const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
+            const hasExtension = Boolean(path_1.default.extname(outputPath));
+            if ((stat && stat.isDirectory()) ||
+                endsWithSeparator ||
+                (!stat && !hasExtension)) {
+                outputPath = path_1.default.join(outputPath, opts.json ? "dependency-radar.json" : "dependency-radar.html");
+            }
         }
-    }
-    catch (e) {
-        // ignore, best-effort path normalization
+        catch (e) {
+            // ignore, best-effort path normalization
+        }
     }
     const tempDir = path_1.default.join(projectPath, ".dependency-radar");
     // Stage 1: detect workspace/package-manager context and collect tool versions.
@@ -1048,7 +1186,7 @@ async function run() {
         const yarnHint = yarnPnP
             ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
             : "";
-        console.warn(`⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`);
+        console.warn(colorLeadingSymbol(`⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`));
     }
     const rootPkg = await readJsonFile(path_1.default.join(projectPath, "package.json"));
     const projectDependencyPolicy = workspace.pnpmWorkspaceOverrides
@@ -1087,13 +1225,15 @@ async function run() {
     const workspaceLabel = workspace.type === "none"
         ? "Single project"
         : `${workspace.type.toUpperCase()} workspace`;
-    console.log(`✔ ${workspaceLabel} detected`);
+    console.log(statusLine("✔", `${workspaceLabel} detected`));
     if (workspace.type !== "none" && scanManager !== workspace.type) {
-        console.log(`✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`);
+        console.log(statusLine("✔", `Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`));
     }
     const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
     try {
-        await (0, utils_1.ensureDir)(tempDir);
+        if (shouldWriteArtifacts) {
+            await (0, utils_1.ensureDir)(tempDir);
+        }
         // Stage 2: run per-package collectors and persist raw tool outputs.
         const packageMetas = await readWorkspacePackageMeta(projectPath, packagePaths);
         const workspaceClassification = buildWorkspaceClassification(projectPath, packageMetas);
@@ -1104,19 +1244,24 @@ async function run() {
         for (const meta of packageMetas) {
             spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
             const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, "_"));
-            await (0, utils_1.ensureDir)(pkgTempDir);
+            if (shouldWriteArtifacts) {
+                await (0, utils_1.ensureDir)(pkgTempDir);
+            }
             const [a, l, ig, o] = await Promise.all([
                 opts.audit
-                    ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion).catch((err) => ({ ok: false, error: String(err) }))
+                    ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion, shouldWriteArtifacts).catch((err) => ({ ok: false, error: String(err) }))
                     : Promise.resolve(undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
                     contextLabel: meta.name,
                     lockfileSearchRoot: projectPath,
                     onProgress: (line) => spinner.log(line),
+                    persistToDisk: shouldWriteArtifacts,
                 }).catch((err) => ({ ok: false, error: String(err) })),
-                (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir).catch((err) => ({ ok: false, error: String(err) })),
+                (0, importGraphRunner_1.runImportGraph)(meta.path, pkgTempDir, {
+                    persistToDisk: shouldWriteArtifacts,
+                }).catch((err) => ({ ok: false, error: String(err) })),
                 opts.outdated
-                    ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager).catch((err) => ({ ok: false, error: String(err) }))
+                    ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager, shouldWriteArtifacts).catch((err) => ({ ok: false, error: String(err) }))
                     : Promise.resolve(undefined),
             ]);
             perPackageAudit.push(a);
@@ -1128,19 +1273,19 @@ async function run() {
         if (opts.audit) {
             const auditOk = perPackageAudit.every((r) => r && r.ok);
             if (auditOk) {
-                spinner.log(`✔ ${scanManager.toUpperCase()} audit data collected`);
+                spinner.log(statusLine("✔", `${scanManager.toUpperCase()} audit data collected`));
             }
             else {
-                spinner.log(`✖ ${scanManager.toUpperCase()} audit data unavailable`);
+                spinner.log(statusLine("✖", `${scanManager.toUpperCase()} audit data unavailable`));
             }
         }
         if (opts.outdated) {
             const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
             if (outdatedOk) {
-                spinner.log(`✔ ${scanManager.toUpperCase()} outdated data collected`);
+                spinner.log(statusLine("✔", `${scanManager.toUpperCase()} outdated data collected`));
             }
             else {
-                spinner.log(`✖ ${scanManager.toUpperCase()} outdated data unavailable`);
+                spinner.log(statusLine("✖", `${scanManager.toUpperCase()} outdated data unavailable`));
             }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
@@ -1213,10 +1358,11 @@ async function run() {
             ...(toolVersions ? { toolVersions } : {}),
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
+        summary = buildCliSummary(aggregated);
         if (workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
-        if (dependencyCount > 0) {
+        if (dependencyCount > 0 && shouldWriteArtifacts) {
             if (opts.json) {
                 await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
                 await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
@@ -1228,12 +1374,15 @@ async function run() {
         }
         spinner.stop(true);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`);
-        if (outputCreated) {
-            console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+        console.log(statusLine("✔", `Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`));
+        if (!shouldWriteArtifacts) {
+            console.log(statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."));
+        }
+        else if (outputCreated) {
+            console.log(statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`));
         }
         else {
-            console.log(`✖ No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`);
+            console.log(statusLine("✖", `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`));
         }
     }
     catch (err) {
@@ -1242,23 +1391,33 @@ async function run() {
         process.exit(1);
     }
     finally {
-        if (!opts.keepTemp) {
-            await (0, utils_1.removeDir)(tempDir);
-        }
-        else {
-            console.log(`✔ Temporary data kept at ${tempDir}`);
+        if (shouldWriteArtifacts) {
+            if (!opts.keepTemp) {
+                await (0, utils_1.removeDir)(tempDir);
+            }
+            else {
+                console.log(statusLine("✔", `Temporary data kept at ${tempDir}`));
+            }
         }
     }
-    if (opts.open && outputCreated && !isCI()) {
-        console.log(`↗ Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`);
+    if (opts.open && !shouldWriteArtifacts) {
+        console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+    }
+    else if (opts.open && outputCreated && !isCI()) {
+        console.log(statusLine("↗", `Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`));
         openInBrowser(outputPath);
     }
     else if (opts.open && outputCreated && isCI()) {
-        console.log("✖ Skipping auto-open in CI environment.");
+        console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+    }
+    if (summary) {
+        printCliSummary(summary);
+    }
+    else {
+        console.log("");
     }
     // Always show CTA as the last output
-    console.log("");
-    console.log("Get additional risk analysis and a management-ready summary at https://dependency-radar.com");
+    console.log("Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com");
 }
 run();
 function startSpinner(text) {
@@ -1281,20 +1440,21 @@ function startSpinner(text) {
         return `${head}…/${tail}`;
     };
     const formatLine = (prefix, value) => {
+        const coloredPrefix = colorSymbol(prefix);
         if (!process.stdout.isTTY)
-            return `${prefix} ${value}`;
+            return `${coloredPrefix} ${value}`;
         const displayValue = shortenPathInMessage(value);
         const columns = process.stdout.columns || 0;
         if (columns <= 0)
-            return `${prefix} ${displayValue}`;
+            return `${coloredPrefix} ${displayValue}`;
         const max = columns - (prefix.length + 1);
         if (max <= 0)
-            return prefix;
+            return coloredPrefix;
         if (displayValue.length <= max)
-            return `${prefix} ${displayValue}`;
+            return `${coloredPrefix} ${displayValue}`;
         const ellipsis = "…";
         const keep = Math.max(0, max - ellipsis.length);
-        return `${prefix} ${displayValue.slice(0, keep)}${ellipsis}`;
+        return `${coloredPrefix} ${displayValue.slice(0, keep)}${ellipsis}`;
     };
     process.stdout.write(formatLine(frames[i], currentText));
     const timer = setInterval(() => {
@@ -1316,11 +1476,12 @@ function startSpinner(text) {
         process.stdout.write(`\r\x1b[K${formatLine(frames[i], currentText)}`);
     };
     const log = (line) => {
+        const renderedLine = colorLeadingSymbol(line);
         if (stopped) {
-            process.stdout.write(`${line}\n`);
+            process.stdout.write(`${renderedLine}\n`);
             return;
         }
-        process.stdout.write(`\r\x1b[K${line}\n`);
+        process.stdout.write(`\r\x1b[K${renderedLine}\n`);
         process.stdout.write(formatLine(frames[i], currentText));
     };
     return { stop, update, log };

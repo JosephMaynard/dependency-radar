@@ -103,6 +103,7 @@ export async function runPackageOutdated(
   projectPath: string,
   tempDir: string,
   tool: "npm" | "pnpm" | "yarn",
+  persistToDisk = true,
 ): Promise<ToolResult<any>> {
   const targetFile = path.join(tempDir, `${tool}-outdated.json`);
   try {
@@ -113,38 +114,46 @@ export async function runPackageOutdated(
     const parsed = parseJsonOutput(result.stdout);
     const normalized = normalizeOutdatedOutput(tool, parsed);
     if (normalized && typeof normalized === "object") {
-      await writeJsonFile(targetFile, normalized);
-      return { ok: true, data: normalized, file: targetFile };
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, normalized);
+      }
+      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     if (tool === "yarn" && isYarnOutdatedUnsupported(result)) {
+      if (persistToDisk) {
+        await writeJsonFile(targetFile, {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          code: result.code,
+        });
+      }
+      return {
+        ok: false,
+        error:
+          'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
+        ...(persistToDisk ? { file: targetFile } : {}),
+      };
+    }
+    if (persistToDisk) {
       await writeJsonFile(targetFile, {
         stdout: result.stdout,
         stderr: result.stderr,
         code: result.code,
       });
-      return {
-        ok: false,
-        error:
-          'Yarn outdated is not available in this Yarn release (common on Yarn Berry).',
-        file: targetFile,
-      };
     }
-    await writeJsonFile(targetFile, {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      code: result.code,
-    });
     return {
       ok: false,
       error: `Failed to parse ${tool} outdated output`,
-      file: targetFile,
+      ...(persistToDisk ? { file: targetFile } : {}),
     };
   } catch (err: any) {
-    await writeJsonFile(targetFile, { error: String(err) });
+    if (persistToDisk) {
+      await writeJsonFile(targetFile, { error: String(err) });
+    }
     return {
       ok: false,
       error: `${tool} outdated failed: ${String(err)}`,
-      file: targetFile,
+      ...(persistToDisk ? { file: targetFile } : {}),
     };
   }
 }

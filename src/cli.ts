@@ -9,6 +9,7 @@ import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
 import { renderReport } from "./report";
 import type {
+  AggregatedData,
   OutdatedEntry,
   OutdatedResult,
   ToolResult,
@@ -1047,6 +1048,7 @@ interface CliOptions {
   outdated: boolean;
   json: boolean;
   open: boolean;
+  noReport: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -1059,6 +1061,7 @@ function parseArgs(argv: string[]): CliOptions {
     outdated: true,
     json: false,
     open: false,
+    noReport: false,
   };
 
   const args = [...argv];
@@ -1077,6 +1080,7 @@ function parseArgs(argv: string[]): CliOptions {
       opts.outdated = false;
     } else if (arg === "--json") opts.json = true;
     else if (arg === "--open") opts.open = true;
+    else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -1095,6 +1099,7 @@ Options:
   --project <path>   Project folder (default: cwd)
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
+  --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default application
@@ -1135,6 +1140,162 @@ function openInBrowser(filePath: string): void {
   child.unref();
 }
 
+const ANSI = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+} as const;
+
+function shouldUseColor(): boolean {
+  if (process.env.NO_COLOR !== undefined) return false;
+  const forceColor = process.env.FORCE_COLOR;
+  if (forceColor === "0") return false;
+  if (forceColor !== undefined) return true;
+  return Boolean(process.stdout.isTTY);
+}
+
+const COLOR_ENABLED = shouldUseColor();
+
+function styleText(
+  value: string,
+  color: "bold" | "green" | "red" | "yellow" | "cyan",
+): string {
+  if (!COLOR_ENABLED) return value;
+  return `${ANSI[color]}${value}${ANSI.reset}`;
+}
+
+function splitFirstGlyph(value: string): { head: string; tail: string } {
+  const chars = Array.from(value);
+  const head = chars[0] || "";
+  const tail = value.slice(head.length);
+  return { head, tail };
+}
+
+function colorSymbol(symbol: string): string {
+  const { head, tail } = splitFirstGlyph(symbol);
+  if (!head) return symbol;
+  if (head === "✔") return `${styleText(head, "green")}${tail}`;
+  if (head === "✖") return `${styleText(head, "red")}${tail}`;
+  if (head === "⚠") return `${styleText(head, "yellow")}${tail}`;
+  if (head === "↗" || head === "ℹ" || head === "📦") {
+    return `${styleText(head, "cyan")}${tail}`;
+  }
+  if (head === "📉") return `${styleText(head, "yellow")}${tail}`;
+  return symbol;
+}
+
+function colorLeadingSymbol(line: string): string {
+  const { head } = splitFirstGlyph(line);
+  if (!head) return line;
+  if (
+    head !== "✔" &&
+    head !== "✖" &&
+    head !== "⚠" &&
+    head !== "↗" &&
+    head !== "ℹ" &&
+    head !== "📦" &&
+    head !== "📉"
+  ) {
+    return line;
+  }
+  return `${colorSymbol(head)}${line.slice(head.length)}`;
+}
+
+function statusLine(symbol: string, message: string): string {
+  return `${colorSymbol(symbol)} ${message}`;
+}
+
+function formatMetricCount(
+  value: number,
+  risk: "neutral" | "warn" | "danger" = "neutral",
+): string {
+  const text = String(value);
+  if (!COLOR_ENABLED) return text;
+  if (value === 0) return styleText(text, "green");
+  if (risk === "danger") return styleText(text, "red");
+  if (risk === "warn") return styleText(text, "yellow");
+  return styleText(text, "cyan");
+}
+
+type CliSummary = {
+  directDeps: number;
+  transitiveDeps: number;
+  vulnerablePackages: number;
+  reachableVulnerablePackages: number;
+  unusedInstalledDeps: number;
+  licenseMismatches: number;
+  majorUpgradeBlockers: number;
+};
+
+function buildCliSummary(aggregated: AggregatedData): CliSummary {
+  let vulnerablePackages = 0;
+  let reachableVulnerablePackages = 0;
+  let unusedInstalledDeps = 0;
+  let licenseMismatches = 0;
+  let majorUpgradeBlockers = 0;
+
+  const deps = Object.values(aggregated.dependencies || {});
+  for (const dep of deps) {
+    const vulnTotal =
+      (dep.security.summary.critical || 0) +
+      (dep.security.summary.high || 0) +
+      (dep.security.summary.moderate || 0) +
+      (dep.security.summary.low || 0);
+    if (vulnTotal > 0) {
+      vulnerablePackages += 1;
+      if ((dep.usage.importUsage?.fileCount || 0) > 0) {
+        reachableVulnerablePackages += 1;
+      }
+    }
+    if (dep.usage.direct && dep.usage.scope === "runtime" && !dep.usage.importUsage) {
+      unusedInstalledDeps += 1;
+    }
+    if (dep.compliance.license.status === "mismatch") {
+      licenseMismatches += 1;
+    }
+    if (dep.upgrade.blocksNodeMajor) {
+      majorUpgradeBlockers += 1;
+    }
+  }
+
+  return {
+    directDeps: aggregated.summary.directCount,
+    transitiveDeps: aggregated.summary.transitiveCount,
+    vulnerablePackages,
+    reachableVulnerablePackages,
+    unusedInstalledDeps,
+    licenseMismatches,
+    majorUpgradeBlockers,
+  };
+}
+
+function printCliSummary(summary: CliSummary): void {
+  console.log("");
+  console.log(styleText("Summary:", "bold"));
+  console.log(
+    `${colorSymbol("✔︎")} Direct deps scanned: ${formatMetricCount(summary.directDeps)}`,
+  );
+  console.log(
+    `${colorSymbol("✔︎")} Transitive deps scanned: ${formatMetricCount(summary.transitiveDeps)}`,
+  );
+  console.log(
+    `${colorSymbol("⚠︎")} Vulnerable packages: ${formatMetricCount(summary.vulnerablePackages, "danger")} (${formatMetricCount(summary.reachableVulnerablePackages, "danger")} reachable)`,
+  );
+  console.log(
+    `${colorSymbol("📦")} Unused installed deps: ${formatMetricCount(summary.unusedInstalledDeps, "warn")}`,
+  );
+  console.log(
+    `${colorSymbol("⚠︎")} Licence mismatches: ${formatMetricCount(summary.licenseMismatches, "warn")}`,
+  );
+  console.log(
+    `${colorSymbol("📉")} Major upgrade blockers: ${formatMetricCount(summary.majorUpgradeBlockers, "warn")}`,
+  );
+  console.log("");
+}
+
 /**
  * Orchestrates the CLI "scan" command to collect, merge, and output dependency data for a project or workspace.
  *
@@ -1151,7 +1312,14 @@ async function run(): Promise<void> {
     return;
   }
 
+  const shouldWriteArtifacts = !opts.noReport;
   const projectPath = path.resolve(opts.project);
+  let summary: CliSummary | undefined;
+  if (opts.noReport && opts.keepTemp) {
+    console.log(
+      statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
+    );
+  }
   if (opts.json && opts.out === "dependency-radar.html") {
     opts.out = "dependency-radar.json";
   }
@@ -1159,22 +1327,24 @@ async function run(): Promise<void> {
   const startTime = Date.now();
   let dependencyCount = 0;
   let outputCreated = false;
-  try {
-    const stat = await fs.stat(outputPath).catch(() => undefined);
-    const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
-    const hasExtension = Boolean(path.extname(outputPath));
-    if (
-      (stat && stat.isDirectory()) ||
-      endsWithSeparator ||
-      (!stat && !hasExtension)
-    ) {
-      outputPath = path.join(
-        outputPath,
-        opts.json ? "dependency-radar.json" : "dependency-radar.html",
-      );
+  if (shouldWriteArtifacts) {
+    try {
+      const stat = await fs.stat(outputPath).catch(() => undefined);
+      const endsWithSeparator = opts.out.endsWith("/") || opts.out.endsWith("\\");
+      const hasExtension = Boolean(path.extname(outputPath));
+      if (
+        (stat && stat.isDirectory()) ||
+        endsWithSeparator ||
+        (!stat && !hasExtension)
+      ) {
+        outputPath = path.join(
+          outputPath,
+          opts.json ? "dependency-radar.json" : "dependency-radar.html",
+        );
+      }
+    } catch (e) {
+      // ignore, best-effort path normalization
     }
-  } catch (e) {
-    // ignore, best-effort path normalization
   }
   const tempDir = path.join(projectPath, ".dependency-radar");
 
@@ -1203,7 +1373,9 @@ async function run(): Promise<void> {
       ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
       : "";
     console.warn(
-      `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+      colorLeadingSymbol(
+        `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+      ),
     );
   }
   const rootPkg = await readJsonFile(path.join(projectPath, "package.json"));
@@ -1255,15 +1427,20 @@ async function run(): Promise<void> {
     workspace.type === "none"
       ? "Single project"
       : `${workspace.type.toUpperCase()} workspace`;
-  console.log(`✔ ${workspaceLabel} detected`);
+  console.log(statusLine("✔", `${workspaceLabel} detected`));
   if (workspace.type !== "none" && scanManager !== workspace.type) {
     console.log(
-      `✔ Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`,
+      statusLine(
+        "✔",
+        `Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`,
+      ),
     );
   }
   const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
   try {
-    await ensureDir(tempDir);
+    if (shouldWriteArtifacts) {
+      await ensureDir(tempDir);
+    }
 
     // Stage 2: run per-package collectors and persist raw tool outputs.
     const packageMetas = await readWorkspacePackageMeta(
@@ -1288,7 +1465,9 @@ async function run(): Promise<void> {
         tempDir,
         meta.name.replace(/[^a-zA-Z0-9._-]/g, "_"),
       );
-      await ensureDir(pkgTempDir);
+      if (shouldWriteArtifacts) {
+        await ensureDir(pkgTempDir);
+      }
       const [a, l, ig, o] = await Promise.all([
         opts.audit
           ? runPackageAudit(
@@ -1296,6 +1475,7 @@ async function run(): Promise<void> {
               pkgTempDir,
               scanManager,
               yarnVersion,
+              shouldWriteArtifacts,
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
@@ -1304,14 +1484,22 @@ async function run(): Promise<void> {
           contextLabel: meta.name,
           lockfileSearchRoot: projectPath,
           onProgress: (line) => spinner.log(line),
+          persistToDisk: shouldWriteArtifacts,
         }).catch(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
-        runImportGraph(meta.path, pkgTempDir).catch(
+        runImportGraph(meta.path, pkgTempDir, {
+          persistToDisk: shouldWriteArtifacts,
+        }).catch(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
         opts.outdated
-          ? runPackageOutdated(meta.path, pkgTempDir, scanManager).catch(
+          ? runPackageOutdated(
+              meta.path,
+              pkgTempDir,
+              scanManager,
+              shouldWriteArtifacts,
+            ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
           : Promise.resolve(undefined),
@@ -1326,9 +1514,13 @@ async function run(): Promise<void> {
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
       if (auditOk) {
-        spinner.log(`✔ ${scanManager.toUpperCase()} audit data collected`);
+        spinner.log(
+          statusLine("✔", `${scanManager.toUpperCase()} audit data collected`),
+        );
       } else {
-        spinner.log(`✖ ${scanManager.toUpperCase()} audit data unavailable`);
+        spinner.log(
+          statusLine("✖", `${scanManager.toUpperCase()} audit data unavailable`),
+        );
       }
     }
     if (opts.outdated) {
@@ -1336,9 +1528,19 @@ async function run(): Promise<void> {
         (r) => r.result && r.result.ok,
       );
       if (outdatedOk) {
-        spinner.log(`✔ ${scanManager.toUpperCase()} outdated data collected`);
+        spinner.log(
+          statusLine(
+            "✔",
+            `${scanManager.toUpperCase()} outdated data collected`,
+          ),
+        );
       } else {
-        spinner.log(`✖ ${scanManager.toUpperCase()} outdated data unavailable`);
+        spinner.log(
+          statusLine(
+            "✖",
+            `${scanManager.toUpperCase()} outdated data unavailable`,
+          ),
+        );
       }
     }
 
@@ -1443,6 +1645,7 @@ async function run(): Promise<void> {
       ...(toolVersions ? { toolVersions } : {}),
     });
     dependencyCount = Object.keys(aggregated.dependencies).length;
+    summary = buildCliSummary(aggregated);
 
     if (workspace.type !== "none") {
       console.log(
@@ -1450,7 +1653,7 @@ async function run(): Promise<void> {
       );
     }
 
-    if (dependencyCount > 0) {
+    if (dependencyCount > 0 && shouldWriteArtifacts) {
       if (opts.json) {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(
@@ -1466,13 +1669,25 @@ async function run(): Promise<void> {
     spinner.stop(true);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(
-      `✔ Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`,
+      statusLine(
+        "✔",
+        `Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`,
+      ),
     );
-    if (outputCreated) {
-      console.log(`✔ ${opts.json ? "JSON" : "Report"} written to ${outputPath}`);
+    if (!shouldWriteArtifacts) {
+      console.log(
+        statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."),
+      );
+    } else if (outputCreated) {
+      console.log(
+        statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`),
+      );
     } else {
       console.log(
-        `✖ No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+        statusLine(
+          "✖",
+          `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+        ),
       );
     }
   } catch (err: any) {
@@ -1480,26 +1695,38 @@ async function run(): Promise<void> {
     console.error("Failed to generate report:", err);
     process.exit(1);
   } finally {
-    if (!opts.keepTemp) {
-      await removeDir(tempDir);
-    } else {
-      console.log(`✔ Temporary data kept at ${tempDir}`);
+    if (shouldWriteArtifacts) {
+      if (!opts.keepTemp) {
+        await removeDir(tempDir);
+      } else {
+        console.log(statusLine("✔", `Temporary data kept at ${tempDir}`));
+      }
     }
   }
 
-  if (opts.open && outputCreated && !isCI()) {
+  if (opts.open && !shouldWriteArtifacts) {
+    console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+  } else if (opts.open && outputCreated && !isCI()) {
     console.log(
-      `↗ Opening ${path.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+      statusLine(
+        "↗",
+        `Opening ${path.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+      ),
     );
     openInBrowser(outputPath);
   } else if (opts.open && outputCreated && isCI()) {
-    console.log("✖ Skipping auto-open in CI environment.");
+    console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+  }
+
+  if (summary) {
+    printCliSummary(summary);
+  } else {
+    console.log("");
   }
 
   // Always show CTA as the last output
-  console.log("");
   console.log(
-    "Get additional risk analysis and a management-ready summary at https://dependency-radar.com",
+    "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
   );
 }
 
@@ -1527,16 +1754,17 @@ function startSpinner(text: string): {
   };
 
   const formatLine = (prefix: string, value: string): string => {
-    if (!process.stdout.isTTY) return `${prefix} ${value}`;
+    const coloredPrefix = colorSymbol(prefix);
+    if (!process.stdout.isTTY) return `${coloredPrefix} ${value}`;
     const displayValue = shortenPathInMessage(value);
     const columns = process.stdout.columns || 0;
-    if (columns <= 0) return `${prefix} ${displayValue}`;
+    if (columns <= 0) return `${coloredPrefix} ${displayValue}`;
     const max = columns - (prefix.length + 1);
-    if (max <= 0) return prefix;
-    if (displayValue.length <= max) return `${prefix} ${displayValue}`;
+    if (max <= 0) return coloredPrefix;
+    if (displayValue.length <= max) return `${coloredPrefix} ${displayValue}`;
     const ellipsis = "…";
     const keep = Math.max(0, max - ellipsis.length);
-    return `${prefix} ${displayValue.slice(0, keep)}${ellipsis}`;
+    return `${coloredPrefix} ${displayValue.slice(0, keep)}${ellipsis}`;
   };
 
   process.stdout.write(formatLine(frames[i], currentText));
@@ -1561,11 +1789,12 @@ function startSpinner(text: string): {
   };
 
   const log = (line: string) => {
+    const renderedLine = colorLeadingSymbol(line);
     if (stopped) {
-      process.stdout.write(`${line}\n`);
+      process.stdout.write(`${renderedLine}\n`);
       return;
     }
-    process.stdout.write(`\r\x1b[K${line}\n`);
+    process.stdout.write(`\r\x1b[K${renderedLine}\n`);
     process.stdout.write(formatLine(frames[i], currentText));
   };
 
