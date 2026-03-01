@@ -8,8 +8,10 @@ import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
 import { renderReport } from "./report";
+import { validateSpdxExpression } from "./license";
 import type {
   AggregatedData,
+  DependencyRecord,
   OutdatedEntry,
   OutdatedResult,
   ToolResult,
@@ -1049,13 +1051,33 @@ interface CliOptions {
   json: boolean;
   open: boolean;
   noReport: boolean;
+  failOn: Set<FailOnRule>;
 }
+
+type FailOnRule =
+  | "reachable-vuln"
+  | "production-vuln"
+  | "high-severity-vuln"
+  | "licence-mismatch"
+  | "copyleft-detected"
+  | "unknown-licence";
+
+const SUPPORTED_FAIL_ON_RULES = [
+  "reachable-vuln",
+  "production-vuln",
+  "high-severity-vuln",
+  "licence-mismatch",
+  "copyleft-detected",
+  "unknown-licence",
+] as const;
+
+const SUPPORTED_FAIL_ON_RULE_SET = new Set<FailOnRule>(SUPPORTED_FAIL_ON_RULES);
 
 /**
  * Parse command-line tokens into a populated CliOptions object.
  *
  * Recognizes a leading non-flag token as the command and the following flags:
- * --project, --out, --keep-temp, --offline, --json, --open, --no-report, and --help / -h.
+ * --project, --out, --keep-temp, --offline, --json, --open, --no-report, --fail-on, and --help / -h.
  * The --offline flag disables both audit and outdated checks.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
@@ -1072,6 +1094,7 @@ function parseArgs(argv: string[]): CliOptions {
     json: false,
     open: false,
     noReport: false,
+    failOn: new Set<FailOnRule>(),
   };
 
   const args = [...argv];
@@ -1091,6 +1114,19 @@ function parseArgs(argv: string[]): CliOptions {
     } else if (arg === "--json") opts.json = true;
     else if (arg === "--open") opts.open = true;
     else if (arg === "--no-report") opts.noReport = true;
+    else if (arg === "--fail-on") {
+      const value = args.shift();
+      if (!value) {
+        console.error(
+          "Missing value for --fail-on. Provide a comma-separated list of rules.",
+        );
+        process.exit(1);
+      }
+      const rules = parseFailOnRules(value);
+      for (const rule of rules) {
+        opts.failOn.add(rule);
+      }
+    }
     else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -1104,7 +1140,7 @@ function parseArgs(argv: string[]): CliOptions {
  * Print the CLI usage and available options to the console.
  *
  * Displays the command synopsis and descriptions for supported flags including
- * --project, --out, --json, --no-report, --keep-temp, --offline, and --open.
+ * --project, --out, --json, --no-report, --keep-temp, --offline, --open, and --fail-on.
  */
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
@@ -1119,7 +1155,36 @@ Options:
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default application
+  --fail-on <rules>  Fail with exit code 1 when selected rules are violated
+                     Supported: reachable-vuln, production-vuln, high-severity-vuln,
+                                licence-mismatch, copyleft-detected, unknown-licence
 `);
+}
+
+function parseFailOnRules(value: string): Set<FailOnRule> {
+  const selected = new Set<FailOnRule>();
+  const rawRules = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (rawRules.length === 0) {
+    console.error(
+      "No --fail-on rules provided. Supported rules: " +
+        SUPPORTED_FAIL_ON_RULES.join(", "),
+    );
+    process.exit(1);
+  }
+
+  for (const rule of rawRules) {
+    if (!SUPPORTED_FAIL_ON_RULE_SET.has(rule as FailOnRule)) {
+      console.error(
+        `Unknown --fail-on rule: "${rule}". Supported rules: ${SUPPORTED_FAIL_ON_RULES.join(", ")}`,
+      );
+      process.exit(1);
+    }
+    selected.add(rule as FailOnRule);
+  }
+  return selected;
 }
 
 /**
@@ -1290,6 +1355,141 @@ type CliSummary = {
     installScripts: number;
   };
 };
+
+type PolicyViolation = {
+  rule: FailOnRule;
+  count: number;
+  message: string;
+};
+
+function vulnerabilityCount(dep: DependencyRecord): number {
+  return (
+    (dep.security.summary.critical || 0) +
+    (dep.security.summary.high || 0) +
+    (dep.security.summary.moderate || 0) +
+    (dep.security.summary.low || 0)
+  );
+}
+
+function hasStrongCopyleftLicense(dep: DependencyRecord): boolean {
+  const ids = new Set<string>();
+  const declaredSpdx = dep.compliance.license.declared?.spdxId;
+  if (declaredSpdx) {
+    const parsed = validateSpdxExpression(declaredSpdx);
+    if (parsed.valid) {
+      for (const id of parsed.licenseIds) {
+        ids.add(id.toUpperCase());
+      }
+    }
+  }
+  const inferredSpdx = dep.compliance.license.inferred?.spdxId;
+  if (inferredSpdx) {
+    ids.add(inferredSpdx.toUpperCase());
+  }
+  for (const id of ids) {
+    if (id === "GPL" || id === "AGPL" || id.startsWith("GPL-") || id.startsWith("AGPL-")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function evaluatePolicyViolations(
+  aggregated: AggregatedData,
+  rules: Set<FailOnRule>,
+): PolicyViolation[] {
+  if (rules.size === 0) return [];
+
+  let reachableProductionVulnCount = 0;
+  let productionVulnCount = 0;
+  let highSeverityVulnCount = 0;
+  let licenceMismatchCount = 0;
+  let copyleftDetectedCount = 0;
+  let unknownLicenceCount = 0;
+
+  for (const dep of Object.values(aggregated.dependencies || {})) {
+    const isRuntime = dep.usage.scope === "runtime";
+    const hasVuln = vulnerabilityCount(dep) > 0;
+    const isReachable = (dep.usage.importUsage?.fileCount || 0) > 0;
+    const hasHighSeverityVuln =
+      (dep.security.summary.high || 0) + (dep.security.summary.critical || 0) > 0;
+
+    if (isRuntime && hasVuln && isReachable) {
+      reachableProductionVulnCount += 1;
+    }
+    if (isRuntime && hasVuln) {
+      productionVulnCount += 1;
+    }
+    if (hasHighSeverityVuln) {
+      highSeverityVulnCount += 1;
+    }
+    if (dep.compliance.license.status === "mismatch") {
+      licenceMismatchCount += 1;
+    }
+    if (isRuntime && hasStrongCopyleftLicense(dep)) {
+      copyleftDetectedCount += 1;
+    }
+    if (!dep.compliance.license.declared && !dep.compliance.license.inferred) {
+      unknownLicenceCount += 1;
+    }
+  }
+
+  const violations: PolicyViolation[] = [];
+
+  if (rules.has("reachable-vuln") && reachableProductionVulnCount > 0) {
+    violations.push({
+      rule: "reachable-vuln",
+      count: reachableProductionVulnCount,
+      message: `${reachableProductionVulnCount} reachable production ${pluralize(reachableProductionVulnCount, "vulnerability", "vulnerabilities")}`,
+    });
+  }
+  if (rules.has("production-vuln") && productionVulnCount > 0) {
+    violations.push({
+      rule: "production-vuln",
+      count: productionVulnCount,
+      message: `${productionVulnCount} production ${pluralize(productionVulnCount, "vulnerability", "vulnerabilities")}`,
+    });
+  }
+  if (rules.has("high-severity-vuln") && highSeverityVulnCount > 0) {
+    violations.push({
+      rule: "high-severity-vuln",
+      count: highSeverityVulnCount,
+      message: `${highSeverityVulnCount} high-severity ${pluralize(highSeverityVulnCount, "vulnerability", "vulnerabilities")}`,
+    });
+  }
+  if (rules.has("licence-mismatch") && licenceMismatchCount > 0) {
+    violations.push({
+      rule: "licence-mismatch",
+      count: licenceMismatchCount,
+      message: `${licenceMismatchCount} ${pluralize(licenceMismatchCount, "licence mismatch", "licence mismatches")}`,
+    });
+  }
+  if (rules.has("copyleft-detected") && copyleftDetectedCount > 0) {
+    violations.push({
+      rule: "copyleft-detected",
+      count: copyleftDetectedCount,
+      message: `Copyleft licence detected in runtime tree (${copyleftDetectedCount} ${pluralize(copyleftDetectedCount, "package", "packages")})`,
+    });
+  }
+  if (rules.has("unknown-licence") && unknownLicenceCount > 0) {
+    violations.push({
+      rule: "unknown-licence",
+      count: unknownLicenceCount,
+      message: `${unknownLicenceCount} ${pluralize(unknownLicenceCount, "dependency with unknown licence", "dependencies with unknown licence")}`,
+    });
+  }
+
+  return violations;
+}
+
+function printPolicyViolations(violations: PolicyViolation[]): void {
+  if (violations.length === 0) return;
+  console.log("");
+  console.log(colorLeadingSymbol("✖ Policy violations detected:"));
+  for (const violation of violations) {
+    console.log(`- ${violation.message}`);
+  }
+}
 
 /**
  * Produce a concise CLI summary from aggregated workspace data.
@@ -1483,6 +1683,7 @@ async function run(): Promise<void> {
   const shouldWriteArtifacts = !opts.noReport;
   const projectPath = path.resolve(opts.project);
   let summary: CliSummary | undefined;
+  let policyViolations: PolicyViolation[] = [];
   if (opts.noReport && opts.keepTemp) {
     console.log(
       statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
@@ -1817,6 +2018,7 @@ async function run(): Promise<void> {
     summary = buildCliSummary(aggregated, {
       importGraphComplete,
     });
+    policyViolations = evaluatePolicyViolations(aggregated, opts.failOn);
 
     if (workspace.type !== "none") {
       console.log(
@@ -1895,10 +2097,16 @@ async function run(): Promise<void> {
     console.log("");
   }
 
+  printPolicyViolations(policyViolations);
+
   // Always show CTA as the last output
   console.log(
     "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
   );
+
+  if (policyViolations.length > 0) {
+    process.exit(1);
+  }
 }
 
 run();
