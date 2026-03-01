@@ -85,7 +85,7 @@ function hasStrongCopyleftLicense(dep: DependencyRecord): boolean {
 /**
  * Parse a comma-separated list of fail-on rule names into a validated set.
  *
- * @param value - Comma-separated rule names (e.g., "production-vulnerabilities,high-severity")
+ * @param value - Comma-separated rule names (e.g., "production-vuln,high-severity-vuln")
  * @returns A Set of validated `FailOnRule` values
  * @throws Error if `value` contains no rules or contains an unknown/unsupported rule
  */
