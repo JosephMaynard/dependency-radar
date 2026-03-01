@@ -39,6 +39,7 @@ describe('cli summary output', () => {
       expect(result.status).toBe(0);
 
       const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      const stdoutOutput = stripAnsi(result.stdout).replace(/\r/g, '');
 
       expect(output).toContain('Summary:');
       expect(output).toMatch(/• Direct deps scanned: \d+/);
@@ -59,7 +60,7 @@ describe('cli summary output', () => {
       expect(output).toContain(
         'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com',
       );
-      expect(output.trim().endsWith(
+      expect(stdoutOutput.trim().endsWith(
         'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com',
       )).toBe(true);
     },
