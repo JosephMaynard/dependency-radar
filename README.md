@@ -34,7 +34,7 @@ See https://dependency-radar.com for details.
 
 When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
 
-1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--keep-temp`, `--open`).
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`).
 2. Detect workspace/package-manager context:
    - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
    - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions
@@ -233,6 +233,28 @@ Open the generated report using the system default:
 ```bash
 npx dependency-radar --open
 ```
+
+Fail the command in CI when selected policy rules are violated:
+
+```bash
+npx dependency-radar --fail-on reachable-vuln,licence-mismatch
+```
+
+Supported `--fail-on` rules:
+
+- `reachable-vuln` - Fail if at least one reachable runtime vulnerability is present
+- `production-vuln` - Fail if at least one runtime vulnerability is present (reachability ignored)
+- `high-severity-vuln` - Fail if at least one high/critical vulnerability is present
+- `licence-mismatch` - Fail if at least one dependency has a declared-vs-inferred licence mismatch
+- `copyleft-detected` - Fail if strong copyleft (GPL/AGPL) appears in runtime dependencies
+- `unknown-licence` - Fail if at least one dependency has neither declared nor inferred licence data
+
+`--fail-on` behavior:
+
+- Unknown rules return exit code `1` with a clear error.
+- When selected rules are violated, Dependency Radar prints `✖ Policy violations detected:` and exits `1`.
+- With no `--fail-on` flag, scans do not fail due to policy checks.
+- Exit codes for policy checks are only `0` (pass) or `1` (fail).
 
 Show options:
 
