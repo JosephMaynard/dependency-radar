@@ -1363,7 +1363,9 @@ function printCliSummary(summary: CliSummary): void {
       )}`,
     );
   }
-  blockerDetails.forEach((line) => console.log(line));
+  for (const line of blockerDetails) {
+    console.log(line);
+  }
   console.log("");
 }
 

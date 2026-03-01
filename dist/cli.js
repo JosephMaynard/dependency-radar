@@ -1159,7 +1159,9 @@ function printCliSummary(summary) {
     if (summary.majorUpgradeBlockerBreakdown.installScripts > 0) {
         blockerDetails.push(`   - ${summary.majorUpgradeBlockerBreakdown.installScripts} ${pluralize(summary.majorUpgradeBlockerBreakdown.installScripts, "install lifecycle script", "install lifecycle scripts")}`);
     }
-    blockerDetails.forEach((line) => console.log(line));
+    for (const line of blockerDetails) {
+        console.log(line);
+    }
     console.log("");
 }
 /**
