@@ -1324,6 +1324,11 @@ type CliSummary = {
   };
 };
 
+/**
+ * Print policy violation messages to stdout as a human-readable list when any exist.
+ *
+ * @param violations - An array of policy violations to display; each violation's `message` will be printed as a list item. If the array is empty, nothing is printed.
+ */
 function printPolicyViolations(violations: PolicyViolation[]): void {
   if (violations.length === 0) return;
   console.log("");
@@ -1507,13 +1512,13 @@ function printCliSummary(summary: CliSummary): void {
 }
 
 /**
- * Orchestrates the CLI "scan" command to collect, merge, and output dependency data for a project or workspace.
+ * Run the CLI "scan" command to collect and aggregate dependency data for a project or workspace.
  *
  * Detects workspace type and package manager, runs per-package collectors (audit, dependency tree, import graph, outdated),
- * merges collected signals into a workspace-level model, and writes a JSON or HTML report to the configured output path.
- * Manages a temporary working directory (created under the project as .dependency-radar), respects CLI options such as
- * JSON output, audit/outdated toggles, keeping the temp directory, and optionally opening the generated output with the
- * system default application. Exits the process with a non-zero code on fatal errors. */
+ * merges collected signals into a workspace-level model, and writes a JSON or HTML report according to CLI options.
+ * Manages a temporary working directory and optionally opens the generated report. Exits the process with a non-zero code
+ * on fatal errors or when configured policy violations are detected.
+ */
 async function run(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.command !== "scan") {

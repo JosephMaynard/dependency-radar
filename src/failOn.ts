@@ -26,10 +26,24 @@ export const SUPPORTED_FAIL_ON_RULES = [
 
 const SUPPORTED_FAIL_ON_RULE_SET = new Set<FailOnRule>(SUPPORTED_FAIL_ON_RULES);
 
+/**
+ * Choose the singular or plural form of a word based on a numeric value.
+ *
+ * @param value - The number used to decide singular versus plural
+ * @param singular - The word form to use when `value` equals 1
+ * @param plural - The word form to use when `value` does not equal 1
+ * @returns The `singular` form if `value` equals 1, otherwise the `plural` form
+ */
 function pluralize(value: number, singular: string, plural: string): string {
   return value === 1 ? singular : plural;
 }
 
+/**
+ * Compute the total number of vulnerabilities reported for a dependency.
+ *
+ * @param dep - The dependency record whose security summary will be aggregated
+ * @returns The sum of `critical`, `high`, `moderate`, and `low` vulnerability counts
+ */
 function vulnerabilityCount(dep: DependencyRecord): number {
   return (
     (dep.security.summary.critical || 0) +
@@ -39,6 +53,12 @@ function vulnerabilityCount(dep: DependencyRecord): number {
   );
 }
 
+/**
+ * Detects whether a dependency has a strong copyleft license.
+ *
+ * @param dep - The dependency record to inspect for declared or inferred SPDX licenses
+ * @returns `true` if any declared or inferred SPDX license ID indicates strong copyleft (GPL, AGPL, or variants), `false` otherwise.
+ */
 function hasStrongCopyleftLicense(dep: DependencyRecord): boolean {
   const ids = new Set<string>();
   const declaredSpdx = dep.compliance.license.declared?.spdxId;
@@ -62,6 +82,13 @@ function hasStrongCopyleftLicense(dep: DependencyRecord): boolean {
   return false;
 }
 
+/**
+ * Parse a comma-separated list of fail-on rule names into a validated set.
+ *
+ * @param value - Comma-separated rule names (e.g., "production-vulnerabilities,high-severity")
+ * @returns A Set of validated `FailOnRule` values
+ * @throws Error if `value` contains no rules or contains an unknown/unsupported rule
+ */
 export function parseFailOnRules(value: string): Set<FailOnRule> {
   const selected = new Set<FailOnRule>();
   const rawRules = value
@@ -87,6 +114,13 @@ export function parseFailOnRules(value: string): Set<FailOnRule> {
   return selected;
 }
 
+/**
+ * Compute policy violations from aggregated dependency data according to the provided fail-on rules.
+ *
+ * @param aggregated - Aggregated dependency data used to evaluate violations
+ * @param rules - Set of active fail-on rules to check
+ * @returns An array of PolicyViolation objects for each rule that has one or more matching issues; returns an empty array if no violations are found
+ */
 export function evaluatePolicyViolations(
   aggregated: AggregatedData,
   rules: Set<FailOnRule>
