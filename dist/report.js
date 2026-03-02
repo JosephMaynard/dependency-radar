@@ -63,7 +63,7 @@ function buildHtml(data) {
                 month: 'short',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
             }).format(date);
         }
     }
@@ -335,22 +335,41 @@ ${safeCssContent}
     <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
       <div class="graph-canvas-shell" id="graph-canvas-shell">
         <canvas id="graph-canvas"></canvas>
-        <button type="button" class="graph-overlay graph-back-btn" id="graph-back-btn">Back to List</button>
-        <div class="graph-overlay graph-overlay-left" id="graph-workspace-wrap">
-          <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
-          <select id="graph-workspace" class="graph-workspace-select"></select>
+        <div class="graph-overlay-top">
+          <button type="button" class="graph-back-btn" id="graph-back-btn">Back to List View</button>
+          <div class="graph-key" aria-label="Graph key">
+            <span class="graph-workspace-label">Key</span>
+            <div class="graph-key-items">
+              <span class="graph-key-item">
+                <span class="graph-key-dot dependency" aria-hidden="true"></span>
+                <span>Dependency</span>
+              </span>
+              <span class="graph-key-item">
+                <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
+                <span>Dev-Dependency</span>
+              </span>
+              <span class="graph-key-item">
+                <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
+                <span>Sub-Dependency</span>
+              </span>
+            </div>
+          </div>
+          <div class="graph-overlay-left" id="graph-workspace-wrap">
+            <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
+            <select id="graph-workspace" class="graph-workspace-select"></select>
+          </div>
         </div>
         <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
+          <div class="dpad">
+            <button type="button" class="graph-control-btn up" data-action="pan-down" aria-label="Pan Up">▲</button>
+            <button type="button" class="graph-control-btn left" data-action="pan-right" aria-label="Pan Left">◀</button>
+            <div class="center-spacer" aria-hidden="true"></div>
+            <button type="button" class="graph-control-btn right" data-action="pan-left" aria-label="Pan Right">▶</button>
+            <button type="button" class="graph-control-btn down" data-action="pan-up" aria-label="Pan Down">▼</button>
+          </div>
           <div class="zoom-controls">
             <button type="button" class="graph-control-btn" data-action="zoom-in" aria-label="Zoom In">+</button>
             <button type="button" class="graph-control-btn" data-action="zoom-out" aria-label="Zoom Out">−</button>
-          </div>
-          <div class="dpad">
-            <button type="button" class="graph-control-btn up" data-action="pan-up" aria-label="Pan Up">▲</button>
-            <button type="button" class="graph-control-btn left" data-action="pan-left" aria-label="Pan Left">◀</button>
-            <div class="center-spacer" aria-hidden="true"></div>
-            <button type="button" class="graph-control-btn right" data-action="pan-right" aria-label="Pan Right">▶</button>
-            <button type="button" class="graph-control-btn down" data-action="pan-down" aria-label="Pan Down">▼</button>
           </div>
           <button type="button" class="graph-control-btn reset-btn" data-action="reset">reset</button>
         </div>
@@ -379,5 +398,9 @@ ${safeJsContent}
 </html>`;
 }
 function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

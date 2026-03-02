@@ -18,9 +18,9 @@
     "workspacePackages": []
   },
   "summary": {
-    "dependencyCount": 6,
-    "directCount": 2,
-    "transitiveCount": 4
+    "dependencyCount": 29,
+    "directCount": 4,
+    "transitiveCount": 25
   },
   "dependencies": {
     "chalk@5.3.0": {
@@ -158,6 +158,9 @@
         "id": "vite@5.4.21",
         "name": "vite",
         "version": "5.4.21",
+        "description": "Native-ESM powered web dev build tool",
+        "fileCount": 31,
+        "hasBin": true,
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/vite",
@@ -168,13 +171,17 @@
       },
       "compliance": {
         "license": {
+          "status": "match",
           "declared": {
             "spdxId": "MIT",
             "expression": false,
             "deprecated": false,
             "valid": true
           },
-          "status": "declared-only"
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
         },
         "licenseRisk": "green"
       },
@@ -203,8 +210,7 @@
         "outdatedStatus": "major",
         "latestVersion": "7.3.1",
         "blockers": [
-          "nodeEngine",
-          "peerDependency"
+          "nodeEngine"
         ],
         "blocksNodeMajor": true
       },
@@ -220,38 +226,310 @@
               "version": "5.4.21"
             }
           ],
-          "parentPackageCount": 0,
-          "topParentPackages": []
+          "parentPackageCount": 3,
+          "topParentPackages": [
+            "@vitest/mocker@2.1.9",
+            "vite-node@2.1.9",
+            "vitest@2.1.9"
+          ]
         },
         "introduction": "direct",
         "tsTypes": "bundled"
       },
       "graph": {
-        "fanIn": 0,
-        "fanOut": 12,
+        "fanIn": 3,
+        "fanOut": 6,
         "subDeps": {
           "dep": {
             "esbuild": [
-              "^0.21.0",
+              "^0.21.3",
               "esbuild@0.21.5"
+            ],
+            "postcss": [
+              "^8.4.43",
+              "postcss@8.5.6"
+            ],
+            "rollup": [
+              "^4.20.0",
+              "rollup@4.56.0"
             ]
           },
           "dev": {
-            "@types/node": [
-              "^20.0.0",
+            "@ampproject/remapping": [
+              "^2.3.0",
               null
-            ]
-          },
-          "peer": {
+            ],
+            "@babel/parser": [
+              "^7.25.6",
+              null
+            ],
+            "@jridgewell/trace-mapping": [
+              "^0.3.25",
+              null
+            ],
+            "@polka/compression": [
+              "^1.0.0-next.25",
+              null
+            ],
+            "@rollup/plugin-alias": [
+              "^5.1.0",
+              null
+            ],
+            "@rollup/plugin-commonjs": [
+              "^26.0.1",
+              null
+            ],
+            "@rollup/plugin-dynamic-import-vars": [
+              "^2.1.2",
+              null
+            ],
+            "@rollup/plugin-json": [
+              "^6.1.0",
+              null
+            ],
+            "@rollup/plugin-node-resolve": [
+              "15.2.3",
+              null
+            ],
+            "@rollup/pluginutils": [
+              "^5.1.0",
+              null
+            ],
+            "@types/escape-html": [
+              "^1.0.4",
+              null
+            ],
+            "@types/pnpapi": [
+              "^0.0.5",
+              null
+            ],
+            "artichokie": [
+              "^0.2.1",
+              null
+            ],
+            "cac": [
+              "^6.7.14",
+              null
+            ],
+            "chokidar": [
+              "^3.6.0",
+              null
+            ],
+            "connect": [
+              "^3.7.0",
+              null
+            ],
+            "convert-source-map": [
+              "^2.0.0",
+              null
+            ],
+            "cors": [
+              "^2.8.5",
+              null
+            ],
+            "cross-spawn": [
+              "^7.0.3",
+              null
+            ],
+            "debug": [
+              "^4.3.6",
+              null
+            ],
+            "dep-types": [
+              "link:./src/types",
+              null
+            ],
+            "dotenv": [
+              "^16.4.5",
+              null
+            ],
+            "dotenv-expand": [
+              "^11.0.6",
+              null
+            ],
+            "es-module-lexer": [
+              "^1.5.4",
+              null
+            ],
+            "escape-html": [
+              "^1.0.3",
+              null
+            ],
+            "estree-walker": [
+              "^3.0.3",
+              null
+            ],
+            "etag": [
+              "^1.8.1",
+              null
+            ],
+            "fast-glob": [
+              "^3.3.2",
+              null
+            ],
+            "http-proxy": [
+              "^1.18.1",
+              null
+            ],
+            "launch-editor-middleware": [
+              "^2.9.1",
+              null
+            ],
+            "lightningcss": [
+              "^1.26.0",
+              null
+            ],
+            "magic-string": [
+              "^0.30.11",
+              null
+            ],
+            "micromatch": [
+              "^4.0.8",
+              null
+            ],
+            "mlly": [
+              "^1.7.1",
+              null
+            ],
+            "mrmime": [
+              "^2.0.0",
+              null
+            ],
+            "open": [
+              "^8.4.2",
+              null
+            ],
+            "parse5": [
+              "^7.1.2",
+              null
+            ],
+            "pathe": [
+              "^1.1.2",
+              null
+            ],
+            "periscopic": [
+              "^4.0.2",
+              null
+            ],
+            "picocolors": [
+              "^1.0.1",
+              null
+            ],
+            "picomatch": [
+              "^2.3.1",
+              null
+            ],
+            "postcss-import": [
+              "^16.1.0",
+              null
+            ],
+            "postcss-load-config": [
+              "^4.0.2",
+              null
+            ],
+            "postcss-modules": [
+              "^6.0.0",
+              null
+            ],
+            "resolve.exports": [
+              "^2.0.2",
+              null
+            ],
+            "rollup-plugin-dts": [
+              "^6.1.1",
+              null
+            ],
+            "rollup-plugin-esbuild": [
+              "^6.1.1",
+              null
+            ],
+            "rollup-plugin-license": [
+              "^3.5.2",
+              null
+            ],
             "sass": [
-              "^1.63.0",
+              "^1.77.8",
+              null
+            ],
+            "sass-embedded": [
+              "^1.77.8",
+              null
+            ],
+            "sirv": [
+              "^2.0.4",
+              null
+            ],
+            "source-map-support": [
+              "^0.5.21",
+              null
+            ],
+            "strip-ansi": [
+              "^7.1.0",
+              null
+            ],
+            "strip-literal": [
+              "^2.1.0",
+              null
+            ],
+            "tsconfck": [
+              "^3.1.4",
+              null
+            ],
+            "tslib": [
+              "^2.7.0",
+              null
+            ],
+            "types": [
+              "link:./types",
+              null
+            ],
+            "ufo": [
+              "^1.5.4",
+              null
+            ],
+            "ws": [
+              "^8.18.0",
               null
             ]
           },
           "opt": {
             "fsevents": [
               "~2.3.3",
+              "fsevents@2.3.3"
+            ]
+          },
+          "peer": {
+            "@types/node": [
+              "^18.0.0 || >=20.0.0",
+              "@types/node@20.19.30"
+            ],
+            "less": [
+              "*",
               null
+            ],
+            "lightningcss": [
+              "^1.21.0",
+              null
+            ],
+            "sass": [
+              "*",
+              null
+            ],
+            "sass-embedded": [
+              "*",
+              null
+            ],
+            "stylus": [
+              "*",
+              null
+            ],
+            "sugarss": [
+              "*",
+              null
+            ],
+            "terser": [
+              "^5.4.0",
+              "terser@5.46.0"
             ]
           }
         }
@@ -262,6 +540,9 @@
         "id": "esbuild@0.21.5",
         "name": "esbuild",
         "version": "0.21.5",
+        "description": "An extremely fast JavaScript and CSS bundler and minifier.",
+        "fileCount": 7,
+        "hasBin": true,
         "deprecated": false,
         "links": {
           "npm": "https://www.npmjs.com/package/esbuild",
@@ -270,13 +551,17 @@
       },
       "compliance": {
         "license": {
+          "status": "match",
           "declared": {
             "spdxId": "MIT",
             "expression": false,
             "deprecated": false,
             "valid": true
           },
-          "status": "declared-only"
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
         },
         "licenseRisk": "green"
       },
@@ -303,7 +588,8 @@
       "upgrade": {
         "nodeEngine": ">=12",
         "blockers": [
-          "nodeEngine"
+          "nodeEngine",
+          "installScripts"
         ],
         "blocksNodeMajor": true
       },
@@ -329,14 +615,94 @@
       },
       "graph": {
         "fanIn": 1,
-        "fanOut": 23,
+        "fanOut": 1,
         "subDeps": {
           "opt": {
+            "@esbuild/aix-ppc64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/android-arm": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/android-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/android-x64": [
+              "0.21.5",
+              null
+            ],
             "@esbuild/darwin-arm64": [
               "0.21.5",
               "@esbuild/darwin-arm64@0.21.5"
             ],
+            "@esbuild/darwin-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/freebsd-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/freebsd-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-arm": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-ia32": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-loong64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-mips64el": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-ppc64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-riscv64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/linux-s390x": [
+              "0.21.5",
+              null
+            ],
             "@esbuild/linux-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/netbsd-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/openbsd-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/sunos-x64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/win32-arm64": [
+              "0.21.5",
+              null
+            ],
+            "@esbuild/win32-ia32": [
               "0.21.5",
               null
             ],
@@ -499,6 +865,2788 @@
       "graph": {
         "fanIn": 1,
         "fanOut": 0
+      }
+    },
+    "postcss@8.5.6": {
+      "package": {
+        "id": "postcss@8.5.6",
+        "name": "postcss",
+        "version": "8.5.6",
+        "description": "Tool for transforming styles with JS plugins",
+        "fileCount": 55,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/postcss",
+          "repository": "postcss/postcss",
+          "homepage": "https://postcss.org/",
+          "bugs": "https://github.com/postcss/postcss/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": "^10 || ^12 || >=14",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vite@5.4.21"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 3,
+        "subDeps": {
+          "dep": {
+            "nanoid": [
+              "^3.3.11",
+              "nanoid@3.3.11"
+            ],
+            "picocolors": [
+              "^1.1.1",
+              "picocolors@1.1.1"
+            ],
+            "source-map-js": [
+              "^1.2.1",
+              "source-map-js@1.2.1"
+            ]
+          }
+        }
+      }
+    },
+    "rollup@4.56.0": {
+      "package": {
+        "id": "rollup@4.56.0",
+        "name": "rollup",
+        "version": "4.56.0",
+        "description": "Next-generation ES module bundler",
+        "fileCount": 27,
+        "hasBin": true,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/rollup",
+          "repository": "https://github.com/rollup/rollup",
+          "homepage": "https://rollupjs.org/",
+          "bugs": "https://github.com/rollup/rollup/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 1,
+          "moderate": 0,
+          "low": 0,
+          "highest": "high",
+          "risk": "red"
+        },
+        "advisories": [
+          {
+            "id": "GHSA-MW96-CPMX-2VGC",
+            "title": "Rollup 4 has Arbitrary File Write via Path Traversal",
+            "severity": "high",
+            "vulnerableRange": ">=4.0.0 <4.59.0",
+            "fixAvailable": true,
+            "url": "https://github.com/advisories/GHSA-mw96-cpmx-2vgc"
+          }
+        ]
+      },
+      "upgrade": {
+        "nodeEngine": ">=18.0.0",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vite@5.4.21"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 3,
+        "subDeps": {
+          "dep": {
+            "@types/estree": [
+              "1.0.8",
+              "@types/estree@1.0.8"
+            ]
+          },
+          "dev": {
+            "@codemirror/commands": [
+              "^6.10.1",
+              null
+            ],
+            "@codemirror/lang-javascript": [
+              "^6.2.4",
+              null
+            ],
+            "@codemirror/language": [
+              "^6.12.1",
+              null
+            ],
+            "@codemirror/search": [
+              "^6.6.0",
+              null
+            ],
+            "@codemirror/state": [
+              "^6.5.3",
+              null
+            ],
+            "@codemirror/view": [
+              "^6.39.10",
+              null
+            ],
+            "@eslint/js": [
+              "^9.39.2",
+              null
+            ],
+            "@inquirer/prompts": [
+              "^7.10.1",
+              null
+            ],
+            "@jridgewell/sourcemap-codec": [
+              "^1.5.5",
+              null
+            ],
+            "@mermaid-js/mermaid-cli": [
+              "^11.12.0",
+              null
+            ],
+            "@napi-rs/cli": [
+              "3.4.1",
+              null
+            ],
+            "@rollup/plugin-alias": [
+              "^6.0.0",
+              null
+            ],
+            "@rollup/plugin-buble": [
+              "^1.0.3",
+              null
+            ],
+            "@rollup/plugin-commonjs": [
+              "^29.0.0",
+              null
+            ],
+            "@rollup/plugin-json": [
+              "^6.1.0",
+              null
+            ],
+            "@rollup/plugin-node-resolve": [
+              "^16.0.3",
+              null
+            ],
+            "@rollup/plugin-replace": [
+              "^6.0.3",
+              null
+            ],
+            "@rollup/plugin-terser": [
+              "^0.4.4",
+              null
+            ],
+            "@rollup/plugin-typescript": [
+              "^12.3.0",
+              null
+            ],
+            "@rollup/pluginutils": [
+              "^5.3.0",
+              null
+            ],
+            "@shikijs/vitepress-twoslash": [
+              "^3.21.0",
+              null
+            ],
+            "@types/mocha": [
+              "^10.0.10",
+              null
+            ],
+            "@types/node": [
+              "^20.19.28",
+              null
+            ],
+            "@types/picomatch": [
+              "^4.0.2",
+              null
+            ],
+            "@types/semver": [
+              "^7.7.1",
+              null
+            ],
+            "@types/yargs-parser": [
+              "^21.0.3",
+              null
+            ],
+            "@vue/language-server": [
+              "^3.2.2",
+              null
+            ],
+            "acorn": [
+              "^8.15.0",
+              null
+            ],
+            "acorn-import-assertions": [
+              "^1.9.0",
+              null
+            ],
+            "acorn-jsx": [
+              "^5.3.2",
+              null
+            ],
+            "buble": [
+              "^0.20.0",
+              null
+            ],
+            "builtin-modules": [
+              "^5.0.0",
+              null
+            ],
+            "chokidar": [
+              "^3.6.0",
+              null
+            ],
+            "concurrently": [
+              "^9.2.1",
+              null
+            ],
+            "core-js": [
+              "3.38.1",
+              null
+            ],
+            "cross-env": [
+              "^10.1.0",
+              null
+            ],
+            "date-time": [
+              "^4.0.0",
+              null
+            ],
+            "es5-shim": [
+              "^4.6.7",
+              null
+            ],
+            "es6-shim": [
+              "^0.35.8",
+              null
+            ],
+            "eslint": [
+              "^9.39.2",
+              null
+            ],
+            "eslint-config-prettier": [
+              "^10.1.8",
+              null
+            ],
+            "eslint-plugin-prettier": [
+              "^5.5.4",
+              null
+            ],
+            "eslint-plugin-unicorn": [
+              "^62.0.0",
+              null
+            ],
+            "eslint-plugin-vue": [
+              "^10.6.2",
+              null
+            ],
+            "fixturify": [
+              "^3.0.0",
+              null
+            ],
+            "flru": [
+              "^1.0.2",
+              null
+            ],
+            "fs-extra": [
+              "^11.3.3",
+              null
+            ],
+            "github-api": [
+              "^3.4.0",
+              null
+            ],
+            "globals": [
+              "^17.0.0",
+              null
+            ],
+            "husky": [
+              "^9.1.7",
+              null
+            ],
+            "is-reference": [
+              "^3.0.3",
+              null
+            ],
+            "lint-staged": [
+              "^16.2.7",
+              null
+            ],
+            "locate-character": [
+              "^3.0.0",
+              null
+            ],
+            "magic-string": [
+              "^0.30.21",
+              null
+            ],
+            "memfs": [
+              "^4.51.1",
+              null
+            ],
+            "mocha": [
+              "^11.7.5",
+              null
+            ],
+            "nodemon": [
+              "^3.1.11",
+              null
+            ],
+            "npm-audit-resolver": [
+              "^3.0.0-RC.0",
+              null
+            ],
+            "nyc": [
+              "^17.1.0",
+              null
+            ],
+            "patch-package": [
+              "^8.0.1",
+              null
+            ],
+            "picocolors": [
+              "^1.1.1",
+              null
+            ],
+            "picomatch": [
+              "^4.0.3",
+              null
+            ],
+            "pinia": [
+              "^3.0.4",
+              null
+            ],
+            "prettier": [
+              "^3.7.4",
+              null
+            ],
+            "prettier-plugin-organize-imports": [
+              "^4.3.0",
+              null
+            ],
+            "pretty-bytes": [
+              "^7.1.0",
+              null
+            ],
+            "pretty-ms": [
+              "^9.3.0",
+              null
+            ],
+            "requirejs": [
+              "^2.3.8",
+              null
+            ],
+            "rollup": [
+              "^4.55.1",
+              null
+            ],
+            "rollup-plugin-license": [
+              "^3.6.0",
+              null
+            ],
+            "semver": [
+              "^7.7.3",
+              null
+            ],
+            "shx": [
+              "^0.4.0",
+              null
+            ],
+            "signal-exit": [
+              "^4.1.0",
+              null
+            ],
+            "source-map": [
+              "^0.7.6",
+              null
+            ],
+            "source-map-support": [
+              "^0.5.21",
+              null
+            ],
+            "systemjs": [
+              "^6.15.1",
+              null
+            ],
+            "terser": [
+              "^5.44.1",
+              null
+            ],
+            "tslib": [
+              "^2.8.1",
+              null
+            ],
+            "typescript": [
+              "^5.9.3",
+              null
+            ],
+            "typescript-eslint": [
+              "^8.53.0",
+              null
+            ],
+            "vite": [
+              "^7.3.1",
+              null
+            ],
+            "vitepress": [
+              "^1.6.4",
+              null
+            ],
+            "vue": [
+              "^3.5.26",
+              null
+            ],
+            "vue-eslint-parser": [
+              "^10.2.0",
+              null
+            ],
+            "vue-tsc": [
+              "^3.2.2",
+              null
+            ],
+            "wasm-pack": [
+              "^0.13.1",
+              null
+            ],
+            "yargs-parser": [
+              "^21.1.1",
+              null
+            ]
+          },
+          "opt": {
+            "@rollup/rollup-android-arm-eabi": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-android-arm64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-darwin-arm64": [
+              "4.56.0",
+              "@rollup/rollup-darwin-arm64@4.56.0"
+            ],
+            "@rollup/rollup-darwin-x64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-freebsd-arm64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-freebsd-x64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm-gnueabihf": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm-musleabihf": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-arm64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-loong64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-loong64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-ppc64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-ppc64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-riscv64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-riscv64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-s390x-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-x64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-linux-x64-musl": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-openbsd-x64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-openharmony-arm64": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-arm64-msvc": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-ia32-msvc": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-x64-gnu": [
+              "4.56.0",
+              null
+            ],
+            "@rollup/rollup-win32-x64-msvc": [
+              "4.56.0",
+              null
+            ],
+            "fsevents": [
+              "~2.3.2",
+              "fsevents@2.3.3"
+            ]
+          }
+        }
+      },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
+      }
+    },
+    "@rollup/rollup-darwin-arm64@4.56.0": {
+      "package": {
+        "id": "@rollup/rollup-darwin-arm64@4.56.0",
+        "name": "@rollup/rollup-darwin-arm64",
+        "version": "4.56.0",
+        "description": "Native bindings for Rollup",
+        "fileCount": 3,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@rollup/rollup-darwin-arm64",
+          "repository": "https://github.com/rollup/rollup",
+          "homepage": "https://rollupjs.org/"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "declared-only",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null,
+        "blockers": [
+          "nativeBindings"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "rollup@4.56.0"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "none"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      },
+      "execution": {
+        "risk": "amber",
+        "native": true
+      }
+    },
+    "@types/estree@1.0.8": {
+      "package": {
+        "id": "@types/estree@1.0.8",
+        "name": "@types/estree",
+        "version": "1.0.8",
+        "description": "TypeScript definitions for estree",
+        "fileCount": 5,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@types/estree",
+          "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+          "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 2,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            },
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 2,
+          "topParentPackages": [
+            "estree-walker@3.0.3",
+            "rollup@4.56.0"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 0
+      }
+    },
+    "@esbuild/darwin-arm64@0.21.5": {
+      "package": {
+        "id": "@esbuild/darwin-arm64@0.21.5",
+        "name": "@esbuild/darwin-arm64",
+        "version": "0.21.5",
+        "description": "The macOS ARM 64-bit binary for esbuild, a JavaScript bundler.",
+        "fileCount": 3,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@esbuild/darwin-arm64",
+          "repository": "https://github.com/evanw/esbuild"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "declared-only",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": ">=12",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "esbuild@0.21.5"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "none"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      }
+    },
+    "fsevents@2.3.3": {
+      "package": {
+        "id": "fsevents@2.3.3",
+        "name": "fsevents",
+        "version": "2.3.3",
+        "description": "Native Access to MacOS FSEvents",
+        "fileCount": 6,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/fsevents",
+          "repository": "https://github.com/fsevents/fsevents",
+          "homepage": "https://github.com/fsevents/fsevents",
+          "bugs": "https://github.com/fsevents/fsevents/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": "^8.16.0 || ^10.6.0 || >=11.0.0",
+        "blockers": [
+          "nodeEngine",
+          "nativeBindings"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 2,
+          "topParentPackages": [
+            "rollup@4.56.0",
+            "vite@5.4.21"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "node-gyp": [
+              "^9.4.0",
+              null
+            ]
+          }
+        }
+      },
+      "execution": {
+        "risk": "amber",
+        "native": true
+      }
+    },
+    "vitest@2.1.9": {
+      "package": {
+        "id": "vitest@2.1.9",
+        "name": "vitest",
+        "version": "2.1.9",
+        "description": "Next generation testing framework powered by Vite",
+        "fileCount": 105,
+        "hasBin": true,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/vitest",
+          "repository": "https://github.com/vitest-dev/vitest",
+          "homepage": "https://github.com/vitest-dev/vitest#readme",
+          "bugs": "https://github.com/vitest-dev/vitest/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 1,
+          "low": 0,
+          "highest": "moderate",
+          "risk": "amber"
+        },
+        "advisories": [
+          {
+            "id": "GHSA-67MH-4WV8-2F99",
+            "title": "esbuild enables any website to send any requests to the development server and read the response",
+            "severity": "moderate",
+            "vulnerableRange": "<=0.24.2",
+            "fixAvailable": true,
+            "url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99"
+          }
+        ]
+      },
+      "upgrade": {
+        "nodeEngine": "^18.0.0 || >=20.0.0",
+        "outdatedStatus": "major",
+        "latestVersion": "3.2.4",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": true,
+        "scope": "dev",
+        "depth": 1,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 0,
+          "topParentPackages": []
+        },
+        "introduction": "direct",
+        "runtimeImpact": "testing",
+        "importUsage": {
+          "fileCount": 6,
+          "topFiles": [
+            "src/aggregator.test.ts",
+            "src/cli.test.ts",
+            "src/failOn.test.ts",
+            "src/license.test.ts",
+            "src/utils.test.ts"
+          ]
+        },
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 0,
+        "fanOut": 21,
+        "subDeps": {
+          "dep": {
+            "@vitest/expect": [
+              "2.1.9",
+              "@vitest/expect@2.1.9"
+            ],
+            "@vitest/mocker": [
+              "2.1.9",
+              "@vitest/mocker@2.1.9"
+            ],
+            "@vitest/pretty-format": [
+              "^2.1.9",
+              "@vitest/pretty-format@2.1.9"
+            ],
+            "@vitest/runner": [
+              "2.1.9",
+              "@vitest/runner@2.1.9"
+            ],
+            "@vitest/snapshot": [
+              "2.1.9",
+              "@vitest/snapshot@2.1.9"
+            ],
+            "@vitest/spy": [
+              "2.1.9",
+              "@vitest/spy@2.1.9"
+            ],
+            "@vitest/utils": [
+              "2.1.9",
+              "@vitest/utils@2.1.9"
+            ],
+            "chai": [
+              "^5.1.2",
+              "chai@5.3.3"
+            ],
+            "debug": [
+              "^4.3.7",
+              "debug@4.4.3"
+            ],
+            "expect-type": [
+              "^1.1.0",
+              "expect-type@1.3.0"
+            ],
+            "magic-string": [
+              "^0.30.12",
+              "magic-string@0.30.21"
+            ],
+            "pathe": [
+              "^1.1.2",
+              "pathe@1.1.2"
+            ],
+            "std-env": [
+              "^3.8.0",
+              "std-env@3.10.0"
+            ],
+            "tinybench": [
+              "^2.9.0",
+              "tinybench@2.9.0"
+            ],
+            "tinyexec": [
+              "^0.3.1",
+              "tinyexec@0.3.2"
+            ],
+            "tinypool": [
+              "^1.0.1",
+              "tinypool@1.1.1"
+            ],
+            "tinyrainbow": [
+              "^1.2.0",
+              "tinyrainbow@1.2.0"
+            ],
+            "vite": [
+              "^5.0.0",
+              "vite@5.4.21"
+            ],
+            "vite-node": [
+              "2.1.9",
+              "vite-node@2.1.9"
+            ],
+            "why-is-node-running": [
+              "^2.3.0",
+              "why-is-node-running@2.3.0"
+            ]
+          },
+          "dev": {
+            "@ampproject/remapping": [
+              "^2.3.0",
+              null
+            ],
+            "@antfu/install-pkg": [
+              "^0.4.1",
+              null
+            ],
+            "@edge-runtime/vm": [
+              "^4.0.4",
+              null
+            ],
+            "@sinonjs/fake-timers": [
+              "11.1.0",
+              null
+            ],
+            "@types/debug": [
+              "^4.1.12",
+              null
+            ],
+            "@types/estree": [
+              "^1.0.6",
+              null
+            ],
+            "@types/istanbul-lib-coverage": [
+              "^2.0.6",
+              null
+            ],
+            "@types/istanbul-reports": [
+              "^3.0.4",
+              null
+            ],
+            "@types/jsdom": [
+              "^21.1.7",
+              null
+            ],
+            "@types/micromatch": [
+              "^4.0.9",
+              null
+            ],
+            "@types/node": [
+              "^22.9.0",
+              "@types/node@20.19.30"
+            ],
+            "@types/prompts": [
+              "^2.4.9",
+              null
+            ],
+            "@types/sinonjs__fake-timers": [
+              "^8.1.5",
+              null
+            ],
+            "acorn-walk": [
+              "^8.3.4",
+              null
+            ],
+            "birpc": [
+              "0.2.19",
+              null
+            ],
+            "cac": [
+              "^6.7.14",
+              null
+            ],
+            "chai-subset": [
+              "^1.6.0",
+              null
+            ],
+            "cli-truncate": [
+              "^4.0.0",
+              null
+            ],
+            "fast-glob": [
+              "3.3.2",
+              null
+            ],
+            "find-up": [
+              "^6.3.0",
+              null
+            ],
+            "flatted": [
+              "^3.3.1",
+              null
+            ],
+            "get-tsconfig": [
+              "^4.8.1",
+              null
+            ],
+            "happy-dom": [
+              "^15.11.4",
+              null
+            ],
+            "jsdom": [
+              "^25.0.1",
+              null
+            ],
+            "local-pkg": [
+              "^0.5.0",
+              null
+            ],
+            "log-update": [
+              "^5.0.1",
+              null
+            ],
+            "micromatch": [
+              "^4.0.8",
+              null
+            ],
+            "pretty-format": [
+              "^29.7.0",
+              null
+            ],
+            "prompts": [
+              "^2.4.2",
+              null
+            ],
+            "strip-literal": [
+              "^2.1.0",
+              null
+            ],
+            "ws": [
+              "^8.18.0",
+              null
+            ]
+          },
+          "peer": {
+            "@edge-runtime/vm": [
+              "*",
+              null
+            ],
+            "@types/node": [
+              "^18.0.0 || >=20.0.0",
+              "@types/node@20.19.30"
+            ],
+            "@vitest/browser": [
+              "2.1.9",
+              null
+            ],
+            "@vitest/ui": [
+              "2.1.9",
+              null
+            ],
+            "happy-dom": [
+              "*",
+              null
+            ],
+            "jsdom": [
+              "*",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "vite-node@2.1.9": {
+      "package": {
+        "id": "vite-node@2.1.9",
+        "name": "vite-node",
+        "version": "2.1.9",
+        "description": "Vite as Node.js runtime",
+        "fileCount": 37,
+        "hasBin": true,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/vite-node",
+          "repository": "https://github.com/vitest-dev/vitest",
+          "homepage": "https://github.com/vitest-dev/vitest/blob/main/packages/vite-node#readme",
+          "bugs": "https://github.com/vitest-dev/vitest/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 1,
+          "low": 0,
+          "highest": "moderate",
+          "risk": "amber"
+        },
+        "advisories": [
+          {
+            "id": "GHSA-67MH-4WV8-2F99",
+            "title": "esbuild enables any website to send any requests to the development server and read the response",
+            "severity": "moderate",
+            "vulnerableRange": "<=0.24.2",
+            "fixAvailable": true,
+            "url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99"
+          }
+        ]
+      },
+      "upgrade": {
+        "nodeEngine": "^18.0.0 || >=20.0.0",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vitest@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 5,
+        "subDeps": {
+          "dep": {
+            "cac": [
+              "^6.7.14",
+              "cac@6.7.14"
+            ],
+            "debug": [
+              "^4.3.7",
+              "debug@4.4.3"
+            ],
+            "es-module-lexer": [
+              "^1.5.4",
+              "es-module-lexer@1.7.0"
+            ],
+            "pathe": [
+              "^1.1.2",
+              "pathe@1.1.2"
+            ],
+            "vite": [
+              "^5.0.0",
+              "vite@5.4.21"
+            ]
+          },
+          "dev": {
+            "@jridgewell/trace-mapping": [
+              "^0.3.25",
+              null
+            ],
+            "@types/debug": [
+              "^4.1.12",
+              null
+            ],
+            "tinyrainbow": [
+              "^1.2.0",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "cac@6.7.14": {
+      "package": {
+        "id": "cac@6.7.14",
+        "name": "cac",
+        "version": "6.7.14",
+        "description": "Simple yet powerful framework for building command-line apps.",
+        "fileCount": 15,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/cac",
+          "repository": "egoist/cac"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": ">=8",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vite-node@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "@babel/core": [
+              "^7.12.10",
+              null
+            ],
+            "@babel/plugin-syntax-typescript": [
+              "^7.12.1",
+              null
+            ],
+            "@rollup/plugin-commonjs": [
+              "^17.0.0",
+              null
+            ],
+            "@rollup/plugin-node-resolve": [
+              "^11.0.0",
+              null
+            ],
+            "@types/fs-extra": [
+              "^9.0.5",
+              null
+            ],
+            "@types/jest": [
+              "^26.0.19",
+              null
+            ],
+            "@types/mri": [
+              "^1.1.0",
+              null
+            ],
+            "cz-conventional-changelog": [
+              "^2.1.0",
+              null
+            ],
+            "esbuild": [
+              "^0.8.21",
+              null
+            ],
+            "eslint-config-rem": [
+              "^3.0.0",
+              null
+            ],
+            "execa": [
+              "^5.0.0",
+              null
+            ],
+            "fs-extra": [
+              "^9.0.1",
+              null
+            ],
+            "globby": [
+              "^11.0.1",
+              null
+            ],
+            "husky": [
+              "^1.2.0",
+              null
+            ],
+            "jest": [
+              "^24.9.0",
+              null
+            ],
+            "lint-staged": [
+              "^8.1.0",
+              null
+            ],
+            "markdown-toc": [
+              "^1.2.0",
+              null
+            ],
+            "mri": [
+              "^1.1.6",
+              null
+            ],
+            "prettier": [
+              "^2.2.1",
+              null
+            ],
+            "rollup": [
+              "^2.34.2",
+              null
+            ],
+            "rollup-plugin-dts": [
+              "^2.0.1",
+              null
+            ],
+            "rollup-plugin-esbuild": [
+              "^2.6.1",
+              null
+            ],
+            "semantic-release": [
+              "^17.3.0",
+              null
+            ],
+            "sucrase": [
+              "^3.16.0",
+              null
+            ],
+            "ts-jest": [
+              "^26.4.4",
+              null
+            ],
+            "ts-node": [
+              "^9.1.1",
+              null
+            ],
+            "typedoc": [
+              "^0.19.2",
+              null
+            ],
+            "typescript": [
+              "^4.1.2",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "es-module-lexer@1.7.0": {
+      "package": {
+        "id": "es-module-lexer@1.7.0",
+        "name": "es-module-lexer",
+        "version": "1.7.0",
+        "description": "Lexes ES modules returning their import/export metadata",
+        "fileCount": 8,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/es-module-lexer",
+          "repository": "https://github.com/guybedford/es-module-lexer",
+          "homepage": "https://github.com/guybedford/es-module-lexer#readme",
+          "bugs": "https://github.com/guybedford/es-module-lexer/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "high"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vite-node@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "@babel/cli": [
+              "^7.5.5",
+              null
+            ],
+            "@babel/core": [
+              "^7.5.5",
+              null
+            ],
+            "@babel/plugin-transform-modules-commonjs": [
+              "^7.5.0",
+              null
+            ],
+            "@swc/cli": [
+              "^0.1.57",
+              null
+            ],
+            "@swc/core": [
+              "^1.2.224",
+              null
+            ],
+            "@types/node": [
+              "^18.7.1",
+              null
+            ],
+            "kleur": [
+              "^2.0.2",
+              null
+            ],
+            "mocha": [
+              "^5.2.0",
+              null
+            ],
+            "terser": [
+              "^5.19.4",
+              null
+            ],
+            "typescript": [
+              "^4.7.4",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "tinybench@2.9.0": {
+      "package": {
+        "id": "tinybench@2.9.0",
+        "name": "tinybench",
+        "version": "2.9.0",
+        "fileCount": 7,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/tinybench",
+          "repository": "tinylibs/tinybench"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vitest@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      }
+    },
+    "tinyexec@0.3.2": {
+      "package": {
+        "id": "tinyexec@0.3.2",
+        "name": "tinyexec",
+        "version": "0.3.2",
+        "description": "A minimal library for executing processes in Node",
+        "fileCount": 7,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/tinyexec",
+          "repository": "https://github.com/tinylibs/tinyexec",
+          "homepage": "https://github.com/tinylibs/tinyexec#readme",
+          "bugs": "https://github.com/tinylibs/tinyexec/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vitest@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "@eslint/js": [
+              "^9.0.0",
+              null
+            ],
+            "@types/cross-spawn": [
+              "^6.0.6",
+              null
+            ],
+            "@types/node": [
+              "^20.12.7",
+              null
+            ],
+            "c8": [
+              "^9.1.0",
+              null
+            ],
+            "cross-spawn": [
+              "^7.0.3",
+              null
+            ],
+            "eslint-config-google": [
+              "^0.14.0",
+              null
+            ],
+            "prettier": [
+              "^3.2.5",
+              null
+            ],
+            "tsup": [
+              "^8.1.0",
+              null
+            ],
+            "typescript": [
+              "^5.4.5",
+              null
+            ],
+            "typescript-eslint": [
+              "^7.7.0",
+              null
+            ]
+          }
+        }
+      },
+      "execution": {
+        "risk": "amber",
+        "scripts": {
+          "hooks": [
+            "prepare"
+          ]
+        }
+      }
+    },
+    "tinypool@1.1.1": {
+      "package": {
+        "id": "tinypool@1.1.1",
+        "name": "tinypool",
+        "version": "1.1.1",
+        "description": "A minimal and tiny Node.js Worker Thread Pool implementation, a fork of piscina, but with fewer features",
+        "fileCount": 14,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/tinypool",
+          "repository": "https://github.com/tinylibs/tinypool",
+          "homepage": "https://github.com/tinylibs/tinypool#readme",
+          "bugs": "https://github.com/tinylibs/tinypool/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": "^18.0.0 || >=20.0.0",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vitest@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      }
+    },
+    "why-is-node-running@2.3.0": {
+      "package": {
+        "id": "why-is-node-running@2.3.0",
+        "name": "why-is-node-running",
+        "version": "2.3.0",
+        "description": "Node is running but you don't know why? why-is-node-running is here to help you.",
+        "fileCount": 8,
+        "hasBin": true,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/why-is-node-running",
+          "repository": "https://github.com/mafintosh/why-is-node-running",
+          "homepage": "https://github.com/mafintosh/why-is-node-running",
+          "bugs": "https://github.com/mafintosh/why-is-node-running/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": ">=8",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 2,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "vitest@2.1.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "none"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "subDeps": {
+          "dep": {
+            "siginfo": [
+              "^2.0.0",
+              "siginfo@2.0.0"
+            ],
+            "stackback": [
+              "0.0.2",
+              "stackback@0.0.2"
+            ]
+          }
+        }
+      }
+    },
+    "siginfo@2.0.0": {
+      "package": {
+        "id": "siginfo@2.0.0",
+        "name": "siginfo",
+        "version": "2.0.0",
+        "description": "Utility module to print pretty messages on SIGINFO/SIGUSR1",
+        "fileCount": 6,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/siginfo",
+          "repository": "https://github.com/emilbayes/siginfo",
+          "homepage": "https://github.com/emilbayes/siginfo#readme",
+          "bugs": "https://github.com/emilbayes/siginfo/issues"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "mismatch",
+          "declared": {
+            "spdxId": "ISC",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "low"
+          }
+        },
+        "licenseRisk": "amber"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "why-is-node-running@2.3.0"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "none"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "standard": [
+              "^14.3.4",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "stackback@0.0.2": {
+      "package": {
+        "id": "stackback@0.0.2",
+        "name": "stackback",
+        "version": "0.0.2",
+        "description": "return list of CallSite objects from a captured stacktrace",
+        "fileCount": 7,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/stackback",
+          "repository": "https://github.com/shtylman/node-stackback"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "declared-only",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "why-is-node-running@2.3.0"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "none"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "mocha": [
+              "~1.6.0",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "nanoid@3.3.11": {
+      "package": {
+        "id": "nanoid@3.3.11",
+        "name": "nanoid",
+        "version": "3.3.11",
+        "description": "A tiny (116 bytes), secure URL-friendly unique string ID generator",
+        "fileCount": 25,
+        "hasBin": true,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/nanoid",
+          "repository": "ai/nanoid"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": "^10 || ^12 || ^13.7 || ^14 || >=15.0.1",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "postcss@8.5.6"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      }
+    },
+    "picocolors@1.1.1": {
+      "package": {
+        "id": "picocolors@1.1.1",
+        "name": "picocolors",
+        "version": "1.1.1",
+        "description": "The tiniest and the fastest library for terminal output formatting with ANSI colors",
+        "fileCount": 7,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/picocolors",
+          "repository": "alexeyraspopov/picocolors"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "mismatch",
+          "declared": {
+            "spdxId": "ISC",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "low"
+          }
+        },
+        "licenseRisk": "amber"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "postcss@8.5.6"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0
+      }
+    },
+    "source-map-js@1.2.1": {
+      "package": {
+        "id": "source-map-js@1.2.1",
+        "name": "source-map-js",
+        "version": "1.2.1",
+        "description": "Generates and consumes source maps",
+        "fileCount": 18,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/source-map-js",
+          "repository": "7rulnik/source-map-js",
+          "homepage": "https://github.com/7rulnik/source-map-js"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "BSD-3-Clause",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "BSD-3-Clause",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": ">=0.10.0"
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "vite",
+              "version": "5.4.21"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "postcss@8.5.6"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "clean-publish": [
+              "^3.1.0",
+              null
+            ],
+            "doctoc": [
+              "^0.15.0",
+              null
+            ],
+            "webpack": [
+              "^1.12.0",
+              null
+            ]
+          }
+        }
+      }
+    },
+    "@jridgewell/trace-mapping@0.3.31": {
+      "package": {
+        "id": "@jridgewell/trace-mapping@0.3.31",
+        "name": "@jridgewell/trace-mapping",
+        "version": "0.3.31",
+        "description": "Trace the original position through a source map",
+        "fileCount": 52,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@jridgewell/trace-mapping",
+          "repository": "https://github.com/jridgewell/sourcemaps",
+          "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "terser",
+              "version": "5.46.0"
+            }
+          ],
+          "parentPackageCount": 2,
+          "topParentPackages": [
+            "@jridgewell/gen-mapping@0.3.13",
+            "@jridgewell/source-map@0.3.11"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 2,
+        "subDeps": {
+          "dep": {
+            "@jridgewell/resolve-uri": [
+              "^3.1.0",
+              "@jridgewell/resolve-uri@3.1.2"
+            ],
+            "@jridgewell/sourcemap-codec": [
+              "^1.4.14",
+              "@jridgewell/sourcemap-codec@1.5.5"
+            ]
+          }
+        }
+      }
+    },
+    "@jridgewell/gen-mapping@0.3.13": {
+      "package": {
+        "id": "@jridgewell/gen-mapping@0.3.13",
+        "name": "@jridgewell/gen-mapping",
+        "version": "0.3.13",
+        "description": "Generate source maps",
+        "fileCount": 31,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@jridgewell/gen-mapping",
+          "repository": "https://github.com/jridgewell/sourcemaps",
+          "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 1,
+          "topRootPackages": [
+            {
+              "name": "terser",
+              "version": "5.46.0"
+            }
+          ],
+          "parentPackageCount": 1,
+          "topParentPackages": [
+            "@jridgewell/source-map@0.3.11"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 1,
+        "fanOut": 2,
+        "subDeps": {
+          "dep": {
+            "@jridgewell/sourcemap-codec": [
+              "^1.5.0",
+              "@jridgewell/sourcemap-codec@1.5.5"
+            ],
+            "@jridgewell/trace-mapping": [
+              "^0.3.24",
+              "@jridgewell/trace-mapping@0.3.31"
+            ]
+          }
+        }
+      }
+    },
+    "@jridgewell/sourcemap-codec@1.5.5": {
+      "package": {
+        "id": "@jridgewell/sourcemap-codec@1.5.5",
+        "name": "@jridgewell/sourcemap-codec",
+        "version": "1.5.5",
+        "description": "Encode/decode sourcemap mappings",
+        "fileCount": 27,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@jridgewell/sourcemap-codec",
+          "repository": "https://github.com/jridgewell/sourcemaps",
+          "homepage": "https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": null
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 3,
+        "origins": {
+          "rootPackageCount": 3,
+          "topRootPackages": [
+            {
+              "name": "terser",
+              "version": "5.46.0"
+            },
+            {
+              "name": "ts-node",
+              "version": "10.9.2"
+            },
+            {
+              "name": "vitest",
+              "version": "2.1.9"
+            }
+          ],
+          "parentPackageCount": 4,
+          "topParentPackages": [
+            "@jridgewell/gen-mapping@0.3.13",
+            "@jridgewell/trace-mapping@0.3.31",
+            "@jridgewell/trace-mapping@0.3.9",
+            "magic-string@0.30.21"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 4,
+        "fanOut": 0
+      }
+    },
+    "@jridgewell/resolve-uri@3.1.2": {
+      "package": {
+        "id": "@jridgewell/resolve-uri@3.1.2",
+        "name": "@jridgewell/resolve-uri",
+        "version": "3.1.2",
+        "description": "Resolve a URI relative to an optional base URI",
+        "fileCount": 8,
+        "deprecated": false,
+        "links": {
+          "npm": "https://www.npmjs.com/package/@jridgewell/resolve-uri",
+          "repository": "https://github.com/jridgewell/resolve-uri"
+        }
+      },
+      "compliance": {
+        "license": {
+          "status": "match",
+          "declared": {
+            "spdxId": "MIT",
+            "expression": false,
+            "deprecated": false,
+            "valid": true
+          },
+          "inferred": {
+            "spdxId": "MIT",
+            "confidence": "medium"
+          }
+        },
+        "licenseRisk": "green"
+      },
+      "security": {
+        "summary": {
+          "critical": 0,
+          "high": 0,
+          "moderate": 0,
+          "low": 0,
+          "highest": "none",
+          "risk": "green"
+        }
+      },
+      "upgrade": {
+        "nodeEngine": ">=6.0.0",
+        "blockers": [
+          "nodeEngine"
+        ],
+        "blocksNodeMajor": true
+      },
+      "usage": {
+        "direct": false,
+        "scope": "dev",
+        "depth": 4,
+        "origins": {
+          "rootPackageCount": 2,
+          "topRootPackages": [
+            {
+              "name": "terser",
+              "version": "5.46.0"
+            },
+            {
+              "name": "ts-node",
+              "version": "10.9.2"
+            }
+          ],
+          "parentPackageCount": 2,
+          "topParentPackages": [
+            "@jridgewell/trace-mapping@0.3.31",
+            "@jridgewell/trace-mapping@0.3.9"
+          ]
+        },
+        "introduction": "tooling",
+        "tsTypes": "bundled"
+      },
+      "graph": {
+        "fanIn": 2,
+        "fanOut": 0,
+        "subDeps": {
+          "dev": {
+            "@jridgewell/resolve-uri-latest": [
+              "npm:@jridgewell/resolve-uri@*",
+              null
+            ],
+            "@rollup/plugin-typescript": [
+              "8.3.0",
+              null
+            ],
+            "@typescript-eslint/eslint-plugin": [
+              "5.10.0",
+              null
+            ],
+            "@typescript-eslint/parser": [
+              "5.10.0",
+              null
+            ],
+            "c8": [
+              "7.11.0",
+              null
+            ],
+            "eslint": [
+              "8.7.0",
+              null
+            ],
+            "eslint-config-prettier": [
+              "8.3.0",
+              null
+            ],
+            "mocha": [
+              "9.2.0",
+              null
+            ],
+            "npm-run-all": [
+              "4.1.5",
+              null
+            ],
+            "prettier": [
+              "2.5.1",
+              null
+            ],
+            "rollup": [
+              "2.66.0",
+              null
+            ],
+            "typescript": [
+              "4.5.5",
+              null
+            ]
+          }
+        }
       }
     }
   }

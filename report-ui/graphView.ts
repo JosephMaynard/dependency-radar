@@ -1,4 +1,4 @@
-import type { AggregatedData, DependencyRecord } from './types';
+import type { AggregatedData, DependencyRecord } from "./types";
 
 type GraphWorkspace = {
   name: string;
@@ -13,7 +13,7 @@ type GraphDependency = {
   dependencies: string[];
   license: string;
   vulnerabilityCount: number;
-  vulnerabilitySeverity: 'high' | 'moderate' | 'none';
+  vulnerabilitySeverity: "high" | "moderate" | "none";
   isDevOnly: boolean;
   workspaceOrigins: string[];
 };
@@ -23,7 +23,7 @@ type GraphDataset = {
   dependencies: Record<string, GraphDependency>;
 };
 
-type GraphNodeKind = 'direct-runtime' | 'direct-dev' | 'transitive';
+type GraphNodeKind = "direct-runtime" | "direct-dev" | "transitive";
 
 type GraphNode = {
   slug: string;
@@ -41,6 +41,8 @@ type GraphNode = {
   renderX: number;
   renderY: number;
   radius: number;
+  targetRadius: number;
+  renderRadius: number;
 };
 
 type GraphEdge = {
@@ -99,6 +101,55 @@ export type GraphViewHandle = {
   requestRender: () => void;
 };
 
+type TouchState = {
+  active: boolean;
+  startX1: number;
+  startY1: number;
+  startX2: number;
+  startY2: number;
+  startPanX: number;
+  startPanY: number;
+  startDist: number;
+  startZoom: number;
+  anchorX: number | null;
+  anchorY: number | null;
+};
+
+type ThemeColors = {
+  runtime: string;
+  runtimeHighlight: string;
+  dev: string;
+  devHighlight: string;
+  transitive: string;
+  transitiveHighlight: string;
+  edge: string;
+  highlight: string;
+  muted: string;
+  ringHigh: string;
+  ringModerate: string;
+  label: string;
+  backgroundPrimary: string;
+};
+
+type GraphPoint = {
+  x: number;
+  y: number;
+};
+
+type DepthNodeIndex = Map<number, GraphNode[]>;
+
+type EdgeRoutingConfig = {
+  depthNodeIndex: DepthNodeIndex;
+  maxDepth: number;
+  sameColumnXThreshold: number;
+  minDetourVerticalSpan: number;
+  detourInset: number;
+  detourNodeClearance: number;
+  paddingX: number;
+  layerGap: number;
+  edgeCurve: number;
+};
+
 declare global {
   interface Window {
     __DEPENDENCY_DATA__?: unknown;
@@ -111,14 +162,265 @@ const PADDING_X = 96;
 const PADDING_Y = 64;
 const PUSH_RADIUS = 120;
 const MAX_ZOOM = 2.8;
+const MIN_ZOOM_FIT_RATIO = 0.86;
 const EDGE_CURVE = 0.2;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function parseCssColor(
+  value: string,
+): { r: number; g: number; b: number } | null {
+  const normalized = value.trim();
+  const hexMatch = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    if (hex.length === 3) {
+      return {
+        r: parseInt(hex[0] + hex[0], 16),
+        g: parseInt(hex[1] + hex[1], 16),
+        b: parseInt(hex[2] + hex[2], 16),
+      };
+    }
+    return {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16),
+    };
+  }
+
+  const rgbMatch = normalized.match(/^rgba?\(([^)]+)\)$/i);
+  if (!rgbMatch) return null;
+  const channels = rgbMatch[1]
+    .replace(/\//g, " ")
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .slice(0, 3);
+  if (channels.length !== 3) return null;
+
+  const parseChannel = (channel: string): number | null => {
+    if (channel.endsWith("%")) {
+      const pct = Number(channel.slice(0, -1));
+      if (!Number.isFinite(pct)) return null;
+      return clamp(Math.round((pct / 100) * 255), 0, 255);
+    }
+    const value = Number(channel);
+    if (!Number.isFinite(value)) return null;
+    return clamp(Math.round(value), 0, 255);
+  };
+
+  const r = parseChannel(channels[0]);
+  const g = parseChannel(channels[1]);
+  const b = parseChannel(channels[2]);
+  if (r === null || g === null || b === null) return null;
+  return { r, g, b };
+}
+
+function tintColor(color: string, amount: number, fallback: string): string {
+  const rgb = parseCssColor(color);
+  if (!rgb) return fallback;
+  const t = clamp(amount, 0, 1);
+  const r = Math.round(rgb.r + (255 - rgb.r) * t);
+  const g = Math.round(rgb.g + (255 - rgb.g) * t);
+  const b = Math.round(rgb.b + (255 - rgb.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function getCssColor(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+}
+
+function drawSmoothedPolyline(
+  context: CanvasRenderingContext2D,
+  points: GraphPoint[],
+  cornerRadius: number,
+): void {
+  if (points.length === 0) return;
+  context.moveTo(points[0].x, points[0].y);
+  if (points.length === 1) return;
+  if (points.length === 2) {
+    context.lineTo(points[1].x, points[1].y);
+    return;
+  }
+
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+
+    const inDx = curr.x - prev.x;
+    const inDy = curr.y - prev.y;
+    const outDx = next.x - curr.x;
+    const outDy = next.y - curr.y;
+    const inLen = Math.hypot(inDx, inDy);
+    const outLen = Math.hypot(outDx, outDy);
+
+    if (inLen < 0.001 || outLen < 0.001) {
+      context.lineTo(curr.x, curr.y);
+      continue;
+    }
+
+    const cut = Math.min(cornerRadius, inLen * 0.45, outLen * 0.45);
+    const startX = curr.x - (inDx / inLen) * cut;
+    const startY = curr.y - (inDy / inLen) * cut;
+    const endX = curr.x + (outDx / outLen) * cut;
+    const endY = curr.y + (outDy / outLen) * cut;
+
+    context.lineTo(startX, startY);
+    context.quadraticCurveTo(curr.x, curr.y, endX, endY);
+  }
+
+  const last = points[points.length - 1];
+  context.lineTo(last.x, last.y);
+}
+
+function buildDepthNodeIndex(graph: WorkspaceGraph): DepthNodeIndex {
+  const index: DepthNodeIndex = new Map();
+  graph.nodes.forEach((node) => {
+    const bucket = index.get(node.depth);
+    if (bucket) bucket.push(node);
+    else index.set(node.depth, [node]);
+  });
+  index.forEach((bucket) => {
+    bucket.sort((a, b) => a.renderY - b.renderY);
+  });
+  return index;
+}
+
+function lowerBoundByRenderY(nodes: GraphNode[], minY: number): number {
+  let low = 0;
+  let high = nodes.length;
+  while (low < high) {
+    const mid = low + ((high - low) >> 1);
+    if (nodes[mid].renderY < minY) low = mid + 1;
+    else high = mid;
+  }
+  return low;
+}
+
+function isDetourCrowded(
+  config: EdgeRoutingConfig,
+  depth: number,
+  minY: number,
+  maxY: number,
+  detourX: number,
+): boolean {
+  const nodesAtDepth = config.depthNodeIndex.get(depth);
+  if (!nodesAtDepth || nodesAtDepth.length === 0) return false;
+  const startIndex = lowerBoundByRenderY(nodesAtDepth, minY);
+  for (
+    let i = startIndex;
+    i < nodesAtDepth.length && nodesAtDepth[i].renderY <= maxY;
+    i += 1
+  ) {
+    if (Math.abs(nodesAtDepth[i].renderX - detourX) < config.detourNodeClearance) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function drawRoutedEdge(
+  context: CanvasRenderingContext2D,
+  from: GraphNode,
+  to: GraphNode,
+  config: EdgeRoutingConfig,
+): void {
+  const sourceX = from.renderX;
+  const sourceY = from.renderY;
+  const targetX = to.renderX;
+  const targetY = to.renderY;
+  const depthDelta = to.depth - from.depth;
+  const span = Math.abs(depthDelta);
+
+  if (span === 0) {
+    const sameColumn = Math.abs(sourceX - targetX) < config.sameColumnXThreshold;
+    const verticalSpan = Math.abs(sourceY - targetY);
+    const hasRightCorridor = from.depth < config.maxDepth;
+
+    if (sameColumn && verticalSpan > config.minDetourVerticalSpan && hasRightCorridor) {
+      const currentColumnX = config.paddingX + from.depth * config.layerGap;
+      const nextColumnX = config.paddingX + (from.depth + 1) * config.layerGap;
+      const corridorCenterX = (currentColumnX + nextColumnX) * 0.5;
+      let detourX = corridorCenterX + config.detourInset;
+
+      const minY = Math.min(sourceY, targetY) - 12;
+      const maxY = Math.max(sourceY, targetY) + 12;
+      if (isDetourCrowded(config, from.depth + 1, minY, maxY, detourX)) {
+        detourX += 12;
+      }
+
+      const detourMinX = corridorCenterX + 8;
+      const detourMaxX = nextColumnX - 24;
+      detourX = clamp(detourX, detourMinX, detourMaxX);
+
+      const outSpan = Math.max(1, detourX - sourceX);
+      const cornerRadius = clamp(
+        Math.min(outSpan, verticalSpan) * 0.42,
+        16,
+        52,
+      );
+      drawSmoothedPolyline(
+        context,
+        [
+          { x: sourceX, y: sourceY },
+          { x: detourX, y: sourceY },
+          { x: detourX, y: targetY },
+          { x: targetX, y: targetY },
+        ],
+        cornerRadius,
+      );
+      return;
+    }
+
+    context.moveTo(sourceX, sourceY);
+    const cx = sourceX + (targetX - sourceX) * 0.5;
+    const cy = sourceY + (targetY - sourceY) * config.edgeCurve;
+    context.quadraticCurveTo(cx, cy, targetX, targetY);
+    return;
+  }
+
+  if (span === 1) {
+    const leftDepth = Math.min(from.depth, to.depth);
+    const corridorCenterX =
+      config.paddingX + leftDepth * config.layerGap + config.layerGap * 0.5;
+    context.moveTo(sourceX, sourceY);
+    context.bezierCurveTo(
+      corridorCenterX,
+      sourceY,
+      corridorCenterX,
+      targetY,
+      targetX,
+      targetY,
+    );
+    return;
+  }
+
+  const direction = Math.sign(depthDelta);
+  const yDelta = targetY - sourceY;
+  const points: GraphPoint[] = [{ x: sourceX, y: sourceY }];
+
+  const firstCorridorX =
+    config.paddingX + from.depth * config.layerGap + direction * (config.layerGap * 0.5);
+  points.push({ x: firstCorridorX, y: sourceY });
+
+  for (let step = 1; step < span; step += 1) {
+    const depth = from.depth + direction * step;
+    const corridorX =
+      config.paddingX + depth * config.layerGap + direction * (config.layerGap * 0.5);
+    const t = step / span;
+    points.push({ x: corridorX, y: sourceY + yDelta * t });
+  }
+
+  const preTargetCorridorX =
+    config.paddingX + to.depth * config.layerGap - direction * (config.layerGap * 0.5);
+  points.push({ x: preTargetCorridorX, y: targetY });
+  points.push({ x: targetX, y: targetY });
+
+  drawSmoothedPolyline(context, points, 14);
 }
 
 function getDepKey(name: string, version: string): string {
@@ -130,10 +432,63 @@ function edgeKey(from: string, to: string): string {
 }
 
 function isGraphDataset(value: unknown): value is GraphDataset {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== "object") return false;
   const input = value as Record<string, unknown>;
   if (!Array.isArray(input.workspaces)) return false;
-  if (!input.dependencies || typeof input.dependencies !== 'object') return false;
+  if (!input.dependencies || typeof input.dependencies !== "object")
+    return false;
+
+  const isWorkspace = (workspace: unknown): workspace is GraphWorkspace => {
+    if (!workspace || typeof workspace !== "object") return false;
+    const candidate = workspace as Record<string, unknown>;
+    if (typeof candidate.name !== "string") return false;
+    if (!Array.isArray(candidate.directDependencies)) return false;
+    if (!Array.isArray(candidate.directDevDependencies)) return false;
+    return true;
+  };
+
+  const hasValidStringArray = (value: unknown): boolean =>
+    Array.isArray(value) && value.every((item) => typeof item === "string");
+
+  if (!input.workspaces.every((workspace) => isWorkspace(workspace))) {
+    return false;
+  }
+
+  if (
+    !input.workspaces.every(
+      (workspace) =>
+        hasValidStringArray(workspace.directDependencies) &&
+        hasValidStringArray(workspace.directDevDependencies),
+    )
+  ) {
+    return false;
+  }
+
+  const dependencyEntries = Object.entries(
+    input.dependencies as Record<string, unknown>,
+  );
+  if (
+    !dependencyEntries.every(([, dependencyValue]) => {
+      if (!dependencyValue || typeof dependencyValue !== "object") return false;
+      const dependency = dependencyValue as Record<string, unknown>;
+      if (
+        dependency.dependencies !== undefined &&
+        !Array.isArray(dependency.dependencies)
+      ) {
+        return false;
+      }
+      if (
+        dependency.workspaceOrigins !== undefined &&
+        !Array.isArray(dependency.workspaceOrigins)
+      ) {
+        return false;
+      }
+      return true;
+    })
+  ) {
+    return false;
+  }
+
   return true;
 }
 
@@ -142,7 +497,7 @@ function primaryLicense(dep: DependencyRecord): string {
     ? dep.compliance.license.declared.spdxId
     : undefined;
   if (declared) return declared;
-  return dep.compliance.license.inferred?.spdxId || 'Unknown';
+  return dep.compliance.license.inferred?.spdxId || "Unknown";
 }
 
 function vulnerabilityCount(dep: DependencyRecord): number {
@@ -158,11 +513,11 @@ function vulnerabilityCount(dep: DependencyRecord): number {
 
 function vulnerabilitySeverityFromRecord(
   dep: DependencyRecord,
-): 'high' | 'moderate' | 'none' {
+): "high" | "moderate" | "none" {
   const highest = dep.security?.summary?.highest;
-  if (highest === 'critical' || highest === 'high') return 'high';
-  if (highest === 'moderate' || highest === 'medium') return 'moderate';
-  return 'none';
+  if (highest === "critical" || highest === "high") return "high";
+  if (highest === "moderate") return "moderate";
+  return "none";
 }
 
 function collectAncestors(graph: WorkspaceGraph, slug: string): Set<string> {
@@ -213,22 +568,26 @@ function adaptDataset(
         (dep.vulnerabilitySeverity as string | undefined) ||
         (dep.vulnerabilityHighest as string | undefined) ||
         (dep.highestSeverity as string | undefined) ||
-        'none';
-      let vulnerabilitySeverity: 'high' | 'moderate' | 'none' = 'none';
-      if (rawSeverity === 'critical' || rawSeverity === 'high') {
-        vulnerabilitySeverity = 'high';
-      } else if (rawSeverity === 'moderate' || rawSeverity === 'medium') {
-        vulnerabilitySeverity = 'moderate';
+        "none";
+      const normalizedSeverity = String(rawSeverity).trim().toLowerCase();
+      let vulnerabilitySeverity: "high" | "moderate" | "none" = "none";
+      if (normalizedSeverity === "critical" || normalizedSeverity === "high") {
+        vulnerabilitySeverity = "high";
+      } else if (
+        normalizedSeverity === "moderate" ||
+        normalizedSeverity === "medium"
+      ) {
+        vulnerabilitySeverity = "moderate";
       }
 
       normalizedDependencies[slug] = {
         slug: String(dep.slug || slug),
         name: String(dep.name || slug),
-        version: String(dep.version || ''),
+        version: String(dep.version || ""),
         dependencies: Array.isArray(dep.dependencies)
           ? dep.dependencies.map((value) => String(value))
           : [],
-        license: String(dep.license || 'Unknown'),
+        license: String(dep.license || "Unknown"),
         vulnerabilityCount: Number(dep.vulnerabilityCount || 0),
         vulnerabilitySeverity,
         isDevOnly: Boolean(dep.isDevOnly),
@@ -257,7 +616,7 @@ function adaptDataset(
       license: primaryLicense(dep),
       vulnerabilityCount: vulnerabilityCount(dep),
       vulnerabilitySeverity: vulnerabilitySeverityFromRecord(dep),
-      isDevOnly: dep.usage.scope === 'dev',
+      isDevOnly: dep.usage.scope === "dev",
       workspaceOrigins: dep.usage.origins.workspaces || [],
     };
   });
@@ -267,7 +626,7 @@ function adaptDataset(
     const subDeps = dep.graph.subDeps;
     if (!subDeps) return;
     const next = new Set<string>();
-    (['dep', 'dev', 'opt', 'peer'] as const).forEach((bucket) => {
+    (["dep", "dev", "opt", "peer"] as const).forEach((bucket) => {
       const entries = subDeps[bucket];
       if (!entries) return;
       Object.values(entries).forEach((tuple) => {
@@ -291,7 +650,10 @@ function adaptDataset(
 
   const ensureWorkspace = (
     name: string,
-  ): { directDependencies: Set<string>; directDevDependencies: Set<string> } => {
+  ): {
+    directDependencies: Set<string>;
+    directDevDependencies: Set<string>;
+  } => {
     const existing = workspaceMap.get(name);
     if (existing) return existing;
     const created = {
@@ -302,7 +664,7 @@ function adaptDataset(
     return created;
   };
 
-  ensureWorkspace('root');
+  ensureWorkspace("root");
   (report.workspaces.workspacePackages || []).forEach((workspace) => {
     ensureWorkspace(workspace.name);
   });
@@ -312,10 +674,10 @@ function adaptDataset(
     const slug = getDepKey(dep.package.name, dep.package.version);
     const origins = dep.usage.origins.workspaces?.length
       ? dep.usage.origins.workspaces
-      : ['root'];
+      : ["root"];
     origins.forEach((workspaceName) => {
       const workspace = ensureWorkspace(workspaceName);
-      if (dep.usage.scope === 'dev') {
+      if (dep.usage.scope === "dev") {
         workspace.directDevDependencies.add(slug);
       } else {
         workspace.directDependencies.add(slug);
@@ -361,7 +723,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   });
 
   let currentGraph: WorkspaceGraph | null = null;
-  let currentWorkspace = '';
+  let currentWorkspace = "";
 
   let focusSlug: string | null = null;
   let hoverSlug: string | null = null;
@@ -397,23 +759,81 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     startPanY: 0,
   };
 
-  const context = options.canvas.getContext('2d');
+  const touchState: TouchState = {
+    active: false,
+    startX1: 0,
+    startY1: 0,
+    startX2: 0,
+    startY2: 0,
+    startPanX: 0,
+    startPanY: 0,
+    startDist: 0,
+    startZoom: 0,
+    anchorX: null,
+    anchorY: null,
+  };
+
+  const context = options.canvas.getContext("2d");
   const hasCanvas = Boolean(context);
   let interactionsBound = false;
+  let controlsBound = false;
+  let workspaceSelectBound = false;
+  let themeObserver: MutationObserver | null = null;
+  let hostResizeObserver: ResizeObserver | null = null;
+  let windowResizeHandler: (() => void) | null = null;
   let fallbackShown = false;
+  let themeColors: ThemeColors = {
+    runtime: "#10b981",
+    runtimeHighlight: "#34d399",
+    dev: "#f59e0b",
+    devHighlight: "#fcd34d",
+    transitive: "#06b6d4",
+    transitiveHighlight: "#67e8f9",
+    edge: "#64748b",
+    highlight: "#22d3ee",
+    muted: "#64748b",
+    ringHigh: "#ef4444",
+    ringModerate: "#f59e0b",
+    label: "#e8edf5",
+    backgroundPrimary: "#0c1222",
+  };
+
+  function updateThemeColors(): void {
+    const runtime = getCssColor("--graph-direct-runtime") || "#10b981";
+    const dev = getCssColor("--graph-direct-dev") || "#f59e0b";
+    const transitive = getCssColor("--graph-transitive") || "#06b6d4";
+
+    themeColors = {
+      runtime,
+      runtimeHighlight: tintColor(runtime, 0.2, "#34d399"),
+      dev,
+      devHighlight: tintColor(dev, 0.28, "#fcd34d"),
+      transitive,
+      transitiveHighlight: tintColor(transitive, 0.38, "#67e8f9"),
+      edge: getCssColor("--graph-edge") || "#64748b",
+      highlight: getCssColor("--graph-highlight") || "#22d3ee",
+      muted: getCssColor("--graph-muted") || "#64748b",
+      ringHigh: getCssColor("--graph-vuln-high") || "#ef4444",
+      ringModerate: getCssColor("--graph-vuln-medium") || "#f59e0b",
+      label: getCssColor("--text-primary") || "#e8edf5",
+      backgroundPrimary: getCssColor("--bg-primary") || "#0c1222",
+    };
+  }
 
   function showCanvasFallback(): void {
     if (fallbackShown) return;
     fallbackShown = true;
-    console.warn('Dependency Radar: unable to initialize 2D canvas; graph rendering disabled.');
-    options.controlsRoot.classList.add('hidden');
-    options.workspaceWrap.classList.add('hidden');
-    options.canvas.style.display = 'none';
-    const fallback = document.createElement('div');
-    fallback.className = 'empty-state';
-    const text = document.createElement('div');
-    text.className = 'empty-state-text';
-    text.textContent = 'Graph view is unavailable in this browser context.';
+    console.warn(
+      "Dependency Radar: unable to initialize 2D canvas; graph rendering disabled.",
+    );
+    options.controlsRoot.classList.add("hidden");
+    options.workspaceWrap.classList.add("hidden");
+    options.canvas.style.display = "none";
+    const fallback = document.createElement("div");
+    fallback.className = "empty-state";
+    const text = document.createElement("div");
+    text.className = "empty-state-text";
+    text.textContent = "Graph view is unavailable in this browser context.";
     fallback.appendChild(text);
     options.canvasHost.appendChild(fallback);
   }
@@ -465,9 +885,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const fitZoomX = width / graphWidth;
     const fitZoomY = height / graphHeight;
     fitZoom = clamp(Math.min(fitZoomX, fitZoomY), 0.05, MAX_ZOOM);
-    minZoom = clamp(fitZoom * 0.95, 0.05, MAX_ZOOM);
+    minZoom = clamp(fitZoom * MIN_ZOOM_FIT_RATIO, 0.05, MAX_ZOOM);
     defaultPanX = (width - graphWidth * fitZoom) * 0.5 - bounds.minX * fitZoom;
-    defaultPanY = (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
+    defaultPanY =
+      (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
   }
 
   function fitGraph(): void {
@@ -485,11 +906,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const y = worldY(clientY - rect.top);
 
     let hit: GraphNode | null = null;
+    let minDist = Infinity;
     currentGraph.nodes.forEach((node) => {
       const dx = x - node.renderX;
       const dy = y - node.renderY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= node.radius + 5) hit = node;
+      if (dist <= node.renderRadius + 5 && dist < minDist) {
+        minDist = dist;
+        hit = node;
+      }
     });
     return hit;
   }
@@ -499,10 +924,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (!workspace) return null;
 
     const directRuntime = new Set(
-      workspace.directDependencies.filter((slug) => Boolean(dataset.dependencies[slug])),
+      workspace.directDependencies.filter((slug) =>
+        Boolean(dataset.dependencies[slug]),
+      ),
     );
     const directDev = new Set(
-      workspace.directDevDependencies.filter((slug) => Boolean(dataset.dependencies[slug])),
+      workspace.directDevDependencies.filter((slug) =>
+        Boolean(dataset.dependencies[slug]),
+      ),
     );
 
     const roots = new Set<string>([...directRuntime, ...directDev]);
@@ -535,10 +964,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const nodes = new Map<string, GraphNode>();
     included.forEach((slug) => {
       const kind: GraphNodeKind = directRuntime.has(slug)
-        ? 'direct-runtime'
+        ? "direct-runtime"
         : directDev.has(slug)
-          ? 'direct-dev'
-          : 'transitive';
+          ? "direct-dev"
+          : "transitive";
       nodes.set(slug, {
         slug,
         ref: dataset.dependencies[slug],
@@ -555,6 +984,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         renderX: 0,
         renderY: 0,
         radius: 8,
+        targetRadius: 8,
+        renderRadius: 8,
       });
     });
 
@@ -681,8 +1112,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             return nodeB.amplification - nodeA.amplification;
           }
           if (nodeA.kind !== nodeB.kind) {
-            if (nodeA.kind === 'direct-runtime') return -1;
-            if (nodeB.kind === 'direct-runtime') return 1;
+            if (nodeA.kind === "direct-runtime") return -1;
+            if (nodeB.kind === "direct-runtime") return 1;
           }
           return nodeA.ref.name.localeCompare(nodeB.ref.name);
         });
@@ -698,7 +1129,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             let sum = 0;
             nodeA.parents.forEach((parent) => {
               const index = layerOrder.get(parent);
-              if (typeof index !== 'number') return;
+              if (typeof index !== "number") return;
               count += 1;
               sum += index;
             });
@@ -709,7 +1140,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             let sum = 0;
             nodeB.parents.forEach((parent) => {
               const index = layerOrder.get(parent);
-              if (typeof index !== 'number') return;
+              if (typeof index !== "number") return;
               count += 1;
               sum += index;
             });
@@ -724,7 +1155,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       });
     });
 
-    const maxRows = graph.layers.reduce((max, layer) => Math.max(max, layer.length), 1);
+    const maxRows = graph.layers.reduce(
+      (max, layer) => Math.max(max, layer.length),
+      1,
+    );
 
     graph.bounds = {
       minX: Number.POSITIVE_INFINITY,
@@ -747,12 +1181,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         node.renderX = node.baseX;
         node.renderY = node.baseY;
 
-        const relationshipFactor = Math.log(node.children.size + node.parents.size + 1) * 0.55;
+        const relationshipFactor =
+          Math.log(node.children.size + node.parents.size + 1) * 0.55;
         const amplificationFactor =
           node.depth === 0 && graph.directAll.has(node.slug)
             ? Math.log(node.amplification + 1) * 1.05
             : 0;
         node.radius = 6.7 + relationshipFactor + amplificationFactor;
+        node.targetRadius = node.radius;
+        node.renderRadius = node.radius;
 
         graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX);
         graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX);
@@ -836,9 +1273,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function updateTargets(): void {
     if (!currentGraph) return;
-    const selected = focusSlug ? currentGraph.nodes.get(focusSlug) || null : null;
+    const selected = focusSlug
+      ? currentGraph.nodes.get(focusSlug) || null
+      : null;
 
     currentGraph.nodes.forEach((node) => {
+      node.targetRadius = targetNodeRadius(node);
       if (!selected || !focusPushNodes.has(node.slug)) {
         node.targetX = node.baseX;
         node.targetY = node.baseY;
@@ -859,9 +1299,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     currentGraph.nodes.forEach((node) => {
       node.renderX += (node.targetX - node.renderX) * 0.15;
       node.renderY += (node.targetY - node.renderY) * 0.15;
+      node.renderRadius += (node.targetRadius - node.renderRadius) * 0.18;
       const settled =
         Math.abs(node.targetX - node.renderX) < 0.06 &&
-        Math.abs(node.targetY - node.renderY) < 0.06;
+        Math.abs(node.targetY - node.renderY) < 0.06 &&
+        Math.abs(node.targetRadius - node.renderRadius) < 0.04;
       if (!settled) moving = true;
     });
     return moving;
@@ -915,7 +1357,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     popoverSlug = slug;
     options.popoverName.textContent = node.ref.name;
     options.popoverVersion.textContent = `Version: ${node.ref.version}`;
-    options.popoverLicense.textContent = `License: ${node.ref.license || 'Unknown'}`;
+    options.popoverLicense.textContent = `License: ${node.ref.license || "Unknown"}`;
     options.popoverVulns.textContent = `Vulnerabilities: ${node.ref.vulnerabilityCount || 0}`;
     if (isDirect) {
       options.popoverAmplification.textContent = `Amplification: ${node.amplification}`;
@@ -960,7 +1402,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.95;
   }
 
-  function renderedNodeRadius(node: GraphNode): number {
+  function targetNodeRadius(node: GraphNode): number {
     const selected = focusSlug === node.slug;
     const inFocus = focusNodes.has(node.slug);
     let radius = node.radius;
@@ -986,11 +1428,18 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.36 * zoomFactor;
   }
 
+  function vulnerabilityRingOpacity(slug: string): number {
+    if (focusSlug) return focusNodes.has(slug) ? 0.78 : 0.11;
+    if (hoverSlug) return hoverNodes.has(slug) ? 0.76 : 0.12;
+    return 0.8;
+  }
+
   function renderGraph(): void {
     if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
     if (!currentGraph) return;
+    const graph = currentGraph;
 
     const worldMinX = worldX(0) - 80;
     const worldMaxX = worldX(width) + 80;
@@ -999,83 +1448,132 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     context.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * panX, dpr * panY);
 
-    const colorRuntime = getCssColor('--graph-direct-runtime') || '#10b981';
-    const colorDev = getCssColor('--graph-direct-dev') || '#f59e0b';
-    const colorTransitive = getCssColor('--graph-transitive') || '#06b6d4';
-    const colorEdge = getCssColor('--graph-edge') || '#64748b';
-    const colorHighlight = getCssColor('--graph-highlight') || '#22d3ee';
-    const colorMuted = getCssColor('--graph-muted') || '#64748b';
-    const colorRingHigh = getCssColor('--graph-vuln-high') || '#ef4444';
-    const colorRingModerate = getCssColor('--graph-vuln-medium') || '#f59e0b';
-    const labelColor = getCssColor('--text-primary') || '#e8edf5';
+    const colorRuntime = themeColors.runtime;
+    const colorDev = themeColors.dev;
+    const colorTransitive = themeColors.transitive;
+    const colorEdge = themeColors.edge;
+    const colorHighlight = themeColors.highlight;
+    const colorMuted = themeColors.muted;
+    const colorRingHigh = themeColors.ringHigh;
+    const colorRingModerate = themeColors.ringModerate;
+    const labelColor = themeColors.label;
+    const bgPrimary = themeColors.backgroundPrimary;
 
     const visible = new Set<string>();
-    currentGraph.nodes.forEach((node) => {
+    graph.nodes.forEach((node) => {
+      const extent = Math.max(node.radius, node.renderRadius);
       if (
-        node.renderX + node.radius >= worldMinX &&
-        node.renderX - node.radius <= worldMaxX &&
-        node.renderY + node.radius >= worldMinY &&
-        node.renderY - node.radius <= worldMaxY
+        node.renderX + extent >= worldMinX &&
+        node.renderX - extent <= worldMaxX &&
+        node.renderY + extent >= worldMinY &&
+        node.renderY - extent <= worldMaxY
       ) {
         visible.add(node.slug);
       }
     });
 
-    context.globalCompositeOperation = 'source-over';
+    const maxDepth = Math.max(0, graph.layers.length - 1);
+    const SAME_COLUMN_X_THRESHOLD = 6;
+    const MIN_DETOUR_VERTICAL_SPAN = 80;
+    const DETOUR_INSET = 14;
+    const DETOUR_NODE_CLEARANCE = 26;
+    const depthNodeIndex = buildDepthNodeIndex(graph);
+    const edgeRoutingConfig: EdgeRoutingConfig = {
+      depthNodeIndex,
+      maxDepth,
+      sameColumnXThreshold: SAME_COLUMN_X_THRESHOLD,
+      minDetourVerticalSpan: MIN_DETOUR_VERTICAL_SPAN,
+      detourInset: DETOUR_INSET,
+      detourNodeClearance: DETOUR_NODE_CLEARANCE,
+      paddingX: PADDING_X,
+      layerGap: LAYER_GAP,
+      edgeCurve: EDGE_CURVE,
+    };
+
+    type RenderEdge = {
+      from: GraphNode;
+      to: GraphNode;
+      highlighted: boolean;
+      span: number;
+    };
+
+    const renderEdges: RenderEdge[] = [];
+    graph.edges.forEach((edge) => {
+      const from = graph.nodes.get(edge.from);
+      const to = graph.nodes.get(edge.to);
+      if (!from || !to) return;
+      if (!visible.has(from.slug) && !visible.has(to.slug)) return;
+      const key = edgeKey(edge.from, edge.to);
+      renderEdges.push({
+        from,
+        to,
+        highlighted: focusEdges.has(key) || (!focusSlug && hoverEdges.has(key)),
+        span: Math.abs(to.depth - from.depth),
+      });
+    });
+
+    renderEdges.sort((a, b) => b.span - a.span);
+
+    context.globalCompositeOperation = "source-over";
     context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
     context.lineWidth = 1.05;
     context.globalAlpha = mutedEdgeOpacity();
-    currentGraph.edges.forEach((edge) => {
-      const from = currentGraph.nodes.get(edge.from);
-      const to = currentGraph.nodes.get(edge.to);
-      if (!from || !to) return;
-      if (!visible.has(from.slug) && !visible.has(to.slug)) return;
-      const key = edgeKey(edge.from, edge.to);
-      const highlighted =
-        focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
-      if (highlighted) return;
-
-      const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
-      const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
-      context.beginPath();
-      context.moveTo(from.renderX, from.renderY);
-      context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
-      context.stroke();
+    context.beginPath();
+    renderEdges.forEach((edge) => {
+      if (edge.highlighted) return;
+      drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
     });
+    context.stroke();
 
-    context.globalCompositeOperation = 'lighter';
+    context.globalCompositeOperation = "lighter";
     context.strokeStyle = colorHighlight;
     context.lineWidth = 1.2;
     context.globalAlpha = highlightedEdgeOpacity();
-    currentGraph.edges.forEach((edge) => {
-      const from = currentGraph.nodes.get(edge.from);
-      const to = currentGraph.nodes.get(edge.to);
-      if (!from || !to) return;
-      if (!visible.has(from.slug) && !visible.has(to.slug)) return;
-
-      const key = edgeKey(edge.from, edge.to);
-      const highlighted =
-        focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
-      if (!highlighted) return;
-
-      const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
-      const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
-      context.beginPath();
-      context.moveTo(from.renderX, from.renderY);
-      context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
-      context.stroke();
+    context.beginPath();
+    renderEdges.forEach((edge) => {
+      if (!edge.highlighted) return;
+      drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
     });
-    context.globalCompositeOperation = 'source-over';
+    context.stroke();
 
-    currentGraph.nodes.forEach((node) => {
+    context.globalCompositeOperation = "source-over";
+
+    graph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
       const selected = focusSlug === node.slug;
-      const radius = renderedNodeRadius(node);
+      const radius = node.renderRadius;
 
+      // Draw an opaque background to occlude lines passing underneath
+      context.globalAlpha = 1;
+      context.fillStyle = bgPrimary;
+      context.beginPath();
+      context.arc(node.renderX, node.renderY, radius, 0, Math.PI * 2);
+      context.fill();
+
+      // Draw the slightly transparent node fill
       context.globalAlpha = nodeOpacity(node.slug);
-      if (node.kind === 'direct-runtime') context.fillStyle = colorRuntime;
-      else if (node.kind === 'direct-dev') context.fillStyle = colorDev;
-      else context.fillStyle = colorTransitive;
+
+      const grad = context.createRadialGradient(
+        node.renderX - radius * 0.3,
+        node.renderY - radius * 0.3,
+        0,
+        node.renderX,
+        node.renderY,
+        radius * 1.2,
+      );
+
+      if (node.kind === "direct-runtime") {
+        grad.addColorStop(0, themeColors.runtimeHighlight);
+        grad.addColorStop(1, colorRuntime);
+      } else if (node.kind === "direct-dev") {
+        grad.addColorStop(0, themeColors.devHighlight);
+        grad.addColorStop(1, colorDev);
+      } else {
+        grad.addColorStop(0, themeColors.transitiveHighlight);
+        grad.addColorStop(1, colorTransitive);
+      }
+
+      context.fillStyle = grad;
 
       context.beginPath();
       context.arc(node.renderX, node.renderY, radius, 0, Math.PI * 2);
@@ -1093,34 +1591,93 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     currentGraph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
-      if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0) return;
-      if (node.ref.vulnerabilitySeverity === 'none') return;
-      const radius = renderedNodeRadius(node);
-      context.globalAlpha = 0.8;
-      context.lineWidth = 2;
-      context.strokeStyle =
-        node.ref.vulnerabilitySeverity === 'high'
-          ? colorRingHigh
-          : colorRingModerate;
+      if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0)
+        return;
+      if (node.ref.vulnerabilitySeverity === "none") return;
+
+      const radius = node.renderRadius;
+      const isHigh = node.ref.vulnerabilitySeverity === "high";
+      const color = isHigh ? colorRingHigh : colorRingModerate;
+
+      context.save();
+      context.translate(node.renderX, node.renderY);
+
+      context.globalAlpha = vulnerabilityRingOpacity(node.slug);
+      context.strokeStyle = color;
+
+      // Calculate scale factor relative to unselected base radius
+      const scaleFactor = radius / node.radius;
+
+      // User request: 1.2x bigger than last time
+      const extraSpace = (radius / 3) * 1.2;
+      const unit = extraSpace / 12;
+
+      // Spreads out more when selected
+      const gap = unit * 1.2 + (scaleFactor - 1) * 3;
+
+      const lw0 = Math.max(unit * 0.5, 0.15);
+      const lw1 = Math.max(unit * 1.0, 0.3);
+      const lw2 = Math.max(unit * 3.0, 0.8);
+      const lw3 = Math.max(unit * 1.0, 0.3);
+      const lw4 = Math.max(unit * 0.5, 0.15);
+
+      // Selection ring is at radius + 4. Ensure r0 starts past that.
+      const initialOffset = 2 + (scaleFactor - 1) * 6;
+
+      const r0 = radius + initialOffset + lw0 / 2;
+      const r1 = r0 + lw0 / 2 + gap + lw1 / 2;
+      const r2 = r1 + lw1 / 2 + gap + lw2 / 2;
+      const r3 = r2 + lw2 / 2 + gap + lw3 / 2;
+      const r4 = r3 + lw3 / 2 + gap + lw4 / 2;
+
+      // Outer ring
+      context.setLineDash([]);
+
+      context.lineWidth = lw4;
       context.beginPath();
-      context.arc(node.renderX, node.renderY, radius + 4, 0, Math.PI * 2);
+      context.arc(0, 0, r4, 0, Math.PI * 2);
       context.stroke();
+
+      // Ring 3
+      context.lineWidth = lw3;
+      context.beginPath();
+      context.arc(0, 0, r3, 0, Math.PI * 2);
+      context.stroke();
+
+      // Ring 2 (Middle)
+      context.lineWidth = lw2;
+      context.beginPath();
+      context.arc(0, 0, r2, 0, Math.PI * 2);
+      context.stroke();
+
+      // Ring 1
+      context.lineWidth = lw1;
+      context.beginPath();
+      context.arc(0, 0, r1, 0, Math.PI * 2);
+      context.stroke();
+
+      // Ring 0 (Inner)
+      context.lineWidth = lw0;
+      context.beginPath();
+      context.arc(0, 0, r0, 0, Math.PI * 2);
+      context.stroke();
+
+      context.restore();
     });
 
-    if (zoom >= 0.72) {
-      context.textBaseline = 'middle';
-      context.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-      context.fillStyle = labelColor;
-      currentGraph.nodes.forEach((node) => {
-        if (!visible.has(node.slug)) return;
-        context.globalAlpha = nodeOpacity(node.slug);
-        context.fillText(
-          node.ref.name,
-          node.renderX + renderedNodeRadius(node) + 6,
-          node.renderY,
-        );
-      });
-    }
+    context.textBaseline = "middle";
+    context.font =
+      '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillStyle = labelColor;
+    graph.nodes.forEach((node) => {
+      if (!visible.has(node.slug)) return;
+      context.globalAlpha = nodeOpacity(node.slug);
+      context.fillText(
+        node.ref.name,
+        node.renderX + node.renderRadius + 6,
+        node.renderY,
+      );
+    });
 
     context.globalAlpha = 1;
     updatePopoverPosition();
@@ -1182,7 +1739,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
-    options.canvas.classList.add('is-panning');
+    options.canvas.classList.add("is-panning");
   }
 
   function handleWindowMouseMove(event: MouseEvent): void {
@@ -1202,7 +1759,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleWindowMouseUp(event: MouseEvent): void {
     if (!panState.down) return;
-    options.canvas.classList.remove('is-panning');
+    options.canvas.classList.remove("is-panning");
     const moved = panState.moved;
     panState.down = false;
     panState.moved = false;
@@ -1221,13 +1778,135 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function handleWheel(event: WheelEvent): void {
-    if (!event.ctrlKey && !event.metaKey) return;
+    if (!options.canvasHost.contains(event.target as Node)) return;
     event.preventDefault();
     const rect = options.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const factor = Math.exp(-event.deltaY * 0.0013);
+
+    // Zoom sensitivity adjustments based on device type (trackpad vs wheel)
+    const delta =
+      event.ctrlKey || event.metaKey
+        ? event.deltaY * 0.015
+        : event.deltaY * 0.002;
+    const factor = Math.exp(-delta);
+
     applyZoom(zoom * factor, x, y);
+  }
+
+  function handleTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 0) return;
+    event.preventDefault();
+
+    const rect = options.canvas.getBoundingClientRect();
+
+    if (event.touches.length === 1) {
+      touchState.active = true;
+      panState.moved = false;
+      touchState.startX1 = event.touches[0].clientX;
+      touchState.startY1 = event.touches[0].clientY;
+      touchState.startPanX = panX;
+      touchState.startPanY = panY;
+      options.canvas.classList.add("is-panning");
+    } else if (event.touches.length === 2) {
+      touchState.active = true;
+      panState.moved = false;
+      touchState.startX1 = event.touches[0].clientX;
+      touchState.startY1 = event.touches[0].clientY;
+      touchState.startX2 = event.touches[1].clientX;
+      touchState.startY2 = event.touches[1].clientY;
+
+      const dx = touchState.startX2 - touchState.startX1;
+      const dy = touchState.startY2 - touchState.startY1;
+      touchState.startDist = Math.sqrt(dx * dx + dy * dy);
+      touchState.startZoom = zoom;
+
+      const cx = (touchState.startX1 + touchState.startX2) / 2;
+      const cy = (touchState.startY1 + touchState.startY2) / 2;
+
+      // Convert center to world coordinates relative to canvas
+      const screenX = cx - rect.left;
+      const screenY = cy - rect.top;
+
+      // Temporarily store these for the move event relative anchoring
+      touchState.anchorX = screenX;
+      touchState.anchorY = screenY;
+    }
+  }
+
+  function handleTouchMove(event: TouchEvent): void {
+    if (!touchState.active) return;
+    event.preventDefault();
+
+    if (event.touches.length === 1) {
+      const dx = event.touches[0].clientX - touchState.startX1;
+      const dy = event.touches[0].clientY - touchState.startY1;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
+      panX = touchState.startPanX + dx;
+      panY = touchState.startPanY + dy;
+      requestRender();
+    } else if (event.touches.length === 2) {
+      panState.moved = true;
+      const x1 = event.touches[0].clientX;
+      const y1 = event.touches[0].clientY;
+      const x2 = event.touches[1].clientX;
+      const y2 = event.touches[1].clientY;
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (touchState.startDist > 0) {
+        const factor = dist / touchState.startDist;
+        const newZoom = touchState.startZoom * factor;
+        const anchorX = touchState.anchorX ?? width / 2;
+        const anchorY = touchState.anchorY ?? height / 2;
+        applyZoom(newZoom, anchorX, anchorY);
+      }
+    }
+  }
+
+  function handleTouchEnd(event: TouchEvent): void {
+    if (!touchState.active) return;
+    event.preventDefault();
+    const canceled = event.type === "touchcancel";
+
+    if (canceled) {
+      options.canvas.classList.remove("is-panning");
+      touchState.active = false;
+      touchState.anchorX = null;
+      touchState.anchorY = null;
+      panState.moved = false;
+      return;
+    }
+
+    if (event.touches.length === 0) {
+      options.canvas.classList.remove("is-panning");
+      touchState.active = false;
+      touchState.anchorX = null;
+      touchState.anchorY = null;
+
+      if (!panState.moved && event.changedTouches.length === 1) {
+        const node = findNode(
+          event.changedTouches[0].clientX,
+          event.changedTouches[0].clientY,
+        );
+        if (!node) {
+          clearFocus();
+          hidePopover();
+        } else {
+          applyFocus(node.slug);
+          showPopover(node.slug);
+        }
+      }
+      panState.moved = false;
+    } else if (event.touches.length === 1) {
+      // Transition from pinch back to pan
+      touchState.startX1 = event.touches[0].clientX;
+      touchState.startY1 = event.touches[0].clientY;
+      touchState.startPanX = panX;
+      touchState.startPanY = panY;
+    }
   }
 
   function handleCanvasMouseLeave(): void {
@@ -1245,74 +1924,152 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function bindInteractionListeners(): void {
     if (interactionsBound || !hasCanvas) return;
-    options.canvas.addEventListener('mousedown', handleCanvasMouseDown);
-    window.addEventListener('mousemove', handleWindowMouseMove);
-    window.addEventListener('mouseup', handleWindowMouseUp);
-    options.canvas.addEventListener('wheel', handleWheel, { passive: false });
-    options.canvas.addEventListener('mouseleave', handleCanvasMouseLeave);
-    document.addEventListener('mousedown', handleDocumentMouseDown);
+    options.canvas.addEventListener("mousedown", handleCanvasMouseDown);
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    options.canvas.addEventListener("wheel", handleWheel, { passive: false });
+
+    // Add touch listeners
+    options.canvas.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
+    });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd, { passive: false });
+    window.addEventListener("touchcancel", handleTouchEnd, { passive: false });
+
+    options.canvas.addEventListener("mouseleave", handleCanvasMouseLeave);
+    document.addEventListener("mousedown", handleDocumentMouseDown);
     interactionsBound = true;
   }
 
   function unbindInteractionListeners(): void {
     if (!interactionsBound) return;
-    options.canvas.removeEventListener('mousedown', handleCanvasMouseDown);
-    window.removeEventListener('mousemove', handleWindowMouseMove);
-    window.removeEventListener('mouseup', handleWindowMouseUp);
-    options.canvas.removeEventListener('wheel', handleWheel);
-    options.canvas.removeEventListener('mouseleave', handleCanvasMouseLeave);
-    document.removeEventListener('mousedown', handleDocumentMouseDown);
-    options.canvas.classList.remove('is-panning');
+    options.canvas.removeEventListener("mousedown", handleCanvasMouseDown);
+    window.removeEventListener("mousemove", handleWindowMouseMove);
+    window.removeEventListener("mouseup", handleWindowMouseUp);
+    options.canvas.removeEventListener("wheel", handleWheel);
+
+    // Remove touch listeners
+    options.canvas.removeEventListener("touchstart", handleTouchStart);
+    window.removeEventListener("touchmove", handleTouchMove);
+    window.removeEventListener("touchend", handleTouchEnd);
+    window.removeEventListener("touchcancel", handleTouchEnd);
+
+    options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
+    document.removeEventListener("mousedown", handleDocumentMouseDown);
+    options.canvas.classList.remove("is-panning");
     panState.down = false;
     panState.moved = false;
+    touchState.active = false;
+    touchState.anchorX = null;
+    touchState.anchorY = null;
     interactionsBound = false;
   }
 
-  function setupControls(): void {
-    options.controlsRoot.addEventListener('click', (event) => {
-      const target = event.target as HTMLElement;
-      const button = target.closest<HTMLButtonElement>('button[data-action]');
-      if (!button) return;
-      const action = button.dataset.action;
-      if (!action) return;
-      if (action === 'zoom-in') {
-        applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
-        return;
-      }
-      if (action === 'zoom-out') {
-        applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
-        return;
-      }
-      if (action === 'pan-left') {
-        panBy(-52, 0);
-        return;
-      }
-      if (action === 'pan-right') {
-        panBy(52, 0);
-        return;
-      }
-      if (action === 'pan-up') {
-        panBy(0, -52);
-        return;
-      }
-      if (action === 'pan-down') {
-        panBy(0, 52);
-        return;
-      }
-      if (action === 'reset') {
-        zoom = fitZoom;
-        panX = defaultPanX;
-        panY = defaultPanY;
-        clearFocus();
-        hidePopover();
-        requestRender();
-      }
+  function handleControlsClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    const button = target.closest<HTMLButtonElement>("button[data-action]");
+    if (!button) return;
+    const action = button.dataset.action;
+    if (!action) return;
+    if (action === "zoom-in") {
+      applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
+      return;
+    }
+    if (action === "zoom-out") {
+      applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
+      return;
+    }
+    if (action === "pan-left") {
+      panBy(-52, 0);
+      return;
+    }
+    if (action === "pan-right") {
+      panBy(52, 0);
+      return;
+    }
+    if (action === "pan-up") {
+      panBy(0, -52);
+      return;
+    }
+    if (action === "pan-down") {
+      panBy(0, 52);
+      return;
+    }
+    if (action === "reset") {
+      zoom = fitZoom;
+      panX = defaultPanX;
+      panY = defaultPanY;
+      clearFocus();
+      hidePopover();
+      requestRender();
+    }
+  }
+
+  function handlePopoverOpenClick(): void {
+    if (!popoverSlug) return;
+    options.onOpenList(popoverSlug);
+  }
+
+  function handleWorkspaceSelectChange(): void {
+    switchWorkspace(options.workspaceSelect.value);
+  }
+
+  function handleViewportResize(): void {
+    if (!active) return;
+    updateCanvasSize();
+    if (width <= 1 || height <= 1) return;
+    updateFitMetrics();
+    zoom = clamp(zoom, minZoom, MAX_ZOOM);
+    requestRender();
+  }
+
+  function bindPersistentListeners(): void {
+    if (!workspaceSelectBound) {
+      options.workspaceSelect.addEventListener("change", handleWorkspaceSelectChange);
+      workspaceSelectBound = true;
+    }
+    if (!controlsBound) {
+      options.controlsRoot.addEventListener("click", handleControlsClick);
+      options.popoverOpenButton.addEventListener("click", handlePopoverOpenClick);
+      controlsBound = true;
+    }
+  }
+
+  function setupGlobalObservers(): void {
+    if (themeObserver) {
+      themeObserver.disconnect();
+    }
+    themeObserver = new MutationObserver(() => {
+      updateThemeColors();
+      requestRender();
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
     });
 
-    options.popoverOpenButton.addEventListener('click', () => {
-      if (!popoverSlug) return;
-      options.onOpenList(popoverSlug);
-    });
+    if (hostResizeObserver) {
+      hostResizeObserver.disconnect();
+      hostResizeObserver = null;
+    }
+    if (windowResizeHandler) {
+      window.removeEventListener("resize", windowResizeHandler);
+      windowResizeHandler = null;
+    }
+
+    if (typeof ResizeObserver !== "undefined") {
+      hostResizeObserver = new ResizeObserver(handleViewportResize);
+      hostResizeObserver.observe(options.canvasHost);
+      return;
+    }
+
+    windowResizeHandler = handleViewportResize;
+    window.addEventListener("resize", windowResizeHandler);
+  }
+
+  function setupControls(): void {
+    bindPersistentListeners();
   }
 
   function initGraphViewInternal(): void {
@@ -1320,59 +2077,31 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       ? dataset.workspaces
       : [
           {
-            name: 'root',
+            name: "root",
             directDependencies: [],
             directDevDependencies: [],
           },
         ];
 
-    options.workspaceSelect.textContent = '';
+    options.workspaceSelect.textContent = "";
     workspaces.forEach((workspace) => {
-      const option = document.createElement('option');
+      const option = document.createElement("option");
       option.value = workspace.name;
       option.textContent = workspace.name;
       options.workspaceSelect.appendChild(option);
     });
 
-    options.workspaceWrap.classList.toggle('hidden', workspaces.length <= 1);
+    options.workspaceWrap.classList.toggle("hidden", workspaces.length <= 1);
 
-    if (!workspaceByName.has('root') && workspaces.length === 1) {
-      workspaceByName.set('root', workspaces[0]);
+    if (!workspaceByName.has("root") && workspaces.length === 1) {
+      workspaceByName.set("root", workspaces[0]);
     }
 
     currentWorkspace = workspaces[0].name;
     options.workspaceSelect.value = currentWorkspace;
 
-    options.workspaceSelect.addEventListener('change', () => {
-      switchWorkspace(options.workspaceSelect.value);
-    });
-
-    const observer = new MutationObserver(() => requestRender());
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme'],
-    });
-
-    if (typeof ResizeObserver !== 'undefined') {
-      const resizeObserver = new ResizeObserver(() => {
-        if (!active) return;
-        updateCanvasSize();
-        if (width <= 1 || height <= 1) return;
-        updateFitMetrics();
-        zoom = clamp(zoom, minZoom, MAX_ZOOM);
-        requestRender();
-      });
-      resizeObserver.observe(options.canvasHost);
-    } else {
-      window.addEventListener('resize', () => {
-        if (!active) return;
-        updateCanvasSize();
-        if (width <= 1 || height <= 1) return;
-        updateFitMetrics();
-        zoom = clamp(zoom, minZoom, MAX_ZOOM);
-        requestRender();
-      });
-    }
+    updateThemeColors();
+    setupGlobalObservers();
 
     setupControls();
     if (!hasCanvas) {

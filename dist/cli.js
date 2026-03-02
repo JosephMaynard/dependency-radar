@@ -13,6 +13,7 @@ const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
 const npmOutdated_1 = require("./runners/npmOutdated");
 const report_1 = require("./report");
+const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
 function normalizeSlashes(p) {
@@ -912,7 +913,7 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
  * Parse command-line tokens into a populated CliOptions object.
  *
  * Recognizes a leading non-flag token as the command and the following flags:
- * --project, --out, --keep-temp, --offline, --json, --open, --no-report, and --help / -h.
+ * --project, --out, --keep-temp, --offline, --json, --open, --no-report, --fail-on, and --help / -h.
  * The --offline flag disables both audit and outdated checks.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
@@ -929,6 +930,7 @@ function parseArgs(argv) {
         json: false,
         open: false,
         noReport: false,
+        failOn: new Set(),
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
@@ -954,6 +956,25 @@ function parseArgs(argv) {
             opts.open = true;
         else if (arg === "--no-report")
             opts.noReport = true;
+        else if (arg === "--fail-on") {
+            const value = args.shift();
+            if (!value) {
+                console.error("Missing value for --fail-on. Provide a comma-separated list of rules.");
+                process.exit(1);
+            }
+            let rules;
+            try {
+                rules = (0, failOn_1.parseFailOnRules)(value);
+            }
+            catch (err) {
+                console.error(err instanceof Error ? err.message : "Invalid --fail-on rules.");
+                process.exit(1);
+                return opts;
+            }
+            for (const rule of rules) {
+                opts.failOn.add(rule);
+            }
+        }
         else if (arg === "--help" || arg === "-h") {
             printHelp();
             process.exit(0);
@@ -965,7 +986,7 @@ function parseArgs(argv) {
  * Print the CLI usage and available options to the console.
  *
  * Displays the command synopsis and descriptions for supported flags including
- * --project, --out, --json, --no-report, --keep-temp, --offline, and --open.
+ * --project, --out, --json, --no-report, --keep-temp, --offline, --open, and --fail-on.
  */
 function printHelp() {
     console.log(`dependency-radar [scan] [options]
@@ -980,6 +1001,9 @@ Options:
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
   --open             Open the generated report using the system default application
+  --fail-on <rules>  Fail with exit code 1 when selected rules are violated
+                     Supported: reachable-vuln, production-vuln, high-severity-vuln,
+                                licence-mismatch, copyleft-detected, unknown-licence
 `);
 }
 /**
@@ -1129,6 +1153,20 @@ function statusLine(symbol, message) {
     return `${colorSymbol(symbol)} ${message}`;
 }
 /**
+ * Print policy violation messages to stdout as a human-readable list when any exist.
+ *
+ * @param violations - An array of policy violations to display; each violation's `message` will be printed as a list item. If the array is empty, nothing is printed.
+ */
+function printPolicyViolations(violations) {
+    if (violations.length === 0)
+        return;
+    console.log("");
+    console.log(colorLeadingSymbol("✖ Policy violations detected:"));
+    for (const violation of violations) {
+        console.log(`- ${violation.message}`);
+    }
+}
+/**
  * Produce a concise CLI summary from aggregated workspace data.
  *
  * @param aggregated - Aggregated workspace data produced by the scan
@@ -1260,13 +1298,13 @@ function printCliSummary(summary) {
     console.log("");
 }
 /**
- * Orchestrates the CLI "scan" command to collect, merge, and output dependency data for a project or workspace.
+ * Run the CLI "scan" command to collect and aggregate dependency data for a project or workspace.
  *
  * Detects workspace type and package manager, runs per-package collectors (audit, dependency tree, import graph, outdated),
- * merges collected signals into a workspace-level model, and writes a JSON or HTML report to the configured output path.
- * Manages a temporary working directory (created under the project as .dependency-radar), respects CLI options such as
- * JSON output, audit/outdated toggles, keeping the temp directory, and optionally opening the generated output with the
- * system default application. Exits the process with a non-zero code on fatal errors. */
+ * merges collected signals into a workspace-level model, and writes a JSON or HTML report according to CLI options.
+ * Manages a temporary working directory and optionally opens the generated report. Exits the process with a non-zero code
+ * on fatal errors or when configured policy violations are detected.
+ */
 async function run() {
     var _a;
     const opts = parseArgs(process.argv.slice(2));
@@ -1278,6 +1316,7 @@ async function run() {
     const shouldWriteArtifacts = !opts.noReport;
     const projectPath = path_1.default.resolve(opts.project);
     let summary;
+    let policyViolations = [];
     if (opts.noReport && opts.keepTemp) {
         console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
     }
@@ -1497,6 +1536,7 @@ async function run() {
         summary = buildCliSummary(aggregated, {
             importGraphComplete,
         });
+        policyViolations = (0, failOn_1.evaluatePolicyViolations)(aggregated, opts.failOn);
         if (workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
@@ -1554,8 +1594,12 @@ async function run() {
     else {
         console.log("");
     }
+    printPolicyViolations(policyViolations);
     // Always show CTA as the last output
     console.log("Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com");
+    if (policyViolations.length > 0) {
+        process.exit(1);
+    }
 }
 run();
 /**
