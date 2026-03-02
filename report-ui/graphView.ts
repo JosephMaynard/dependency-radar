@@ -1178,8 +1178,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.font =
         '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       context.fillStyle = labelColor;
-      context.shadowColor = "rgba(0, 0, 0, 0.7)";
-      context.shadowBlur = 4;
       graph.nodes.forEach((node) => {
         if (!visible.has(node.slug)) return;
         context.globalAlpha = nodeOpacity(node.slug);
@@ -1189,7 +1187,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           node.renderY,
         );
       });
-      context.shadowBlur = 0;
     }
 
     context.globalAlpha = 1;
