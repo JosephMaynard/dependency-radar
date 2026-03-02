@@ -865,19 +865,24 @@ select.graph-workspace-select:focus {
 
 .zoom-controls {
   display: grid;
-  grid-template-columns: repeat(2, 34px);
+  grid-template-columns: repeat(2, 52px);
   gap: 6px;
+}
+
+.zoom-controls > .graph-control-btn {
+  font-size: 18px;
+  width: 100%;
 }
 
 .dpad {
   display: grid;
-  grid-template-columns: 32px 32px 32px;
-  grid-template-rows: 32px 32px 32px;
+  grid-template-columns: 34px 34px 34px;
+  grid-template-rows: 34px 34px 34px;
   grid-template-areas:
     ". up ."
     "left . right"
     ". down .";
-  gap: 6px;
+  gap: 2px;
 }
 
 .dpad .up {
