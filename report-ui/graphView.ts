@@ -1047,6 +1047,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const colorRingHigh = getCssColor("--graph-vuln-high") || "#ef4444";
     const colorRingModerate = getCssColor("--graph-vuln-medium") || "#f59e0b";
     const labelColor = getCssColor("--text-primary") || "#e8edf5";
+    const bgPrimary = getCssColor("--bg-primary") || "#0c1222";
 
     const visible = new Set<string>();
     graph.nodes.forEach((node) => {
@@ -1271,6 +1272,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const selected = focusSlug === node.slug;
       const radius = renderedNodeRadius(node);
 
+      // Draw an opaque background to occlude lines passing underneath
+      context.globalAlpha = 1;
+      context.fillStyle = bgPrimary;
+      context.beginPath();
+      context.arc(node.renderX, node.renderY, radius, 0, Math.PI * 2);
+      context.fill();
+
+      // Draw the slightly transparent node fill
       context.globalAlpha = nodeOpacity(node.slug);
 
       const grad = context.createRadialGradient(
