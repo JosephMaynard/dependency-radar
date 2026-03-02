@@ -11,7 +11,7 @@ import { CSS_CONTENT, JS_CONTENT } from './report-assets';
  * @returns The sanitized string with each `</style` sequence replaced by `<\/style` (case-insensitive)
  */
 function sanitizeInlineStyleTagPayload(value: string): string {
-  return value.replace(/<\/style/gi, "<\\/style");
+  return value.replace(/<\/style/gi, '<\\/style');
 }
 
 /**
@@ -21,7 +21,7 @@ function sanitizeInlineStyleTagPayload(value: string): string {
  * @returns The input with every `</script` (case-insensitive) replaced by `<\/script`
  */
 function sanitizeInlineScriptTagPayload(value: string): string {
-  return value.replace(/<\/script/gi, "<\\/script");
+  return value.replace(/<\/script/gi, '<\\/script');
 }
 
 /**
@@ -36,7 +36,7 @@ export async function renderReport(
 ): Promise<void> {
   const html = buildHtml(data);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, html, "utf8");
+  await fs.writeFile(outputPath, html, 'utf8');
 }
 
 /**
@@ -48,7 +48,7 @@ export async function renderReport(
  * @returns The full HTML document for the dependency radar report as a string
  */
 function buildHtml(data: AggregatedData): string {
-  const json = JSON.stringify(data).replace(/</g, "\\u003c");
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const ctaUrl = buildCtaUrl(data.dependencyRadarVersion);
   const safeCssContent = sanitizeInlineStyleTagPayload(CSS_CONTENT);
   const safeJsContent = sanitizeInlineScriptTagPayload(JS_CONTENT);
@@ -61,11 +61,11 @@ function buildHtml(data: AggregatedData): string {
       // Keep the original if parsing fails
     } else {
       formattedDate = new Intl.DateTimeFormat(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       }).format(date);
     }
   } catch {
@@ -402,8 +402,8 @@ ${safeJsContent}
 
 function escapeHtml(str: string): string {
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

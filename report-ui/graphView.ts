@@ -111,14 +111,17 @@ type TouchState = {
   startPanY: number;
   startDist: number;
   startZoom: number;
-  anchorX: number;
-  anchorY: number;
+  anchorX: number | null;
+  anchorY: number | null;
 };
 
 type ThemeColors = {
   runtime: string;
+  runtimeHighlight: string;
   dev: string;
+  devHighlight: string;
   transitive: string;
+  transitiveHighlight: string;
   edge: string;
   highlight: string;
   muted: string;
@@ -126,6 +129,23 @@ type ThemeColors = {
   ringModerate: string;
   label: string;
   backgroundPrimary: string;
+};
+
+type GraphPoint = {
+  x: number;
+  y: number;
+};
+
+type EdgeRoutingConfig = {
+  graph: WorkspaceGraph;
+  maxDepth: number;
+  sameColumnXThreshold: number;
+  minDetourVerticalSpan: number;
+  detourInset: number;
+  detourNodeClearance: number;
+  paddingX: number;
+  layerGap: number;
+  edgeCurve: number;
 };
 
 declare global {
@@ -147,10 +167,224 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function parseCssColor(
+  value: string,
+): { r: number; g: number; b: number } | null {
+  const normalized = value.trim();
+  const hexMatch = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    if (hex.length === 3) {
+      return {
+        r: parseInt(hex[0] + hex[0], 16),
+        g: parseInt(hex[1] + hex[1], 16),
+        b: parseInt(hex[2] + hex[2], 16),
+      };
+    }
+    return {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16),
+    };
+  }
+
+  const rgbMatch = normalized.match(/^rgba?\(([^)]+)\)$/i);
+  if (!rgbMatch) return null;
+  const channels = rgbMatch[1]
+    .replace(/\//g, " ")
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .slice(0, 3);
+  if (channels.length !== 3) return null;
+
+  const parseChannel = (channel: string): number | null => {
+    if (channel.endsWith("%")) {
+      const pct = Number(channel.slice(0, -1));
+      if (!Number.isFinite(pct)) return null;
+      return clamp(Math.round((pct / 100) * 255), 0, 255);
+    }
+    const value = Number(channel);
+    if (!Number.isFinite(value)) return null;
+    return clamp(Math.round(value), 0, 255);
+  };
+
+  const r = parseChannel(channels[0]);
+  const g = parseChannel(channels[1]);
+  const b = parseChannel(channels[2]);
+  if (r === null || g === null || b === null) return null;
+  return { r, g, b };
+}
+
+function tintColor(color: string, amount: number, fallback: string): string {
+  const rgb = parseCssColor(color);
+  if (!rgb) return fallback;
+  const t = clamp(amount, 0, 1);
+  const r = Math.round(rgb.r + (255 - rgb.r) * t);
+  const g = Math.round(rgb.g + (255 - rgb.g) * t);
+  const b = Math.round(rgb.b + (255 - rgb.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function getCssColor(name: string): string {
   return getComputedStyle(document.documentElement)
     .getPropertyValue(name)
     .trim();
+}
+
+function drawSmoothedPolyline(
+  context: CanvasRenderingContext2D,
+  points: GraphPoint[],
+  cornerRadius: number,
+): void {
+  if (points.length === 0) return;
+  context.moveTo(points[0].x, points[0].y);
+  if (points.length === 1) return;
+  if (points.length === 2) {
+    context.lineTo(points[1].x, points[1].y);
+    return;
+  }
+
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+
+    const inDx = curr.x - prev.x;
+    const inDy = curr.y - prev.y;
+    const outDx = next.x - curr.x;
+    const outDy = next.y - curr.y;
+    const inLen = Math.hypot(inDx, inDy);
+    const outLen = Math.hypot(outDx, outDy);
+
+    if (inLen < 0.001 || outLen < 0.001) {
+      context.lineTo(curr.x, curr.y);
+      continue;
+    }
+
+    const cut = Math.min(cornerRadius, inLen * 0.45, outLen * 0.45);
+    const startX = curr.x - (inDx / inLen) * cut;
+    const startY = curr.y - (inDy / inLen) * cut;
+    const endX = curr.x + (outDx / outLen) * cut;
+    const endY = curr.y + (outDy / outLen) * cut;
+
+    context.lineTo(startX, startY);
+    context.quadraticCurveTo(curr.x, curr.y, endX, endY);
+  }
+
+  const last = points[points.length - 1];
+  context.lineTo(last.x, last.y);
+}
+
+function drawRoutedEdge(
+  context: CanvasRenderingContext2D,
+  from: GraphNode,
+  to: GraphNode,
+  config: EdgeRoutingConfig,
+): void {
+  const sourceX = from.renderX;
+  const sourceY = from.renderY;
+  const targetX = to.renderX;
+  const targetY = to.renderY;
+  const depthDelta = to.depth - from.depth;
+  const span = Math.abs(depthDelta);
+
+  context.beginPath();
+  context.moveTo(sourceX, sourceY);
+
+  if (span === 0) {
+    const sameColumn = Math.abs(sourceX - targetX) < config.sameColumnXThreshold;
+    const verticalSpan = Math.abs(sourceY - targetY);
+    const hasRightCorridor = from.depth < config.maxDepth;
+
+    if (sameColumn && verticalSpan > config.minDetourVerticalSpan && hasRightCorridor) {
+      const currentColumnX = config.paddingX + from.depth * config.layerGap;
+      const nextColumnX = config.paddingX + (from.depth + 1) * config.layerGap;
+      const corridorCenterX = (currentColumnX + nextColumnX) * 0.5;
+      let detourX = corridorCenterX + config.detourInset;
+
+      const minY = Math.min(sourceY, targetY) - 12;
+      const maxY = Math.max(sourceY, targetY) + 12;
+      let crowded = false;
+      config.graph.nodes.forEach((node) => {
+        if (crowded) return;
+        if (node.depth !== from.depth + 1) return;
+        if (node.renderY < minY || node.renderY > maxY) return;
+        if (Math.abs(node.renderX - detourX) < config.detourNodeClearance) {
+          crowded = true;
+        }
+      });
+      if (crowded) detourX += 12;
+
+      const detourMinX = corridorCenterX + 8;
+      const detourMaxX = nextColumnX - 24;
+      detourX = clamp(detourX, detourMinX, detourMaxX);
+
+      const outSpan = Math.max(1, detourX - sourceX);
+      const cornerRadius = clamp(
+        Math.min(outSpan, verticalSpan) * 0.42,
+        16,
+        52,
+      );
+      drawSmoothedPolyline(
+        context,
+        [
+          { x: sourceX, y: sourceY },
+          { x: detourX, y: sourceY },
+          { x: detourX, y: targetY },
+          { x: targetX, y: targetY },
+        ],
+        cornerRadius,
+      );
+      context.stroke();
+      return;
+    }
+
+    const cx = sourceX + (targetX - sourceX) * 0.5;
+    const cy = sourceY + (targetY - sourceY) * config.edgeCurve;
+    context.quadraticCurveTo(cx, cy, targetX, targetY);
+    context.stroke();
+    return;
+  }
+
+  if (span === 1) {
+    const leftDepth = Math.min(from.depth, to.depth);
+    const corridorCenterX =
+      config.paddingX + leftDepth * config.layerGap + config.layerGap * 0.5;
+    context.bezierCurveTo(
+      corridorCenterX,
+      sourceY,
+      corridorCenterX,
+      targetY,
+      targetX,
+      targetY,
+    );
+    context.stroke();
+    return;
+  }
+
+  const direction = Math.sign(depthDelta);
+  const yDelta = targetY - sourceY;
+  const points: GraphPoint[] = [{ x: sourceX, y: sourceY }];
+
+  const firstCorridorX =
+    config.paddingX + from.depth * config.layerGap + direction * (config.layerGap * 0.5);
+  points.push({ x: firstCorridorX, y: sourceY });
+
+  for (let step = 1; step < span; step += 1) {
+    const depth = from.depth + direction * step;
+    const corridorX =
+      config.paddingX + depth * config.layerGap + direction * (config.layerGap * 0.5);
+    const t = step / span;
+    points.push({ x: corridorX, y: sourceY + yDelta * t });
+  }
+
+  const preTargetCorridorX =
+    config.paddingX + to.depth * config.layerGap - direction * (config.layerGap * 0.5);
+  points.push({ x: preTargetCorridorX, y: targetY });
+  points.push({ x: targetX, y: targetY });
+
+  drawSmoothedPolyline(context, points, 14);
+  context.stroke();
 }
 
 function getDepKey(name: string, version: string): string {
@@ -443,8 +677,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     startPanY: 0,
     startDist: 0,
     startZoom: 0,
-    anchorX: 0,
-    anchorY: 0,
+    anchorX: null,
+    anchorY: null,
   };
 
   const context = options.canvas.getContext("2d");
@@ -453,8 +687,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let fallbackShown = false;
   let themeColors: ThemeColors = {
     runtime: "#10b981",
+    runtimeHighlight: "#34d399",
     dev: "#f59e0b",
+    devHighlight: "#fcd34d",
     transitive: "#06b6d4",
+    transitiveHighlight: "#67e8f9",
     edge: "#64748b",
     highlight: "#22d3ee",
     muted: "#64748b",
@@ -465,10 +702,17 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   };
 
   function updateThemeColors(): void {
+    const runtime = getCssColor("--graph-direct-runtime") || "#10b981";
+    const dev = getCssColor("--graph-direct-dev") || "#f59e0b";
+    const transitive = getCssColor("--graph-transitive") || "#06b6d4";
+
     themeColors = {
-      runtime: getCssColor("--graph-direct-runtime") || "#10b981",
-      dev: getCssColor("--graph-direct-dev") || "#f59e0b",
-      transitive: getCssColor("--graph-transitive") || "#06b6d4",
+      runtime,
+      runtimeHighlight: tintColor(runtime, 0.2, "#34d399"),
+      dev,
+      devHighlight: tintColor(dev, 0.28, "#fcd34d"),
+      transitive,
+      transitiveHighlight: tintColor(transitive, 0.38, "#67e8f9"),
       edge: getCssColor("--graph-edge") || "#64748b",
       highlight: getCssColor("--graph-highlight") || "#22d3ee",
       muted: getCssColor("--graph-muted") || "#64748b",
@@ -1132,161 +1376,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const MIN_DETOUR_VERTICAL_SPAN = 80;
     const DETOUR_INSET = 14;
     const DETOUR_NODE_CLEARANCE = 26;
-
-    const drawSmoothedPolyline = (
-      points: Array<{ x: number; y: number }>,
-      cornerRadius: number,
-    ): void => {
-      if (points.length === 0) return;
-      context.moveTo(points[0].x, points[0].y);
-      if (points.length === 1) return;
-      if (points.length === 2) {
-        context.lineTo(points[1].x, points[1].y);
-        return;
-      }
-
-      for (let i = 1; i < points.length - 1; i += 1) {
-        const prev = points[i - 1];
-        const curr = points[i];
-        const next = points[i + 1];
-
-        const inDx = curr.x - prev.x;
-        const inDy = curr.y - prev.y;
-        const outDx = next.x - curr.x;
-        const outDy = next.y - curr.y;
-        const inLen = Math.hypot(inDx, inDy);
-        const outLen = Math.hypot(outDx, outDy);
-
-        if (inLen < 0.001 || outLen < 0.001) {
-          context.lineTo(curr.x, curr.y);
-          continue;
-        }
-
-        const cut = Math.min(cornerRadius, inLen * 0.45, outLen * 0.45);
-        const startX = curr.x - (inDx / inLen) * cut;
-        const startY = curr.y - (inDy / inLen) * cut;
-        const endX = curr.x + (outDx / outLen) * cut;
-        const endY = curr.y + (outDy / outLen) * cut;
-
-        context.lineTo(startX, startY);
-        context.quadraticCurveTo(curr.x, curr.y, endX, endY);
-      }
-
-      const last = points[points.length - 1];
-      context.lineTo(last.x, last.y);
-    };
-
-    const drawRoutedEdge = (from: GraphNode, to: GraphNode): void => {
-      const sourceX = from.renderX;
-      const sourceY = from.renderY;
-      const targetX = to.renderX;
-      const targetY = to.renderY;
-      const depthDelta = to.depth - from.depth;
-      const span = Math.abs(depthDelta);
-
-      context.beginPath();
-      context.moveTo(sourceX, sourceY);
-
-      if (span === 0) {
-        const sameColumn =
-          Math.abs(sourceX - targetX) < SAME_COLUMN_X_THRESHOLD;
-        const verticalSpan = Math.abs(sourceY - targetY);
-        const hasRightCorridor = from.depth < maxDepth;
-
-        if (
-          sameColumn &&
-          verticalSpan > MIN_DETOUR_VERTICAL_SPAN &&
-          hasRightCorridor
-        ) {
-          const currentColumnX = PADDING_X + from.depth * LAYER_GAP;
-          const nextColumnX = PADDING_X + (from.depth + 1) * LAYER_GAP;
-          const corridorCenterX = (currentColumnX + nextColumnX) * 0.5;
-          let detourX = corridorCenterX + DETOUR_INSET;
-
-          const minY = Math.min(sourceY, targetY) - 12;
-          const maxY = Math.max(sourceY, targetY) + 12;
-          let crowded = false;
-          graph.nodes.forEach((node) => {
-            if (crowded) return;
-            if (node.depth !== from.depth + 1) return;
-            if (node.renderY < minY || node.renderY > maxY) return;
-            if (Math.abs(node.renderX - detourX) < DETOUR_NODE_CLEARANCE) {
-              crowded = true;
-            }
-          });
-          if (crowded) detourX += 12;
-
-          const detourMinX = corridorCenterX + 8;
-          const detourMaxX = nextColumnX - 24;
-          detourX = clamp(detourX, detourMinX, detourMaxX);
-
-          const outSpan = Math.max(1, detourX - sourceX);
-          const cornerRadius = clamp(
-            Math.min(outSpan, verticalSpan) * 0.42,
-            16,
-            52,
-          );
-          drawSmoothedPolyline(
-            [
-              { x: sourceX, y: sourceY },
-              { x: detourX, y: sourceY },
-              { x: detourX, y: targetY },
-              { x: targetX, y: targetY },
-            ],
-            cornerRadius,
-          );
-          context.stroke();
-          return;
-        }
-
-        const cx = sourceX + (targetX - sourceX) * 0.5;
-        const cy = sourceY + (targetY - sourceY) * EDGE_CURVE;
-        context.quadraticCurveTo(cx, cy, targetX, targetY);
-        context.stroke();
-        return;
-      }
-
-      if (span === 1) {
-        const leftDepth = Math.min(from.depth, to.depth);
-        const corridorCenterX =
-          PADDING_X + leftDepth * LAYER_GAP + LAYER_GAP * 0.5;
-        context.bezierCurveTo(
-          corridorCenterX,
-          sourceY,
-          corridorCenterX,
-          targetY,
-          targetX,
-          targetY,
-        );
-        context.stroke();
-        return;
-      }
-
-      const direction = Math.sign(depthDelta);
-      const yDelta = targetY - sourceY;
-      const points: Array<{ x: number; y: number }> = [
-        { x: sourceX, y: sourceY },
-      ];
-
-      const firstCorridorX =
-        PADDING_X + from.depth * LAYER_GAP + direction * (LAYER_GAP * 0.5);
-      points.push({ x: firstCorridorX, y: sourceY });
-
-      for (let step = 1; step < span; step += 1) {
-        const depth = from.depth + direction * step;
-        const corridorX =
-          PADDING_X + depth * LAYER_GAP + direction * (LAYER_GAP * 0.5);
-        const t = step / span;
-        points.push({ x: corridorX, y: sourceY + yDelta * t });
-      }
-
-      const preTargetCorridorX =
-        PADDING_X + to.depth * LAYER_GAP - direction * (LAYER_GAP * 0.5);
-      points.push({ x: preTargetCorridorX, y: targetY });
-      points.push({ x: targetX, y: targetY });
-
-      drawSmoothedPolyline(points, 14);
-      context.stroke();
+    const edgeRoutingConfig: EdgeRoutingConfig = {
+      graph,
+      maxDepth,
+      sameColumnXThreshold: SAME_COLUMN_X_THRESHOLD,
+      minDetourVerticalSpan: MIN_DETOUR_VERTICAL_SPAN,
+      detourInset: DETOUR_INSET,
+      detourNodeClearance: DETOUR_NODE_CLEARANCE,
+      paddingX: PADDING_X,
+      layerGap: LAYER_GAP,
+      edgeCurve: EDGE_CURVE,
     };
 
     type RenderEdge = {
@@ -1319,7 +1418,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.globalAlpha = mutedEdgeOpacity();
     renderEdges.forEach((edge) => {
       if (edge.highlighted) return;
-      drawRoutedEdge(edge.from, edge.to);
+      drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
     });
 
     context.globalCompositeOperation = "lighter";
@@ -1328,7 +1427,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.globalAlpha = highlightedEdgeOpacity();
     renderEdges.forEach((edge) => {
       if (!edge.highlighted) return;
-      drawRoutedEdge(edge.from, edge.to);
+      drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
     });
 
     context.globalCompositeOperation = "source-over";
@@ -1358,13 +1457,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       );
 
       if (node.kind === "direct-runtime") {
-        grad.addColorStop(0, "#34d399");
+        grad.addColorStop(0, themeColors.runtimeHighlight);
         grad.addColorStop(1, colorRuntime);
       } else if (node.kind === "direct-dev") {
-        grad.addColorStop(0, "#fcd34d");
+        grad.addColorStop(0, themeColors.devHighlight);
         grad.addColorStop(1, colorDev);
       } else {
-        grad.addColorStop(0, "#67e8f9");
+        grad.addColorStop(0, themeColors.transitiveHighlight);
         grad.addColorStop(1, colorTransitive);
       }
 
@@ -1654,8 +1753,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (touchState.startDist > 0) {
         const factor = dist / touchState.startDist;
         const newZoom = touchState.startZoom * factor;
-        const anchorX = touchState.anchorX || width / 2;
-        const anchorY = touchState.anchorY || height / 2;
+        const anchorX = touchState.anchorX ?? width / 2;
+        const anchorY = touchState.anchorY ?? height / 2;
         applyZoom(newZoom, anchorX, anchorY);
       }
     }
@@ -1668,6 +1767,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (event.touches.length === 0) {
       options.canvas.classList.remove("is-panning");
       touchState.active = false;
+      touchState.anchorX = null;
+      touchState.anchorY = null;
 
       if (!panState.moved && event.changedTouches.length === 1) {
         const node = findNode(
@@ -1744,6 +1845,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.down = false;
     panState.moved = false;
     touchState.active = false;
+    touchState.anchorX = null;
+    touchState.anchorY = null;
     interactionsBound = false;
   }
 

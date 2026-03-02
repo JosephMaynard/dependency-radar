@@ -15,7 +15,7 @@ const report_assets_1 = require("./report-assets");
  * @returns The sanitized string with each `</style` sequence replaced by `<\/style` (case-insensitive)
  */
 function sanitizeInlineStyleTagPayload(value) {
-    return value.replace(/<\/style/gi, "<\\/style");
+    return value.replace(/<\/style/gi, '<\\/style');
 }
 /**
  * Escapes closing `</script` sequences so a string can be embedded safely inside an inline `<script>` tag.
@@ -24,7 +24,7 @@ function sanitizeInlineStyleTagPayload(value) {
  * @returns The input with every `</script` (case-insensitive) replaced by `<\/script`
  */
 function sanitizeInlineScriptTagPayload(value) {
-    return value.replace(/<\/script/gi, "<\\/script");
+    return value.replace(/<\/script/gi, '<\\/script');
 }
 /**
  * Generate the HTML report from aggregated data and write it to the given file path.
@@ -35,7 +35,7 @@ function sanitizeInlineScriptTagPayload(value) {
 async function renderReport(data, outputPath) {
     const html = buildHtml(data);
     await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
-    await promises_1.default.writeFile(outputPath, html, "utf8");
+    await promises_1.default.writeFile(outputPath, html, 'utf8');
 }
 /**
  * Build a complete HTML report string populated from the provided aggregated data.
@@ -46,7 +46,7 @@ async function renderReport(data, outputPath) {
  * @returns The full HTML document for the dependency radar report as a string
  */
 function buildHtml(data) {
-    const json = JSON.stringify(data).replace(/</g, "\\u003c");
+    const json = JSON.stringify(data).replace(/</g, '\\u003c');
     const ctaUrl = (0, cta_1.buildCtaUrl)(data.dependencyRadarVersion);
     const safeCssContent = sanitizeInlineStyleTagPayload(report_assets_1.CSS_CONTENT);
     const safeJsContent = sanitizeInlineScriptTagPayload(report_assets_1.JS_CONTENT);
@@ -59,11 +59,11 @@ function buildHtml(data) {
         }
         else {
             formattedDate = new Intl.DateTimeFormat(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
             }).format(date);
         }
     }
@@ -399,8 +399,8 @@ ${safeJsContent}
 }
 function escapeHtml(str) {
     return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

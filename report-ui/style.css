@@ -809,6 +809,7 @@ select.graph-workspace-select:focus {
   flex-direction: row;
   align-items: center;
   gap: 12px;
+  max-width: 100%;
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(100, 116, 139, 0.25);
   border-radius: 8px;
@@ -824,6 +825,7 @@ select.graph-workspace-select:focus {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .graph-key-item {
@@ -916,7 +918,7 @@ select.graph-workspace-select:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  max-width: calc(100% - 160px);
+  max-width: min(calc(100% - 16px), calc(100% - clamp(56px, 18vw, 160px)));
 }
 
 .graph-back-btn {
