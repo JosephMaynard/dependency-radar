@@ -395,6 +395,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let width = 1;
   let height = 1;
 
+  let ringRotation = 0;
+  let animatingRings = false;
+
   const panState = {
     down: false,
     moved: false,
@@ -1030,6 +1033,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.clearRect(0, 0, width, height);
     if (!currentGraph) return;
     const graph = currentGraph;
+    animatingRings = false;
 
     const worldMinX = worldX(0) - 80;
     const worldMaxX = worldX(width) + 80;
@@ -1323,16 +1327,102 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0)
         return;
       if (node.ref.vulnerabilitySeverity === "none") return;
+
+      animatingRings = true;
       const radius = renderedNodeRadius(node);
+      const isHigh = node.ref.vulnerabilitySeverity === "high";
+      const color = isHigh ? colorRingHigh : colorRingModerate;
+
+      context.save();
+      context.translate(node.renderX, node.renderY);
+
       context.globalAlpha = vulnerabilityRingOpacity(node.slug);
-      context.lineWidth = 2;
-      context.strokeStyle =
-        node.ref.vulnerabilitySeverity === "high"
-          ? colorRingHigh
-          : colorRingModerate;
+      context.strokeStyle = color;
+
+      // Calculate scale factor relative to unselected base radius
+      const scaleFactor = radius / node.radius;
+
+      // User request: 1.2x bigger than last time
+      const extraSpace = (radius / 3) * 1.2;
+      const unit = extraSpace / 12;
+
+      // Spreads out more when selected
+      const gap = unit * 1.2 + (scaleFactor - 1) * 3;
+
+      const lw0 = Math.max(unit * 0.5, 0.15);
+      const lw1 = Math.max(unit * 1.0, 0.3);
+      const lw2 = Math.max(unit * 3.0, 0.8);
+      const lw3 = Math.max(unit * 1.0, 0.3);
+      const lw4 = Math.max(unit * 0.5, 0.15);
+
+      // Selection ring is at radius + 4. Ensure r0 starts past that.
+      const initialOffset = 2 + (scaleFactor - 1) * 6;
+
+      const r0 = radius + initialOffset + lw0 / 2;
+      const r1 = r0 + lw0 / 2 + gap + lw1 / 2;
+      const r2 = r1 + lw1 / 2 + gap + lw2 / 2;
+      const r3 = r2 + lw2 / 2 + gap + lw3 / 2;
+      const r4 = r3 + lw3 / 2 + gap + lw4 / 2;
+
+      // Outer ring
+      context.lineWidth = lw4;
+      context.setLineDash([]);
       context.beginPath();
-      context.arc(node.renderX, node.renderY, radius + 4, 0, Math.PI * 2);
+      context.arc(0, 0, r4, 0, Math.PI * 2);
       context.stroke();
+
+      // Ring 3: 3 gaps, rotates clockwise
+      const circ3 = Math.PI * 2 * r3;
+      const p3 = circ3 / 3;
+      context.lineWidth = lw3;
+      context.setLineDash([p3 * 0.9, p3 * 0.1]);
+      context.save();
+      context.rotate(ringRotation * 0.8);
+      context.beginPath();
+      context.arc(0, 0, r3, 0, Math.PI * 2);
+      context.stroke();
+      context.restore();
+
+      // Ring 2 (Middle): techy dashed, rotates clockwise
+      const circ2 = Math.PI * 2 * r2;
+      const p2 = circ2 / 6; // 6 repeating segments
+      context.lineWidth = lw2;
+      // Pattern sums to exactly p2 for perfect continuous looping
+      context.setLineDash([
+        p2 * 0.35,
+        p2 * 0.1,
+        p2 * 0.1,
+        p2 * 0.1,
+        p2 * 0.25,
+        p2 * 0.1,
+      ]);
+      context.save();
+      context.rotate(ringRotation * 1.5);
+      context.beginPath();
+      context.arc(0, 0, r2, 0, Math.PI * 2);
+      context.stroke();
+      context.restore();
+
+      // Ring 1: 3 gaps, rotates clockwise
+      const circ1 = Math.PI * 2 * r1;
+      const p1 = circ1 / 3;
+      context.lineWidth = lw1;
+      context.setLineDash([p1 * 0.85, p1 * 0.15]);
+      context.save();
+      context.rotate(ringRotation * 1.0);
+      context.beginPath();
+      context.arc(0, 0, r1, 0, Math.PI * 2);
+      context.stroke();
+      context.restore();
+
+      // Ring 0 (Inner): solid
+      context.lineWidth = lw0;
+      context.setLineDash([]);
+      context.beginPath();
+      context.arc(0, 0, r0, 0, Math.PI * 2);
+      context.stroke();
+
+      context.restore();
     });
 
     context.textBaseline = "middle";
@@ -1362,10 +1452,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     updateTargets();
     const moving = animateNodes();
 
-    if (dirty || moving) {
+    if (dirty || moving || animatingRings) {
+      if (animatingRings) {
+        ringRotation += 0.0005;
+      }
       renderGraph();
       dirty = false;
-      if (active && (dirty || moving)) {
+      if (active && (dirty || moving || animatingRings)) {
         frameId = window.requestAnimationFrame(tick);
       } else {
         frameId = 0;
