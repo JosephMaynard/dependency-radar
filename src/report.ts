@@ -1,8 +1,8 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { AggregatedData } from './types';
-import { buildCtaUrl } from './cta';
-import { CSS_CONTENT, JS_CONTENT } from './report-assets';
+import fs from "fs/promises";
+import path from "path";
+import { AggregatedData } from "./types";
+import { buildCtaUrl } from "./cta";
+import { CSS_CONTENT, JS_CONTENT } from "./report-assets";
 
 /**
  * Escape occurrences of closing `</style` tags in a CSS payload to prevent premature termination when inlined into HTML.
@@ -11,7 +11,7 @@ import { CSS_CONTENT, JS_CONTENT } from './report-assets';
  * @returns The sanitized string with each `</style` sequence replaced by `<\/style` (case-insensitive)
  */
 function sanitizeInlineStyleTagPayload(value: string): string {
-  return value.replace(/<\/style/gi, '<\\/style');
+  return value.replace(/<\/style/gi, "<\\/style");
 }
 
 /**
@@ -21,7 +21,7 @@ function sanitizeInlineStyleTagPayload(value: string): string {
  * @returns The input with every `</script` (case-insensitive) replaced by `<\/script`
  */
 function sanitizeInlineScriptTagPayload(value: string): string {
-  return value.replace(/<\/script/gi, '<\\/script');
+  return value.replace(/<\/script/gi, "<\\/script");
 }
 
 /**
@@ -30,10 +30,13 @@ function sanitizeInlineScriptTagPayload(value: string): string {
  * @param data - Aggregated radar data used to build the report
  * @param outputPath - Filesystem path where the generated HTML report will be written; parent directories are created if missing
  */
-export async function renderReport(data: AggregatedData, outputPath: string): Promise<void> {
+export async function renderReport(
+  data: AggregatedData,
+  outputPath: string,
+): Promise<void> {
   const html = buildHtml(data);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, html, 'utf8');
+  await fs.writeFile(outputPath, html, "utf8");
 }
 
 /**
@@ -45,11 +48,11 @@ export async function renderReport(data: AggregatedData, outputPath: string): Pr
  * @returns The full HTML document for the dependency radar report as a string
  */
 function buildHtml(data: AggregatedData): string {
-  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  const json = JSON.stringify(data).replace(/</g, "\\u003c");
   const ctaUrl = buildCtaUrl(data.dependencyRadarVersion);
   const safeCssContent = sanitizeInlineStyleTagPayload(CSS_CONTENT);
   const safeJsContent = sanitizeInlineScriptTagPayload(JS_CONTENT);
-  
+
   // Format the generated date
   let formattedDate = data.generatedAt;
   try {
@@ -58,17 +61,17 @@ function buildHtml(data: AggregatedData): string {
       // Keep the original if parsing fails
     } else {
       formattedDate = new Intl.DateTimeFormat(undefined, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       }).format(date);
     }
   } catch {
     // Keep the original if parsing fails
   }
-  
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -334,7 +337,7 @@ ${safeCssContent}
     <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
       <div class="graph-canvas-shell" id="graph-canvas-shell">
         <canvas id="graph-canvas"></canvas>
-        <button type="button" class="graph-overlay graph-back-btn" id="graph-back-btn">Back to List</button>
+        <button type="button" class="graph-overlay graph-back-btn" id="graph-back-btn">Back to List View</button>
         <div class="graph-overlay graph-overlay-left" id="graph-workspace-wrap">
           <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
           <select id="graph-workspace" class="graph-workspace-select"></select>
@@ -379,5 +382,9 @@ ${safeJsContent}
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

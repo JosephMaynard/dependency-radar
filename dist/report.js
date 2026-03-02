@@ -1,7 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __importDefault =
+  (this && this.__importDefault) ||
+  function (mod) {
+    return mod && mod.__esModule ? mod : { default: mod };
+  };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderReport = renderReport;
 const promises_1 = __importDefault(require("fs/promises"));
@@ -15,7 +17,7 @@ const report_assets_1 = require("./report-assets");
  * @returns The sanitized string with each `</style` sequence replaced by `<\/style` (case-insensitive)
  */
 function sanitizeInlineStyleTagPayload(value) {
-    return value.replace(/<\/style/gi, '<\\/style');
+  return value.replace(/<\/style/gi, "<\\/style");
 }
 /**
  * Escapes closing `</script` sequences so a string can be embedded safely inside an inline `<script>` tag.
@@ -24,7 +26,7 @@ function sanitizeInlineStyleTagPayload(value) {
  * @returns The input with every `</script` (case-insensitive) replaced by `<\/script`
  */
 function sanitizeInlineScriptTagPayload(value) {
-    return value.replace(/<\/script/gi, '<\\/script');
+  return value.replace(/<\/script/gi, "<\\/script");
 }
 /**
  * Generate the HTML report from aggregated data and write it to the given file path.
@@ -33,9 +35,11 @@ function sanitizeInlineScriptTagPayload(value) {
  * @param outputPath - Filesystem path where the generated HTML report will be written; parent directories are created if missing
  */
 async function renderReport(data, outputPath) {
-    const html = buildHtml(data);
-    await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
-    await promises_1.default.writeFile(outputPath, html, 'utf8');
+  const html = buildHtml(data);
+  await promises_1.default.mkdir(path_1.default.dirname(outputPath), {
+    recursive: true,
+  });
+  await promises_1.default.writeFile(outputPath, html, "utf8");
 }
 /**
  * Build a complete HTML report string populated from the provided aggregated data.
@@ -46,31 +50,33 @@ async function renderReport(data, outputPath) {
  * @returns The full HTML document for the dependency radar report as a string
  */
 function buildHtml(data) {
-    const json = JSON.stringify(data).replace(/</g, '\\u003c');
-    const ctaUrl = (0, cta_1.buildCtaUrl)(data.dependencyRadarVersion);
-    const safeCssContent = sanitizeInlineStyleTagPayload(report_assets_1.CSS_CONTENT);
-    const safeJsContent = sanitizeInlineScriptTagPayload(report_assets_1.JS_CONTENT);
-    // Format the generated date
-    let formattedDate = data.generatedAt;
-    try {
-        const date = new Date(data.generatedAt);
-        if (Number.isNaN(date.getTime())) {
-            // Keep the original if parsing fails
-        }
-        else {
-            formattedDate = new Intl.DateTimeFormat(undefined, {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).format(date);
-        }
+  const json = JSON.stringify(data).replace(/</g, "\\u003c");
+  const ctaUrl = (0, cta_1.buildCtaUrl)(data.dependencyRadarVersion);
+  const safeCssContent = sanitizeInlineStyleTagPayload(
+    report_assets_1.CSS_CONTENT,
+  );
+  const safeJsContent = sanitizeInlineScriptTagPayload(
+    report_assets_1.JS_CONTENT,
+  );
+  // Format the generated date
+  let formattedDate = data.generatedAt;
+  try {
+    const date = new Date(data.generatedAt);
+    if (Number.isNaN(date.getTime())) {
+      // Keep the original if parsing fails
+    } else {
+      formattedDate = new Intl.DateTimeFormat(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
     }
-    catch {
-        // Keep the original if parsing fails
-    }
-    return `<!doctype html>
+  } catch {
+    // Keep the original if parsing fails
+  }
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -335,7 +341,7 @@ ${safeCssContent}
     <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
       <div class="graph-canvas-shell" id="graph-canvas-shell">
         <canvas id="graph-canvas"></canvas>
-        <button type="button" class="graph-overlay graph-back-btn" id="graph-back-btn">Back to List</button>
+        <button type="button" class="graph-overlay graph-back-btn" id="graph-back-btn">Back to List View</button>
         <div class="graph-overlay graph-overlay-left" id="graph-workspace-wrap">
           <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
           <select id="graph-workspace" class="graph-workspace-select"></select>
@@ -379,5 +385,9 @@ ${safeJsContent}
 </html>`;
 }
 function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
