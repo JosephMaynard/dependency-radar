@@ -1328,7 +1328,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         return;
       if (node.ref.vulnerabilitySeverity === "none") return;
 
-      animatingRings = true;
       const radius = renderedNodeRadius(node);
       const isHigh = node.ref.vulnerabilitySeverity === "high";
       const color = isHigh ? colorRingHigh : colorRingModerate;
@@ -1365,59 +1364,33 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const r4 = r3 + lw3 / 2 + gap + lw4 / 2;
 
       // Outer ring
-      context.lineWidth = lw4;
       context.setLineDash([]);
+
+      context.lineWidth = lw4;
       context.beginPath();
       context.arc(0, 0, r4, 0, Math.PI * 2);
       context.stroke();
 
-      // Ring 3: 3 gaps, rotates clockwise
-      const circ3 = Math.PI * 2 * r3;
-      const p3 = circ3 / 3;
+      // Ring 3
       context.lineWidth = lw3;
-      context.setLineDash([p3 * 0.9, p3 * 0.1]);
-      context.save();
-      context.rotate(ringRotation * 0.8);
       context.beginPath();
       context.arc(0, 0, r3, 0, Math.PI * 2);
       context.stroke();
-      context.restore();
 
-      // Ring 2 (Middle): techy dashed, rotates clockwise
-      const circ2 = Math.PI * 2 * r2;
-      const p2 = circ2 / 6; // 6 repeating segments
+      // Ring 2 (Middle)
       context.lineWidth = lw2;
-      // Pattern sums to exactly p2 for perfect continuous looping
-      context.setLineDash([
-        p2 * 0.35,
-        p2 * 0.1,
-        p2 * 0.1,
-        p2 * 0.1,
-        p2 * 0.25,
-        p2 * 0.1,
-      ]);
-      context.save();
-      context.rotate(ringRotation * 1.5);
       context.beginPath();
       context.arc(0, 0, r2, 0, Math.PI * 2);
       context.stroke();
-      context.restore();
 
-      // Ring 1: 3 gaps, rotates clockwise
-      const circ1 = Math.PI * 2 * r1;
-      const p1 = circ1 / 3;
+      // Ring 1
       context.lineWidth = lw1;
-      context.setLineDash([p1 * 0.85, p1 * 0.15]);
-      context.save();
-      context.rotate(ringRotation * 1.0);
       context.beginPath();
       context.arc(0, 0, r1, 0, Math.PI * 2);
       context.stroke();
-      context.restore();
 
-      // Ring 0 (Inner): solid
+      // Ring 0 (Inner)
       context.lineWidth = lw0;
-      context.setLineDash([]);
       context.beginPath();
       context.arc(0, 0, r0, 0, Math.PI * 2);
       context.stroke();
