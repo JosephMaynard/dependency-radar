@@ -1149,7 +1149,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           detourX = clamp(detourX, detourMinX, detourMaxX);
 
           const outSpan = Math.max(1, detourX - sourceX);
-          const cornerRadius = clamp(Math.min(outSpan, verticalSpan) * 0.22, 10, 22);
+          const cornerRadius = clamp(Math.min(outSpan, verticalSpan) * 0.42, 16, 52);
           drawSmoothedPolyline(
             [
               { x: sourceX, y: sourceY },
