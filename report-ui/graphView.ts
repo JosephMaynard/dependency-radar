@@ -136,8 +136,10 @@ type GraphPoint = {
   y: number;
 };
 
+type DepthNodeIndex = Map<number, GraphNode[]>;
+
 type EdgeRoutingConfig = {
-  graph: WorkspaceGraph;
+  depthNodeIndex: DepthNodeIndex;
   maxDepth: number;
   sameColumnXThreshold: number;
   minDetourVerticalSpan: number;
@@ -275,6 +277,52 @@ function drawSmoothedPolyline(
   context.lineTo(last.x, last.y);
 }
 
+function buildDepthNodeIndex(graph: WorkspaceGraph): DepthNodeIndex {
+  const index: DepthNodeIndex = new Map();
+  graph.nodes.forEach((node) => {
+    const bucket = index.get(node.depth);
+    if (bucket) bucket.push(node);
+    else index.set(node.depth, [node]);
+  });
+  index.forEach((bucket) => {
+    bucket.sort((a, b) => a.renderY - b.renderY);
+  });
+  return index;
+}
+
+function lowerBoundByRenderY(nodes: GraphNode[], minY: number): number {
+  let low = 0;
+  let high = nodes.length;
+  while (low < high) {
+    const mid = low + ((high - low) >> 1);
+    if (nodes[mid].renderY < minY) low = mid + 1;
+    else high = mid;
+  }
+  return low;
+}
+
+function isDetourCrowded(
+  config: EdgeRoutingConfig,
+  depth: number,
+  minY: number,
+  maxY: number,
+  detourX: number,
+): boolean {
+  const nodesAtDepth = config.depthNodeIndex.get(depth);
+  if (!nodesAtDepth || nodesAtDepth.length === 0) return false;
+  const startIndex = lowerBoundByRenderY(nodesAtDepth, minY);
+  for (
+    let i = startIndex;
+    i < nodesAtDepth.length && nodesAtDepth[i].renderY <= maxY;
+    i += 1
+  ) {
+    if (Math.abs(nodesAtDepth[i].renderX - detourX) < config.detourNodeClearance) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function drawRoutedEdge(
   context: CanvasRenderingContext2D,
   from: GraphNode,
@@ -304,16 +352,9 @@ function drawRoutedEdge(
 
       const minY = Math.min(sourceY, targetY) - 12;
       const maxY = Math.max(sourceY, targetY) + 12;
-      let crowded = false;
-      config.graph.nodes.forEach((node) => {
-        if (crowded) return;
-        if (node.depth !== from.depth + 1) return;
-        if (node.renderY < minY || node.renderY > maxY) return;
-        if (Math.abs(node.renderX - detourX) < config.detourNodeClearance) {
-          crowded = true;
-        }
-      });
-      if (crowded) detourX += 12;
+      if (isDetourCrowded(config, from.depth + 1, minY, maxY, detourX)) {
+        detourX += 12;
+      }
 
       const detourMinX = corridorCenterX + 8;
       const detourMaxX = nextColumnX - 24;
@@ -809,11 +850,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const y = worldY(clientY - rect.top);
 
     let hit: GraphNode | null = null;
+    let minDist = Infinity;
     currentGraph.nodes.forEach((node) => {
       const dx = x - node.renderX;
       const dy = y - node.renderY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= node.renderRadius + 5) hit = node;
+      if (dist <= node.renderRadius + 5 && dist < minDist) {
+        minDist = dist;
+        hit = node;
+      }
     });
     return hit;
   }
@@ -1376,8 +1421,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const MIN_DETOUR_VERTICAL_SPAN = 80;
     const DETOUR_INSET = 14;
     const DETOUR_NODE_CLEARANCE = 26;
+    const depthNodeIndex = buildDepthNodeIndex(graph);
     const edgeRoutingConfig: EdgeRoutingConfig = {
-      graph,
+      depthNodeIndex,
       maxDepth,
       sameColumnXThreshold: SAME_COLUMN_X_THRESHOLD,
       minDetourVerticalSpan: MIN_DETOUR_VERTICAL_SPAN,
@@ -1763,6 +1809,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleTouchEnd(event: TouchEvent): void {
     if (!touchState.active) return;
     event.preventDefault();
+    const canceled = event.type === "touchcancel";
+
+    if (canceled) {
+      options.canvas.classList.remove("is-panning");
+      touchState.active = false;
+      touchState.anchorX = null;
+      touchState.anchorY = null;
+      panState.moved = false;
+      return;
+    }
 
     if (event.touches.length === 0) {
       options.canvas.classList.remove("is-panning");
