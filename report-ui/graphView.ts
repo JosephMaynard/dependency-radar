@@ -1060,26 +1060,141 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
-    context.globalCompositeOperation = "source-over";
-    context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
-    context.lineWidth = 1.05;
-    context.globalAlpha = mutedEdgeOpacity();
+    const drawSmoothedPolyline = (
+      points: Array<{ x: number; y: number }>,
+      cornerRadius: number,
+    ): void => {
+      if (points.length === 0) return;
+      context.moveTo(points[0].x, points[0].y);
+      if (points.length === 1) return;
+      if (points.length === 2) {
+        context.lineTo(points[1].x, points[1].y);
+        return;
+      }
+
+      for (let i = 1; i < points.length - 1; i += 1) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const next = points[i + 1];
+
+        const inDx = curr.x - prev.x;
+        const inDy = curr.y - prev.y;
+        const outDx = next.x - curr.x;
+        const outDy = next.y - curr.y;
+        const inLen = Math.hypot(inDx, inDy);
+        const outLen = Math.hypot(outDx, outDy);
+
+        if (inLen < 0.001 || outLen < 0.001) {
+          context.lineTo(curr.x, curr.y);
+          continue;
+        }
+
+        const cut = Math.min(cornerRadius, inLen * 0.45, outLen * 0.45);
+        const startX = curr.x - (inDx / inLen) * cut;
+        const startY = curr.y - (inDy / inLen) * cut;
+        const endX = curr.x + (outDx / outLen) * cut;
+        const endY = curr.y + (outDy / outLen) * cut;
+
+        context.lineTo(startX, startY);
+        context.quadraticCurveTo(curr.x, curr.y, endX, endY);
+      }
+
+      const last = points[points.length - 1];
+      context.lineTo(last.x, last.y);
+    };
+
+    const drawRoutedEdge = (from: GraphNode, to: GraphNode): void => {
+      const sourceX = from.renderX;
+      const sourceY = from.renderY;
+      const targetX = to.renderX;
+      const targetY = to.renderY;
+      const depthDelta = to.depth - from.depth;
+      const span = Math.abs(depthDelta);
+
+      context.beginPath();
+      context.moveTo(sourceX, sourceY);
+
+      if (span === 0) {
+        const cx = sourceX + (targetX - sourceX) * 0.5;
+        const cy = sourceY + (targetY - sourceY) * EDGE_CURVE;
+        context.quadraticCurveTo(cx, cy, targetX, targetY);
+        context.stroke();
+        return;
+      }
+
+      if (span === 1) {
+        const leftDepth = Math.min(from.depth, to.depth);
+        const corridorCenterX = PADDING_X + leftDepth * LAYER_GAP + LAYER_GAP * 0.5;
+        context.bezierCurveTo(
+          corridorCenterX,
+          sourceY,
+          corridorCenterX,
+          targetY,
+          targetX,
+          targetY,
+        );
+        context.stroke();
+        return;
+      }
+
+      const direction = Math.sign(depthDelta);
+      const yDelta = targetY - sourceY;
+      const points: Array<{ x: number; y: number }> = [
+        { x: sourceX, y: sourceY },
+      ];
+
+      const firstCorridorX =
+        PADDING_X + from.depth * LAYER_GAP + direction * (LAYER_GAP * 0.5);
+      points.push({ x: firstCorridorX, y: sourceY });
+
+      for (let step = 1; step < span; step += 1) {
+        const depth = from.depth + direction * step;
+        const corridorX =
+          PADDING_X + depth * LAYER_GAP + direction * (LAYER_GAP * 0.5);
+        const t = step / span;
+        points.push({ x: corridorX, y: sourceY + yDelta * t });
+      }
+
+      const preTargetCorridorX =
+        PADDING_X + to.depth * LAYER_GAP - direction * (LAYER_GAP * 0.5);
+      points.push({ x: preTargetCorridorX, y: targetY });
+      points.push({ x: targetX, y: targetY });
+
+      drawSmoothedPolyline(points, 14);
+      context.stroke();
+    };
+
+    type RenderEdge = {
+      from: GraphNode;
+      to: GraphNode;
+      highlighted: boolean;
+      span: number;
+    };
+
+    const renderEdges: RenderEdge[] = [];
     graph.edges.forEach((edge) => {
       const from = graph.nodes.get(edge.from);
       const to = graph.nodes.get(edge.to);
       if (!from || !to) return;
       if (!visible.has(from.slug) && !visible.has(to.slug)) return;
       const key = edgeKey(edge.from, edge.to);
-      const highlighted =
-        focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
-      if (highlighted) return;
+      renderEdges.push({
+        from,
+        to,
+        highlighted: focusEdges.has(key) || (!focusSlug && hoverEdges.has(key)),
+        span: Math.abs(to.depth - from.depth),
+      });
+    });
 
-      const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
-      const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
-      context.beginPath();
-      context.moveTo(from.renderX, from.renderY);
-      context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
-      context.stroke();
+    renderEdges.sort((a, b) => b.span - a.span);
+
+    context.globalCompositeOperation = "source-over";
+    context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
+    context.lineWidth = 1.05;
+    context.globalAlpha = mutedEdgeOpacity();
+    renderEdges.forEach((edge) => {
+      if (edge.highlighted) return;
+      drawRoutedEdge(edge.from, edge.to);
     });
 
     context.globalCompositeOperation = "lighter";
@@ -1088,23 +1203,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.globalAlpha = highlightedEdgeOpacity();
     context.shadowColor = colorHighlight;
     context.shadowBlur = 8;
-    graph.edges.forEach((edge) => {
-      const from = graph.nodes.get(edge.from);
-      const to = graph.nodes.get(edge.to);
-      if (!from || !to) return;
-      if (!visible.has(from.slug) && !visible.has(to.slug)) return;
-
-      const key = edgeKey(edge.from, edge.to);
-      const highlighted =
-        focusEdges.has(key) || (!focusSlug && hoverEdges.has(key));
-      if (!highlighted) return;
-
-      const cx = from.renderX + (to.renderX - from.renderX) * 0.5;
-      const cy = from.renderY + (to.renderY - from.renderY) * EDGE_CURVE;
-      context.beginPath();
-      context.moveTo(from.renderX, from.renderY);
-      context.quadraticCurveTo(cx, cy, to.renderX, to.renderY);
-      context.stroke();
+    renderEdges.forEach((edge) => {
+      if (!edge.highlighted) return;
+      drawRoutedEdge(edge.from, edge.to);
     });
     context.shadowBlur = 0;
     context.globalCompositeOperation = "source-over";
