@@ -29,9 +29,10 @@ describe('package manifest policy', () => {
     expect(dependencyKeys).toEqual([]);
   });
 
-  it('does not declare a packageManager field', async () => {
+  it('pins packageManager to npm', async () => {
     const manifest = await loadRootPackageManifest();
-    // Repo tooling stays npm-driven; avoid pinning this project to pnpm metadata.
-    expect(manifest.packageManager).toBeUndefined();
+    // Explicit npm pin avoids Corepack auto-pinning pnpm/yarn during tooling runs.
+    expect(typeof manifest.packageManager).toBe('string');
+    expect(manifest.packageManager).toMatch(/^npm@/);
   });
 });
