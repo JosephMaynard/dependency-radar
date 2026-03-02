@@ -268,7 +268,9 @@ const COLUMN_CONFIG: ColumnConfig[] = [
       const label = primary.isInferred
         ? `${primary.value} (inferred)`
         : primary.value;
-      return dep.compliance.license.status === "mismatch" ? `${label} *` : label;
+      return dep.compliance.license.status === "mismatch"
+        ? `${label} *`
+        : label;
     },
     getTone: (dep) => {
       const primary = getColumnPrimaryLicense(dep);
@@ -520,7 +522,6 @@ function renderColumnHeaders(
     "</div>"
   );
 }
-
 
 function renderSingleColumnHeader(
   sortKey: string,
@@ -957,12 +958,6 @@ function renderSubsection(
   return html;
 }
 
-function executionRiskTone(
-  execution: DependencyRecord["execution"] | undefined,
-): "green" | "amber" | "red" {
-  return execution?.risk ?? "green";
-}
-
 function toneToString(tone?: "red" | "amber" | "green"): string {
   if (tone === "red") return "High";
   if (tone === "amber") return "Medium";
@@ -1026,12 +1021,15 @@ type LinkSet = {
   issues?: string;
 };
 
-function normalizeRepositoryUrl(rawUrl: string | undefined): string | undefined {
+function normalizeRepositoryUrl(
+  rawUrl: string | undefined,
+): string | undefined {
   if (!rawUrl) return undefined;
   const trimmed = rawUrl.trim();
   if (!trimmed) return undefined;
 
-  const stripGitSuffix = (value: string): string => value.replace(/\.git$/i, "");
+  const stripGitSuffix = (value: string): string =>
+    value.replace(/\.git$/i, "");
 
   if (/^https?:\/\//i.test(trimmed)) return stripGitSuffix(trimmed);
   if (/^git\+https?:\/\//i.test(trimmed)) {
@@ -1075,7 +1073,10 @@ function buildGithubFileUrl(
   return `https://github.com/${owner}/${repo}/blob/HEAD/${filePath}`;
 }
 
-function appendGithubFileLink(value: string, fileUrl: string | undefined): string {
+function appendGithubFileLink(
+  value: string,
+  fileUrl: string | undefined,
+): string {
   if (!fileUrl) return escapeHtml(value);
   return (
     escapeHtml(value) +
@@ -1244,7 +1245,6 @@ function renderDep(dep: DependencyRecord): string {
   ].join("");
 }
 
-
 function renderDepDetails(
   dep: DependencyRecord,
   linkableKeys: Set<string>,
@@ -1348,8 +1348,14 @@ function renderDepDetails(
   );
 
   const licenseInfo = dep.compliance.license;
-  const declaredSpdxFileUrl = buildGithubFileUrl(links.repository, "package.json");
-  const inferredLicenseFileUrl = buildGithubFileUrl(links.repository, "LICENSE");
+  const declaredSpdxFileUrl = buildGithubFileUrl(
+    links.repository,
+    "package.json",
+  );
+  const inferredLicenseFileUrl = buildGithubFileUrl(
+    links.repository,
+    "LICENSE",
+  );
   const licenseDetails: string[] = [
     renderKvItemHtml(
       "Primary license",
@@ -1676,36 +1682,70 @@ async function init(): Promise<void> {
       "license-friendly",
     ) as HTMLButtonElement,
     // New controls for redesigned filter bar
-    filtersToggle: document.getElementById("filters-toggle") as HTMLButtonElement,
+    filtersToggle: document.getElementById(
+      "filters-toggle",
+    ) as HTMLButtonElement,
     filterControls: document.getElementById("filter-controls") as HTMLElement,
-    columnHeadersContainer: document.getElementById("column-headers-container") as HTMLElement,
-    packageHeader: document.getElementById("package-header") as HTMLButtonElement,
-    viewGraphButton: document.getElementById("view-graph-btn") as HTMLButtonElement | null,
-    graphBackButton: document.getElementById("graph-back-btn") as HTMLButtonElement | null,
+    columnHeadersContainer: document.getElementById(
+      "column-headers-container",
+    ) as HTMLElement,
+    packageHeader: document.getElementById(
+      "package-header",
+    ) as HTMLButtonElement,
+    viewGraphButton: document.getElementById(
+      "view-graph-btn",
+    ) as HTMLButtonElement | null,
+    graphBackButton: document.getElementById(
+      "graph-back-btn",
+    ) as HTMLButtonElement | null,
     listViewPanel: document.getElementById("list-view") as HTMLElement | null,
     graphViewPanel: document.getElementById("graph-view") as HTMLElement | null,
-    graphWorkspaceSelect: document.getElementById("graph-workspace") as HTMLSelectElement | null,
-    graphWorkspaceWrap: document.getElementById("graph-workspace-wrap") as HTMLElement | null,
-    graphControls: document.getElementById("graph-controls") as HTMLElement | null,
-    graphCanvas: document.getElementById("graph-canvas") as HTMLCanvasElement | null,
-    graphCanvasShell: document.getElementById("graph-canvas-shell") as HTMLElement | null,
-    graphPopover: document.getElementById("graph-popover") as HTMLElement | null,
-    graphPopoverName: document.getElementById("graph-popover-name") as HTMLElement | null,
-    graphPopoverVersion: document.getElementById("graph-popover-version") as HTMLElement | null,
-    graphPopoverLicense: document.getElementById("graph-popover-license") as HTMLElement | null,
-    graphPopoverVulns: document.getElementById("graph-popover-vulns") as HTMLElement | null,
-    graphPopoverAmplification: document.getElementById("graph-popover-amplification") as HTMLElement | null,
-    graphOpenList: document.getElementById("graph-open-list") as HTMLButtonElement | null,
-    reportFooter: document.querySelector(".report-footer") as HTMLElement | null,
+    graphWorkspaceSelect: document.getElementById(
+      "graph-workspace",
+    ) as HTMLSelectElement | null,
+    graphWorkspaceWrap: document.getElementById(
+      "graph-workspace-wrap",
+    ) as HTMLElement | null,
+    graphControls: document.getElementById(
+      "graph-controls",
+    ) as HTMLElement | null,
+    graphCanvas: document.getElementById(
+      "graph-canvas",
+    ) as HTMLCanvasElement | null,
+    graphCanvasShell: document.getElementById(
+      "graph-canvas-shell",
+    ) as HTMLElement | null,
+    graphPopover: document.getElementById(
+      "graph-popover",
+    ) as HTMLElement | null,
+    graphPopoverName: document.getElementById(
+      "graph-popover-name",
+    ) as HTMLElement | null,
+    graphPopoverVersion: document.getElementById(
+      "graph-popover-version",
+    ) as HTMLElement | null,
+    graphPopoverLicense: document.getElementById(
+      "graph-popover-license",
+    ) as HTMLElement | null,
+    graphPopoverVulns: document.getElementById(
+      "graph-popover-vulns",
+    ) as HTMLElement | null,
+    graphPopoverAmplification: document.getElementById(
+      "graph-popover-amplification",
+    ) as HTMLElement | null,
+    graphOpenList: document.getElementById(
+      "graph-open-list",
+    ) as HTMLButtonElement | null,
+    reportFooter: document.querySelector(
+      ".report-footer",
+    ) as HTMLElement | null,
   };
 
   // Sorting state - "name" is the default (Package name ascending)
   let sortColumn = "name";
   let sortAscending = true;
-  let currentView: "list" | "graph" = "list";
   let graphView: GraphViewHandle | null = null;
   let graphInitialized = false;
-
 
   // Theme handling
   document.documentElement.setAttribute("data-theme", "dark");
@@ -1724,7 +1764,10 @@ async function init(): Promise<void> {
     document.documentElement.classList.toggle("light");
     controls.themeSwitch.classList.toggle("light");
     const isLight = document.documentElement.classList.contains("light");
-    document.documentElement.setAttribute("data-theme", isLight ? "light" : "dark");
+    document.documentElement.setAttribute(
+      "data-theme",
+      isLight ? "light" : "dark",
+    );
     localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
     graphView?.requestRender();
   });
@@ -1793,7 +1836,10 @@ async function init(): Promise<void> {
   // Function to update column headers display
   function updateColumnHeaders(): void {
     if (controls.columnHeadersContainer) {
-      controls.columnHeadersContainer.innerHTML = renderColumnHeaders(sortColumn, sortAscending);
+      controls.columnHeadersContainer.innerHTML = renderColumnHeaders(
+        sortColumn,
+        sortAscending,
+      );
     }
     // Update package header sort indicator
     if (controls.packageHeader) {
@@ -1840,7 +1886,10 @@ async function init(): Promise<void> {
 
   // Attach column header click listener (delegated)
   if (controls.columnHeadersContainer) {
-    controls.columnHeadersContainer.addEventListener("click", handleColumnHeaderClick);
+    controls.columnHeadersContainer.addEventListener(
+      "click",
+      handleColumnHeaderClick,
+    );
   }
 
   // Attach package header click listener
@@ -2025,7 +2074,6 @@ async function init(): Promise<void> {
     return sorted;
   }
 
-
   function renderList(): void {
     const filtered = applyFilters();
     const deps = sortDeps(filtered);
@@ -2102,16 +2150,18 @@ async function init(): Promise<void> {
 
   function setActiveView(view: "list" | "graph"): void {
     if (!controls.listViewPanel || !controls.graphViewPanel) {
-      console.warn("Dependency Radar: view panels are missing from the report DOM.");
+      console.warn(
+        "Dependency Radar: view panels are missing from the report DOM.",
+      );
       return;
     }
     const isList = view === "list";
     if (!isList && !hasGraphDomNodes()) {
-      console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+      console.warn(
+        "Dependency Radar: graph view DOM nodes are missing; graph view disabled.",
+      );
       return;
     }
-
-    currentView = view;
     controls.listViewPanel.classList.toggle("active", isList);
     controls.graphViewPanel.classList.toggle("active", !isList);
     controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
@@ -2133,18 +2183,18 @@ async function init(): Promise<void> {
         report,
         knownDepKeys,
         resolveDepKey,
-        workspaceSelect: controls.graphWorkspaceSelect,
-        workspaceWrap: controls.graphWorkspaceWrap,
-        controlsRoot: controls.graphControls,
-        canvas: controls.graphCanvas,
-        canvasHost: controls.graphCanvasShell,
-        popover: controls.graphPopover,
-        popoverName: controls.graphPopoverName,
-        popoverVersion: controls.graphPopoverVersion,
-        popoverLicense: controls.graphPopoverLicense,
-        popoverVulns: controls.graphPopoverVulns,
-        popoverAmplification: controls.graphPopoverAmplification,
-        popoverOpenButton: controls.graphOpenList,
+        workspaceSelect: controls.graphWorkspaceSelect as HTMLSelectElement,
+        workspaceWrap: controls.graphWorkspaceWrap as HTMLElement,
+        controlsRoot: controls.graphControls as HTMLElement,
+        canvas: controls.graphCanvas as HTMLCanvasElement,
+        canvasHost: controls.graphCanvasShell as HTMLElement,
+        popover: controls.graphPopover as HTMLElement,
+        popoverName: controls.graphPopoverName as HTMLElement,
+        popoverVersion: controls.graphPopoverVersion as HTMLElement,
+        popoverLicense: controls.graphPopoverLicense as HTMLElement,
+        popoverVulns: controls.graphPopoverVulns as HTMLElement,
+        popoverAmplification: controls.graphPopoverAmplification as HTMLElement,
+        popoverOpenButton: controls.graphOpenList as HTMLButtonElement,
         onOpenList: (slug: string) => {
           openListFromGraph(slug);
         },
@@ -2289,7 +2339,6 @@ async function init(): Promise<void> {
   renderList();
   setActiveView("list");
 }
-
 
 // Initialize on DOM ready
 if (document.readyState === "loading") {

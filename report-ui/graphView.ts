@@ -164,7 +164,7 @@ function vulnerabilitySeverityFromRecord(
 ): "high" | "moderate" | "none" {
   const highest = dep.security?.summary?.highest;
   if (highest === "critical" || highest === "high") return "high";
-  if (highest === "moderate" || highest === "medium") return "moderate";
+  if (highest === "moderate") return "moderate";
   return "none";
 }
 
@@ -401,6 +401,18 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     startY: 0,
     startPanX: 0,
     startPanY: 0,
+  };
+
+  const touchState = {
+    active: false,
+    startX1: 0,
+    startY1: 0,
+    startX2: 0,
+    startY2: 0,
+    startPanX: 0,
+    startPanY: 0,
+    startDist: 0,
+    startZoom: 0,
   };
 
   const context = options.canvas.getContext("2d");
@@ -1010,6 +1022,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
     if (!currentGraph) return;
+    const graph = currentGraph;
 
     const worldMinX = worldX(0) - 80;
     const worldMaxX = worldX(width) + 80;
@@ -1029,7 +1042,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const labelColor = getCssColor("--text-primary") || "#e8edf5";
 
     const visible = new Set<string>();
-    currentGraph.nodes.forEach((node) => {
+    graph.nodes.forEach((node) => {
       if (
         node.renderX + node.radius >= worldMinX &&
         node.renderX - node.radius <= worldMaxX &&
@@ -1044,9 +1057,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
     context.lineWidth = 1.05;
     context.globalAlpha = mutedEdgeOpacity();
-    currentGraph.edges.forEach((edge) => {
-      const from = currentGraph.nodes.get(edge.from);
-      const to = currentGraph.nodes.get(edge.to);
+    graph.edges.forEach((edge) => {
+      const from = graph.nodes.get(edge.from);
+      const to = graph.nodes.get(edge.to);
       if (!from || !to) return;
       if (!visible.has(from.slug) && !visible.has(to.slug)) return;
       const key = edgeKey(edge.from, edge.to);
@@ -1068,9 +1081,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.globalAlpha = highlightedEdgeOpacity();
     context.shadowColor = colorHighlight;
     context.shadowBlur = 8;
-    currentGraph.edges.forEach((edge) => {
-      const from = currentGraph.nodes.get(edge.from);
-      const to = currentGraph.nodes.get(edge.to);
+    graph.edges.forEach((edge) => {
+      const from = graph.nodes.get(edge.from);
+      const to = graph.nodes.get(edge.to);
       if (!from || !to) return;
       if (!visible.has(from.slug) && !visible.has(to.slug)) return;
 
@@ -1089,7 +1102,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.shadowBlur = 0;
     context.globalCompositeOperation = "source-over";
 
-    currentGraph.nodes.forEach((node) => {
+    graph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
       const selected = focusSlug === node.slug;
       const radius = renderedNodeRadius(node);
@@ -1167,7 +1180,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.fillStyle = labelColor;
       context.shadowColor = "rgba(0, 0, 0, 0.7)";
       context.shadowBlur = 4;
-      currentGraph.nodes.forEach((node) => {
+      graph.nodes.forEach((node) => {
         if (!visible.has(node.slug)) return;
         context.globalAlpha = nodeOpacity(node.slug);
         context.fillText(
@@ -1278,13 +1291,123 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function handleWheel(event: WheelEvent): void {
-    if (!event.ctrlKey && !event.metaKey) return;
+    if (!options.canvasHost.contains(event.target as Node)) return;
     event.preventDefault();
     const rect = options.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const factor = Math.exp(-event.deltaY * 0.0013);
+
+    // Zoom sensitivity adjustments based on device type (trackpad vs wheel)
+    const delta =
+      event.ctrlKey || event.metaKey
+        ? event.deltaY * 0.015
+        : event.deltaY * 0.002;
+    const factor = Math.exp(-delta);
+
     applyZoom(zoom * factor, x, y);
+  }
+
+  function handleTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 0) return;
+    event.preventDefault();
+
+    const rect = options.canvas.getBoundingClientRect();
+
+    if (event.touches.length === 1) {
+      touchState.active = true;
+      panState.moved = false;
+      touchState.startX1 = event.touches[0].clientX;
+      touchState.startY1 = event.touches[0].clientY;
+      touchState.startPanX = panX;
+      touchState.startPanY = panY;
+      options.canvas.classList.add("is-panning");
+    } else if (event.touches.length === 2) {
+      touchState.active = true;
+      panState.moved = false;
+      touchState.startX1 = event.touches[0].clientX;
+      touchState.startY1 = event.touches[0].clientY;
+      touchState.startX2 = event.touches[1].clientX;
+      touchState.startY2 = event.touches[1].clientY;
+
+      const dx = touchState.startX2 - touchState.startX1;
+      const dy = touchState.startY2 - touchState.startY1;
+      touchState.startDist = Math.sqrt(dx * dx + dy * dy);
+      touchState.startZoom = zoom;
+
+      const cx = (touchState.startX1 + touchState.startX2) / 2;
+      const cy = (touchState.startY1 + touchState.startY2) / 2;
+
+      // Convert center to world coordinates relative to canvas
+      const screenX = cx - rect.left;
+      const screenY = cy - rect.top;
+
+      // Temporarily store these for the move event relative anchoring
+      (touchState as any).anchorX = screenX;
+      (touchState as any).anchorY = screenY;
+    }
+  }
+
+  function handleTouchMove(event: TouchEvent): void {
+    if (!touchState.active) return;
+    event.preventDefault();
+
+    if (event.touches.length === 1) {
+      const dx = event.touches[0].clientX - touchState.startX1;
+      const dy = event.touches[0].clientY - touchState.startY1;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
+      panX = touchState.startPanX + dx;
+      panY = touchState.startPanY + dy;
+      requestRender();
+    } else if (event.touches.length === 2) {
+      panState.moved = true;
+      const x1 = event.touches[0].clientX;
+      const y1 = event.touches[0].clientY;
+      const x2 = event.touches[1].clientX;
+      const y2 = event.touches[1].clientY;
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (touchState.startDist > 0) {
+        const factor = dist / touchState.startDist;
+        const newZoom = touchState.startZoom * factor;
+        const anchorX = (touchState as any).anchorX || width / 2;
+        const anchorY = (touchState as any).anchorY || height / 2;
+        applyZoom(newZoom, anchorX, anchorY);
+      }
+    }
+  }
+
+  function handleTouchEnd(event: TouchEvent): void {
+    if (!touchState.active) return;
+    event.preventDefault();
+
+    if (event.touches.length === 0) {
+      options.canvas.classList.remove("is-panning");
+      touchState.active = false;
+
+      if (!panState.moved && event.changedTouches.length === 1) {
+        const node = findNode(
+          event.changedTouches[0].clientX,
+          event.changedTouches[0].clientY,
+        );
+        if (!node) {
+          clearFocus();
+          hidePopover();
+        } else {
+          applyFocus(node.slug);
+          showPopover(node.slug);
+        }
+      }
+      panState.moved = false;
+    } else if (event.touches.length === 1) {
+      // Transition from pinch back to pan
+      touchState.startX1 = event.touches[0].clientX;
+      touchState.startY1 = event.touches[0].clientY;
+      touchState.startPanX = panX;
+      touchState.startPanY = panY;
+    }
   }
 
   function handleCanvasMouseLeave(): void {
@@ -1306,6 +1429,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     window.addEventListener("mousemove", handleWindowMouseMove);
     window.addEventListener("mouseup", handleWindowMouseUp);
     options.canvas.addEventListener("wheel", handleWheel, { passive: false });
+
+    // Add touch listeners
+    options.canvas.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
+    });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd, { passive: false });
+    window.addEventListener("touchcancel", handleTouchEnd, { passive: false });
+
     options.canvas.addEventListener("mouseleave", handleCanvasMouseLeave);
     document.addEventListener("mousedown", handleDocumentMouseDown);
     interactionsBound = true;
@@ -1317,11 +1449,19 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     window.removeEventListener("mousemove", handleWindowMouseMove);
     window.removeEventListener("mouseup", handleWindowMouseUp);
     options.canvas.removeEventListener("wheel", handleWheel);
+
+    // Remove touch listeners
+    options.canvas.removeEventListener("touchstart", handleTouchStart);
+    window.removeEventListener("touchmove", handleTouchMove);
+    window.removeEventListener("touchend", handleTouchEnd);
+    window.removeEventListener("touchcancel", handleTouchEnd);
+
     options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
     document.removeEventListener("mousedown", handleDocumentMouseDown);
     options.canvas.classList.remove("is-panning");
     panState.down = false;
     panState.moved = false;
+    touchState.active = false;
     interactionsBound = false;
   }
 
