@@ -1060,6 +1060,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
+    const maxDepth = Math.max(0, graph.layers.length - 1);
+    const SAME_COLUMN_X_THRESHOLD = 6;
+    const MIN_DETOUR_VERTICAL_SPAN = 80;
+    const DETOUR_INSET = 14;
+    const DETOUR_NODE_CLEARANCE = 26;
+
     const drawSmoothedPolyline = (
       points: Array<{ x: number; y: number }>,
       cornerRadius: number,
@@ -1115,6 +1121,59 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.moveTo(sourceX, sourceY);
 
       if (span === 0) {
+        const sameColumn = Math.abs(sourceX - targetX) < SAME_COLUMN_X_THRESHOLD;
+        const verticalSpan = Math.abs(sourceY - targetY);
+        const hasRightCorridor = from.depth < maxDepth;
+
+        if (sameColumn && verticalSpan > MIN_DETOUR_VERTICAL_SPAN && hasRightCorridor) {
+          const currentColumnX = PADDING_X + from.depth * LAYER_GAP;
+          const nextColumnX = PADDING_X + (from.depth + 1) * LAYER_GAP;
+          const corridorCenterX = (currentColumnX + nextColumnX) * 0.5;
+          let detourX = corridorCenterX + DETOUR_INSET;
+
+          const minY = Math.min(sourceY, targetY) - 12;
+          const maxY = Math.max(sourceY, targetY) + 12;
+          let crowded = false;
+          graph.nodes.forEach((node) => {
+            if (crowded) return;
+            if (node.depth !== from.depth + 1) return;
+            if (node.renderY < minY || node.renderY > maxY) return;
+            if (Math.abs(node.renderX - detourX) < DETOUR_NODE_CLEARANCE) {
+              crowded = true;
+            }
+          });
+          if (crowded) detourX += 12;
+
+          const detourMinX = corridorCenterX + 8;
+          const detourMaxX = nextColumnX - 24;
+          detourX = clamp(detourX, detourMinX, detourMaxX);
+
+          const outSpan = Math.max(1, detourX - sourceX);
+          const inSpan = Math.max(1, Math.abs(targetX - detourX));
+          const curveOut = clamp(outSpan * 0.55, 24, 54);
+          const curveIn = clamp(inSpan * 0.55, 24, 54);
+
+          context.bezierCurveTo(
+            sourceX + curveOut,
+            sourceY,
+            detourX - curveOut,
+            sourceY,
+            detourX,
+            sourceY,
+          );
+          context.lineTo(detourX, targetY);
+          context.bezierCurveTo(
+            detourX + curveIn,
+            targetY,
+            targetX - curveIn,
+            targetY,
+            targetX,
+            targetY,
+          );
+          context.stroke();
+          return;
+        }
+
         const cx = sourceX + (targetX - sourceX) * 0.5;
         const cy = sourceY + (targetY - sourceY) * EDGE_CURVE;
         context.quadraticCurveTo(cx, cy, targetX, targetY);
