@@ -336,9 +336,6 @@ function drawRoutedEdge(
   const depthDelta = to.depth - from.depth;
   const span = Math.abs(depthDelta);
 
-  context.beginPath();
-  context.moveTo(sourceX, sourceY);
-
   if (span === 0) {
     const sameColumn = Math.abs(sourceX - targetX) < config.sameColumnXThreshold;
     const verticalSpan = Math.abs(sourceY - targetY);
@@ -376,14 +373,13 @@ function drawRoutedEdge(
         ],
         cornerRadius,
       );
-      context.stroke();
       return;
     }
 
+    context.moveTo(sourceX, sourceY);
     const cx = sourceX + (targetX - sourceX) * 0.5;
     const cy = sourceY + (targetY - sourceY) * config.edgeCurve;
     context.quadraticCurveTo(cx, cy, targetX, targetY);
-    context.stroke();
     return;
   }
 
@@ -391,6 +387,7 @@ function drawRoutedEdge(
     const leftDepth = Math.min(from.depth, to.depth);
     const corridorCenterX =
       config.paddingX + leftDepth * config.layerGap + config.layerGap * 0.5;
+    context.moveTo(sourceX, sourceY);
     context.bezierCurveTo(
       corridorCenterX,
       sourceY,
@@ -399,7 +396,6 @@ function drawRoutedEdge(
       targetX,
       targetY,
     );
-    context.stroke();
     return;
   }
 
@@ -425,7 +421,6 @@ function drawRoutedEdge(
   points.push({ x: targetX, y: targetY });
 
   drawSmoothedPolyline(context, points, 14);
-  context.stroke();
 }
 
 function getDepKey(name: string, version: string): string {
@@ -781,6 +776,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   const context = options.canvas.getContext("2d");
   const hasCanvas = Boolean(context);
   let interactionsBound = false;
+  let controlsBound = false;
+  let workspaceSelectBound = false;
+  let themeObserver: MutationObserver | null = null;
+  let hostResizeObserver: ResizeObserver | null = null;
+  let windowResizeHandler: (() => void) | null = null;
   let fallbackShown = false;
   let themeColors: ThemeColors = {
     runtime: "#10b981",
@@ -1518,19 +1518,23 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.strokeStyle = focusSlug || hoverSlug ? colorMuted : colorEdge;
     context.lineWidth = 1.05;
     context.globalAlpha = mutedEdgeOpacity();
+    context.beginPath();
     renderEdges.forEach((edge) => {
       if (edge.highlighted) return;
       drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
     });
+    context.stroke();
 
     context.globalCompositeOperation = "lighter";
     context.strokeStyle = colorHighlight;
     context.lineWidth = 1.2;
     context.globalAlpha = highlightedEdgeOpacity();
+    context.beginPath();
     renderEdges.forEach((edge) => {
       if (!edge.highlighted) return;
       drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
     });
+    context.stroke();
 
     context.globalCompositeOperation = "source-over";
 
@@ -1962,51 +1966,110 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     interactionsBound = false;
   }
 
-  function setupControls(): void {
-    options.controlsRoot.addEventListener("click", (event) => {
-      const target = event.target as HTMLElement;
-      const button = target.closest<HTMLButtonElement>("button[data-action]");
-      if (!button) return;
-      const action = button.dataset.action;
-      if (!action) return;
-      if (action === "zoom-in") {
-        applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
-        return;
-      }
-      if (action === "zoom-out") {
-        applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
-        return;
-      }
-      if (action === "pan-left") {
-        panBy(-52, 0);
-        return;
-      }
-      if (action === "pan-right") {
-        panBy(52, 0);
-        return;
-      }
-      if (action === "pan-up") {
-        panBy(0, -52);
-        return;
-      }
-      if (action === "pan-down") {
-        panBy(0, 52);
-        return;
-      }
-      if (action === "reset") {
-        zoom = fitZoom;
-        panX = defaultPanX;
-        panY = defaultPanY;
-        clearFocus();
-        hidePopover();
-        requestRender();
-      }
+  function handleControlsClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    const button = target.closest<HTMLButtonElement>("button[data-action]");
+    if (!button) return;
+    const action = button.dataset.action;
+    if (!action) return;
+    if (action === "zoom-in") {
+      applyZoom(zoom * 1.18, width * 0.5, height * 0.5);
+      return;
+    }
+    if (action === "zoom-out") {
+      applyZoom(zoom / 1.18, width * 0.5, height * 0.5);
+      return;
+    }
+    if (action === "pan-left") {
+      panBy(-52, 0);
+      return;
+    }
+    if (action === "pan-right") {
+      panBy(52, 0);
+      return;
+    }
+    if (action === "pan-up") {
+      panBy(0, -52);
+      return;
+    }
+    if (action === "pan-down") {
+      panBy(0, 52);
+      return;
+    }
+    if (action === "reset") {
+      zoom = fitZoom;
+      panX = defaultPanX;
+      panY = defaultPanY;
+      clearFocus();
+      hidePopover();
+      requestRender();
+    }
+  }
+
+  function handlePopoverOpenClick(): void {
+    if (!popoverSlug) return;
+    options.onOpenList(popoverSlug);
+  }
+
+  function handleWorkspaceSelectChange(): void {
+    switchWorkspace(options.workspaceSelect.value);
+  }
+
+  function handleViewportResize(): void {
+    if (!active) return;
+    updateCanvasSize();
+    if (width <= 1 || height <= 1) return;
+    updateFitMetrics();
+    zoom = clamp(zoom, minZoom, MAX_ZOOM);
+    requestRender();
+  }
+
+  function bindPersistentListeners(): void {
+    if (!workspaceSelectBound) {
+      options.workspaceSelect.addEventListener("change", handleWorkspaceSelectChange);
+      workspaceSelectBound = true;
+    }
+    if (!controlsBound) {
+      options.controlsRoot.addEventListener("click", handleControlsClick);
+      options.popoverOpenButton.addEventListener("click", handlePopoverOpenClick);
+      controlsBound = true;
+    }
+  }
+
+  function setupGlobalObservers(): void {
+    if (themeObserver) {
+      themeObserver.disconnect();
+    }
+    themeObserver = new MutationObserver(() => {
+      updateThemeColors();
+      requestRender();
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
     });
 
-    options.popoverOpenButton.addEventListener("click", () => {
-      if (!popoverSlug) return;
-      options.onOpenList(popoverSlug);
-    });
+    if (hostResizeObserver) {
+      hostResizeObserver.disconnect();
+      hostResizeObserver = null;
+    }
+    if (windowResizeHandler) {
+      window.removeEventListener("resize", windowResizeHandler);
+      windowResizeHandler = null;
+    }
+
+    if (typeof ResizeObserver !== "undefined") {
+      hostResizeObserver = new ResizeObserver(handleViewportResize);
+      hostResizeObserver.observe(options.canvasHost);
+      return;
+    }
+
+    windowResizeHandler = handleViewportResize;
+    window.addEventListener("resize", windowResizeHandler);
+  }
+
+  function setupControls(): void {
+    bindPersistentListeners();
   }
 
   function initGraphViewInternal(): void {
@@ -2037,41 +2100,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     currentWorkspace = workspaces[0].name;
     options.workspaceSelect.value = currentWorkspace;
 
-    options.workspaceSelect.addEventListener("change", () => {
-      switchWorkspace(options.workspaceSelect.value);
-    });
-
     updateThemeColors();
-
-    const observer = new MutationObserver(() => {
-      updateThemeColors();
-      requestRender();
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "data-theme"],
-    });
-
-    if (typeof ResizeObserver !== "undefined") {
-      const resizeObserver = new ResizeObserver(() => {
-        if (!active) return;
-        updateCanvasSize();
-        if (width <= 1 || height <= 1) return;
-        updateFitMetrics();
-        zoom = clamp(zoom, minZoom, MAX_ZOOM);
-        requestRender();
-      });
-      resizeObserver.observe(options.canvasHost);
-    } else {
-      window.addEventListener("resize", () => {
-        if (!active) return;
-        updateCanvasSize();
-        if (width <= 1 || height <= 1) return;
-        updateFitMetrics();
-        zoom = clamp(zoom, minZoom, MAX_ZOOM);
-        requestRender();
-      });
-    }
+    setupGlobalObservers();
 
     setupControls();
     if (!hasCanvas) {
