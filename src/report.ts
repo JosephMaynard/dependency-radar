@@ -1,8 +1,8 @@
-import fs from "fs/promises";
-import path from "path";
-import { AggregatedData } from "./types";
-import { buildCtaUrl } from "./cta";
-import { CSS_CONTENT, JS_CONTENT } from "./report-assets";
+import fs from 'fs/promises';
+import path from 'path';
+import { AggregatedData } from './types';
+import { buildCtaUrl } from './cta';
+import { CSS_CONTENT, JS_CONTENT } from './report-assets';
 
 /**
  * Escape occurrences of closing `</style` tags in a CSS payload to prevent premature termination when inlined into HTML.

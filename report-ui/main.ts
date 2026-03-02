@@ -1082,7 +1082,7 @@ function appendGithubFileLink(
     escapeHtml(value) +
     ' <a class="kv-inline-link" href="' +
     escapeHtml(fileUrl) +
-    '" target="_blank" rel="noopener">GitHub' +
+    '" target="_blank" rel="noopener noreferrer">GitHub' +
     '<svg class="kv-inline-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
     '<path d="M7 17 17 7"/><path d="M9 7h8v8"/>' +
     "</svg></a>"

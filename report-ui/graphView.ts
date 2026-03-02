@@ -101,6 +101,33 @@ export type GraphViewHandle = {
   requestRender: () => void;
 };
 
+type TouchState = {
+  active: boolean;
+  startX1: number;
+  startY1: number;
+  startX2: number;
+  startY2: number;
+  startPanX: number;
+  startPanY: number;
+  startDist: number;
+  startZoom: number;
+  anchorX: number;
+  anchorY: number;
+};
+
+type ThemeColors = {
+  runtime: string;
+  dev: string;
+  transitive: string;
+  edge: string;
+  highlight: string;
+  muted: string;
+  ringHigh: string;
+  ringModerate: string;
+  label: string;
+  backgroundPrimary: string;
+};
+
 declare global {
   interface Window {
     __DEPENDENCY_DATA__?: unknown;
@@ -406,7 +433,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     startPanY: 0,
   };
 
-  const touchState = {
+  const touchState: TouchState = {
     active: false,
     startX1: 0,
     startY1: 0,
@@ -416,12 +443,41 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     startPanY: 0,
     startDist: 0,
     startZoom: 0,
+    anchorX: 0,
+    anchorY: 0,
   };
 
   const context = options.canvas.getContext("2d");
   const hasCanvas = Boolean(context);
   let interactionsBound = false;
   let fallbackShown = false;
+  let themeColors: ThemeColors = {
+    runtime: "#10b981",
+    dev: "#f59e0b",
+    transitive: "#06b6d4",
+    edge: "#64748b",
+    highlight: "#22d3ee",
+    muted: "#64748b",
+    ringHigh: "#ef4444",
+    ringModerate: "#f59e0b",
+    label: "#e8edf5",
+    backgroundPrimary: "#0c1222",
+  };
+
+  function updateThemeColors(): void {
+    themeColors = {
+      runtime: getCssColor("--graph-direct-runtime") || "#10b981",
+      dev: getCssColor("--graph-direct-dev") || "#f59e0b",
+      transitive: getCssColor("--graph-transitive") || "#06b6d4",
+      edge: getCssColor("--graph-edge") || "#64748b",
+      highlight: getCssColor("--graph-highlight") || "#22d3ee",
+      muted: getCssColor("--graph-muted") || "#64748b",
+      ringHigh: getCssColor("--graph-vuln-high") || "#ef4444",
+      ringModerate: getCssColor("--graph-vuln-medium") || "#f59e0b",
+      label: getCssColor("--text-primary") || "#e8edf5",
+      backgroundPrimary: getCssColor("--bg-primary") || "#0c1222",
+    };
+  }
 
   function showCanvasFallback(): void {
     if (fallbackShown) return;
@@ -1047,16 +1103,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     context.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * panX, dpr * panY);
 
-    const colorRuntime = getCssColor("--graph-direct-runtime") || "#10b981";
-    const colorDev = getCssColor("--graph-direct-dev") || "#f59e0b";
-    const colorTransitive = getCssColor("--graph-transitive") || "#06b6d4";
-    const colorEdge = getCssColor("--graph-edge") || "#64748b";
-    const colorHighlight = getCssColor("--graph-highlight") || "#22d3ee";
-    const colorMuted = getCssColor("--graph-muted") || "#64748b";
-    const colorRingHigh = getCssColor("--graph-vuln-high") || "#ef4444";
-    const colorRingModerate = getCssColor("--graph-vuln-medium") || "#f59e0b";
-    const labelColor = getCssColor("--text-primary") || "#e8edf5";
-    const bgPrimary = getCssColor("--bg-primary") || "#0c1222";
+    const colorRuntime = themeColors.runtime;
+    const colorDev = themeColors.dev;
+    const colorTransitive = themeColors.transitive;
+    const colorEdge = themeColors.edge;
+    const colorHighlight = themeColors.highlight;
+    const colorMuted = themeColors.muted;
+    const colorRingHigh = themeColors.ringHigh;
+    const colorRingModerate = themeColors.ringModerate;
+    const labelColor = themeColors.label;
+    const bgPrimary = themeColors.backgroundPrimary;
 
     const visible = new Set<string>();
     graph.nodes.forEach((node) => {
@@ -1568,8 +1624,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const screenY = cy - rect.top;
 
       // Temporarily store these for the move event relative anchoring
-      (touchState as any).anchorX = screenX;
-      (touchState as any).anchorY = screenY;
+      touchState.anchorX = screenX;
+      touchState.anchorY = screenY;
     }
   }
 
@@ -1598,8 +1654,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (touchState.startDist > 0) {
         const factor = dist / touchState.startDist;
         const newZoom = touchState.startZoom * factor;
-        const anchorX = (touchState as any).anchorX || width / 2;
-        const anchorY = (touchState as any).anchorY || height / 2;
+        const anchorX = touchState.anchorX || width / 2;
+        const anchorY = touchState.anchorY || height / 2;
         applyZoom(newZoom, anchorX, anchorY);
       }
     }
@@ -1770,7 +1826,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       switchWorkspace(options.workspaceSelect.value);
     });
 
-    const observer = new MutationObserver(() => requestRender());
+    updateThemeColors();
+
+    const observer = new MutationObserver(() => {
+      updateThemeColors();
+      requestRender();
+    });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class", "data-theme"],
