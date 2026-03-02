@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.tryBuildDependencyTreeFromLockfile = tryBuildDependencyTreeFromLockfile;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const yaml_1 = __importDefault(require("yaml"));
+const lockfileParsers_1 = require("./lockfileParsers");
 const treeCache = new Map();
 const parseCache = new Map();
 /**
@@ -672,20 +672,7 @@ function parseYarnTree(projectPath, searchRoot) {
  * @returns A Map where each selector string maps to its YarnV1Entry, or `undefined` if parsing fails or the lockfile is not a Yarn v1 success parse
  */
 function parseYarnV1(raw) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const lockfile = require('@yarnpkg/lockfile');
-    const parsed = lockfile.parse(raw);
-    if (!parsed || parsed.type !== 'success' || !parsed.object)
-        return undefined;
-    const map = new Map();
-    for (const [selectorKey, entry] of Object.entries(parsed.object)) {
-        for (const selector of splitSelectors(selectorKey)) {
-            if (!map.has(selector)) {
-                map.set(selector, entry || {});
-            }
-        }
-    }
-    return map;
+    return (0, lockfileParsers_1.parseYarnV1Lockfile)(raw);
 }
 /**
  * Parse a Yarn v2 (Berry) lockfile YAML string into a selector-to-entry map.
@@ -694,7 +681,7 @@ function parseYarnV1(raw) {
  * @returns A Map where each lockfile selector maps to its YarnV2Entry, or `undefined` if the input could not be parsed into an object
  */
 function parseYarnV2(raw) {
-    const parsed = yaml_1.default.parse(raw);
+    const parsed = (0, lockfileParsers_1.parseYamlLike)(raw);
     if (!parsed || typeof parsed !== 'object')
         return undefined;
     const map = new Map();
@@ -861,10 +848,7 @@ function collectPackageJsonDependencySpecs(pkg) {
  * @returns An array of trimmed, non-empty selector strings
  */
 function splitSelectors(selectorKey) {
-    return selectorKey
-        .split(',')
-        .map((part) => part.trim())
-        .filter(Boolean);
+    return (0, lockfileParsers_1.splitSelectorList)(selectorKey);
 }
 /**
  * Merge two arbitrary values into a string-to-string record, with entries from the second overriding the first.
@@ -1026,7 +1010,7 @@ function getCachedYaml(filePath) {
     const raw = readCachedText(filePath);
     if (!raw)
         return undefined;
-    const parsed = yaml_1.default.parse(raw);
+    const parsed = (0, lockfileParsers_1.parseYamlLike)(raw);
     parseCache.set(cacheKey, parsed);
     return parsed;
 }

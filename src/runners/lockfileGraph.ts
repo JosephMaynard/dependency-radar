@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import YAML from 'yaml';
+import { parseYamlLike, parseYarnV1Lockfile, splitSelectorList } from './lockfileParsers';
 
 export type ResolvedNode = {
   name: string;
@@ -752,22 +752,7 @@ function parseYarnTree(projectPath: string, searchRoot: string): LockfileTreeRes
  * @returns A Map where each selector string maps to its YarnV1Entry, or `undefined` if parsing fails or the lockfile is not a Yarn v1 success parse
  */
 function parseYarnV1(raw: string): Map<string, YarnV1Entry> | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const lockfile = require('@yarnpkg/lockfile') as {
-    parse: (value: string) => { type: string; object?: Record<string, YarnV1Entry> };
-  };
-  const parsed = lockfile.parse(raw);
-  if (!parsed || parsed.type !== 'success' || !parsed.object) return undefined;
-
-  const map = new Map<string, YarnV1Entry>();
-  for (const [selectorKey, entry] of Object.entries(parsed.object)) {
-    for (const selector of splitSelectors(selectorKey)) {
-      if (!map.has(selector)) {
-        map.set(selector, entry || {});
-      }
-    }
-  }
-  return map;
+  return parseYarnV1Lockfile(raw);
 }
 
 /**
@@ -777,7 +762,7 @@ function parseYarnV1(raw: string): Map<string, YarnV1Entry> | undefined {
  * @returns A Map where each lockfile selector maps to its YarnV2Entry, or `undefined` if the input could not be parsed into an object
  */
 function parseYarnV2(raw: string): Map<string, YarnV2Entry> | undefined {
-  const parsed = YAML.parse(raw) as Record<string, any>;
+  const parsed = parseYamlLike(raw) as Record<string, any>;
   if (!parsed || typeof parsed !== 'object') return undefined;
   const map = new Map<string, YarnV2Entry>();
 
@@ -957,10 +942,7 @@ function collectPackageJsonDependencySpecs(pkg: any): Record<string, string> {
  * @returns An array of trimmed, non-empty selector strings
  */
 function splitSelectors(selectorKey: string): string[] {
-  return selectorKey
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
+  return splitSelectorList(selectorKey);
 }
 
 /**
@@ -1128,7 +1110,7 @@ function getCachedYaml(filePath: string): unknown {
   if (parseCache.has(cacheKey)) return parseCache.get(cacheKey);
   const raw = readCachedText(filePath);
   if (!raw) return undefined;
-  const parsed = YAML.parse(raw);
+  const parsed = parseYamlLike(raw);
   parseCache.set(cacheKey, parsed);
   return parsed;
 }
