@@ -730,6 +730,7 @@ select:focus {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  user-select: none;
 }
 
 .graph-workspace-select {
@@ -802,6 +803,67 @@ select.graph-workspace-select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+.graph-key {
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.graph-key-items {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.graph-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.graph-key-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.graph-key-dot.dependency {
+  background: var(--graph-direct-runtime);
+}
+
+.graph-key-dot.dev-dependency {
+  background: var(--graph-direct-dev);
+}
+
+.graph-key-dot.sub-dependency {
+  background: var(--graph-transitive);
+}
+
+[data-theme="light"] .graph-key {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(100, 116, 139, 0.15);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
 [data-theme="light"] .graph-overlay {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(100, 116, 139, 0.15);
@@ -815,10 +877,18 @@ select.graph-workspace-select:focus {
 }
 
 .graph-overlay-left {
-  top: 56px;
-  left: 12px;
-  flex-direction: column;
-  align-items: flex-start;
+  padding: 4px 4px 4px 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .graph-overlay-right {
@@ -826,7 +896,28 @@ select.graph-workspace-select:focus {
   right: 12px;
 }
 
+.graph-overlay-top {
+  align-items: center;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: calc(100% - 160px);
+}
+
 .graph-back-btn {
+  gap: 8px;
+  padding: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   top: 12px;
   left: 12px;
   /* removing border and background here so it inherits from .graph-overlay */
@@ -841,6 +932,7 @@ select.graph-workspace-select:focus {
     border-color var(--transition),
     color var(--transition),
     box-shadow var(--transition);
+  user-select: none;
 }
 
 .graph-back-btn:hover {
@@ -2188,6 +2280,19 @@ details[open] > summary .expand-icon {
   .graph-overlay-left {
     left: 8px;
     top: 48px;
+  }
+
+  .graph-key {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+
+  .graph-key-items {
+    gap: 8px;
+  }
+
+  .graph-key-item {
+    font-size: 11px;
   }
 
   .graph-back-btn {

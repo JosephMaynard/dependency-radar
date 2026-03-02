@@ -1121,11 +1121,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.moveTo(sourceX, sourceY);
 
       if (span === 0) {
-        const sameColumn = Math.abs(sourceX - targetX) < SAME_COLUMN_X_THRESHOLD;
+        const sameColumn =
+          Math.abs(sourceX - targetX) < SAME_COLUMN_X_THRESHOLD;
         const verticalSpan = Math.abs(sourceY - targetY);
         const hasRightCorridor = from.depth < maxDepth;
 
-        if (sameColumn && verticalSpan > MIN_DETOUR_VERTICAL_SPAN && hasRightCorridor) {
+        if (
+          sameColumn &&
+          verticalSpan > MIN_DETOUR_VERTICAL_SPAN &&
+          hasRightCorridor
+        ) {
           const currentColumnX = PADDING_X + from.depth * LAYER_GAP;
           const nextColumnX = PADDING_X + (from.depth + 1) * LAYER_GAP;
           const corridorCenterX = (currentColumnX + nextColumnX) * 0.5;
@@ -1149,7 +1154,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           detourX = clamp(detourX, detourMinX, detourMaxX);
 
           const outSpan = Math.max(1, detourX - sourceX);
-          const cornerRadius = clamp(Math.min(outSpan, verticalSpan) * 0.42, 16, 52);
+          const cornerRadius = clamp(
+            Math.min(outSpan, verticalSpan) * 0.42,
+            16,
+            52,
+          );
           drawSmoothedPolyline(
             [
               { x: sourceX, y: sourceY },
@@ -1172,7 +1181,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
       if (span === 1) {
         const leftDepth = Math.min(from.depth, to.depth);
-        const corridorCenterX = PADDING_X + leftDepth * LAYER_GAP + LAYER_GAP * 0.5;
+        const corridorCenterX =
+          PADDING_X + leftDepth * LAYER_GAP + LAYER_GAP * 0.5;
         context.bezierCurveTo(
           corridorCenterX,
           sourceY,
@@ -1249,20 +1259,17 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.strokeStyle = colorHighlight;
     context.lineWidth = 1.2;
     context.globalAlpha = highlightedEdgeOpacity();
-    context.shadowColor = colorHighlight;
-    context.shadowBlur = 8;
     renderEdges.forEach((edge) => {
       if (!edge.highlighted) return;
       drawRoutedEdge(edge.from, edge.to);
     });
-    context.shadowBlur = 0;
+
     context.globalCompositeOperation = "source-over";
 
     graph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
       const selected = focusSlug === node.slug;
       const radius = renderedNodeRadius(node);
-      const isHovered = hoverNodes && hoverNodes.has(node.slug);
 
       context.globalAlpha = nodeOpacity(node.slug);
 
@@ -1278,29 +1285,19 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (node.kind === "direct-runtime") {
         grad.addColorStop(0, "#34d399");
         grad.addColorStop(1, colorRuntime);
-        context.shadowColor = colorRuntime;
       } else if (node.kind === "direct-dev") {
         grad.addColorStop(0, "#fcd34d");
         grad.addColorStop(1, colorDev);
-        context.shadowColor = colorDev;
       } else {
         grad.addColorStop(0, "#67e8f9");
         grad.addColorStop(1, colorTransitive);
-        context.shadowColor = colorTransitive;
       }
 
       context.fillStyle = grad;
 
-      if (selected || isHovered) {
-        context.shadowBlur = selected ? 16 : 8;
-      } else {
-        context.shadowBlur = 0;
-      }
-
       context.beginPath();
       context.arc(node.renderX, node.renderY, radius, 0, Math.PI * 2);
       context.fill();
-      context.shadowBlur = 0;
 
       if (selected) {
         context.globalAlpha = 0.95;

@@ -342,6 +342,23 @@ ${safeCssContent}
           <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
           <select id="graph-workspace" class="graph-workspace-select"></select>
         </div>
+        <div class="graph-overlay graph-key" aria-label="Graph key">
+          <span class="graph-workspace-label">Key</span>
+          <div class="graph-key-items">
+            <span class="graph-key-item">
+              <span class="graph-key-dot dependency" aria-hidden="true"></span>
+              <span>Dependency</span>
+            </span>
+            <span class="graph-key-item">
+              <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
+              <span>Dev-Dependency</span>
+            </span>
+            <span class="graph-key-item">
+              <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
+              <span>Sub-Dependency</span>
+            </span>
+          </div>
+        </div>
         <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
           <div class="zoom-controls">
             <button type="button" class="graph-control-btn" data-action="zoom-in" aria-label="Zoom In">+</button>
