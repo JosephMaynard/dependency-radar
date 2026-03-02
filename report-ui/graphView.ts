@@ -41,6 +41,8 @@ type GraphNode = {
   renderX: number;
   renderY: number;
   radius: number;
+  targetRadius: number;
+  renderRadius: number;
 };
 
 type GraphEdge = {
@@ -395,9 +397,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let width = 1;
   let height = 1;
 
-  let ringRotation = 0;
-  let animatingRings = false;
-
   const panState = {
     down: false,
     moved: false,
@@ -514,7 +513,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const dx = x - node.renderX;
       const dy = y - node.renderY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= node.radius + 5) hit = node;
+      if (dist <= node.renderRadius + 5) hit = node;
     });
     return hit;
   }
@@ -584,6 +583,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         renderX: 0,
         renderY: 0,
         radius: 8,
+        targetRadius: 8,
+        renderRadius: 8,
       });
     });
 
@@ -786,6 +787,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
             ? Math.log(node.amplification + 1) * 1.05
             : 0;
         node.radius = 6.7 + relationshipFactor + amplificationFactor;
+        node.targetRadius = node.radius;
+        node.renderRadius = node.radius;
 
         graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX);
         graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX);
@@ -874,6 +877,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       : null;
 
     currentGraph.nodes.forEach((node) => {
+      node.targetRadius = targetNodeRadius(node);
       if (!selected || !focusPushNodes.has(node.slug)) {
         node.targetX = node.baseX;
         node.targetY = node.baseY;
@@ -894,9 +898,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     currentGraph.nodes.forEach((node) => {
       node.renderX += (node.targetX - node.renderX) * 0.15;
       node.renderY += (node.targetY - node.renderY) * 0.15;
+      node.renderRadius += (node.targetRadius - node.renderRadius) * 0.18;
       const settled =
         Math.abs(node.targetX - node.renderX) < 0.06 &&
-        Math.abs(node.targetY - node.renderY) < 0.06;
+        Math.abs(node.targetY - node.renderY) < 0.06 &&
+        Math.abs(node.targetRadius - node.renderRadius) < 0.04;
       if (!settled) moving = true;
     });
     return moving;
@@ -995,7 +1001,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.95;
   }
 
-  function renderedNodeRadius(node: GraphNode): number {
+  function targetNodeRadius(node: GraphNode): number {
     const selected = focusSlug === node.slug;
     const inFocus = focusNodes.has(node.slug);
     let radius = node.radius;
@@ -1033,7 +1039,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.clearRect(0, 0, width, height);
     if (!currentGraph) return;
     const graph = currentGraph;
-    animatingRings = false;
 
     const worldMinX = worldX(0) - 80;
     const worldMaxX = worldX(width) + 80;
@@ -1055,11 +1060,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const visible = new Set<string>();
     graph.nodes.forEach((node) => {
+      const extent = Math.max(node.radius, node.renderRadius);
       if (
-        node.renderX + node.radius >= worldMinX &&
-        node.renderX - node.radius <= worldMaxX &&
-        node.renderY + node.radius >= worldMinY &&
-        node.renderY - node.radius <= worldMaxY
+        node.renderX + extent >= worldMinX &&
+        node.renderX - extent <= worldMaxX &&
+        node.renderY + extent >= worldMinY &&
+        node.renderY - extent <= worldMaxY
       ) {
         visible.add(node.slug);
       }
@@ -1274,7 +1280,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     graph.nodes.forEach((node) => {
       if (!visible.has(node.slug)) return;
       const selected = focusSlug === node.slug;
-      const radius = renderedNodeRadius(node);
+      const radius = node.renderRadius;
 
       // Draw an opaque background to occlude lines passing underneath
       context.globalAlpha = 1;
@@ -1328,7 +1334,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         return;
       if (node.ref.vulnerabilitySeverity === "none") return;
 
-      const radius = renderedNodeRadius(node);
+      const radius = node.renderRadius;
       const isHigh = node.ref.vulnerabilitySeverity === "high";
       const color = isHigh ? colorRingHigh : colorRingModerate;
 
@@ -1407,7 +1413,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.globalAlpha = nodeOpacity(node.slug);
       context.fillText(
         node.ref.name,
-        node.renderX + renderedNodeRadius(node) + 6,
+        node.renderX + node.renderRadius + 6,
         node.renderY,
       );
     });
@@ -1425,13 +1431,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     updateTargets();
     const moving = animateNodes();
 
-    if (dirty || moving || animatingRings) {
-      if (animatingRings) {
-        ringRotation += 0.0005;
-      }
+    if (dirty || moving) {
       renderGraph();
       dirty = false;
-      if (active && (dirty || moving || animatingRings)) {
+      if (active && (dirty || moving)) {
         frameId = window.requestAnimationFrame(tick);
       } else {
         frameId = 0;
