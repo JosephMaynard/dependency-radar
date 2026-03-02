@@ -442,6 +442,58 @@ function isGraphDataset(value: unknown): value is GraphDataset {
   if (!Array.isArray(input.workspaces)) return false;
   if (!input.dependencies || typeof input.dependencies !== "object")
     return false;
+
+  const isWorkspace = (workspace: unknown): workspace is GraphWorkspace => {
+    if (!workspace || typeof workspace !== "object") return false;
+    const candidate = workspace as Record<string, unknown>;
+    if (typeof candidate.name !== "string") return false;
+    if (!Array.isArray(candidate.directDependencies)) return false;
+    if (!Array.isArray(candidate.directDevDependencies)) return false;
+    return true;
+  };
+
+  const hasValidStringArray = (value: unknown): boolean =>
+    Array.isArray(value) && value.every((item) => typeof item === "string");
+
+  if (!input.workspaces.every((workspace) => isWorkspace(workspace))) {
+    return false;
+  }
+
+  if (
+    !input.workspaces.every(
+      (workspace) =>
+        hasValidStringArray(workspace.directDependencies) &&
+        hasValidStringArray(workspace.directDevDependencies),
+    )
+  ) {
+    return false;
+  }
+
+  const dependencyEntries = Object.entries(
+    input.dependencies as Record<string, unknown>,
+  );
+  if (
+    !dependencyEntries.every(([, dependencyValue]) => {
+      if (!dependencyValue || typeof dependencyValue !== "object") return false;
+      const dependency = dependencyValue as Record<string, unknown>;
+      if (
+        dependency.dependencies !== undefined &&
+        !Array.isArray(dependency.dependencies)
+      ) {
+        return false;
+      }
+      if (
+        dependency.workspaceOrigins !== undefined &&
+        !Array.isArray(dependency.workspaceOrigins)
+      ) {
+        return false;
+      }
+      return true;
+    })
+  ) {
+    return false;
+  }
+
   return true;
 }
 
@@ -522,10 +574,14 @@ function adaptDataset(
         (dep.vulnerabilityHighest as string | undefined) ||
         (dep.highestSeverity as string | undefined) ||
         "none";
+      const normalizedSeverity = String(rawSeverity).trim().toLowerCase();
       let vulnerabilitySeverity: "high" | "moderate" | "none" = "none";
-      if (rawSeverity === "critical" || rawSeverity === "high") {
+      if (normalizedSeverity === "critical" || normalizedSeverity === "high") {
         vulnerabilitySeverity = "high";
-      } else if (rawSeverity === "moderate" || rawSeverity === "medium") {
+      } else if (
+        normalizedSeverity === "moderate" ||
+        normalizedSeverity === "medium"
+      ) {
         vulnerabilitySeverity = "moderate";
       }
 
