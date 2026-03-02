@@ -111,6 +111,7 @@ const PADDING_X = 96;
 const PADDING_Y = 64;
 const PUSH_RADIUS = 120;
 const MAX_ZOOM = 2.8;
+const MIN_ZOOM_FIT_RATIO = 0.86;
 const EDGE_CURVE = 0.2;
 
 function clamp(value: number, min: number, max: number): number {
@@ -485,7 +486,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const fitZoomX = width / graphWidth;
     const fitZoomY = height / graphHeight;
     fitZoom = clamp(Math.min(fitZoomX, fitZoomY), 0.05, MAX_ZOOM);
-    minZoom = clamp(fitZoom * 0.95, 0.05, MAX_ZOOM);
+    minZoom = clamp(fitZoom * MIN_ZOOM_FIT_RATIO, 0.05, MAX_ZOOM);
     defaultPanX = (width - graphWidth * fitZoom) * 0.5 - bounds.minX * fitZoom;
     defaultPanY =
       (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
@@ -1173,21 +1174,19 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.stroke();
     });
 
-    if (zoom >= 0.72) {
-      context.textBaseline = "middle";
-      context.font =
-        '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      context.fillStyle = labelColor;
-      graph.nodes.forEach((node) => {
-        if (!visible.has(node.slug)) return;
-        context.globalAlpha = nodeOpacity(node.slug);
-        context.fillText(
-          node.ref.name,
-          node.renderX + renderedNodeRadius(node) + 6,
-          node.renderY,
-        );
-      });
-    }
+    context.textBaseline = "middle";
+    context.font =
+      '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillStyle = labelColor;
+    graph.nodes.forEach((node) => {
+      if (!visible.has(node.slug)) return;
+      context.globalAlpha = nodeOpacity(node.slug);
+      context.fillText(
+        node.ref.name,
+        node.renderX + renderedNodeRadius(node) + 6,
+        node.renderY,
+      );
+    });
 
     context.globalAlpha = 1;
     updatePopoverPosition();
