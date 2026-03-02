@@ -876,6 +876,10 @@ select.graph-workspace-select:focus {
   display: none;
 }
 
+.graph-overlay-left.hidden {
+  display: none;
+}
+
 .graph-overlay-left {
   padding: 4px 4px 4px 8px;
   flex-direction: row;
@@ -889,6 +893,14 @@ select.graph-workspace-select:focus {
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .graph-overlay-left {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(100, 116, 139, 0.15);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .graph-overlay-right {
@@ -946,6 +958,14 @@ select.graph-workspace-select:focus {
 [data-theme="light"] .graph-back-btn:hover {
   background: rgba(0, 0, 0, 0.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .graph-back-btn {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(100, 116, 139, 0.15);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .graph-controls {
