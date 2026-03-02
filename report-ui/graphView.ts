@@ -1149,26 +1149,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           detourX = clamp(detourX, detourMinX, detourMaxX);
 
           const outSpan = Math.max(1, detourX - sourceX);
-          const inSpan = Math.max(1, Math.abs(targetX - detourX));
-          const curveOut = clamp(outSpan * 0.55, 24, 54);
-          const curveIn = clamp(inSpan * 0.55, 24, 54);
-
-          context.bezierCurveTo(
-            sourceX + curveOut,
-            sourceY,
-            detourX - curveOut,
-            sourceY,
-            detourX,
-            sourceY,
-          );
-          context.lineTo(detourX, targetY);
-          context.bezierCurveTo(
-            detourX + curveIn,
-            targetY,
-            targetX - curveIn,
-            targetY,
-            targetX,
-            targetY,
+          const cornerRadius = clamp(Math.min(outSpan, verticalSpan) * 0.22, 10, 22);
+          drawSmoothedPolyline(
+            [
+              { x: sourceX, y: sourceY },
+              { x: detourX, y: sourceY },
+              { x: detourX, y: targetY },
+              { x: targetX, y: targetY },
+            ],
+            cornerRadius,
           );
           context.stroke();
           return;
