@@ -125,6 +125,7 @@ function parseYarnV1Lockfile(raw) {
         let currentSelectors = [];
         let currentEntry;
         let currentSection;
+        // Persist the currently parsed entry into every selector alias that points to it.
         const flushEntry = () => {
             if (!currentEntry || currentSelectors.length === 0)
                 return;
