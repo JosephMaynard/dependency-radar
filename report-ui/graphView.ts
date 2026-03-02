@@ -1018,6 +1018,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.36 * zoomFactor;
   }
 
+  function vulnerabilityRingOpacity(slug: string): number {
+    if (focusSlug) return focusNodes.has(slug) ? 0.78 : 0.11;
+    if (hoverSlug) return hoverNodes.has(slug) ? 0.76 : 0.12;
+    return 0.8;
+  }
+
   function renderGraph(): void {
     if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1163,7 +1169,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         return;
       if (node.ref.vulnerabilitySeverity === "none") return;
       const radius = renderedNodeRadius(node);
-      context.globalAlpha = 0.8;
+      context.globalAlpha = vulnerabilityRingOpacity(node.slug);
       context.lineWidth = 2;
       context.strokeStyle =
         node.ref.vulnerabilitySeverity === "high"
