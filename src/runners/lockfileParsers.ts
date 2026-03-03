@@ -131,7 +131,7 @@ export function parseYarnV1Lockfile(raw: string): Map<string, YarnLockEntry> | u
     let currentSection: 'dependencies' | 'optionalDependencies' | undefined;
 
     // Persist the currently parsed entry into every selector alias that points to it.
-    const flushEntry = () => {
+    const flushEntry = (): void => {
       if (!currentEntry || currentSelectors.length === 0) return;
       const entry: YarnLockEntry = {};
       if (currentEntry.version) entry.version = currentEntry.version;
