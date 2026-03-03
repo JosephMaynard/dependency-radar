@@ -950,6 +950,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
   }
 
+  function updateHoverFromClientPosition(
+    clientX: number,
+    clientY: number,
+  ): GraphNode | null {
+    const node = findNode(clientX, clientY);
+    updateHover(node ? node.slug : null);
+    setCanvasClickableCursor(Boolean(node));
+    return node;
+  }
+
   function buildWorkspaceGraph(name: string): WorkspaceGraph | null {
     const workspace = workspaceByName.get(name);
     if (!workspace) return null;
@@ -1777,9 +1787,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleWindowMouseMove(event: MouseEvent): void {
     if (!panState.down) {
-      const node = findNode(event.clientX, event.clientY);
-      updateHover(node ? node.slug : null);
-      setCanvasClickableCursor(Boolean(node));
+      updateHoverFromClientPosition(event.clientX, event.clientY);
       return;
     }
 
@@ -1799,12 +1807,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.moved = false;
 
     if (moved) {
-      setCanvasClickableCursor(Boolean(findNode(event.clientX, event.clientY)));
+      updateHoverFromClientPosition(event.clientX, event.clientY);
       return;
     }
 
-    const node = findNode(event.clientX, event.clientY);
-    setCanvasClickableCursor(Boolean(node));
+    const node = updateHoverFromClientPosition(event.clientX, event.clientY);
     if (!node) {
       clearFocus();
       hidePopover();
