@@ -321,6 +321,88 @@ b@1.0.0:
     expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
   });
 
+  it('builds yarn v1 tree when selector keys include quoted ranges', async () => {
+    const projectPath = await makeTempDir('dr-lock-yarn-v1-quoted');
+    const tempDir = await makeTempDir('dr-lock-yarn-v1-quoted-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-yarn-v1-quoted',
+      version: '1.0.0',
+      dependencies: { through: '^2.3.6' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), `
+# yarn lockfile v1
+
+# Yarn v1 can merge selectors into one key and quote individual selector entries.
+"through@>=2.2.7 <3", through@^2.3.6:
+  version "2.3.8"
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'yarn');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.through).toBeDefined();
+    expect(result.data?.dependencies.through?.version).toBe('2.3.8');
+  });
+
+  it('builds yarn v1 tree when all selector aliases are individually quoted', async () => {
+    const projectPath = await makeTempDir('dr-lock-yarn-v1-all-quoted');
+    const tempDir = await makeTempDir('dr-lock-yarn-v1-all-quoted-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-yarn-v1-all-quoted',
+      version: '1.0.0',
+      dependencies: { through: '^2.3.6' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), `
+# yarn lockfile v1
+
+# Some lockfiles quote each alias separately.
+"through@>=2.2.7 <3", "through@^2.3.6":
+  version "2.3.8"
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'yarn');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.through).toBeDefined();
+    expect(result.data?.dependencies.through?.version).toBe('2.3.8');
+  });
+
+  it('builds yarn berry tree from combined selectors with npm-prefixed ranges', async () => {
+    const projectPath = await makeTempDir('dr-lock-yarn-berry');
+    const tempDir = await makeTempDir('dr-lock-yarn-berry-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-yarn-berry',
+      version: '1.0.0',
+      dependencies: { chalk: '^4.1.1' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), `
+__metadata:
+  version: 8
+  cacheKey: 10c0
+
+# Berry keys are often emitted as one quoted selector list with npm:-prefixed ranges.
+"chalk@npm:^4.1.0, chalk@npm:^4.1.1":
+  version: 4.1.2
+  dependencies:
+    ansi-styles: "npm:^4.1.0"
+
+# Child entries use the same selector-list pattern and should still resolve correctly.
+"ansi-styles@npm:^4.0.0, ansi-styles@npm:^4.1.0":
+  version: 4.3.0
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'yarn');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.chalk).toBeDefined();
+    expect(result.data?.dependencies.chalk?.version).toBe('4.1.2');
+    expect(result.data?.dependencies.chalk?.dependencies?.['ansi-styles']).toBeDefined();
+    expect(result.data?.dependencies.chalk?.dependencies?.['ansi-styles']?.version).toBe('4.3.0');
+  });
+
   it('does not read lockfiles above the project path boundary', async () => {
     const rootPath = await makeTempDir('dr-lock-boundary-root');
     const projectPath = path.join(rootPath, 'project');
