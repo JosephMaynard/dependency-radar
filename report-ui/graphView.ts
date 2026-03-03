@@ -696,6 +696,15 @@ function adaptDataset(
   return { workspaces, dependencies };
 }
 
+/**
+ * Create and wire up an interactive dependency graph view bound to the provided canvas, controls, and dataset.
+ *
+ * Initializes internal dataset adaptation, event handlers, rendering loop, and UI bindings and returns a handle
+ * that allows programmatic control of the view and its lifecycle.
+ *
+ * @param options - Configuration and DOM element references required to render and control the graph view (canvas, host, controls, popover elements, dataset/report and related callbacks).
+ * @returns A GraphViewHandle exposing methods to initialize and control the view (for example: `initGraphView`, `buildWorkspaceGraph`, `computeAmplification`, `layoutGraph`, `renderLoop`, `applyFocus`, `clearFocus`, `showPopover`, `hidePopover`, `switchWorkspace`, `setActive`, `requestRender`).
+ */
 export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   const dataset = adaptDataset(
     options.report,
