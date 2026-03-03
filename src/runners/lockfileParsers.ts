@@ -214,14 +214,35 @@ export function parseYarnV1Lockfile(raw: string): Map<string, YarnLockEntry> | u
  * @returns An array of normalized selector strings in order of appearance
  */
 export function splitSelectorList(selectorKey: string): string[] {
-  const normalized = unwrapOuterQuotes(selectorKey.trim());
+  const out = tokenizeSelectorParts(selectorKey.trim())
+    .map(normalizeSelectorToken)
+    .filter(Boolean);
+
+  // Yarn Berry often stores the *entire* selector list as one quoted scalar.
+  // If that happens, split the unwrapped scalar again to recover aliases.
+  if (out.length === 1 && out[0].includes(',')) {
+    return tokenizeSelectorParts(out[0])
+      .map(normalizeSelectorToken)
+      .filter(Boolean);
+  }
+
+  return out;
+}
+
+/**
+ * Tokenize a selector list by commas that are outside quote scopes.
+ *
+ * @param value - Raw selector list text.
+ * @returns Raw selector tokens in source order.
+ */
+function tokenizeSelectorParts(value: string): string[] {
   const out: string[] = [];
   let current = '';
   let inSingle = false;
   let inDouble = false;
   let escaped = false;
 
-  for (const ch of normalized) {
+  for (const ch of value) {
     if (inDouble && ch === '\\' && !escaped) {
       escaped = true;
       current += ch;
@@ -249,8 +270,7 @@ export function splitSelectorList(selectorKey: string): string[] {
     escaped = false;
   }
 
-  const tail = normalizeSelectorToken(current);
-  if (tail) out.push(tail);
+  out.push(current);
   return out;
 }
 

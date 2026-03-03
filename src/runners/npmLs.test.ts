@@ -345,6 +345,30 @@ b@1.0.0:
     expect(result.data?.dependencies.through?.version).toBe('2.3.8');
   });
 
+  it('builds yarn v1 tree when all selector aliases are individually quoted', async () => {
+    const projectPath = await makeTempDir('dr-lock-yarn-v1-all-quoted');
+    const tempDir = await makeTempDir('dr-lock-yarn-v1-all-quoted-out');
+
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-yarn-v1-all-quoted',
+      version: '1.0.0',
+      dependencies: { through: '^2.3.6' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), `
+# yarn lockfile v1
+
+# Some lockfiles quote each alias separately.
+"through@>=2.2.7 <3", "through@^2.3.6":
+  version "2.3.8"
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'yarn');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.through).toBeDefined();
+    expect(result.data?.dependencies.through?.version).toBe('2.3.8');
+  });
+
   it('builds yarn berry tree from combined selectors with npm-prefixed ranges', async () => {
     const projectPath = await makeTempDir('dr-lock-yarn-berry');
     const tempDir = await makeTempDir('dr-lock-yarn-berry-out');
