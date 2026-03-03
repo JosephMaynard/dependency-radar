@@ -696,6 +696,15 @@ function adaptDataset(
   return { workspaces, dependencies };
 }
 
+/**
+ * Create and wire up an interactive dependency graph view bound to the provided canvas, controls, and dataset.
+ *
+ * Initializes internal dataset adaptation, event handlers, rendering loop, and UI bindings and returns a handle
+ * that allows programmatic control of the view and its lifecycle.
+ *
+ * @param options - Configuration and DOM element references required to render and control the graph view (canvas, host, controls, popover elements, dataset/report and related callbacks).
+ * @returns A GraphViewHandle exposing methods to initialize and control the view (for example: `initGraphView`, `buildWorkspaceGraph`, `computeAmplification`, `layoutGraph`, `renderLoop`, `applyFocus`, `clearFocus`, `showPopover`, `hidePopover`, `switchWorkspace`, `setActive`, `requestRender`).
+ */
 export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   const dataset = adaptDataset(
     options.report,
@@ -902,6 +911,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function findNode(clientX: number, clientY: number): GraphNode | null {
     if (!currentGraph) return null;
     const rect = options.canvas.getBoundingClientRect();
+    if (
+      clientX < rect.left ||
+      clientX > rect.right ||
+      clientY < rect.top ||
+      clientY > rect.bottom
+    ) {
+      return null;
+    }
     const x = worldX(clientX - rect.left);
     const y = worldY(clientY - rect.top);
 
@@ -917,6 +934,30 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
     return hit;
+  }
+
+  function setCanvasClickableCursor(clickable: boolean): void {
+    options.canvas.classList.toggle(
+      "is-clickable",
+      clickable && !panState.down && !touchState.active,
+    );
+  }
+
+  function resetInteractionVisualState(clearPanningCursor = false): void {
+    setCanvasClickableCursor(false);
+    if (clearPanningCursor) {
+      options.canvas.classList.remove("is-panning");
+    }
+  }
+
+  function updateHoverFromClientPosition(
+    clientX: number,
+    clientY: number,
+  ): GraphNode | null {
+    const node = findNode(clientX, clientY);
+    updateHover(node ? node.slug : null);
+    setCanvasClickableCursor(Boolean(node));
+    return node;
   }
 
   function buildWorkspaceGraph(name: string): WorkspaceGraph | null {
@@ -1267,6 +1308,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     focusNodes = new Set();
     focusEdges = new Set();
     focusPushNodes = new Set();
+    dirty = true;
+    requestRender();
+  }
+
+  function clearHover(shouldRender = true): void {
+    hoverSlug = null;
+    hoverNodes = new Set();
+    hoverEdges = new Set();
+    if (!shouldRender) return;
     dirty = true;
     requestRender();
   }
@@ -1726,6 +1776,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     hoverSlug = null;
     hoverNodes = new Set();
     hoverEdges = new Set();
+    resetInteractionVisualState(true);
     fitGraph();
     dirty = true;
     requestRender();
@@ -1739,13 +1790,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
+    resetInteractionVisualState();
     options.canvas.classList.add("is-panning");
   }
 
   function handleWindowMouseMove(event: MouseEvent): void {
     if (!panState.down) {
-      const node = findNode(event.clientX, event.clientY);
-      updateHover(node ? node.slug : null);
+      updateHoverFromClientPosition(event.clientX, event.clientY);
       return;
     }
 
@@ -1764,10 +1815,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.down = false;
     panState.moved = false;
 
-    if (moved) return;
+    if (moved) {
+      updateHoverFromClientPosition(event.clientX, event.clientY);
+      return;
+    }
 
-    const node = findNode(event.clientX, event.clientY);
+    const node = updateHoverFromClientPosition(event.clientX, event.clientY);
     if (!node) {
+      clearHover(false);
       clearFocus();
       hidePopover();
       return;
@@ -1797,6 +1852,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 0) return;
     event.preventDefault();
+    resetInteractionVisualState();
 
     const rect = options.canvas.getBoundingClientRect();
 
@@ -1872,7 +1928,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const canceled = event.type === "touchcancel";
 
     if (canceled) {
-      options.canvas.classList.remove("is-panning");
+      resetInteractionVisualState(true);
       touchState.active = false;
       touchState.anchorX = null;
       touchState.anchorY = null;
@@ -1881,7 +1937,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
 
     if (event.touches.length === 0) {
-      options.canvas.classList.remove("is-panning");
+      resetInteractionVisualState(true);
       touchState.active = false;
       touchState.anchorX = null;
       touchState.anchorY = null;
@@ -1892,6 +1948,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           event.changedTouches[0].clientY,
         );
         if (!node) {
+          clearHover(false);
           clearFocus();
           hidePopover();
         } else {
@@ -1911,6 +1968,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleCanvasMouseLeave(): void {
     updateHover(null);
+    resetInteractionVisualState();
   }
 
   function handleDocumentMouseDown(event: MouseEvent): void {
@@ -1957,7 +2015,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
     document.removeEventListener("mousedown", handleDocumentMouseDown);
-    options.canvas.classList.remove("is-panning");
+    resetInteractionVisualState(true);
     panState.down = false;
     panState.moved = false;
     touchState.active = false;

@@ -177,6 +177,44 @@ snapshots:
     expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
   });
 
+  it('keeps resolved pnpm dependencies when peer ranges declare the same package', async () => {
+    const projectPath = await makeTempDir('dr-lock-pnpm-peer-range');
+    const tempDir = await makeTempDir('dr-lock-pnpm-peer-range-out');
+
+    await fs.mkdir(path.join(projectPath, 'node_modules', '.pnpm', 'a@1.0.0'), { recursive: true });
+    await fs.mkdir(path.join(projectPath, 'node_modules', '.pnpm', 'b@1.0.0'), { recursive: true });
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-pnpm-peer-range',
+      version: '1.0.0',
+      dependencies: { a: '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'pnpm-lock.yaml'), `
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      a:
+        specifier: 1.0.0
+        version: 1.0.0
+packages:
+  a@1.0.0: {}
+  b@1.0.0: {}
+snapshots:
+  a@1.0.0:
+    dependencies:
+      b: 1.0.0
+    peerDependencies:
+      b: ^1.0.0
+  b@1.0.0: {}
+`.trim());
+
+    const result = await runNpmLs(projectPath, tempDir, 'pnpm');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b).toBeDefined();
+  });
+
   it('builds npm tree from package-lock.json without running npm ls', async () => {
     const projectPath = await makeTempDir('dr-lock-npm');
     const tempDir = await makeTempDir('dr-lock-npm-out');
