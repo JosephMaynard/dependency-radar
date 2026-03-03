@@ -258,9 +258,7 @@ function tokenizeSelectorParts(value) {
             continue;
         }
         if (ch === ',' && !inSingle && !inDouble) {
-            const selector = normalizeSelectorToken(current);
-            if (selector)
-                out.push(selector);
+            out.push(current);
             current = '';
             escaped = false;
             continue;
