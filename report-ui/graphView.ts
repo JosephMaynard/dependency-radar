@@ -1312,10 +1312,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
-  function clearHover(): void {
+  function clearHover(shouldRender = true): void {
     hoverSlug = null;
     hoverNodes = new Set();
     hoverEdges = new Set();
+    if (!shouldRender) return;
+    dirty = true;
+    requestRender();
   }
 
   function updateTargets(): void {
@@ -1819,7 +1822,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const node = updateHoverFromClientPosition(event.clientX, event.clientY);
     if (!node) {
-      clearHover();
+      clearHover(false);
       clearFocus();
       hidePopover();
       return;
@@ -1945,7 +1948,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           event.changedTouches[0].clientY,
         );
         if (!node) {
-          clearHover();
+          clearHover(false);
           clearFocus();
           hidePopover();
         } else {
