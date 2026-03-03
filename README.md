@@ -148,7 +148,11 @@ npx dependency-radar --offline
 ```bash
 npx dependency-radar --no-report --fail-on reachable-vuln,licence-mismatch
 ```
-Note: `--keep-temp` has no effect with `--no-report`; temporary files in `.dependency-radar/` may contain dependency metadata and should not be committed (remove them unless debugging with `--keep-temp`).
+
+__Note:__ When used with `--no-report`, the `--keep-temp` flag is ignored. 
+Temporary files are normally deleted automatically. 
+If you intentionally use `--keep-temp` (without `--no-report`) for debugging, 
+the `.dependency-radar/` folder may contain dependency metadata and should not be committed.
 
 ### CLI summary
 
@@ -242,7 +246,7 @@ The scan is local-first: package metadata is read from `node_modules`; only audi
 - Dependency Radar uses `pnpm-lock.yaml` as the primary graph source and only falls back to `pnpm list` when needed, reducing OOM/string-length failures on large workspaces.
 - Result: reports now reflect only dependencies that actually exist on disk and can be inspected locally.
 
-## Usage Heuristics (`usage.runtimeImpact` and `usage.introduction`)
+### Usage Heuristics (`usage.runtimeImpact` and `usage.introduction`)
 
 These two fields are inferred from local signals. They are intended as review hints, not strict truth.
 
@@ -282,7 +286,7 @@ These two fields are inferred from local signals. They are intended as review hi
 - Not valid as a definitive runtime/ownership model.
 - Accuracy depends on file naming conventions, static import detectability, and dependency graph quality from package manager output.
 
-## Upgrade Blockers Heuristic (`upgrade.blockers`, `upgrade.blocksNodeMajor`)
+### Upgrade Blockers Heuristic (`upgrade.blockers`, `upgrade.blocksNodeMajor`)
 
 `upgrade.blockers` is a local, static heuristic for upgrade friction. It does not run package code and does not query external APIs.
 
@@ -328,7 +332,7 @@ This logic applies to all dependencies (direct and transitive). Inferred license
 In the HTML report, the License badge shows a trailing `*` when status is `mismatch`.
 When a dependency repository resolves to GitHub, the expanded License section links to `package.json` and `LICENSE` source files for faster verification.
 
-### JSON output
+## JSON output
 
 Use `--json` to write the aggregated scan data as JSON (defaults to `dependency-radar.json`).
 
@@ -535,9 +539,21 @@ For full details and any future changes, see `src/types.ts`.
 Environment data includes Node.js version, OS platform, CPU architecture, and package manager versions.
 No personal information, usernames, paths, or environment variables are collected.
 
+## Notes
+
+- The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
+- The scan runs on your machine and does not upload your code or dependencies anywhere.
+- `npm audit`, `pnpm audit`, `yarn npm audit` and their corresponding `outdated` commands perform registry lookups; use `--offline` for offline-only scans.
+- On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
+- A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
+- Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
+- If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
+
+---
+
 ## Development
 
-## Setup
+### Setup
 
 ```bash
 npm install
@@ -564,17 +580,6 @@ npm run build
 
 
 Fixture orchestration lives in `/test-fixtures/package.json` with helper scripts under `/test-fixtures/scripts`.
-
-## Notes
-
-- The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
-- The scan runs on your machine and does not upload your code or dependencies anywhere.
-- `npm audit`, `pnpm audit`, `yarn npm audit` and their corresponding `outdated` commands perform registry lookups; use `--offline` for offline-only scans.
-- On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
-- A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
-- Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
-- If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
-
 
 ### Report UI Development
 
