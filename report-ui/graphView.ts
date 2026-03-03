@@ -943,6 +943,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     );
   }
 
+  function resetInteractionVisualState(clearPanningCursor = false): void {
+    setCanvasClickableCursor(false);
+    if (clearPanningCursor) {
+      options.canvas.classList.remove("is-panning");
+    }
+  }
+
   function buildWorkspaceGraph(name: string): WorkspaceGraph | null {
     const workspace = workspaceByName.get(name);
     if (!workspace) return null;
@@ -1750,7 +1757,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     hoverSlug = null;
     hoverNodes = new Set();
     hoverEdges = new Set();
-    setCanvasClickableCursor(false);
+    resetInteractionVisualState(true);
     fitGraph();
     dirty = true;
     requestRender();
@@ -1764,7 +1771,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
-    setCanvasClickableCursor(false);
+    resetInteractionVisualState();
     options.canvas.classList.add("is-panning");
   }
 
@@ -1828,7 +1835,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 0) return;
     event.preventDefault();
-    setCanvasClickableCursor(false);
+    resetInteractionVisualState();
 
     const rect = options.canvas.getBoundingClientRect();
 
@@ -1904,7 +1911,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const canceled = event.type === "touchcancel";
 
     if (canceled) {
-      options.canvas.classList.remove("is-panning");
+      resetInteractionVisualState(true);
       touchState.active = false;
       touchState.anchorX = null;
       touchState.anchorY = null;
@@ -1913,7 +1920,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
 
     if (event.touches.length === 0) {
-      options.canvas.classList.remove("is-panning");
+      resetInteractionVisualState(true);
       touchState.active = false;
       touchState.anchorX = null;
       touchState.anchorY = null;
@@ -1943,7 +1950,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleCanvasMouseLeave(): void {
     updateHover(null);
-    setCanvasClickableCursor(false);
+    resetInteractionVisualState();
   }
 
   function handleDocumentMouseDown(event: MouseEvent): void {
@@ -1990,8 +1997,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
     document.removeEventListener("mousedown", handleDocumentMouseDown);
-    options.canvas.classList.remove("is-panning");
-    setCanvasClickableCursor(false);
+    resetInteractionVisualState(true);
     panState.down = false;
     panState.moved = false;
     touchState.active = false;
