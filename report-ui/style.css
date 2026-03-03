@@ -1149,6 +1149,10 @@ select.graph-workspace-select:focus {
   cursor: grab;
 }
 
+#graph-canvas.is-clickable {
+  cursor: pointer;
+}
+
 #graph-canvas.is-panning {
   cursor: grabbing;
 }

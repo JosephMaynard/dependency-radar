@@ -902,6 +902,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function findNode(clientX: number, clientY: number): GraphNode | null {
     if (!currentGraph) return null;
     const rect = options.canvas.getBoundingClientRect();
+    if (
+      clientX < rect.left ||
+      clientX > rect.right ||
+      clientY < rect.top ||
+      clientY > rect.bottom
+    ) {
+      return null;
+    }
     const x = worldX(clientX - rect.left);
     const y = worldY(clientY - rect.top);
 
@@ -917,6 +925,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
     return hit;
+  }
+
+  function setCanvasClickableCursor(clickable: boolean): void {
+    options.canvas.classList.toggle(
+      "is-clickable",
+      clickable && !panState.down && !touchState.active,
+    );
   }
 
   function buildWorkspaceGraph(name: string): WorkspaceGraph | null {
@@ -1726,6 +1741,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     hoverSlug = null;
     hoverNodes = new Set();
     hoverEdges = new Set();
+    setCanvasClickableCursor(false);
     fitGraph();
     dirty = true;
     requestRender();
@@ -1739,6 +1755,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
+    setCanvasClickableCursor(false);
     options.canvas.classList.add("is-panning");
   }
 
@@ -1746,6 +1763,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (!panState.down) {
       const node = findNode(event.clientX, event.clientY);
       updateHover(node ? node.slug : null);
+      setCanvasClickableCursor(Boolean(node));
       return;
     }
 
@@ -1764,9 +1782,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.down = false;
     panState.moved = false;
 
-    if (moved) return;
+    if (moved) {
+      setCanvasClickableCursor(Boolean(findNode(event.clientX, event.clientY)));
+      return;
+    }
 
     const node = findNode(event.clientX, event.clientY);
+    setCanvasClickableCursor(Boolean(node));
     if (!node) {
       clearFocus();
       hidePopover();
@@ -1797,6 +1819,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 0) return;
     event.preventDefault();
+    setCanvasClickableCursor(false);
 
     const rect = options.canvas.getBoundingClientRect();
 
@@ -1911,6 +1934,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleCanvasMouseLeave(): void {
     updateHover(null);
+    setCanvasClickableCursor(false);
   }
 
   function handleDocumentMouseDown(event: MouseEvent): void {
@@ -1958,6 +1982,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
     document.removeEventListener("mousedown", handleDocumentMouseDown);
     options.canvas.classList.remove("is-panning");
+    setCanvasClickableCursor(false);
     panState.down = false;
     panState.moved = false;
     touchState.active = false;

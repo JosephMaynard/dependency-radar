@@ -244,7 +244,10 @@ function buildPnpmNode(packageKey, snapshots, index, memo, installState, stack) 
         dependencies: {}
     };
     stack.add(packageKey);
-    const childRefs = mergeStringRecord(snapshot === null || snapshot === void 0 ? void 0 : snapshot.dependencies, mergeStringRecord(snapshot === null || snapshot === void 0 ? void 0 : snapshot.optionalDependencies, snapshot === null || snapshot === void 0 ? void 0 : snapshot.peerDependencies));
+    // pnpm snapshots already carry resolved installed deps in `dependencies`/`optionalDependencies`.
+    // Do not traverse `peerDependencies` ranges here: they can overwrite resolved child refs
+    // (for example `child: ^1.0.0` over `child: 1.0.0`) and incorrectly drop installed nodes.
+    const childRefs = mergeStringRecord(snapshot === null || snapshot === void 0 ? void 0 : snapshot.dependencies, snapshot === null || snapshot === void 0 ? void 0 : snapshot.optionalDependencies);
     for (const [childName, childRef] of Object.entries(childRefs)) {
         if (!childRef || isWorkspaceLikeSpecifier(childRef))
             continue;
