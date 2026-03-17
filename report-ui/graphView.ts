@@ -2374,12 +2374,32 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           },
         ];
 
+    const rootWorkspace = workspaces.find((workspace) => workspace.name === "root");
+    const orderedWorkspaces = rootWorkspace
+      ? [
+          rootWorkspace,
+          ...workspaces.filter((workspace) => workspace.name !== "root"),
+        ]
+      : workspaces;
+
     options.workspaceSelect.textContent = "";
-    workspaces.forEach((workspace) => {
+    orderedWorkspaces.forEach((workspace, index) => {
       const option = document.createElement("option");
       option.value = workspace.name;
-      option.textContent = workspace.name;
+      option.textContent =
+        workspace.name === "root" ? "Workspace root" : workspace.name;
       options.workspaceSelect.appendChild(option);
+
+      if (
+        workspace.name === "root" &&
+        orderedWorkspaces.length > 1 &&
+        index === 0
+      ) {
+        const divider = document.createElement("option");
+        divider.disabled = true;
+        divider.textContent = "──────────────";
+        options.workspaceSelect.appendChild(divider);
+      }
     });
 
     options.workspaceWrap.classList.toggle("hidden", workspaces.length <= 1);
@@ -2388,7 +2408,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       workspaceByName.set("root", workspaces[0]);
     }
 
-    currentWorkspace = workspaces[0].name;
+    currentWorkspace = orderedWorkspaces[0].name;
     options.workspaceSelect.value = currentWorkspace;
 
     updateThemeColors();
