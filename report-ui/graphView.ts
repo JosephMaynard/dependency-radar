@@ -2161,7 +2161,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.globalAlpha = nodeOpacity(node.slug);
       context.fillText(
         label,
-        node.renderX + node.renderRadius + 6,
+        node.renderX + node.renderRadius + GRAPH_LABEL_GAP,
         node.renderY,
       );
     };
