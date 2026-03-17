@@ -184,6 +184,9 @@ const INERTIA_MAX_FRAME_MS = 32;
 const INERTIA_SMOOTHING = 0.22;
 const LABEL_MAX_CHARS = 34;
 const LABEL_ANIMATION_EASING = 0.32;
+const GRAPH_LABEL_GAP = 6;
+const GRAPH_LABEL_FONT =
+  '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const PAN_BOUNDS_X_PADDING = 120;
 const PAN_BOUNDS_Y_PADDING = 90;
 
@@ -1075,6 +1078,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     options.canvas.height = height * dpr;
     options.canvas.style.width = `${width}px`;
     options.canvas.style.height = `${height}px`;
+    const overlayTop =
+      options.canvasHost.querySelector<HTMLElement>(".graph-overlay-top");
+    const overlayHeight = overlayTop
+      ? Math.ceil(overlayTop.getBoundingClientRect().height)
+      : 50;
+    options.canvasHost.style.setProperty(
+      "--graph-toolbar-height",
+      `${overlayHeight}px`,
+    );
     dirty = true;
     requestRender();
   }
@@ -1082,13 +1094,30 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function updateFitMetrics(): void {
     if (!currentGraph) return;
     const bounds = currentGraph.bounds;
+    let contentMaxX = bounds.maxX;
+    if (context) {
+      context.save();
+      context.font = GRAPH_LABEL_FONT;
+      currentGraph.nodes.forEach((node) => {
+        const label = formatGraphLabel(node);
+        if (!label) return;
+        const labelWidth = context.measureText(label).width;
+        contentMaxX = Math.max(
+          contentMaxX,
+          node.baseX + node.radius + GRAPH_LABEL_GAP + labelWidth,
+        );
+      });
+      context.restore();
+    }
     const graphWidth = Math.max(1, bounds.maxX - bounds.minX);
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
-    const fitZoomX = width / graphWidth;
+    const fitZoomX = width / Math.max(1, contentMaxX - bounds.minX);
     const fitZoomY = height / graphHeight;
     fitZoom = clamp(Math.min(fitZoomX, fitZoomY), 0.05, MAX_ZOOM);
     minZoom = clamp(fitZoom * MIN_ZOOM_FIT_RATIO, 0.05, MAX_ZOOM);
-    defaultPanX = (width - graphWidth * fitZoom) * 0.5 - bounds.minX * fitZoom;
+    defaultPanX =
+      (width - Math.max(1, contentMaxX - bounds.minX) * fitZoom) * 0.5 -
+      bounds.minX * fitZoom;
     defaultPanY =
       (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
   }
@@ -1550,7 +1579,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function animateNodes(): boolean {
     if (!currentGraph) return false;
     let moving = false;
+    const reducedMotion = reducedMotionQuery?.matches;
     currentGraph.nodes.forEach((node) => {
+      if (reducedMotion) {
+        node.renderX = node.targetX;
+        node.renderY = node.targetY;
+        node.renderRadius = node.targetRadius;
+        node.renderLabelChars = node.targetLabelChars;
+        return;
+      }
       node.renderX += (node.targetX - node.renderX) * 0.15;
       node.renderY += (node.targetY - node.renderY) * 0.15;
       node.renderRadius += (node.targetRadius - node.renderRadius) * 0.18;
@@ -1968,8 +2005,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
 
     context.textBaseline = "middle";
-    context.font =
-      '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.font = GRAPH_LABEL_FONT;
     context.fillStyle = labelColor;
     renderNodes.forEach(({ node }) => {
       drawNodeLabel(node);

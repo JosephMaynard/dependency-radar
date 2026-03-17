@@ -11,6 +11,5 @@
     "statusBar.debuggingForeground": "#F3FCF7",
     "statusBar.noFolderBackground": "#0C351D",
     "statusBar.noFolderForeground": "#F3FCF7"
-  },
-  "windowColors.baseColor": "#27ae60"
+  }
 }

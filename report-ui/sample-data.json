@@ -22,7 +22,7 @@
         "name": "demo-app-web",
         "relativePath": "apps/demo-app-web",
         "directExternal": {
-          "runtime": 1,
+          "runtime": 0,
           "dev": 0
         }
       },
@@ -30,7 +30,7 @@
         "name": "demo-app-admin",
         "relativePath": "apps/demo-app-admin",
         "directExternal": {
-          "runtime": 0,
+          "runtime": 1,
           "dev": 1
         }
       },
@@ -39,15 +39,15 @@
         "relativePath": "packages/demo-package-ui",
         "directExternal": {
           "runtime": 1,
-          "dev": 1
+          "dev": 0
         }
       },
       {
         "name": "demo-package-utils",
         "relativePath": "packages/demo-package-utils",
         "directExternal": {
-          "runtime": 0,
-          "dev": 2
+          "runtime": 1,
+          "dev": 1
         }
       }
     ]
