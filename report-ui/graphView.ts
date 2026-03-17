@@ -191,8 +191,13 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function targetGraphLabelChars(labelGraphemes: string[]): number {
-  return Math.min(labelGraphemes.length, LABEL_MAX_CHARS);
+function targetGraphLabelChars(
+  labelGraphemes: string[],
+  expanded = false,
+): number {
+  return expanded
+    ? labelGraphemes.length
+    : Math.min(labelGraphemes.length, LABEL_MAX_CHARS);
 }
 
 function initialGraphLabelChars(labelGraphemes: string[]): number {
@@ -207,11 +212,10 @@ function formatGraphLabel(node: GraphNode): string {
     return node.ref.name;
   }
 
-  const visibleChars = clamp(
-    Math.round(node.renderLabelChars),
-    1,
-    LABEL_MAX_CHARS,
-  );
+  const visibleChars = clamp(Math.round(node.renderLabelChars), 1, labelGraphemes.length);
+  if (visibleChars >= labelGraphemes.length) {
+    return node.ref.name;
+  }
   return `${labelGraphemes.slice(0, visibleChars - 1).join("")}…`;
 }
 
@@ -1524,6 +1528,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     currentGraph.nodes.forEach((node) => {
       node.targetRadius = targetNodeRadius(node);
+      node.targetLabelChars = targetGraphLabelChars(
+        node.labelGraphemes,
+        (Boolean(focusSlug) && focusNodes.has(node.slug)) ||
+          (!focusSlug && Boolean(hoverSlug) && hoverNodes.has(node.slug)),
+      );
       if (!selected || !focusPushNodes.has(node.slug)) {
         node.targetX = node.baseX;
         node.targetY = node.baseY;
