@@ -190,10 +190,25 @@ const GRAPH_LABEL_FONT =
 const PAN_BOUNDS_X_PADDING = 120;
 const PAN_BOUNDS_Y_PADDING = 90;
 
+/**
+ * Constrains a number to lie within the inclusive range [min, max].
+ *
+ * @param value - The number to clamp
+ * @param min - Lower bound (inclusive)
+ * @param max - Upper bound (inclusive)
+ * @returns The input constrained to be no less than `min` and no greater than `max`
+ */
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Determine how many label graphemes should be rendered for a node.
+ *
+ * @param labelGraphemes - The node label split into grapheme clusters.
+ * @param expanded - If true, allow the full label length; otherwise apply the configured maximum.
+ * @returns The target number of graphemes to render: the full count when expanded, or at most `LABEL_MAX_CHARS` otherwise.
+ */
 function targetGraphLabelChars(
   labelGraphemes: string[],
   expanded = false,
@@ -203,12 +218,24 @@ function targetGraphLabelChars(
     : Math.min(labelGraphemes.length, LABEL_MAX_CHARS);
 }
 
+/**
+ * Compute the initial number of characters to display for a node label.
+ *
+ * @param labelGraphemes - The label split into grapheme strings (one entry per visible character)
+ * @returns The initial count of characters to render from the label, at least 1
+ */
 function initialGraphLabelChars(labelGraphemes: string[]): number {
   const target = targetGraphLabelChars(labelGraphemes);
   if (labelGraphemes.length <= LABEL_MAX_CHARS) return target;
   return Math.max(1, target - 6);
 }
 
+/**
+ * Produce the display label for a graph node, truncating with an ellipsis when it exceeds the maximum allowed characters.
+ *
+ * @param node - The graph node whose label should be formatted
+ * @returns The node's full name if it fits within limits; otherwise a truncated label ending with an ellipsis
+ */
 function formatGraphLabel(node: GraphNode): string {
   const { labelGraphemes } = node;
   if (labelGraphemes.length <= LABEL_MAX_CHARS) {
@@ -222,6 +249,12 @@ function formatGraphLabel(node: GraphNode): string {
   return `${labelGraphemes.slice(0, visibleChars - 1).join("")}…`;
 }
 
+/**
+ * Parse a CSS color string and return its RGB components.
+ *
+ * @param value - A CSS color in `#RGB`, `#RRGGBB`, `rgb(...)`, or `rgba(...)` form. RGB channels may be numeric (0–255) or percentages (e.g., `50%`). `rgba` alpha is ignored; space-or-comma separators and the `/` alpha separator are supported.
+ * @returns The parsed `{ r, g, b }` values (each 0–255) if the input is valid, or `null` if parsing fails.
+ */
 function parseCssColor(
   value: string,
 ): { r: number; g: number; b: number } | null {
@@ -918,10 +951,23 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return (screenX - panX) / zoom;
   }
 
+  /**
+   * Convert a Y coordinate from screen space into world space.
+   *
+   * @param screenY - The Y coordinate in screen pixels
+   * @returns The Y coordinate in world space corresponding to `screenY`
+   */
   function worldY(screenY: number): number {
     return (screenY - panY) / zoom;
   }
 
+  /**
+   * Constrains a proposed pan position so the visible graph stays within allowed bounds.
+   *
+   * @param nextPanX - Proposed horizontal pan offset in pixels.
+   * @param nextPanY - Proposed vertical pan offset in pixels.
+   * @returns An object with `x` and `y` pan offsets clamped so the graph remains visible; if the graph bounds are smaller than the viewport, returns a centered pan for that axis.
+   */
   function clampPanToGraph(nextPanX: number, nextPanY: number): {
     x: number;
     y: number;
@@ -955,12 +1001,29 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return { x, y };
   }
 
+  /**
+   * Update the current pan offset, constraining it to the graph's allowed bounds.
+   *
+   * @param nextPanX - Desired horizontal pan offset in world pixels
+   * @param nextPanY - Desired vertical pan offset in world pixels
+   */
   function setPan(nextPanX: number, nextPanY: number): void {
     const clamped = clampPanToGraph(nextPanX, nextPanY);
     panX = clamped.x;
     panY = clamped.y;
   }
 
+  /**
+   * Set the view zoom level around a given screen anchor point and update pan accordingly.
+   *
+   * This stops any ongoing inertial pan, constrains `nextZoom` to the allowed range, updates the internal zoom,
+   * recenters the view so the world point under (`anchorX`, `anchorY`) remains fixed, marks the view dirty,
+   * and schedules a render.
+   *
+   * @param nextZoom - Desired zoom factor; will be clamped to the configured minimum and maximum zoom.
+   * @param anchorX - X coordinate in client/canvas space to hold stationary during zoom.
+   * @param anchorY - Y coordinate in client/canvas space to hold stationary during zoom.
+   */
   function applyZoom(nextZoom: number, anchorX: number, anchorY: number): void {
     stopInertia();
     const clamped = clamp(nextZoom, minZoom, MAX_ZOOM);
@@ -972,6 +1035,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Shift the current view by the given horizontal and vertical offsets.
+   *
+   * Stops any ongoing inertial panning, applies the pan delta (in pixels), marks the view dirty, and requests a render.
+   *
+   * @param dx - Horizontal pan delta in pixels (positive moves content right)
+   * @param dy - Vertical pan delta in pixels (positive moves content down)
+   */
   function panBy(dx: number, dy: number): void {
     stopInertia();
     setPan(panX + dx, panY + dy);
@@ -979,10 +1050,18 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Determines whether inertial panning (throw) effects may be used given user motion preferences.
+   *
+   * @returns `true` if the user has not requested reduced motion and inertia can be used, `false` otherwise.
+   */
   function isInertiaAllowed(): boolean {
     return !reducedMotionQuery?.matches;
   }
 
+  /**
+   * Deactivates any ongoing inertial panning and resets inertia velocity and timing state.
+   */
   function stopInertia(): void {
     inertiaState.active = false;
     inertiaState.velocityX = 0;
@@ -990,6 +1069,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     inertiaState.lastFrameTime = 0;
   }
 
+  /**
+   * Record the most recent pointer sample used to seed or reset inertial panning.
+   *
+   * @param clientX - Pointer client X coordinate in pixels.
+   * @param clientY - Pointer client Y coordinate in pixels.
+   * @param timestamp - Event timestamp in milliseconds (DOM event time origin).
+   */
   function resetInertiaSample(
     clientX: number,
     clientY: number,
@@ -1000,6 +1086,18 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     inertiaState.lastSampleTime = timestamp;
   }
 
+  /**
+   * Record a pan motion sample and update the inertial velocity estimate.
+   *
+   * Updates the global inertiaState velocity components using a smoothed sample
+   * computed from the change in client coordinates since the last sample. If the
+   * provided timestamp is not later than the last sample time, the sample is
+   * reset and velocities are not updated.
+   *
+   * @param clientX - Pointer X coordinate in client (pixel) space
+   * @param clientY - Pointer Y coordinate in client (pixel) space
+   * @param timestamp - High-resolution timestamp for the sample (milliseconds)
+   */
   function recordPanVelocity(
     clientX: number,
     clientY: number,
@@ -1022,6 +1120,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     resetInertiaSample(clientX, clientY, timestamp);
   }
 
+  /**
+   * Activates inertial panning if allowed and the current pan velocity exceeds the start threshold.
+   *
+   * If inertia is not permitted or the velocity is below the configured threshold, inertia is stopped.
+   * When inertia starts, internal inertia timing state is initialized, any hover state is cleared,
+   * and a render is requested.
+   */
   function startInertia(): void {
     if (!isInertiaAllowed()) {
       stopInertia();
@@ -1040,6 +1145,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Advances inertial panning by one animation frame, updating pan position and velocity.
+   *
+   * @param timestamp - Current high-resolution timestamp for this animation frame.
+   * @returns `true` if inertia remains active after this update, `false` if inertia stopped (for example because motion fell below the stop threshold or inertia is no longer allowed).
+   */
   function animateInertia(timestamp: number): boolean {
     if (!inertiaState.active) return false;
     if (!isInertiaAllowed()) {
@@ -1069,6 +1180,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return true;
   }
 
+  /**
+   * Update the canvas dimensions and related layout metrics to match the host element and device pixel ratio.
+   *
+   * Resizes the canvas drawing buffer and CSS size, updates internal width/height/device-pixel-ratio values, updates the host CSS variable for the toolbar/overlay height, marks the graph as needing a redraw, and requests a render.
+   */
   function updateCanvasSize(): void {
     const rect = options.canvasHost.getBoundingClientRect();
     width = Math.max(1, Math.floor(rect.width));
@@ -1091,6 +1207,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Recomputes zoom and pan defaults to fit the current graph into the canvas.
+   *
+   * Uses the active graph's bounds (and measured label widths when a 2D context is available)
+   * to calculate and update `fitZoom`, `minZoom`, `defaultPanX`, and `defaultPanY` so the graph
+   * is centered and scaled to fit within the current canvas `width` and `height`.
+   */
   function updateFitMetrics(): void {
     if (!currentGraph) return;
     const bounds = currentGraph.bounds;
@@ -1122,6 +1245,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
   }
 
+  /**
+   * Adjusts the view so the current graph fits within the canvas.
+   *
+   * If a graph is loaded, stops any ongoing inertial panning, recomputes fit metrics,
+   * applies the computed fit zoom, and centers the view by setting pan to the default values.
+   * If no graph is loaded, no action is taken.
+   */
   function fitGraph(): void {
     if (!currentGraph) return;
     stopInertia();
@@ -1130,6 +1260,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     setPan(defaultPanX, defaultPanY);
   }
 
+  /**
+   * Hit-tests the canvas at viewport coordinates and returns the nearest node within its hit radius.
+   *
+   * @param clientX - Horizontal viewport coordinate (e.g., MouseEvent.clientX)
+   * @param clientY - Vertical viewport coordinate (e.g., MouseEvent.clientY)
+   * @returns The nearest `GraphNode` whose rendered circle is within 5px of the point, or `null` if none is hit or the point lies outside the canvas.
+   */
   function findNode(clientX: number, clientY: number): GraphNode | null {
     if (!currentGraph) return null;
     const rect = options.canvas.getBoundingClientRect();
@@ -1182,6 +1319,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return node;
   }
 
+  /**
+   * Builds the dependency graph for a named workspace, preparing nodes, edges, depth layers, and layout.
+   *
+   * Constructs a WorkspaceGraph containing node and edge maps, layer grouping by depth, sets of direct runtime/dev dependencies, and computed layout and amplification. The resulting graph is ready for rendering and interaction.
+   *
+   * @param name - The workspace name to build the graph for
+   * @returns The constructed `WorkspaceGraph`, or `null` if the workspace does not exist or no dependencies are included
+   */
   function buildWorkspaceGraph(name: string): WorkspaceGraph | null {
     const workspace = workspaceByName.get(name);
     if (!workspace) return null;
@@ -1364,6 +1509,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     });
   }
 
+  /**
+   * Computes and assigns layout metrics for a WorkspaceGraph, including node order, positions, radii, label character targets, and overall graph bounds.
+   *
+   * This function mutates the provided graph and its nodes: it sorts each layer, sets per-node order, base/target/render positions (X/Y), radius/targetRadius/renderRadius, targetLabelChars/renderLabelChars, and updates graph.bounds (falling back to a default box if no finite bounds are produced).
+   *
+   * @param graph - The workspace graph to layout; nodes and layers are updated in-place.
+   */
   function layoutGraph(graph: WorkspaceGraph): void {
     const layerOrder = new Map<string, number>();
 
@@ -1549,6 +1701,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Updates each node's target visual properties (radius, visible label characters, and target position) for the active graph.
+   *
+   * If there is no active graph, the function is a no-op.
+   *
+   * For each node:
+   * - Sets the node's target radius according to current sizing rules.
+   * - Sets the node's target label character count based on focus/hover state.
+   * - Sets targetX/targetY to the node's base position unless a node is focused and this node is part of the focus push set, in which case the node is displaced outward from the focused node to produce a radial push effect.
+   */
   function updateTargets(): void {
     if (!currentGraph) return;
     const selected = focusSlug
@@ -1576,6 +1738,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     });
   }
 
+  /**
+   * Progresses per-node animated properties toward their target values for the current graph.
+   *
+   * When the user's reduced-motion preference is enabled, node render properties snap immediately to their targets.
+   *
+   * @returns `true` if at least one node is still animating (not yet settled), `false` otherwise.
+   */
   function animateNodes(): boolean {
     if (!currentGraph) return false;
     let moving = false;
@@ -1729,6 +1898,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return 0.8;
   }
 
+  /**
+   * Renders the active workspace dependency graph onto the canvas using the current pan, zoom, theme, and interaction state.
+   *
+   * Clears the canvas, culls nodes outside the viewport, sorts and routes edges, and draws muted and highlighted edges, node bodies, vulnerability rings, and labels in the correct visual stacking order. Also updates the popover position after drawing.
+   */
   function renderGraph(): void {
     if (!context) return;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2015,6 +2189,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     updatePopoverPosition();
   }
 
+  /**
+   * Drives a single tick of the view's animation loop: updates animation targets, advances node and inertia animations, triggers a render when needed, and schedules the next tick while the view is active.
+   */
   function tick(): void {
     if (!active) {
       frameId = 0;
@@ -2049,6 +2226,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (active) renderLoop();
   }
 
+  /**
+   * Activate the workspace with the given name and update the view to reflect it.
+   *
+   * Stops any active inertia, rebuilds the workspace graph, resets focus and hover state, hides the popover,
+   * fits the graph to the viewport, and schedules a render for the newly active workspace.
+   *
+   * @param name - The workspace name to switch to
+   */
   function switchWorkspace(name: string): void {
     const graph = buildWorkspaceGraph(name);
     if (!graph) return;
@@ -2066,6 +2251,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Begin a canvas pan interaction when the primary mouse button is pressed.
+   *
+   * Records the initial pointer and pan positions, stops any ongoing inertial pan,
+   * resets interaction visuals, and marks the canvas with the `is-panning` CSS class.
+   *
+   * @param event - The mouse down event from the canvas that initiated the interaction
+   */
   function handleCanvasMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
     stopInertia();
@@ -2080,6 +2273,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     options.canvas.classList.add("is-panning");
   }
 
+  /**
+   * Handles mousemove events to update hover state when not dragging, or to pan the graph while dragging.
+   *
+   * When a drag is active, updates the pan position, records pan velocity for inertia, marks the pointer as
+   * moved once displacement exceeds 2 pixels, and schedules a render. When no drag is active, updates hover
+   * state from the event coordinates.
+   *
+   * @param event - The mousemove event from the window
+   */
   function handleWindowMouseMove(event: MouseEvent): void {
     if (!panState.down) {
       updateHoverFromClientPosition(event.clientX, event.clientY);
@@ -2094,6 +2296,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Finalize a window-level mouseup: end a pan (starting inertia when moved) or treat it as a click to update hover, focus, and the popover.
+   *
+   * @param event - The MouseEvent from the window used to determine client coordinates and whether the interaction was a pan or a click
+   */
   function handleWindowMouseUp(event: MouseEvent): void {
     if (!panState.down) return;
     options.canvas.classList.remove("is-panning");
@@ -2123,6 +2330,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     showPopover(node.slug);
   }
 
+  /**
+   * Handles mouse wheel and trackpad scroll to adjust the view zoom centered at the pointer.
+   *
+   * If the event target is outside the canvas host the event is ignored. The handler prevents default scrolling, stops any inertial panning, and updates the zoom level using sensitivity that varies when the Ctrl or Meta key is pressed.
+   */
   function handleWheel(event: WheelEvent): void {
     if (!options.canvasHost.contains(event.target as Node)) return;
     event.preventDefault();
@@ -2141,6 +2353,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     applyZoom(zoom * factor, x, y);
   }
 
+  /**
+   * Initialize a touch-driven interaction on the canvas, preparing for panning (one finger) or pinch-zoom (two fingers).
+   *
+   * @param event - The originating `TouchEvent`; a single touch begins a pan gesture, two touches begin a pinch-zoom and set the zoom anchor. The function prevents the default touch behavior and updates internal pan/zoom and inertia state accordingly.
+   */
   function handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 0) return;
     event.preventDefault();
@@ -2188,6 +2405,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
   }
 
+  /**
+   * Handle touch-move input to pan or pinch-zoom the graph.
+   *
+   * Prevents the default touch behavior and, for a single touch, pans the view by updating pan state, records pan velocity for inertia, and requests a render. For two touches, cancels inertia and performs pinch-zoom by computing a scale factor from the current distance relative to the initial distance and applying zoom around the stored anchor (or canvas center).
+   *
+   * @param event - The touch event containing one or more touch points
+   */
   function handleTouchMove(event: TouchEvent): void {
     if (!touchState.active) return;
     event.preventDefault();
@@ -2225,6 +2449,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
   }
 
+  /**
+   * Handle the end of a touch interaction, finalizing gesture state and triggering appropriate follow-up actions.
+   *
+   * If the touch sequence was canceled, stops any inertial panning, resets interaction visuals, and clears touch anchors.
+   * If all touches ended: resets interaction visuals and anchors; if no pan movement occurred and a single touch ended,
+   * performs a hit test to either focus and show the node popover or clear hover/focus/popover; if pan movement occurred,
+   * initiates inertial panning.
+   * If the interaction transitions from a multi-touch pinch to a single-touch pan, updates the touch start/pan anchors
+   * and resets the inertia sampling for continued panning.
+   */
   function handleTouchEnd(event: TouchEvent): void {
     if (!touchState.active) return;
     event.preventDefault();
@@ -2311,6 +2545,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     interactionsBound = true;
   }
 
+  /**
+   * Detaches all pointer and touch event listeners from the canvas and window and resets interaction state.
+   *
+   * Removes mouse, wheel, touch, and document event handlers registered for graph interaction, clears
+   * pan and touch flags, resets interaction visuals, stops any ongoing inertial panning, and marks
+   * interactions as unbound.
+   */
   function unbindInteractionListeners(): void {
     if (!interactionsBound) return;
     options.canvas.removeEventListener("mousedown", handleCanvasMouseDown);
@@ -2336,6 +2577,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     interactionsBound = false;
   }
 
+  /**
+   * Handle clicks on the graph control buttons and perform the corresponding action.
+   *
+   * Recognizes buttons with a `data-action` attribute and performs: "zoom-in", "zoom-out",
+   * "pan-left", "pan-right", "pan-up", "pan-down", and "reset" (which restores zoom/pan,
+   * clears focus, hides the popover, and stops inertia).
+   *
+   * @param event - The click MouseEvent originating from the controls container
+   */
   function handleControlsClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     const button = target.closest<HTMLButtonElement>("button[data-action]");
@@ -2385,6 +2635,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     switchWorkspace(options.workspaceSelect.value);
   }
 
+  /**
+   * Update viewport metrics and schedule a re-render after the display size changes.
+   *
+   * If the graph view is not active this function is a no-op. It updates the canvas size, recomputes fit
+   * metrics, clamps the current zoom to allowed bounds, reapplies pan constraints, and requests a render;
+   * if the resulting canvas width or height is <= 1 the update is aborted.
+   */
   function handleViewportResize(): void {
     if (!active) return;
     updateCanvasSize();
@@ -2443,6 +2700,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     bindPersistentListeners();
   }
 
+  /**
+   * Initialize internal UI, workspace selection, theming, controls, and canvas then activate the initial workspace.
+   *
+   * Populates the workspace dropdown (including a root separator when present), ensures a root workspace entry if required, sets the active workspace, updates theme colors, registers global observers and control handlers, updates canvas sizing or shows a fallback when canvas is unavailable, and switches to the chosen initial workspace.
+   */
   function initGraphViewInternal(): void {
     const workspaces = dataset.workspaces.length
       ? dataset.workspaces
@@ -2503,6 +2765,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     switchWorkspace(currentWorkspace);
   }
 
+  /**
+   * Activate or deactivate the graph view.
+   *
+   * When `next` is `true`, the function sets the view active; if the canvas is unavailable it shows the canvas fallback.
+   * Otherwise it binds interaction listeners, updates canvas sizing and fit metrics, clamps zoom/pan, and starts the render loop.
+   * When `next` is `false`, it unbinds interaction listeners, stops inertial panning, and cancels any pending animation frame.
+   *
+   * @param next - `true` to activate the view, `false` to deactivate it
+   */
   function setActive(next: boolean): void {
     active = next;
     if (active) {
