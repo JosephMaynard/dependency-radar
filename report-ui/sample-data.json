@@ -14,8 +14,43 @@
     "minRequiredMajor": 18
   },
   "workspaces": {
-    "enabled": false,
-    "workspacePackages": []
+    "enabled": true,
+    "type": "pnpm",
+    "packageCount": 4,
+    "workspacePackages": [
+      {
+        "name": "demo-app-web",
+        "relativePath": "apps/demo-app-web",
+        "directExternal": {
+          "runtime": 1,
+          "dev": 0
+        }
+      },
+      {
+        "name": "demo-app-admin",
+        "relativePath": "apps/demo-app-admin",
+        "directExternal": {
+          "runtime": 0,
+          "dev": 1
+        }
+      },
+      {
+        "name": "demo-package-ui",
+        "relativePath": "packages/demo-package-ui",
+        "directExternal": {
+          "runtime": 1,
+          "dev": 1
+        }
+      },
+      {
+        "name": "demo-package-utils",
+        "relativePath": "packages/demo-package-utils",
+        "directExternal": {
+          "runtime": 0,
+          "dev": 2
+        }
+      }
+    ]
   },
   "summary": {
     "dependencyCount": 29,
@@ -64,6 +99,11 @@
         "scope": "runtime",
         "depth": 1,
         "origins": {
+          "workspaces": [
+            "demo-app-admin",
+            "demo-package-ui",
+            "demo-package-utils"
+          ],
           "rootPackageCount": 1,
           "topRootPackages": [
             {
@@ -134,6 +174,9 @@
         "scope": "runtime",
         "depth": 2,
         "origins": {
+          "workspaces": [
+            "demo-app-web"
+          ],
           "rootPackageCount": 1,
           "topRootPackages": [
             {
@@ -219,6 +262,10 @@
         "scope": "dev",
         "depth": 1,
         "origins": {
+          "workspaces": [
+            "demo-app-admin",
+            "demo-package-utils"
+          ],
           "rootPackageCount": 1,
           "topRootPackages": [
             {
