@@ -884,11 +884,12 @@ select.graph-workspace-select:focus {
   display: none;
 }
 
-.graph-overlay-left.hidden {
+.graph-workspace-wrap.hidden {
   display: none;
 }
 
-.graph-overlay-left {
+.graph-workspace-wrap {
+  display: flex;
   padding-left: 24px;
   flex-direction: row;
   align-items: center;
@@ -896,7 +897,7 @@ select.graph-workspace-select:focus {
   border-left: 1px var(--text-secondary) solid;
 }
 
-[data-theme="light"] .graph-overlay-left {
+[data-theme="light"] .graph-workspace-wrap {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(100, 116, 139, 0.15);
   box-shadow:
@@ -2306,7 +2307,7 @@ details[open] > summary .expand-icon {
     top: 8px;
   }
 
-  .graph-overlay-left {
+  .graph-workspace-wrap {
     left: 8px;
     top: 48px;
   }
