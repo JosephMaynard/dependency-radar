@@ -816,6 +816,19 @@ select.graph-workspace-select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+.graph-key:before,
+.graph-workspace-wrap:before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 20px;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background-color: var(--text-secondary);
+}
+
 .graph-key {
   padding-left: 24px;
   display: flex;
@@ -823,7 +836,7 @@ select.graph-workspace-select:focus {
   align-items: center;
   gap: 12px;
   max-width: 100%;
-  border-left: 1px var(--text-secondary) solid;
+  position: relative;
 }
 
 .graph-key-items {
@@ -864,14 +877,6 @@ select.graph-workspace-select:focus {
   background: var(--graph-transitive);
 }
 
-[data-theme="light"] .graph-key {
-  background: rgba(255, 255, 255, 0.7);
-  border-color: rgba(100, 116, 139, 0.15);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
 [data-theme="light"] .graph-overlay {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(100, 116, 139, 0.15);
@@ -894,20 +899,17 @@ select.graph-workspace-select:focus {
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  border-left: 1px var(--text-secondary) solid;
-}
-
-[data-theme="light"] .graph-workspace-wrap {
-  background: rgba(255, 255, 255, 0.7);
-  border-color: rgba(100, 116, 139, 0.15);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
 }
 
 .graph-overlay-right {
   top: 66px;
   right: 12px;
+}
+
+[data-theme="light"] .graph-overlay-top {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(100, 116, 139, 0.15);
 }
 
 .graph-overlay-top {
@@ -923,7 +925,8 @@ select.graph-workspace-select:focus {
   border-bottom: 1px solid rgba(100, 116, 139, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  padding: 12px;
+  padding: 0 12px;
+  height: 50px;
 }
 
 .graph-back-btn {

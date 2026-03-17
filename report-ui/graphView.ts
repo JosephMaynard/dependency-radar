@@ -175,7 +175,7 @@ const PADDING_X = 96;
 const PADDING_Y = 64;
 const PUSH_RADIUS = 120;
 const MAX_ZOOM = 2.8;
-const MIN_ZOOM_FIT_RATIO = 0.86;
+const MIN_ZOOM_FIT_RATIO = 0.64;
 const EDGE_CURVE = 0.2;
 const INERTIA_START_SPEED = 0.08;
 const INERTIA_STOP_SPEED = 0.02;
@@ -184,6 +184,8 @@ const INERTIA_MAX_FRAME_MS = 32;
 const INERTIA_SMOOTHING = 0.22;
 const LABEL_MAX_CHARS = 34;
 const LABEL_ANIMATION_EASING = 0.32;
+const PAN_BOUNDS_X_PADDING = 120;
+const PAN_BOUNDS_Y_PADDING = 90;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -913,22 +915,59 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return (screenY - panY) / zoom;
   }
 
+  function clampPanToGraph(nextPanX: number, nextPanY: number): {
+    x: number;
+    y: number;
+  } {
+    if (!currentGraph) {
+      return { x: nextPanX, y: nextPanY };
+    }
+
+    const paddedMinX = currentGraph.bounds.minX - PAN_BOUNDS_X_PADDING;
+    const paddedMaxX = currentGraph.bounds.maxX + PAN_BOUNDS_X_PADDING;
+    const paddedMinY = currentGraph.bounds.minY - PAN_BOUNDS_Y_PADDING;
+    const paddedMaxY = currentGraph.bounds.maxY + PAN_BOUNDS_Y_PADDING;
+
+    const minVisibleX = Math.min(width * 0.22, 220);
+    const minVisibleY = Math.min(height * 0.22, 180);
+
+    const minPanX = minVisibleX - paddedMaxX * zoom;
+    const maxPanX = width - minVisibleX - paddedMinX * zoom;
+    const minPanY = minVisibleY - paddedMaxY * zoom;
+    const maxPanY = height - minVisibleY - paddedMinY * zoom;
+
+    const x =
+      minPanX > maxPanX
+        ? (minPanX + maxPanX) * 0.5
+        : clamp(nextPanX, minPanX, maxPanX);
+    const y =
+      minPanY > maxPanY
+        ? (minPanY + maxPanY) * 0.5
+        : clamp(nextPanY, minPanY, maxPanY);
+
+    return { x, y };
+  }
+
+  function setPan(nextPanX: number, nextPanY: number): void {
+    const clamped = clampPanToGraph(nextPanX, nextPanY);
+    panX = clamped.x;
+    panY = clamped.y;
+  }
+
   function applyZoom(nextZoom: number, anchorX: number, anchorY: number): void {
     stopInertia();
     const clamped = clamp(nextZoom, minZoom, MAX_ZOOM);
     const wx = worldX(anchorX);
     const wy = worldY(anchorY);
     zoom = clamped;
-    panX = anchorX - wx * zoom;
-    panY = anchorY - wy * zoom;
+    setPan(anchorX - wx * zoom, anchorY - wy * zoom);
     dirty = true;
     requestRender();
   }
 
   function panBy(dx: number, dy: number): void {
     stopInertia();
-    panX += dx;
-    panY += dy;
+    setPan(panX + dx, panY + dy);
     dirty = true;
     requestRender();
   }
@@ -1005,8 +1044,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const dt = clamp(elapsed || 16, 1, INERTIA_MAX_FRAME_MS);
     inertiaState.lastFrameTime = timestamp;
 
-    panX += inertiaState.velocityX * dt;
-    panY += inertiaState.velocityY * dt;
+    setPan(panX + inertiaState.velocityX * dt, panY + inertiaState.velocityY * dt);
 
     const decay = Math.exp(-INERTIA_FRICTION * dt);
     inertiaState.velocityX *= decay;
@@ -1056,8 +1094,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     stopInertia();
     updateFitMetrics();
     zoom = fitZoom;
-    panX = defaultPanX;
-    panY = defaultPanY;
+    setPan(defaultPanX, defaultPanY);
   }
 
   function findNode(clientX: number, clientY: number): GraphNode | null {
@@ -2007,8 +2044,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const dx = event.clientX - panState.startX;
     const dy = event.clientY - panState.startY;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
-    panX = panState.startPanX + dx;
-    panY = panState.startPanY + dy;
+    setPan(panState.startPanX + dx, panState.startPanY + dy);
     recordPanVelocity(event.clientX, event.clientY, event.timeStamp);
     requestRender();
   }
@@ -2115,8 +2151,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const dx = event.touches[0].clientX - touchState.startX1;
       const dy = event.touches[0].clientY - touchState.startY1;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
-      panX = touchState.startPanX + dx;
-      panY = touchState.startPanY + dy;
+      setPan(touchState.startPanX + dx, touchState.startPanY + dy);
       recordPanVelocity(
         event.touches[0].clientX,
         event.touches[0].clientY,
@@ -2289,8 +2324,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (action === "reset") {
       stopInertia();
       zoom = fitZoom;
-      panX = defaultPanX;
-      panY = defaultPanY;
+      setPan(defaultPanX, defaultPanY);
       clearFocus();
       hidePopover();
       requestRender();
@@ -2312,6 +2346,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (width <= 1 || height <= 1) return;
     updateFitMetrics();
     zoom = clamp(zoom, minZoom, MAX_ZOOM);
+    setPan(panX, panY);
     requestRender();
   }
 
@@ -2435,6 +2470,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (width > 1 && height > 1) {
         updateFitMetrics();
         zoom = clamp(zoom, minZoom, MAX_ZOOM);
+        setPan(panX, panY);
       }
       renderLoop();
       requestRender();
