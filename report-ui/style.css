@@ -902,11 +902,6 @@ select.graph-workspace-select:focus {
   position: relative;
 }
 
-.graph-overlay-right {
-  top: 66px;
-  right: 12px;
-}
-
 [data-theme="light"] .graph-overlay-top {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(100, 116, 139, 0.15);
@@ -926,7 +921,7 @@ select.graph-workspace-select:focus {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 0 12px;
-  height: 50px;
+  min-height: 50px;
 }
 
 .graph-back-btn {
@@ -981,6 +976,8 @@ select.graph-workspace-select:focus {
   align-items: center;
   gap: 8px;
   padding: 8px;
+  top: 62px;
+  right: 12px;
 }
 
 .zoom-controls {
@@ -2303,16 +2300,6 @@ details[open] > summary .expand-icon {
   .graph-canvas-shell {
     height: 62vh;
     min-height: 340px;
-  }
-
-  .graph-overlay-right {
-    right: 8px;
-    top: 8px;
-  }
-
-  .graph-workspace-wrap {
-    left: 8px;
-    top: 48px;
   }
 
   .graph-key {
