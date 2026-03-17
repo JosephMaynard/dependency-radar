@@ -28,6 +28,7 @@ type GraphNodeKind = "direct-runtime" | "direct-dev" | "transitive";
 type GraphNode = {
   slug: string;
   ref: GraphDependency;
+  labelGraphemes: string[];
   parents: Set<string>;
   children: Set<string>;
   depth: number;
@@ -43,6 +44,8 @@ type GraphNode = {
   radius: number;
   targetRadius: number;
   renderRadius: number;
+  targetLabelChars: number;
+  renderLabelChars: number;
 };
 
 type GraphEdge = {
@@ -179,9 +182,35 @@ const INERTIA_STOP_SPEED = 0.02;
 const INERTIA_FRICTION = 0.0042;
 const INERTIA_MAX_FRAME_MS = 32;
 const INERTIA_SMOOTHING = 0.22;
+const LABEL_MAX_CHARS = 34;
+const LABEL_ANIMATION_EASING = 0.32;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function targetGraphLabelChars(labelGraphemes: string[]): number {
+  return Math.min(labelGraphemes.length, LABEL_MAX_CHARS);
+}
+
+function initialGraphLabelChars(labelGraphemes: string[]): number {
+  const target = targetGraphLabelChars(labelGraphemes);
+  if (labelGraphemes.length <= LABEL_MAX_CHARS) return target;
+  return Math.max(1, target - 6);
+}
+
+function formatGraphLabel(node: GraphNode): string {
+  const { labelGraphemes } = node;
+  if (labelGraphemes.length <= LABEL_MAX_CHARS) {
+    return node.ref.name;
+  }
+
+  const visibleChars = clamp(
+    Math.round(node.renderLabelChars),
+    1,
+    LABEL_MAX_CHARS,
+  );
+  return `${labelGraphemes.slice(0, visibleChars - 1).join("")}…`;
 }
 
 function parseCssColor(
@@ -1132,9 +1161,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         : directDev.has(slug)
           ? "direct-dev"
           : "transitive";
+      const labelGraphemes = Array.from(dataset.dependencies[slug].name);
       nodes.set(slug, {
         slug,
         ref: dataset.dependencies[slug],
+        labelGraphemes,
         parents: new Set<string>(),
         children: new Set<string>(),
         depth: Number.POSITIVE_INFINITY,
@@ -1150,6 +1181,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         radius: 8,
         targetRadius: 8,
         renderRadius: 8,
+        targetLabelChars: targetGraphLabelChars(labelGraphemes),
+        renderLabelChars: initialGraphLabelChars(labelGraphemes),
       });
     });
 
@@ -1354,6 +1387,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         node.radius = 6.7 + relationshipFactor + amplificationFactor;
         node.targetRadius = node.radius;
         node.renderRadius = node.radius;
+        node.targetLabelChars = targetGraphLabelChars(node.labelGraphemes);
+        node.renderLabelChars = initialGraphLabelChars(node.labelGraphemes);
 
         graph.bounds.minX = Math.min(graph.bounds.minX, node.baseX);
         graph.bounds.maxX = Math.max(graph.bounds.maxX, node.baseX);
@@ -1473,10 +1508,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       node.renderX += (node.targetX - node.renderX) * 0.15;
       node.renderY += (node.targetY - node.renderY) * 0.15;
       node.renderRadius += (node.targetRadius - node.renderRadius) * 0.18;
+      node.renderLabelChars +=
+        (node.targetLabelChars - node.renderLabelChars) *
+        LABEL_ANIMATION_EASING;
       const settled =
         Math.abs(node.targetX - node.renderX) < 0.06 &&
         Math.abs(node.targetY - node.renderY) < 0.06 &&
-        Math.abs(node.targetRadius - node.renderRadius) < 0.04;
+        Math.abs(node.targetRadius - node.renderRadius) < 0.04 &&
+        Math.abs(node.targetLabelChars - node.renderLabelChars) < 0.12;
       if (!settled) moving = true;
     });
     return moving;
@@ -1860,9 +1899,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     };
 
     const drawNodeLabel = (node: GraphNode): void => {
+      const label = formatGraphLabel(node);
+      if (!label) return;
       context.globalAlpha = nodeOpacity(node.slug);
       context.fillText(
-        node.ref.name,
+        label,
         node.renderX + node.renderRadius + 6,
         node.renderY,
       );
