@@ -115,6 +115,16 @@ type TouchState = {
   anchorY: number | null;
 };
 
+type InertiaState = {
+  active: boolean;
+  velocityX: number;
+  velocityY: number;
+  lastSampleX: number;
+  lastSampleY: number;
+  lastSampleTime: number;
+  lastFrameTime: number;
+};
+
 type ThemeColors = {
   runtime: string;
   runtimeHighlight: string;
@@ -164,6 +174,11 @@ const PUSH_RADIUS = 120;
 const MAX_ZOOM = 2.8;
 const MIN_ZOOM_FIT_RATIO = 0.86;
 const EDGE_CURVE = 0.2;
+const INERTIA_START_SPEED = 0.08;
+const INERTIA_STOP_SPEED = 0.02;
+const INERTIA_FRICTION = 0.0042;
+const INERTIA_MAX_FRAME_MS = 32;
+const INERTIA_SMOOTHING = 0.22;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -782,6 +797,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     anchorY: null,
   };
 
+  const inertiaState: InertiaState = {
+    active: false,
+    velocityX: 0,
+    velocityY: 0,
+    lastSampleX: 0,
+    lastSampleY: 0,
+    lastSampleTime: 0,
+    lastFrameTime: 0,
+  };
+
   const context = options.canvas.getContext("2d");
   const hasCanvas = Boolean(context);
   let interactionsBound = false;
@@ -791,6 +816,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let hostResizeObserver: ResizeObserver | null = null;
   let windowResizeHandler: (() => void) | null = null;
   let fallbackShown = false;
+  const reducedMotionQuery =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)")
+      : null;
   let themeColors: ThemeColors = {
     runtime: "#10b981",
     runtimeHighlight: "#34d399",
@@ -856,6 +885,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function applyZoom(nextZoom: number, anchorX: number, anchorY: number): void {
+    stopInertia();
     const clamped = clamp(nextZoom, minZoom, MAX_ZOOM);
     const wx = worldX(anchorX);
     const wy = worldY(anchorY);
@@ -867,10 +897,102 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function panBy(dx: number, dy: number): void {
+    stopInertia();
     panX += dx;
     panY += dy;
     dirty = true;
     requestRender();
+  }
+
+  function isInertiaAllowed(): boolean {
+    return !reducedMotionQuery?.matches;
+  }
+
+  function stopInertia(): void {
+    inertiaState.active = false;
+    inertiaState.velocityX = 0;
+    inertiaState.velocityY = 0;
+    inertiaState.lastFrameTime = 0;
+  }
+
+  function resetInertiaSample(
+    clientX: number,
+    clientY: number,
+    timestamp: number,
+  ): void {
+    inertiaState.lastSampleX = clientX;
+    inertiaState.lastSampleY = clientY;
+    inertiaState.lastSampleTime = timestamp;
+  }
+
+  function recordPanVelocity(
+    clientX: number,
+    clientY: number,
+    timestamp: number,
+  ): void {
+    const dt = timestamp - inertiaState.lastSampleTime;
+    if (dt <= 0) {
+      resetInertiaSample(clientX, clientY, timestamp);
+      return;
+    }
+
+    const sampleVX = (clientX - inertiaState.lastSampleX) / dt;
+    const sampleVY = (clientY - inertiaState.lastSampleY) / dt;
+
+    inertiaState.velocityX +=
+      (sampleVX - inertiaState.velocityX) * INERTIA_SMOOTHING;
+    inertiaState.velocityY +=
+      (sampleVY - inertiaState.velocityY) * INERTIA_SMOOTHING;
+
+    resetInertiaSample(clientX, clientY, timestamp);
+  }
+
+  function startInertia(): void {
+    if (!isInertiaAllowed()) {
+      stopInertia();
+      return;
+    }
+
+    const speed = Math.hypot(inertiaState.velocityX, inertiaState.velocityY);
+    if (speed < INERTIA_START_SPEED) {
+      stopInertia();
+      return;
+    }
+
+    inertiaState.active = true;
+    inertiaState.lastFrameTime = performance.now();
+    clearHover(false);
+    requestRender();
+  }
+
+  function animateInertia(timestamp: number): boolean {
+    if (!inertiaState.active) return false;
+    if (!isInertiaAllowed()) {
+      stopInertia();
+      return false;
+    }
+
+    const elapsed = timestamp - inertiaState.lastFrameTime;
+    const dt = clamp(elapsed || 16, 1, INERTIA_MAX_FRAME_MS);
+    inertiaState.lastFrameTime = timestamp;
+
+    panX += inertiaState.velocityX * dt;
+    panY += inertiaState.velocityY * dt;
+
+    const decay = Math.exp(-INERTIA_FRICTION * dt);
+    inertiaState.velocityX *= decay;
+    inertiaState.velocityY *= decay;
+    dirty = true;
+
+    if (
+      Math.hypot(inertiaState.velocityX, inertiaState.velocityY) <
+      INERTIA_STOP_SPEED
+    ) {
+      stopInertia();
+      return false;
+    }
+
+    return true;
   }
 
   function updateCanvasSize(): void {
@@ -902,6 +1024,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function fitGraph(): void {
     if (!currentGraph) return;
+    stopInertia();
     updateFitMetrics();
     zoom = fitZoom;
     panX = defaultPanX;
@@ -1741,11 +1864,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     updateTargets();
     const moving = animateNodes();
+    const inertial = animateInertia(performance.now());
 
-    if (dirty || moving) {
+    if (dirty || moving || inertial) {
       renderGraph();
       dirty = false;
-      if (active && (dirty || moving)) {
+      if (active && (dirty || moving || inertial)) {
         frameId = window.requestAnimationFrame(tick);
       } else {
         frameId = 0;
@@ -1769,6 +1893,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function switchWorkspace(name: string): void {
     const graph = buildWorkspaceGraph(name);
     if (!graph) return;
+    stopInertia();
     currentWorkspace = name;
     currentGraph = graph;
     clearFocus();
@@ -1784,12 +1909,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
   function handleCanvasMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
+    stopInertia();
     panState.down = true;
     panState.moved = false;
     panState.startX = event.clientX;
     panState.startY = event.clientY;
     panState.startPanX = panX;
     panState.startPanY = panY;
+    resetInertiaSample(event.clientX, event.clientY, event.timeStamp);
     resetInteractionVisualState();
     options.canvas.classList.add("is-panning");
   }
@@ -1805,6 +1932,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
     panX = panState.startPanX + dx;
     panY = panState.startPanY + dy;
+    recordPanVelocity(event.clientX, event.clientY, event.timeStamp);
     requestRender();
   }
 
@@ -1816,6 +1944,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panState.moved = false;
 
     if (moved) {
+      startInertia();
+      if (inertiaState.active) {
+        setCanvasClickableCursor(false);
+        return;
+      }
       updateHoverFromClientPosition(event.clientX, event.clientY);
       return;
     }
@@ -1835,6 +1968,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleWheel(event: WheelEvent): void {
     if (!options.canvasHost.contains(event.target as Node)) return;
     event.preventDefault();
+    stopInertia();
     const rect = options.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -1852,6 +1986,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 0) return;
     event.preventDefault();
+    stopInertia();
     resetInteractionVisualState();
 
     const rect = options.canvas.getBoundingClientRect();
@@ -1863,6 +1998,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       touchState.startY1 = event.touches[0].clientY;
       touchState.startPanX = panX;
       touchState.startPanY = panY;
+      resetInertiaSample(
+        event.touches[0].clientX,
+        event.touches[0].clientY,
+        event.timeStamp,
+      );
       options.canvas.classList.add("is-panning");
     } else if (event.touches.length === 2) {
       touchState.active = true;
@@ -1900,8 +2040,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) panState.moved = true;
       panX = touchState.startPanX + dx;
       panY = touchState.startPanY + dy;
+      recordPanVelocity(
+        event.touches[0].clientX,
+        event.touches[0].clientY,
+        event.timeStamp,
+      );
       requestRender();
     } else if (event.touches.length === 2) {
+      stopInertia();
       panState.moved = true;
       const x1 = event.touches[0].clientX;
       const y1 = event.touches[0].clientY;
@@ -1928,6 +2074,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const canceled = event.type === "touchcancel";
 
     if (canceled) {
+      stopInertia();
       resetInteractionVisualState(true);
       touchState.active = false;
       touchState.anchorX = null;
@@ -1955,6 +2102,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
           applyFocus(node.slug);
           showPopover(node.slug);
         }
+      } else if (panState.moved) {
+        startInertia();
       }
       panState.moved = false;
     } else if (event.touches.length === 1) {
@@ -1963,6 +2112,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       touchState.startY1 = event.touches[0].clientY;
       touchState.startPanX = panX;
       touchState.startPanY = panY;
+      resetInertiaSample(
+        event.touches[0].clientX,
+        event.touches[0].clientY,
+        event.timeStamp,
+      );
     }
   }
 
@@ -2021,6 +2175,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     touchState.active = false;
     touchState.anchorX = null;
     touchState.anchorY = null;
+    stopInertia();
     interactionsBound = false;
   }
 
@@ -2055,6 +2210,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       return;
     }
     if (action === "reset") {
+      stopInertia();
       zoom = fitZoom;
       panX = defaultPanX;
       panY = defaultPanY;
@@ -2188,6 +2344,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       return;
     }
     unbindInteractionListeners();
+    stopInertia();
     if (frameId) {
       window.cancelAnimationFrame(frameId);
       frameId = 0;
