@@ -1645,6 +1645,29 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       }
     });
 
+    type RenderNode = {
+      node: GraphNode;
+      priority: number;
+      order: number;
+    };
+
+    const renderNodes: RenderNode[] = [];
+    let renderOrder = 0;
+    graph.nodes.forEach((node) => {
+      if (!visible.has(node.slug)) return;
+      let priority = 0;
+      if (focusSlug === node.slug) priority = 2;
+      else if (focusNodes.has(node.slug) || hoverNodes.has(node.slug))
+        priority = 1;
+      renderNodes.push({
+        node,
+        priority,
+        order: renderOrder++,
+      });
+    });
+
+    renderNodes.sort((a, b) => a.priority - b.priority || a.order - b.order);
+
     const maxDepth = Math.max(0, graph.layers.length - 1);
     const SAME_COLUMN_X_THRESHOLD = 6;
     const MIN_DETOUR_VERTICAL_SPAN = 80;
@@ -1711,8 +1734,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     context.globalCompositeOperation = "source-over";
 
-    graph.nodes.forEach((node) => {
-      if (!visible.has(node.slug)) return;
+    const drawNodeBody = (node: GraphNode): void => {
       const selected = focusSlug === node.slug;
       const radius = node.renderRadius;
 
@@ -1760,10 +1782,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         context.arc(node.renderX, node.renderY, radius + 4, 0, Math.PI * 2);
         context.stroke();
       }
-    });
+    };
 
-    currentGraph.nodes.forEach((node) => {
-      if (!visible.has(node.slug)) return;
+    const drawVulnerabilityRings = (node: GraphNode): void => {
       if (!node.ref.vulnerabilityCount || node.ref.vulnerabilityCount <= 0)
         return;
       if (node.ref.vulnerabilitySeverity === "none") return;
@@ -1836,20 +1857,35 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.stroke();
 
       context.restore();
-    });
+    };
 
-    context.textBaseline = "middle";
-    context.font =
-      '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    context.fillStyle = labelColor;
-    graph.nodes.forEach((node) => {
-      if (!visible.has(node.slug)) return;
+    const drawNodeLabel = (node: GraphNode): void => {
       context.globalAlpha = nodeOpacity(node.slug);
       context.fillText(
         node.ref.name,
         node.renderX + node.renderRadius + 6,
         node.renderY,
       );
+    };
+
+    for (const priority of [0, 1, 2]) {
+      renderNodes.forEach(({ node, priority: nodePriority }) => {
+        if (nodePriority !== priority) return;
+        drawNodeBody(node);
+      });
+
+      renderNodes.forEach(({ node, priority: nodePriority }) => {
+        if (nodePriority !== priority) return;
+        drawVulnerabilityRings(node);
+      });
+    }
+
+    context.textBaseline = "middle";
+    context.font =
+      '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillStyle = labelColor;
+    renderNodes.forEach(({ node }) => {
+      drawNodeLabel(node);
     });
 
     context.globalAlpha = 1;
