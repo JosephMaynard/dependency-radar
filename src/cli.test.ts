@@ -1,40 +1,56 @@
 import { spawnSync } from 'child_process';
+import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const ANSI_ESCAPE_REGEX = new RegExp('\\x1b\\[[0-9;]*[A-Za-z]', 'g');
+const tempDirs: string[] = [];
 
 function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_REGEX, '');
 }
 
+async function makeTempDir(prefix: string): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), `${prefix}-`));
+  tempDirs.push(dir);
+  return dir;
+}
+
+function runCli(args: string[], cwd?: string) {
+  const repoRoot = path.resolve(__dirname, '..');
+  const tsNodeBin = path.join(
+    repoRoot,
+    'node_modules',
+    'ts-node',
+    'dist',
+    'bin.js',
+  );
+  const cliPath = path.join(repoRoot, 'src', 'cli.ts');
+
+  return spawnSync(process.execPath, [tsNodeBin, cliPath, ...args], {
+    cwd: cwd || repoRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+    },
+  });
+}
+
+afterEach(async () => {
+  await Promise.all(
+    tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
+  );
+});
+
 describe('cli summary output', () => {
   it(
-    'prints summary bullets and keeps CTA as the final line',
+    'keeps the default scan command working without explicitly passing scan',
     { timeout: 30000 },
     () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const tsNodeBin = path.join(
-        repoRoot,
-        'node_modules',
-        'ts-node',
-        'dist',
-        'bin.js',
-      );
-      const cliPath = path.join(repoRoot, 'src', 'cli.ts');
-
-      const result = spawnSync(
-        process.execPath,
-        [tsNodeBin, cliPath, 'scan', '--project', repoRoot, '--offline', '--no-report'],
-        {
-          cwd: repoRoot,
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            NO_COLOR: '1',
-          },
-        },
-      );
+      const result = runCli(['--project', repoRoot, '--offline', '--no-report']);
 
       expect(result.status).toBe(0);
 
@@ -71,25 +87,14 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const tsNodeBin = path.join(
-        repoRoot,
-        'node_modules',
-        'ts-node',
-        'dist',
-        'bin.js',
-      );
-      const cliPath = path.join(repoRoot, 'src', 'cli.ts');
       const fixtureProject = path.join(
         repoRoot,
         'test-fixtures',
         'license-edge-cases',
       );
 
-      const result = spawnSync(
-        process.execPath,
+      const result = runCli(
         [
-          tsNodeBin,
-          cliPath,
           'scan',
           '--project',
           fixtureProject,
@@ -98,14 +103,7 @@ describe('cli summary output', () => {
           '--fail-on',
           'licence-mismatch',
         ],
-        {
-          cwd: repoRoot,
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            NO_COLOR: '1',
-          },
-        },
+        repoRoot,
       );
 
       expect(result.status).toBe(1);
@@ -113,6 +111,61 @@ describe('cli summary output', () => {
       const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
       expect(output).toContain('Policy violations detected');
       expect(output).toContain('licence mismatch');
+    },
+  );
+
+  it(
+    'prints a focused terminal explanation and does not write a report file',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(
+        repoRoot,
+        'test-fixtures',
+        'license-edge-cases',
+      );
+      const outputDir = await makeTempDir('dr-cli-explain');
+      const projectCopy = path.join(outputDir, 'project');
+      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+
+      const result = runCli(
+        ['explain', '@dr-license/mismatch', '--project', projectCopy, '--offline'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('@dr-license/mismatch');
+      expect(output).toContain('License:');
+      expect(output).toMatch(/mismatch \(declared .+, inferred .+\)/);
+      expect(output).toContain('Vulnerabilities:\n  not available (--offline)');
+      expect(output).not.toContain('Summary:');
+      expect(output).not.toContain('Enrich this scan with maintenance signals');
+      await expect(
+        fs.access(path.join(projectCopy, 'dependency-radar.html')),
+      ).rejects.toThrow();
+    },
+  );
+
+  it(
+    'returns exit code 1 when explain cannot find the package',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(
+        repoRoot,
+        'test-fixtures',
+        'license-edge-cases',
+      );
+      const result = runCli(
+        ['explain', 'definitely-not-present', '--project', fixtureProject, '--offline'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(1);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('✖ Package not found: definitely-not-present');
     },
   );
 });

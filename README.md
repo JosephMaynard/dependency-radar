@@ -101,6 +101,49 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--fail-on <rules>` | Fail with exit code 1 when selected policy rules are violated (see below) |
 | `--help` | Show all options |
 
+### Explain one dependency in the terminal
+
+Use `explain` when you want a fast terminal view for one package without generating HTML or JSON output:
+
+```bash
+npx dependency-radar explain lodash
+```
+
+This reuses the normal local scan model and then filters it in memory. It does not fetch registry metadata, run extra lookup pipelines, or write `dependency-radar.html`.
+
+`explain` shows the signals already present in Dependency Radar's scan model, including:
+
+- direct vs transitive
+- scope and introduction classification
+- runtime impact heuristics
+- root packages and direct parents
+- static import evidence and top import locations
+- vulnerability summary when audit data is available
+- licence status
+- upgrade blockers
+- other detected versions of the same package
+
+Examples:
+
+```bash
+npx dependency-radar explain lodash
+```
+
+```bash
+npx dependency-radar explain lodash --project ./my-app
+```
+
+```bash
+npx dependency-radar explain lodash --project ./my-app --offline
+```
+
+Notes:
+
+- `explain` matches by package name only. If multiple installed versions exist, each version is shown in its own block.
+- Vulnerabilities are reported only when audit data is available. With `--offline`, the command prints `not available (--offline)` instead of implying `none`.
+- "Static import evidence" means Dependency Radar found local source imports for that package. It is a code-usage heuristic, not exploit reachability analysis.
+- "Introduced via root packages" and "Direct parents" are shown from the current scan model. The command does not currently print full ancestry chains.
+
 ### CI policy enforcement (`--fail-on`)
 
 ```
@@ -226,6 +269,8 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
 10. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
 The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
+
+The `explain` command reuses this same pipeline with report writing disabled, then filters the in-memory model down to a single package for terminal output.
 
 ### `node_modules` crawling details
 
