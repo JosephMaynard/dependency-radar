@@ -2206,6 +2206,40 @@ async function init(): Promise<void> {
     graphView?.requestRender();
   }
 
+  function getStickyFilterBarOffset(): number {
+    const filterBar = document.querySelector<HTMLElement>(".filter-bar");
+    if (!filterBar || document.body.classList.contains("graph-mode")) {
+      return 0;
+    }
+    const stickyGap = 8;
+    return Math.ceil(filterBar.getBoundingClientRect().height + stickyGap);
+  }
+
+  function scrollDependencyIntoView(
+    target: HTMLElement,
+    focusSummary = false,
+  ): void {
+    const scrollToTarget = (): void => {
+      const top =
+        window.scrollY +
+        target.getBoundingClientRect().top -
+        getStickyFilterBarOffset();
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: "smooth",
+      });
+      if (focusSummary) {
+        const summary = target.querySelector<HTMLElement>("summary");
+        if (summary) summary.focus({ preventScroll: true });
+      }
+    };
+
+    requestAnimationFrame(() => {
+      scrollToTarget();
+      window.setTimeout(scrollToTarget, 60);
+    });
+  }
+
   function openListFromGraph(slug: string): void {
     setActiveView("list");
     let target = document.getElementById(getDepDomId(slug));
@@ -2223,7 +2257,7 @@ async function init(): Promise<void> {
       ensureDepDetailsRendered(target);
     }
     target.classList.add("dep-list-highlight");
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    scrollDependencyIntoView(target, true);
     window.setTimeout(() => {
       target?.classList.remove("dep-list-highlight");
     }, 2000);
@@ -2277,17 +2311,7 @@ async function init(): Promise<void> {
     openDepKeys.add(depKey);
     if (!detailsEl.open) detailsEl.open = true;
     ensureDepDetailsRendered(detailsEl);
-    const scrollToTarget = (): void => {
-      detailsEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      const summary = detailsEl.querySelector<HTMLElement>("summary");
-      if (summary) summary.focus({ preventScroll: true });
-    };
-    // Ensure scrolling happens after any renderList DOM replacement/layout.
-    requestAnimationFrame(() => {
-      scrollToTarget();
-      // A second pass improves reliability on slower layout/update paths.
-      window.setTimeout(scrollToTarget, 60);
-    });
+    scrollDependencyIntoView(detailsEl, true);
   }
 
   container.addEventListener(
