@@ -11,11 +11,26 @@ const packageJsonPath = path.join(repoRoot, "package.json");
 const fixturePath = path.join(repoRoot, "test-fixtures", "license-edge-cases");
 const image = "node:14.21.3-bullseye";
 
+/**
+ * Print an error message prefixed with a cross and terminate the process with exit code 1.
+ * @param {string} message - The error message to display.
+ */
 function fail(message) {
   console.error(`✖ ${message}`);
   process.exit(1);
 }
 
+/**
+ * Execute a command synchronously from the repository root and return the spawn result.
+ *
+ * @param {string} command - The executable or command to run.
+ * @param {string[]} args - Array of arguments to pass to the command.
+ * @param {Object} [options] - Optional execution settings.
+ * @param {import('child_process').StdioOptions|string|Array} [options.stdio] - stdio configuration forwarded to spawnSync (defaults to `"pipe"`).
+ * @param {NodeJS.ProcessEnv} [options.env] - Environment variables for the child process (defaults to `process.env`).
+ * @returns {import('child_process').SpawnSyncReturns<string>} The object returned by spawnSync (includes `status`, `stdout`, `stderr`, and possibly `error`).
+ * @throws {Error} If the spawnSync call failed to start the process (when `result.error` is set).
+ */
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
@@ -31,6 +46,13 @@ function run(command, args, options = {}) {
   return result;
 }
 
+/**
+ * Write child-process output and terminate the process with an error message if the result indicates failure.
+ *
+ * If `result.status` is non-zero, writes `result.stdout` to stdout and `result.stderr` to stderr when present, then terminates the process with the provided message.
+ * @param {import('child_process').SpawnSyncReturns<string|Buffer>} result - The synchronous spawn result to check.
+ * @param {string} message - The error message to display on failure.
+ */
 function ensureSuccess(result, message) {
   if (result.status === 0) return;
 
