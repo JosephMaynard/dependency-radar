@@ -4,7 +4,7 @@ Dependency Radar inspects your Node.js dependency graph and makes structural ris
 
 Unlike basic audit tools, it builds the graph from lockfiles, understands PNPM workspaces, validates declared vs inferred licences, and highlights structural risks before they become production problems.
 
-No accounts. No uploads. Runs entirely on your machine.
+No accounts. No uploads. Nothing leaves your machine.
 
 The simplest way to get started is to go to your project root and run:
 
@@ -27,7 +27,7 @@ This runs a scan against the current project and writes a self-contained `depend
 ## What you get
 
 - **Vulnerability scanning** — runs `npm audit` / `pnpm audit` / `yarn audit` and surfaces advisories with severity, fix availability, and reachability heuristics
-- **Licence analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
+- **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
 - **Interactive dependency graph** — explore your full dependency tree visually, including direct, dev, and transitive relationships
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
 - **Import usage heuristics** — classifies each dependency's runtime impact (`runtime`, `build`, `testing`, `tooling`, `mixed`) based on where it's imported in your source
@@ -57,7 +57,7 @@ This runs a scan against the current project and writes a self-contained `depend
 Modern Node projects pull in hundreds (or thousands) of transitive dependencies, and most of the risk is structural, not obvious.
 
 - `npm audit` tells you about known vulnerabilities, but it does not explain how a dependency got there, whether it is reachable at runtime, or how deep it sits in your graph.
-- Licence tooling often trusts `package.json` declarations, even though they can be missing, invalid, or wrong, and rarely checks what is actually in the installed `LICENSE` file.
+- License tooling often trusts `package.json` declarations, even though they can be missing, invalid, or wrong, and rarely checks what is actually in the installed `LICENSE` file.
 - Monorepos and PNPM workspaces make the tree harder to reason about, especially when package manager outputs include optional platform variants that are not installed on your machine.
 - Upgrade pain usually shows up late, when a Node major bump or a package update breaks due to peer dependency constraints, engine ranges, native bindings, or install scripts.
 
@@ -222,7 +222,7 @@ Summary:
 • Transitive deps scanned: 65
 • Vulnerable packages: 5 (1 reachable)
 • Unused installed deps: 0
-• Licence mismatches: 3
+• License mismatches: 3
 • Major upgrade blockers: 28
    - 14 strict peer dependency constraints
    - 6 narrow engine ranges
@@ -596,9 +596,6 @@ export interface DependencyRecord {
 
 For full details and any future changes, see `src/types.ts`.
 
-Environment data includes Node.js version, OS platform, CPU architecture, and package manager versions.
-No personal information, usernames, paths, or environment variables are collected.
-
 ## Notes
 
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
@@ -608,6 +605,8 @@ No personal information, usernames, paths, or environment variables are collecte
 - A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
 - If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
+- Environment data includes Node.js version, OS platform, CPU architecture, and package manager versions.
+- No personal information, usernames, paths, or environment variables are collected.
 
 ---
 
