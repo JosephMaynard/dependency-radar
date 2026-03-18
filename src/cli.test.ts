@@ -58,10 +58,10 @@ describe('cli summary output', () => {
       const stdoutOutput = stripAnsi(result.stdout).replace(/\r/g, '');
 
       expect(output).toContain('Summary:');
-      expect(output).toMatch(/• Direct deps scanned: \d+/);
-      expect(output).toMatch(/• Transitive deps scanned: \d+/);
+      expect(output).toMatch(/• Direct dependencies scanned: \d+/);
+      expect(output).toMatch(/• Transitive dependencies scanned: \d+/);
       expect(output).toMatch(/• Vulnerable packages: \d+ \(\d+ reachable\)/);
-      expect(output).toMatch(/• Unused installed deps: \d+/);
+      expect(output).toMatch(/• Dependencies with no static import reference: \d+/);
       expect(output).toMatch(/• License mismatches: \d+/);
       expect(output).toMatch(/• Major upgrade blockers: \d+/);
 
