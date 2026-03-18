@@ -110,7 +110,7 @@ Use `explain` when you want a fast terminal view for one package without generat
 npx dependency-radar explain lodash
 ```
 
-This reuses the normal local scan model and then filters it in memory. It does not fetch registry metadata, run extra lookup pipelines, or write `dependency-radar.html`.
+This reuses the normal scan model and then filters it in memory. `explain` does not add its own extra lookup pipeline and does not write `dependency-radar.html`, but it can still trigger the same network-dependent `audit` and `outdated` steps as a normal scan unless you pass `--offline`.
 
 `explain` shows the signals already present in Dependency Radar's scan model, including:
 
