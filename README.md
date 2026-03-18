@@ -187,7 +187,7 @@ The blocker detail counts can overlap: a single package may contribute to multip
 
 ## Requirements
 
-- Node.js 14.14+
+- Node.js 14.21.3 is currently the oldest version verified by our Docker release smoke test (`node:14.21.3-bullseye`)
 - Dependencies must be installed (`npm install` / `pnpm install` / `yarn install`) before scanning
 
 ## How a scan works
@@ -576,10 +576,14 @@ npm run build
 | `npm run test:fixtures` | Run curated fixture integration tests (mostly offline scans) |
 | `npm run test:fixtures:online` | Run online fixture checks (audit/outdated regression coverage) |
 | `npm run test:fixtures:all` | Run all fixture integration tests |
-| `npm run test:release` | Full pre-release gate (`build` + unit + fixture + package dry run) |
+| `npm run test:docker:node14` | Pack the published artifact and smoke-test it in Docker on Node `14.21.3` |
+| `npm run test:docker` | Alias for the Node `14.21.3` Docker compatibility smoke test |
+| `npm run test:release` | Full pre-release gate (`build` + unit + fixture + Docker Node 14 smoke test + package dry run) |
 
 
 Fixture orchestration lives in `/test-fixtures/package.json` with helper scripts under `/test-fixtures/scripts`.
+
+The Docker smoke test uses the packed tarball, installs it inside `node:14.21.3-bullseye`, and runs an offline scan against `test-fixtures/license-edge-cases`. This verifies the published CLI on the oldest Node version we currently exercise in automation without requiring local Node 14 installation.
 
 ### Report UI Development
 
