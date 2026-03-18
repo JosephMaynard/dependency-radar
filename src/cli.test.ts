@@ -74,10 +74,10 @@ describe('cli summary output', () => {
       }
 
       expect(output).toContain(
-        'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com',
+        'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at https://www.dependency-radar.com',
       );
       expect(stdoutOutput.trim().endsWith(
-        'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com',
+        'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at https://www.dependency-radar.com',
       )).toBe(true);
     },
   );

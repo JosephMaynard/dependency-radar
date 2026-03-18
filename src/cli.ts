@@ -1245,6 +1245,18 @@ function shouldUseColor(): boolean {
 
 const COLOR_ENABLED = shouldUseColor();
 
+function supportsTerminalHyperlinks(): boolean {
+  if (!process.stdout.isTTY) return false;
+  if (process.env.NO_COLOR !== undefined) return false;
+  if (process.env.TERM === "dumb") return false;
+  return true;
+}
+
+function formatTerminalLink(label: string, url: string): string {
+  if (!supportsTerminalHyperlinks()) return label;
+  return `\u001B]8;;${url}\u0007${label}\u001B]8;;\u0007`;
+}
+
 /**
  * Wraps text with ANSI color or style escape sequences when terminal coloring is enabled.
  *
@@ -2006,7 +2018,10 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
   printPolicyViolations(result.policyViolations);
   if (!opts.quiet) {
     console.log(
-      "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
+      `Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at ${formatTerminalLink(
+        "https://www.dependency-radar.com",
+        "https://www.dependency-radar.com",
+      )}`,
     );
   }
 
