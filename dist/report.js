@@ -38,12 +38,12 @@ async function renderReport(data, outputPath) {
     await promises_1.default.writeFile(outputPath, html, 'utf8');
 }
 /**
- * Build a complete HTML report string populated from the provided aggregated data.
+ * Generate a full HTML document for the dependency radar report from the provided aggregated data.
  *
- * The returned document embeds sanitized CSS and JS assets, a JSON-serialized copy of `data` (with `<` characters escaped), a computed CTA URL derived from `data.dependencyRadarVersion`, and a human-friendly formatted `generatedAt` timestamp when parsable. Dynamic interpolations that appear in the HTML (e.g., project path, formatted date, CTA URL) are HTML-escaped.
+ * The produced document embeds sanitized CSS and JavaScript assets, includes a JSON-serialized copy of `data` with `<` characters escaped, computes a CTA URL from `data.dependencyRadarVersion`, and formats `data.generatedAt` into a human-friendly timestamp when parsable. Values interpolated into the HTML (for example project path, formatted date, and CTA URL) are HTML-escaped.
  *
- * @param data - Aggregated data used to populate the report (includes project metadata, generatedAt timestamp, dependencyRadarVersion, and dependency list)
- * @returns The full HTML document for the dependency radar report as a string
+ * @param data - Aggregated data used to populate the report (project metadata, generatedAt timestamp, dependencyRadarVersion, and dependency list)
+ * @returns The full HTML document for the dependency radar report
  */
 function buildHtml(data) {
     const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -354,7 +354,7 @@ ${safeCssContent}
               </span>
             </div>
           </div>
-          <div class="graph-overlay-left" id="graph-workspace-wrap">
+          <div class="graph-workspace-wrap" id="graph-workspace-wrap">
             <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
             <select id="graph-workspace" class="graph-workspace-select"></select>
           </div>

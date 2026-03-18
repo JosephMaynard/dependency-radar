@@ -14,8 +14,43 @@
     "minRequiredMajor": 18
   },
   "workspaces": {
-    "enabled": false,
-    "workspacePackages": []
+    "enabled": true,
+    "type": "pnpm",
+    "packageCount": 4,
+    "workspacePackages": [
+      {
+        "name": "demo-app-web",
+        "relativePath": "apps/demo-app-web",
+        "directExternal": {
+          "runtime": 0,
+          "dev": 0
+        }
+      },
+      {
+        "name": "demo-app-admin",
+        "relativePath": "apps/demo-app-admin",
+        "directExternal": {
+          "runtime": 1,
+          "dev": 1
+        }
+      },
+      {
+        "name": "demo-package-ui",
+        "relativePath": "packages/demo-package-ui",
+        "directExternal": {
+          "runtime": 1,
+          "dev": 0
+        }
+      },
+      {
+        "name": "demo-package-utils",
+        "relativePath": "packages/demo-package-utils",
+        "directExternal": {
+          "runtime": 1,
+          "dev": 1
+        }
+      }
+    ]
   },
   "summary": {
     "dependencyCount": 29,
@@ -25,8 +60,8 @@
   "dependencies": {
     "chalk@5.3.0": {
       "package": {
-        "id": "chalk@5.3.0",
-        "name": "chalk",
+        "id": "@sample/terminal-color-management-foundation@5.3.0",
+        "name": "@sample/terminal-color-management-foundation",
         "version": "5.3.0",
         "description": "Terminal string styling for Node.js",
         "deprecated": false,
@@ -64,10 +99,15 @@
         "scope": "runtime",
         "depth": 1,
         "origins": {
+          "workspaces": [
+            "demo-app-admin",
+            "demo-package-ui",
+            "demo-package-utils"
+          ],
           "rootPackageCount": 1,
           "topRootPackages": [
             {
-              "name": "chalk",
+              "name": "@sample/terminal-color-management-foundation",
               "version": "5.3.0"
             }
           ],
@@ -83,8 +123,8 @@
     },
     "ansi-styles@6.2.1": {
       "package": {
-        "id": "ansi-styles@6.2.1",
-        "name": "ansi-styles",
+        "id": "@sample/console-formatting-token-palette@6.2.1",
+        "name": "@sample/console-formatting-token-palette",
         "version": "6.2.1",
         "deprecated": false,
         "links": {
@@ -134,16 +174,19 @@
         "scope": "runtime",
         "depth": 2,
         "origins": {
+          "workspaces": [
+            "demo-app-web"
+          ],
           "rootPackageCount": 1,
           "topRootPackages": [
             {
-              "name": "chalk",
+              "name": "@sample/terminal-color-management-foundation",
               "version": "5.3.0"
             }
           ],
           "parentPackageCount": 1,
           "topParentPackages": [
-            "chalk@5.3.0"
+            "@sample/terminal-color-management-foundation@5.3.0"
           ]
         },
         "tsTypes": "none"
@@ -219,6 +262,10 @@
         "scope": "dev",
         "depth": 1,
         "origins": {
+          "workspaces": [
+            "demo-app-admin",
+            "demo-package-utils"
+          ],
           "rootPackageCount": 1,
           "topRootPackages": [
             {
@@ -729,8 +776,8 @@
     },
     "good-license-lib@1.2.3": {
       "package": {
-        "id": "good-license-lib@1.2.3",
-        "name": "good-license-lib",
+        "id": "@sample/highly-compliant-open-source-license-demonstration-library@1.2.3",
+        "name": "@sample/highly-compliant-open-source-license-demonstration-library",
         "version": "1.2.3",
         "description": "Sample package with clean SPDX license.",
         "deprecated": false,
@@ -782,7 +829,7 @@
           "rootPackageCount": 1,
           "topRootPackages": [
             {
-              "name": "good-license-lib",
+              "name": "@sample/highly-compliant-open-source-license-demonstration-library",
               "version": "1.2.3"
             }
           ],
@@ -799,8 +846,8 @@
     },
     "bad-license-lib@0.4.0": {
       "package": {
-        "id": "bad-license-lib@0.4.0",
-        "name": "bad-license-lib",
+        "id": "@sample/poorly-documented-license-mismatch-demonstration-package@0.4.0",
+        "name": "@sample/poorly-documented-license-mismatch-demonstration-package",
         "version": "0.4.0",
         "description": "Sample package with invalid SPDX and mismatch.",
         "deprecated": false,

@@ -778,6 +778,7 @@ select.graph-workspace-select:focus {
 }
 
 .graph-canvas-shell {
+  --graph-toolbar-height: 50px;
   position: relative;
   width: 100%;
   height: 74vh;
@@ -816,21 +817,27 @@ select.graph-workspace-select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+.graph-key:before,
+.graph-workspace-wrap:before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 20px;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background-color: var(--text-secondary);
+}
+
 .graph-key {
-  padding: 6px 10px;
+  padding-left: 24px;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 12px;
   max-width: 100%;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  border-radius: 8px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
 }
 
 .graph-key-items {
@@ -871,14 +878,6 @@ select.graph-workspace-select:focus {
   background: var(--graph-transitive);
 }
 
-[data-theme="light"] .graph-key {
-  background: rgba(255, 255, 255, 0.7);
-  border-color: rgba(100, 116, 139, 0.15);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
 [data-theme="light"] .graph-overlay {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(100, 116, 139, 0.15);
@@ -891,47 +890,40 @@ select.graph-workspace-select:focus {
   display: none;
 }
 
-.graph-overlay-left.hidden {
+.graph-workspace-wrap.hidden {
   display: none;
 }
 
-.graph-overlay-left {
-  padding: 4px 4px 4px 8px;
+.graph-workspace-wrap {
+  display: flex;
+  padding-left: 24px;
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  border-radius: 8px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
 }
 
-[data-theme="light"] .graph-overlay-left {
+[data-theme="light"] .graph-overlay-top {
   background: rgba(255, 255, 255, 0.7);
   border-color: rgba(100, 116, 139, 0.15);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-.graph-overlay-right {
-  top: 12px;
-  right: 12px;
 }
 
 .graph-overlay-top {
   align-items: center;
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  max-width: min(calc(100% - 16px), calc(100% - clamp(56px, 18vw, 160px)));
+  column-gap: 24px;
+  row-gap: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid rgba(100, 116, 139, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0 12px;
+  min-height: 50px;
 }
 
 .graph-back-btn {
@@ -986,6 +978,8 @@ select.graph-workspace-select:focus {
   align-items: center;
   gap: 8px;
   padding: 8px;
+  top: calc(var(--graph-toolbar-height, 50px) + 12px);
+  right: 12px;
 }
 
 .zoom-controls {
@@ -2087,6 +2081,10 @@ details[open] > summary .expand-icon {
   .filter-top-row {
     max-width: 560px;
   }
+
+  .graph-overlay-top {
+    padding: 8px 12px;
+  }
 }
 
 /* Mobile/Small tablet */
@@ -2310,16 +2308,6 @@ details[open] > summary .expand-icon {
     min-height: 340px;
   }
 
-  .graph-overlay-right {
-    right: 8px;
-    top: 8px;
-  }
-
-  .graph-overlay-left {
-    left: 8px;
-    top: 48px;
-  }
-
   .graph-key {
     padding: 6px 8px;
     gap: 8px;
@@ -2345,6 +2333,10 @@ details[open] > summary .expand-icon {
   .graph-mode .graph-canvas-shell {
     height: calc(100dvh - 16px);
     min-height: 420px;
+  }
+
+  .graph-controls {
+    top: calc(var(--graph-toolbar-height, 50px) + 8px);
   }
 
   .report-footer {
@@ -2422,6 +2414,10 @@ details[open] > summary .expand-icon {
   .declared-row {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .graph-overlay-top {
+    padding: 8px 12px;
   }
 }
 
