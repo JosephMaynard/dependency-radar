@@ -84,6 +84,7 @@ fs.mkdirSync(artifactsDir, { recursive: true });
 try {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   const expectedTarball = `${packageJson.name.replace(/^@/, "").replace(/\//g, "-")}-${packageJson.version}.tgz`;
+  const installedPackageJsonPath = `./node_modules/${packageJson.name}/package.json`;
 
   console.log(`> Packing published artifact into ${artifactsDir}`);
   const packResult = run(
@@ -113,7 +114,7 @@ try {
     "cd /tmp/app",
     "npm init -y >/dev/null 2>&1",
     `npm install /artifacts/${expectedTarball} >/dev/null 2>&1`,
-    "node -e 'const pkg=require(\"./node_modules/dependency-radar/package.json\"); if (pkg.dependencies && Object.keys(pkg.dependencies).length) { throw new Error(\"runtime dependencies must stay empty\"); }'",
+    `node -e 'const pkg=require(${JSON.stringify(installedPackageJsonPath)}); if (pkg.dependencies && Object.keys(pkg.dependencies).length) { throw new Error("runtime dependencies must stay empty"); }'`,
     "cp -R /repo/test-fixtures/license-edge-cases /tmp/fixture",
     "rm -f /tmp/fixture/dependency-radar.json /tmp/fixture/dependency-radar.html",
     "npx dependency-radar scan --project /tmp/fixture --offline --json --out /tmp/report.json >/tmp/scan.log 2>&1",
