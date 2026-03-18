@@ -12,12 +12,11 @@ const fixturePath = path.join(repoRoot, "test-fixtures", "license-edge-cases");
 const image = "node:14.21.3-bullseye";
 
 /**
- * Print an error message prefixed with a cross and terminate the process with exit code 1.
+ * Raise a formatted error for fatal test failures.
  * @param {string} message - The error message to display.
  */
 function fail(message) {
-  console.error(`✖ ${message}`);
-  process.exit(1);
+  throw new Error(message);
 }
 
 /**
@@ -47,9 +46,9 @@ function run(command, args, options = {}) {
 }
 
 /**
- * Write child-process output and terminate the process with an error message if the result indicates failure.
+ * Write child-process output and raise an error if the result indicates failure.
  *
- * If `result.status` is non-zero, writes `result.stdout` to stdout and `result.stderr` to stderr when present, then terminates the process with the provided message.
+ * If `result.status` is non-zero, writes `result.stdout` to stdout and `result.stderr` to stderr when present, then raises an error with the provided message.
  * @param {import('child_process').SpawnSyncReturns<string|Buffer>} result - The synchronous spawn result to check.
  * @param {string} message - The error message to display on failure.
  */
@@ -61,27 +60,28 @@ function ensureSuccess(result, message) {
   fail(message);
 }
 
-if (!fs.existsSync(distCliPath)) {
-  fail("Missing dist/cli.js. Run `npm run build` before `npm run test:docker:node14`.");
-}
-
-if (!fs.existsSync(fixturePath)) {
-  fail(`Missing fixture: ${fixturePath}`);
-}
-
-const dockerInfo = run("docker", ["info", "--format", "{{.ServerVersion}}"]);
-ensureSuccess(
-  dockerInfo,
-  "Docker is required for this test. Start Docker Desktop and rerun `npm run test:docker:node14`.",
-);
-
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dependency-radar-node14-"));
-const npmCacheDir = path.join(tempRoot, "npm-cache");
-const artifactsDir = path.join(tempRoot, "artifacts");
-fs.mkdirSync(npmCacheDir, { recursive: true });
-fs.mkdirSync(artifactsDir, { recursive: true });
-
+let tempRoot;
 try {
+  if (!fs.existsSync(distCliPath)) {
+    fail("Missing dist/cli.js. Run `npm run build` before `npm run test:docker:node14`.");
+  }
+
+  if (!fs.existsSync(fixturePath)) {
+    fail(`Missing fixture: ${fixturePath}`);
+  }
+
+  const dockerInfo = run("docker", ["info", "--format", "{{.ServerVersion}}"]);
+  ensureSuccess(
+    dockerInfo,
+    "Docker is required for this test. Start Docker Desktop and rerun `npm run test:docker:node14`.",
+  );
+
+  tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dependency-radar-node14-"));
+  const npmCacheDir = path.join(tempRoot, "npm-cache");
+  const artifactsDir = path.join(tempRoot, "artifacts");
+  fs.mkdirSync(npmCacheDir, { recursive: true });
+  fs.mkdirSync(artifactsDir, { recursive: true });
+
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
   const expectedTarball = `${packageJson.name.replace(/^@/, "").replace(/\//g, "-")}-${packageJson.version}.tgz`;
   const installedPackageJsonPath = `./node_modules/${packageJson.name}/package.json`;
@@ -141,6 +141,12 @@ try {
   ensureSuccess(dockerRun, `Node 14 Docker smoke test failed in ${image}.`);
 
   console.log(`✔ Node 14 Docker smoke test passed (${image})`);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`✖ ${message}`);
+  process.exitCode = 1;
 } finally {
-  fs.rmSync(tempRoot, { recursive: true, force: true });
+  if (tempRoot) {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 }
