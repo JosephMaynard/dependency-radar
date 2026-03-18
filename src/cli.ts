@@ -3,6 +3,11 @@ import path from "path";
 import { ChildProcess, spawn } from "child_process";
 import { platform } from "os";
 import { aggregateData } from "./aggregator";
+import {
+  findDependenciesByPackageName,
+  formatExplainOutput,
+  type ExplainAvailability,
+} from "./explain";
 import { runImportGraph } from "./runners/importGraphRunner";
 import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
@@ -1046,8 +1051,11 @@ function buildCombinedDependencyGraph(
 }
 
 interface CliOptions {
-  command: "scan";
+  command: "scan" | "explain";
+  packageName?: string;
+  invalidCommand?: string;
   project: string;
+  quiet: boolean;
   out: string;
   keepTemp: boolean;
   audit: boolean;
@@ -1072,6 +1080,7 @@ function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     command: "scan",
     project: process.cwd(),
+    quiet: false,
     out: "dependency-radar.html",
     keepTemp: false,
     audit: true,
@@ -1084,13 +1093,23 @@ function parseArgs(argv: string[]): CliOptions {
 
   const args = [...argv];
   if (args[0] && !args[0].startsWith("-")) {
-    opts.command = args.shift() as "scan";
+    const command = args.shift()!;
+    if (command === "scan" || command === "explain") {
+      opts.command = command;
+    } else {
+      opts.invalidCommand = command;
+      return opts;
+    }
   }
 
   while (args.length) {
     const arg = args.shift();
     if (!arg) break;
-    if (arg === "--project" && args[0]) opts.project = args.shift()!;
+    if (!arg.startsWith("-") && opts.command === "explain" && !opts.packageName) {
+      opts.packageName = arg;
+    }
+    else if (arg === "--project" && args[0]) opts.project = args.shift()!;
+    else if (arg === "--quiet") opts.quiet = true;
     else if (arg === "--out" && args[0]) opts.out = args.shift()!;
     else if (arg === "--keep-temp") opts.keepTemp = true;
     else if (arg === "--offline") {
@@ -1138,11 +1157,13 @@ function parseArgs(argv: string[]): CliOptions {
  */
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
+dependency-radar explain <package-name> [options]
 
 If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
+  --quiet            Suppress progress/info logs but keep summary and failures
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
@@ -1152,6 +1173,8 @@ Options:
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Supported: reachable-vuln, production-vuln, high-severity-vuln,
                                 licence-mismatch, copyleft-detected, unknown-licence
+
+\`explain\` reuses the same local scan model and prints a terminal view for one package.
 `);
 }
 
@@ -1221,6 +1244,18 @@ function shouldUseColor(): boolean {
 }
 
 const COLOR_ENABLED = shouldUseColor();
+
+function supportsTerminalHyperlinks(): boolean {
+  if (!process.stdout.isTTY) return false;
+  if (process.env.NO_COLOR !== undefined) return false;
+  if (process.env.TERM === "dumb") return false;
+  return true;
+}
+
+function formatTerminalLink(label: string, url: string): string {
+  if (!supportsTerminalHyperlinks()) return label;
+  return `\u001B]8;;${url}\u0007${label}\u001B]8;;\u0007`;
+}
 
 /**
  * Wraps text with ANSI color or style escape sequences when terminal coloring is enabled.
@@ -1511,38 +1546,50 @@ function printCliSummary(summary: CliSummary): void {
   console.log("");
 }
 
-/**
- * Run the CLI "scan" command to collect and aggregate dependency data for a project or workspace.
- *
- * Detects workspace type and package manager, runs per-package collectors (audit, dependency tree, import graph, outdated),
- * merges collected signals into a workspace-level model, and writes a JSON or HTML report according to CLI options.
- * Manages a temporary working directory and optionally opens the generated report. Exits the process with a non-zero code
- * on fatal errors or when configured policy violations are detected.
- */
-async function run(): Promise<void> {
-  const opts = parseArgs(process.argv.slice(2));
-  if (opts.command !== "scan") {
-    printHelp();
-    process.exit(1);
-    return;
-  }
+type CollectorAvailability = {
+  audit: ExplainAvailability;
+  importGraphComplete: boolean;
+};
 
-  const shouldWriteArtifacts = !opts.noReport;
+type AnalysisExecutionResult = {
+  aggregated: AggregatedData;
+  summary: CliSummary;
+  policyViolations: PolicyViolation[];
+  dependencyCount: number;
+  elapsedSeconds: string;
+  outputCreated: boolean;
+  outputPath: string;
+  shouldWriteArtifacts: boolean;
+  collectorAvailability: CollectorAvailability;
+  workspace: WorkspaceDiscovery;
+  packagePaths: string[];
+};
+
+async function executeAnalysis(
+  opts: CliOptions,
+  options: {
+    shouldWriteArtifacts: boolean;
+    emitArtifactSummary: boolean;
+    emitWorkspacePackageSummary: boolean;
+  },
+): Promise<AnalysisExecutionResult> {
+  const shouldWriteArtifacts = options.shouldWriteArtifacts;
   const projectPath = path.resolve(opts.project);
-  let summary: CliSummary | undefined;
-  let policyViolations: PolicyViolation[] = [];
-  if (opts.noReport && opts.keepTemp) {
+  let outputPath = path.resolve(opts.out);
+  const startTime = Date.now();
+  let dependencyCount = 0;
+  let outputCreated = false;
+
+  if (opts.command === "scan" && opts.noReport && opts.keepTemp && !opts.quiet) {
     console.log(
       statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
     );
   }
   if (opts.json && opts.out === "dependency-radar.html") {
     opts.out = "dependency-radar.json";
+    outputPath = path.resolve(opts.out);
   }
-  let outputPath = path.resolve(opts.out);
-  const startTime = Date.now();
-  let dependencyCount = 0;
-  let outputCreated = false;
+
   if (shouldWriteArtifacts) {
     try {
       const stat = await fs.stat(outputPath).catch(() => undefined);
@@ -1558,13 +1605,13 @@ async function run(): Promise<void> {
           opts.json ? "dependency-radar.json" : "dependency-radar.html",
         );
       }
-    } catch (e) {
+    } catch {
       // ignore, best-effort path normalization
     }
   }
+
   const tempDir = path.join(projectPath, ".dependency-radar");
 
-  // Stage 1: detect workspace/package-manager context and collect tool versions.
   const workspace = await detectWorkspace(projectPath);
   const yarnPnP = await detectYarnPnP(projectPath);
   if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
@@ -1575,7 +1622,6 @@ async function run(): Promise<void> {
       "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
     );
     process.exit(1);
-    return;
   }
   const hasProjectNodeModules = await pathExists(
     path.join(projectPath, "node_modules"),
@@ -1594,6 +1640,7 @@ async function run(): Promise<void> {
       ),
     );
   }
+
   const rootPkg = await readJsonFile(path.join(projectPath, "package.json"));
   const projectDependencyPolicy = workspace.pnpmWorkspaceOverrides
     ? {
@@ -1635,7 +1682,6 @@ async function run(): Promise<void> {
       "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
     );
     process.exit(1);
-    return;
   }
 
   const packagePaths = workspace.packagePaths;
@@ -1643,8 +1689,10 @@ async function run(): Promise<void> {
     workspace.type === "none"
       ? "Single project"
       : `${workspace.type.toUpperCase()} workspace`;
-  console.log(statusLine("✔", `${workspaceLabel} detected`));
-  if (workspace.type !== "none" && scanManager !== workspace.type) {
+  if (!opts.quiet) {
+    console.log(statusLine("✔", `${workspaceLabel} detected`));
+  }
+  if (!opts.quiet && workspace.type !== "none" && scanManager !== workspace.type) {
     console.log(
       statusLine(
         "✔",
@@ -1652,13 +1700,16 @@ async function run(): Promise<void> {
       ),
     );
   }
-  const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
+
+  const spinner = createProgressReporter(
+    `Scanning ${workspaceLabel} at ${projectPath}`,
+    opts.quiet,
+  );
   try {
     if (shouldWriteArtifacts) {
       await ensureDir(tempDir);
     }
 
-    // Stage 2: run per-package collectors and persist raw tool outputs.
     const packageMetas = await readWorkspacePackageMeta(
       projectPath,
       packagePaths,
@@ -1726,16 +1777,14 @@ async function run(): Promise<void> {
       perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
     }
 
-    // Stage 3: merge per-package results into a workspace-level view.
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
-      if (auditOk) {
+      if (!opts.quiet || !auditOk) {
         spinner.log(
-          statusLine("✔", `${scanManager.toUpperCase()} audit data collected`),
-        );
-      } else {
-        spinner.log(
-          statusLine("✖", `${scanManager.toUpperCase()} audit data unavailable`),
+          statusLine(
+            auditOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`,
+          ),
         );
       }
     }
@@ -1743,18 +1792,11 @@ async function run(): Promise<void> {
       const outdatedOk = perPackageOutdated.every(
         (r) => r.result && r.result.ok,
       );
-      if (outdatedOk) {
+      if (!opts.quiet || !outdatedOk) {
         spinner.log(
           statusLine(
-            "✔",
-            `${scanManager.toUpperCase()} outdated data collected`,
-          ),
-        );
-      } else {
-        spinner.log(
-          statusLine(
-            "✖",
-            `${scanManager.toUpperCase()} outdated data unavailable`,
+            outdatedOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`,
           ),
         );
       }
@@ -1791,8 +1833,6 @@ async function run(): Promise<void> {
       : undefined;
     const npmLsResult = { ok: true, data: mergedGraphData };
     const importGraphResult = { ok: true, data: mergedImportGraphData };
-
-    // Build a merged package.json view for aggregator direct-dep checks.
     const mergedPkgForAggregator = mergeDepsFromWorkspace(
       packageMetas,
       workspaceClassification.workspacePackageNames,
@@ -1824,7 +1864,6 @@ async function run(): Promise<void> {
       );
     }
 
-    // Stage 4: aggregate all signals into the final report model.
     const aggregated = await aggregateData({
       projectPath,
       auditResult,
@@ -1860,14 +1899,15 @@ async function run(): Promise<void> {
       ci: isCI(),
       ...(toolVersions ? { toolVersions } : {}),
     });
+
     dependencyCount = Object.keys(aggregated.dependencies).length;
     const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
-    summary = buildCliSummary(aggregated, {
+    const summary = buildCliSummary(aggregated, {
       importGraphComplete,
     });
-    policyViolations = evaluatePolicyViolations(aggregated, opts.failOn);
+    const policyViolations = evaluatePolicyViolations(aggregated, opts.failOn);
 
-    if (workspace.type !== "none") {
+    if (!opts.quiet && options.emitWorkspacePackageSummary && workspace.type !== "none") {
       console.log(
         `Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`,
       );
@@ -1886,77 +1926,179 @@ async function run(): Promise<void> {
       }
       outputCreated = true;
     }
+
     spinner.stop(true);
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(
-      statusLine(
-        "✔",
-        `Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`,
-      ),
-    );
-    if (!shouldWriteArtifacts) {
-      console.log(
-        statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."),
-      );
-    } else if (outputCreated) {
-      console.log(
-        statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`),
-      );
-    } else {
+    const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+    if (!opts.quiet) {
       console.log(
         statusLine(
-          "✖",
-          `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+          "✔",
+          `Scan complete: ${dependencyCount} dependencies analysed in ${elapsedSeconds}s`,
         ),
       );
     }
+
+    if (!opts.quiet && options.emitArtifactSummary) {
+      if (!shouldWriteArtifacts) {
+        console.log(
+          statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."),
+        );
+      } else if (outputCreated) {
+        console.log(
+          statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`),
+        );
+      } else {
+        console.log(
+          statusLine(
+            "✖",
+            `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+          ),
+        );
+      }
+    }
+
+    return {
+      aggregated,
+      summary,
+      policyViolations,
+      dependencyCount,
+      elapsedSeconds,
+      outputCreated,
+      outputPath,
+      shouldWriteArtifacts,
+      collectorAvailability: {
+        audit: !opts.audit
+          ? "skipped"
+          : perPackageAudit.every((result) => result && result.ok)
+            ? "available"
+            : "unavailable",
+        importGraphComplete,
+      },
+      workspace,
+      packagePaths,
+    };
   } catch (err: any) {
     spinner.stop(false);
-    console.error("Failed to generate report:", err);
-    process.exit(1);
+    throw err;
   } finally {
     if (shouldWriteArtifacts) {
       if (!opts.keepTemp) {
         await removeDir(tempDir);
-      } else {
+      } else if (!opts.quiet) {
         console.log(statusLine("✔", `Temporary data kept at ${tempDir}`));
       }
     }
   }
+}
 
-  if (opts.open && !shouldWriteArtifacts) {
-    console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
-  } else if (opts.open && outputCreated && !isCI()) {
+async function runScanCommand(opts: CliOptions): Promise<void> {
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: !opts.noReport,
+    emitArtifactSummary: true,
+    emitWorkspacePackageSummary: true,
+  });
+
+  if (!opts.quiet) {
+    if (opts.open && !result.shouldWriteArtifacts) {
+      console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+    } else if (opts.open && result.outputCreated && !isCI()) {
+      console.log(
+        statusLine(
+          "↗",
+          `Opening ${path.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+        ),
+      );
+      openInBrowser(result.outputPath);
+    } else if (opts.open && result.outputCreated && isCI()) {
+      console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+    }
+  }
+
+  printCliSummary(result.summary);
+  printPolicyViolations(result.policyViolations);
+  if (!opts.quiet) {
     console.log(
-      statusLine(
-        "↗",
-        `Opening ${path.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
-      ),
+      `Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at ${formatTerminalLink(
+        "https://www.dependency-radar.com",
+        "https://www.dependency-radar.com",
+      )}`,
     );
-    openInBrowser(outputPath);
-  } else if (opts.open && outputCreated && isCI()) {
-    console.log(statusLine("✖", "Skipping auto-open in CI environment."));
   }
 
-  if (summary) {
-    printCliSummary(summary);
-  } else {
-    console.log("");
+  if (result.policyViolations.length > 0) {
+    process.exit(1);
+  }
+}
+
+async function runExplainCommand(opts: CliOptions): Promise<void> {
+  const packageName = opts.packageName?.trim();
+  if (!packageName) {
+    console.error("Missing package name for explain. Usage: dependency-radar explain <package-name>");
+    process.exit(1);
+    return;
   }
 
-  printPolicyViolations(policyViolations);
-
-  // Always show CTA as the last output
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: false,
+    emitArtifactSummary: false,
+    emitWorkspacePackageSummary: false,
+  });
+  const matches = findDependenciesByPackageName(result.aggregated, packageName);
+  console.log("");
   console.log(
-    "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
+    formatExplainOutput(packageName, matches, {
+      audit: result.collectorAvailability.audit,
+      importGraphComplete: result.collectorAvailability.importGraphComplete,
+    }),
   );
 
-  if (policyViolations.length > 0) {
+  if (matches.length === 0) {
+    process.exit(1);
+  }
+}
+
+/**
+ * Run the CLI entrypoint and dispatch to the selected command.
+ */
+async function run(): Promise<void> {
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.invalidCommand) {
+    printHelp();
+    process.exit(1);
+    return;
+  }
+
+  try {
+    if (opts.command === "explain") {
+      await runExplainCommand(opts);
+      return;
+    }
+    await runScanCommand(opts);
+  } catch (err: any) {
+    console.error("Failed to generate report:", err);
     process.exit(1);
   }
 }
 
 run();
+
+function createProgressReporter(
+  text: string,
+  quiet: boolean,
+): {
+  stop: (success?: boolean) => void;
+  update: (nextText: string) => void;
+  log: (line: string) => void;
+} {
+  if (!quiet) return startSpinner(text);
+  return {
+    stop: () => {},
+    update: () => {},
+    log: (line: string) => {
+      process.stdout.write(`${colorLeadingSymbol(line)}\n`);
+    },
+  };
+}
 
 /**
  * Displays a rotating CLI spinner with a message and returns controls to stop, update, or log lines.

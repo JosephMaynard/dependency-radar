@@ -8,6 +8,7 @@ const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
 const os_1 = require("os");
 const aggregator_1 = require("./aggregator");
+const explain_1 = require("./explain");
 const importGraphRunner_1 = require("./runners/importGraphRunner");
 const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
@@ -923,6 +924,7 @@ function parseArgs(argv) {
     const opts = {
         command: "scan",
         project: process.cwd(),
+        quiet: false,
         out: "dependency-radar.html",
         keepTemp: false,
         audit: true,
@@ -934,14 +936,26 @@ function parseArgs(argv) {
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
-        opts.command = args.shift();
+        const command = args.shift();
+        if (command === "scan" || command === "explain") {
+            opts.command = command;
+        }
+        else {
+            opts.invalidCommand = command;
+            return opts;
+        }
     }
     while (args.length) {
         const arg = args.shift();
         if (!arg)
             break;
-        if (arg === "--project" && args[0])
+        if (!arg.startsWith("-") && opts.command === "explain" && !opts.packageName) {
+            opts.packageName = arg;
+        }
+        else if (arg === "--project" && args[0])
             opts.project = args.shift();
+        else if (arg === "--quiet")
+            opts.quiet = true;
         else if (arg === "--out" && args[0])
             opts.out = args.shift();
         else if (arg === "--keep-temp")
@@ -990,11 +1004,13 @@ function parseArgs(argv) {
  */
 function printHelp() {
     console.log(`dependency-radar [scan] [options]
+dependency-radar explain <package-name> [options]
 
 If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
+  --quiet            Suppress progress/info logs but keep summary and failures
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
@@ -1004,6 +1020,8 @@ Options:
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Supported: reachable-vuln, production-vuln, high-severity-vuln,
                                 licence-mismatch, copyleft-detected, unknown-licence
+
+\`explain\` reuses the same local scan model and prints a terminal view for one package.
 `);
 }
 /**
@@ -1070,6 +1088,20 @@ function shouldUseColor() {
     return Boolean(process.stdout.isTTY);
 }
 const COLOR_ENABLED = shouldUseColor();
+function supportsTerminalHyperlinks() {
+    if (!process.stdout.isTTY)
+        return false;
+    if (process.env.NO_COLOR !== undefined)
+        return false;
+    if (process.env.TERM === "dumb")
+        return false;
+    return true;
+}
+function formatTerminalLink(label, url) {
+    if (!supportsTerminalHyperlinks())
+        return label;
+    return `\u001B]8;;${url}\u0007${label}\u001B]8;;\u0007`;
+}
 /**
  * Wraps text with ANSI color or style escape sequences when terminal coloring is enabled.
  *
@@ -1297,36 +1329,21 @@ function printCliSummary(summary) {
     }
     console.log("");
 }
-/**
- * Run the CLI "scan" command to collect and aggregate dependency data for a project or workspace.
- *
- * Detects workspace type and package manager, runs per-package collectors (audit, dependency tree, import graph, outdated),
- * merges collected signals into a workspace-level model, and writes a JSON or HTML report according to CLI options.
- * Manages a temporary working directory and optionally opens the generated report. Exits the process with a non-zero code
- * on fatal errors or when configured policy violations are detected.
- */
-async function run() {
+async function executeAnalysis(opts, options) {
     var _a;
-    const opts = parseArgs(process.argv.slice(2));
-    if (opts.command !== "scan") {
-        printHelp();
-        process.exit(1);
-        return;
-    }
-    const shouldWriteArtifacts = !opts.noReport;
+    const shouldWriteArtifacts = options.shouldWriteArtifacts;
     const projectPath = path_1.default.resolve(opts.project);
-    let summary;
-    let policyViolations = [];
-    if (opts.noReport && opts.keepTemp) {
-        console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
-    }
-    if (opts.json && opts.out === "dependency-radar.html") {
-        opts.out = "dependency-radar.json";
-    }
     let outputPath = path_1.default.resolve(opts.out);
     const startTime = Date.now();
     let dependencyCount = 0;
     let outputCreated = false;
+    if (opts.command === "scan" && opts.noReport && opts.keepTemp && !opts.quiet) {
+        console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
+    }
+    if (opts.json && opts.out === "dependency-radar.html") {
+        opts.out = "dependency-radar.json";
+        outputPath = path_1.default.resolve(opts.out);
+    }
     if (shouldWriteArtifacts) {
         try {
             const stat = await promises_1.default.stat(outputPath).catch(() => undefined);
@@ -1338,19 +1355,17 @@ async function run() {
                 outputPath = path_1.default.join(outputPath, opts.json ? "dependency-radar.json" : "dependency-radar.html");
             }
         }
-        catch (e) {
+        catch {
             // ignore, best-effort path normalization
         }
     }
     const tempDir = path_1.default.join(projectPath, ".dependency-radar");
-    // Stage 1: detect workspace/package-manager context and collect tool versions.
     const workspace = await detectWorkspace(projectPath);
     const yarnPnP = await detectYarnPnP(projectPath);
     if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
         console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
         console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
         process.exit(1);
-        return;
     }
     const hasProjectNodeModules = await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules"));
     if (!hasProjectNodeModules) {
@@ -1393,22 +1408,22 @@ async function run() {
         console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
         console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
         process.exit(1);
-        return;
     }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === "none"
         ? "Single project"
         : `${workspace.type.toUpperCase()} workspace`;
-    console.log(statusLine("✔", `${workspaceLabel} detected`));
-    if (workspace.type !== "none" && scanManager !== workspace.type) {
+    if (!opts.quiet) {
+        console.log(statusLine("✔", `${workspaceLabel} detected`));
+    }
+    if (!opts.quiet && workspace.type !== "none" && scanManager !== workspace.type) {
         console.log(statusLine("✔", `Using ${scanManager.toUpperCase()} for dependency data (lockfile detected)`));
     }
-    const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
+    const spinner = createProgressReporter(`Scanning ${workspaceLabel} at ${projectPath}`, opts.quiet);
     try {
         if (shouldWriteArtifacts) {
             await (0, utils_1.ensureDir)(tempDir);
         }
-        // Stage 2: run per-package collectors and persist raw tool outputs.
         const packageMetas = await readWorkspacePackageMeta(projectPath, packagePaths);
         const workspaceClassification = buildWorkspaceClassification(projectPath, packageMetas);
         const perPackageAudit = [];
@@ -1443,23 +1458,16 @@ async function run() {
             perPackageImportGraph.push(ig);
             perPackageOutdated.push({ attempted: Boolean(opts.outdated), result: o });
         }
-        // Stage 3: merge per-package results into a workspace-level view.
         if (opts.audit) {
             const auditOk = perPackageAudit.every((r) => r && r.ok);
-            if (auditOk) {
-                spinner.log(statusLine("✔", `${scanManager.toUpperCase()} audit data collected`));
-            }
-            else {
-                spinner.log(statusLine("✖", `${scanManager.toUpperCase()} audit data unavailable`));
+            if (!opts.quiet || !auditOk) {
+                spinner.log(statusLine(auditOk ? "✔" : "✖", `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`));
             }
         }
         if (opts.outdated) {
             const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
-            if (outdatedOk) {
-                spinner.log(statusLine("✔", `${scanManager.toUpperCase()} outdated data collected`));
-            }
-            else {
-                spinner.log(statusLine("✖", `${scanManager.toUpperCase()} outdated data unavailable`));
+            if (!opts.quiet || !outdatedOk) {
+                spinner.log(statusLine(outdatedOk ? "✔" : "✖", `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`));
             }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
@@ -1476,7 +1484,6 @@ async function run() {
             : undefined;
         const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
-        // Build a merged package.json view for aggregator direct-dep checks.
         const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas, workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
         const auditFailure = opts.audit
             ? perPackageAudit.find((r) => r && !r.ok)
@@ -1496,7 +1503,6 @@ async function run() {
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
         }
-        // Stage 4: aggregate all signals into the final report model.
         const aggregated = await (0, aggregator_1.aggregateData)({
             projectPath,
             auditResult,
@@ -1533,11 +1539,11 @@ async function run() {
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
         const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
-        summary = buildCliSummary(aggregated, {
+        const summary = buildCliSummary(aggregated, {
             importGraphComplete,
         });
-        policyViolations = (0, failOn_1.evaluatePolicyViolations)(aggregated, opts.failOn);
-        if (workspace.type !== "none") {
+        const policyViolations = (0, failOn_1.evaluatePolicyViolations)(aggregated, opts.failOn);
+        if (!opts.quiet && options.emitWorkspacePackageSummary && workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
         if (dependencyCount > 0 && shouldWriteArtifacts) {
@@ -1551,57 +1557,141 @@ async function run() {
             outputCreated = true;
         }
         spinner.stop(true);
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(statusLine("✔", `Scan complete: ${dependencyCount} dependencies analysed in ${elapsed}s`));
-        if (!shouldWriteArtifacts) {
-            console.log(statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."));
+        const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+        if (!opts.quiet) {
+            console.log(statusLine("✔", `Scan complete: ${dependencyCount} dependencies analysed in ${elapsedSeconds}s`));
         }
-        else if (outputCreated) {
-            console.log(statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`));
+        if (!opts.quiet && options.emitArtifactSummary) {
+            if (!shouldWriteArtifacts) {
+                console.log(statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."));
+            }
+            else if (outputCreated) {
+                console.log(statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`));
+            }
+            else {
+                console.log(statusLine("✖", `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`));
+            }
         }
-        else {
-            console.log(statusLine("✖", `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`));
-        }
+        return {
+            aggregated,
+            summary,
+            policyViolations,
+            dependencyCount,
+            elapsedSeconds,
+            outputCreated,
+            outputPath,
+            shouldWriteArtifacts,
+            collectorAvailability: {
+                audit: !opts.audit
+                    ? "skipped"
+                    : perPackageAudit.every((result) => result && result.ok)
+                        ? "available"
+                        : "unavailable",
+                importGraphComplete,
+            },
+            workspace,
+            packagePaths,
+        };
     }
     catch (err) {
         spinner.stop(false);
-        console.error("Failed to generate report:", err);
-        process.exit(1);
+        throw err;
     }
     finally {
         if (shouldWriteArtifacts) {
             if (!opts.keepTemp) {
                 await (0, utils_1.removeDir)(tempDir);
             }
-            else {
+            else if (!opts.quiet) {
                 console.log(statusLine("✔", `Temporary data kept at ${tempDir}`));
             }
         }
     }
-    if (opts.open && !shouldWriteArtifacts) {
-        console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+}
+async function runScanCommand(opts) {
+    const result = await executeAnalysis(opts, {
+        shouldWriteArtifacts: !opts.noReport,
+        emitArtifactSummary: true,
+        emitWorkspacePackageSummary: true,
+    });
+    if (!opts.quiet) {
+        if (opts.open && !result.shouldWriteArtifacts) {
+            console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+        }
+        else if (opts.open && result.outputCreated && !isCI()) {
+            console.log(statusLine("↗", `Opening ${path_1.default.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`));
+            openInBrowser(result.outputPath);
+        }
+        else if (opts.open && result.outputCreated && isCI()) {
+            console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+        }
     }
-    else if (opts.open && outputCreated && !isCI()) {
-        console.log(statusLine("↗", `Opening ${path_1.default.basename(outputPath)} using system default ${opts.json ? "application" : "browser"}.`));
-        openInBrowser(outputPath);
+    printCliSummary(result.summary);
+    printPolicyViolations(result.policyViolations);
+    if (!opts.quiet) {
+        console.log(`Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at ${formatTerminalLink("https://www.dependency-radar.com", "https://www.dependency-radar.com")}`);
     }
-    else if (opts.open && outputCreated && isCI()) {
-        console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+    if (result.policyViolations.length > 0) {
+        process.exit(1);
     }
-    if (summary) {
-        printCliSummary(summary);
+}
+async function runExplainCommand(opts) {
+    var _a;
+    const packageName = (_a = opts.packageName) === null || _a === void 0 ? void 0 : _a.trim();
+    if (!packageName) {
+        console.error("Missing package name for explain. Usage: dependency-radar explain <package-name>");
+        process.exit(1);
+        return;
     }
-    else {
-        console.log("");
+    const result = await executeAnalysis(opts, {
+        shouldWriteArtifacts: false,
+        emitArtifactSummary: false,
+        emitWorkspacePackageSummary: false,
+    });
+    const matches = (0, explain_1.findDependenciesByPackageName)(result.aggregated, packageName);
+    console.log("");
+    console.log((0, explain_1.formatExplainOutput)(packageName, matches, {
+        audit: result.collectorAvailability.audit,
+        importGraphComplete: result.collectorAvailability.importGraphComplete,
+    }));
+    if (matches.length === 0) {
+        process.exit(1);
     }
-    printPolicyViolations(policyViolations);
-    // Always show CTA as the last output
-    console.log("Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com");
-    if (policyViolations.length > 0) {
+}
+/**
+ * Run the CLI entrypoint and dispatch to the selected command.
+ */
+async function run() {
+    const opts = parseArgs(process.argv.slice(2));
+    if (opts.invalidCommand) {
+        printHelp();
+        process.exit(1);
+        return;
+    }
+    try {
+        if (opts.command === "explain") {
+            await runExplainCommand(opts);
+            return;
+        }
+        await runScanCommand(opts);
+    }
+    catch (err) {
+        console.error("Failed to generate report:", err);
         process.exit(1);
     }
 }
 run();
+function createProgressReporter(text, quiet) {
+    if (!quiet)
+        return startSpinner(text);
+    return {
+        stop: () => { },
+        update: () => { },
+        log: (line) => {
+            process.stdout.write(`${colorLeadingSymbol(line)}\n`);
+        },
+    };
+}
 /**
  * Displays a rotating CLI spinner with a message and returns controls to stop, update, or log lines.
  *
