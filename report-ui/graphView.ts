@@ -1232,7 +1232,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       });
       context.restore();
     }
-    const graphWidth = Math.max(1, bounds.maxX - bounds.minX);
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
     const fitZoomX = width / Math.max(1, contentMaxX - bounds.minX);
     const fitZoomY = height / graphHeight;
