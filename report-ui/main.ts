@@ -1304,29 +1304,37 @@ function renderDepDetails(
         )
       : "",
     renderKvItem("Dependency depth", dep.usage.depth),
-    renderKvItemHtml(
-      "Introduced via root packages",
-      renderRootPackageList(
-        dep.usage.origins.topRootPackages,
-        8,
-        linkableKeys,
-        keysByName,
-      ),
-    ),
-    renderKvItem("Direct roots", dep.usage.origins.rootPackageCount),
-    renderKvItemHtml(
-      "Direct parents",
-      renderDependencyIdList(
-        dep.usage.origins.topParentPackages,
-        8,
-        linkableKeys,
-        keysByName,
-      ),
-    ),
-    renderKvItem(
-      "Direct parents count",
-      dep.usage.origins.parentPackageCount ?? 0,
-    ),
+    !dep.usage.direct
+      ? renderKvItemHtml(
+          "Introduced via root packages",
+          renderRootPackageList(
+            dep.usage.origins.topRootPackages,
+            8,
+            linkableKeys,
+            keysByName,
+          ),
+        )
+      : "",
+    !dep.usage.direct
+      ? renderKvItem("Direct roots", dep.usage.origins.rootPackageCount)
+      : "",
+    !dep.usage.direct
+      ? renderKvItemHtml(
+          "Direct parents",
+          renderDependencyIdList(
+            dep.usage.origins.topParentPackages,
+            8,
+            linkableKeys,
+            keysByName,
+          ),
+        )
+      : "",
+    !dep.usage.direct
+      ? renderKvItem(
+          "Direct parents count",
+          dep.usage.origins.parentPackageCount ?? 0,
+        )
+      : "",
     renderKvItem("TypeScript types", tsTypesLabel(dep.usage.tsTypes)),
   ].filter(Boolean);
 
