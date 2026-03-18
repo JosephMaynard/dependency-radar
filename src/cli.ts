@@ -1486,12 +1486,12 @@ function printCliSummary(summary: CliSummary): void {
   const bullet = "•";
   console.log("");
   console.log("Summary:");
-  console.log(`${bullet} Direct deps scanned: ${summary.directDeps}`);
-  console.log(`${bullet} Transitive deps scanned: ${summary.transitiveDeps}`);
+  console.log(`${bullet} Direct dependencies scanned: ${summary.directDeps}`);
+  console.log(`${bullet} Transitive dependencies scanned: ${summary.transitiveDeps}`);
   console.log(
     `${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.reachableVulnerablePackages} reachable)`,
   );
-  console.log(`${bullet} Unused installed deps: ${summary.unusedInstalledDeps}`);
+  console.log(`${bullet} Dependencies with no static import reference: ${summary.unusedInstalledDeps}`);
   console.log(`${bullet} License mismatches: ${summary.licenseMismatches}`);
   console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
   const blockerDetails: string[] = [];

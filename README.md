@@ -218,16 +218,16 @@ At the end of each scan, the CLI prints a summary block with high-level counts, 
 
 ```text
 Summary:
-• Direct deps scanned: 8
-• Transitive deps scanned: 65
-• Vulnerable packages: 5 (1 reachable)
-• Unused installed deps: 0
+• Direct dependencies scanned: 6
+• Transitive dependencies scanned: 62
+• Vulnerable packages: 1 (0 reachable)
+• Dependencies with no static import reference: 0
 • License mismatches: 3
-• Major upgrade blockers: 28
-   - 14 strict peer dependency constraints
-   - 6 narrow engine ranges
-   - 4 deprecated packages
-   - 4 native bindings
+• Major upgrade blockers: 24
+   - 1 strict peer dependency constraint
+   - 22 narrow engine ranges
+   - 2 native bindings
+   - 1 install lifecycle script
 ```
 
 The blocker detail counts can overlap: a single package may contribute to multiple blocker categories.
