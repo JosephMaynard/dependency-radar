@@ -92,6 +92,7 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | Flag | Description |
 |---|---|
 | `--project <path>` | Path to the project to scan (defaults to current directory) |
+| `--quiet` | Suppress progress/info logs, browser opening, and footer messaging while keeping the final summary and failures visible |
 | `--out <path>` | Output path for the report file |
 | `--offline` | Skip `npm audit` and `npm outdated` (useful for offline/air-gapped scans) |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
@@ -191,6 +192,20 @@ npx dependency-radar --offline
 ```bash
 npx dependency-radar --no-report --fail-on reachable-vuln,licence-mismatch
 ```
+
+### Example: quiet mode for CI or scripting
+
+```bash
+npx dependency-radar scan --quiet --no-report
+```
+
+`--quiet` is quiet, not silent:
+
+- the scan still runs fully
+- reports are still generated unless `--no-report` is set
+- the final summary block is still printed
+- policy failures are still printed
+- progress/info logs, automatic browser opening, and the promotional footer are suppressed
 
 __Note:__ When used with `--no-report`, the `--keep-temp` flag is ignored. 
 Temporary files are normally deleted automatically. 

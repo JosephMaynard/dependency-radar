@@ -1055,6 +1055,7 @@ interface CliOptions {
   packageName?: string;
   invalidCommand?: string;
   project: string;
+  quiet: boolean;
   out: string;
   keepTemp: boolean;
   audit: boolean;
@@ -1079,6 +1080,7 @@ function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     command: "scan",
     project: process.cwd(),
+    quiet: false,
     out: "dependency-radar.html",
     keepTemp: false,
     audit: true,
@@ -1107,6 +1109,7 @@ function parseArgs(argv: string[]): CliOptions {
       opts.packageName = arg;
     }
     else if (arg === "--project" && args[0]) opts.project = args.shift()!;
+    else if (arg === "--quiet") opts.quiet = true;
     else if (arg === "--out" && args[0]) opts.out = args.shift()!;
     else if (arg === "--keep-temp") opts.keepTemp = true;
     else if (arg === "--offline") {
@@ -1160,6 +1163,7 @@ If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
+  --quiet            Suppress progress/info logs but keep summary and failures
   --out <path>       Output HTML file (default: dependency-radar.html)
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
@@ -1564,7 +1568,7 @@ async function executeAnalysis(
   let dependencyCount = 0;
   let outputCreated = false;
 
-  if (opts.command === "scan" && opts.noReport && opts.keepTemp) {
+  if (opts.command === "scan" && opts.noReport && opts.keepTemp && !opts.quiet) {
     console.log(
       statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
     );
@@ -1673,8 +1677,10 @@ async function executeAnalysis(
     workspace.type === "none"
       ? "Single project"
       : `${workspace.type.toUpperCase()} workspace`;
-  console.log(statusLine("✔", `${workspaceLabel} detected`));
-  if (workspace.type !== "none" && scanManager !== workspace.type) {
+  if (!opts.quiet) {
+    console.log(statusLine("✔", `${workspaceLabel} detected`));
+  }
+  if (!opts.quiet && workspace.type !== "none" && scanManager !== workspace.type) {
     console.log(
       statusLine(
         "✔",
@@ -1683,7 +1689,10 @@ async function executeAnalysis(
     );
   }
 
-  const spinner = startSpinner(`Scanning ${workspaceLabel} at ${projectPath}`);
+  const spinner = createProgressReporter(
+    `Scanning ${workspaceLabel} at ${projectPath}`,
+    opts.quiet,
+  );
   try {
     if (shouldWriteArtifacts) {
       await ensureDir(tempDir);
@@ -1758,23 +1767,27 @@ async function executeAnalysis(
 
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
-      spinner.log(
-        statusLine(
-          auditOk ? "✔" : "✖",
-          `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`,
-        ),
-      );
+      if (!opts.quiet || !auditOk) {
+        spinner.log(
+          statusLine(
+            auditOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`,
+          ),
+        );
+      }
     }
     if (opts.outdated) {
       const outdatedOk = perPackageOutdated.every(
         (r) => r.result && r.result.ok,
       );
-      spinner.log(
-        statusLine(
-          outdatedOk ? "✔" : "✖",
-          `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`,
-        ),
-      );
+      if (!opts.quiet || !outdatedOk) {
+        spinner.log(
+          statusLine(
+            outdatedOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`,
+          ),
+        );
+      }
     }
 
     const mergedAuditData = mergeAuditResults(
@@ -1882,7 +1895,7 @@ async function executeAnalysis(
     });
     const policyViolations = evaluatePolicyViolations(aggregated, opts.failOn);
 
-    if (options.emitWorkspacePackageSummary && workspace.type !== "none") {
+    if (!opts.quiet && options.emitWorkspacePackageSummary && workspace.type !== "none") {
       console.log(
         `Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`,
       );
@@ -1904,14 +1917,16 @@ async function executeAnalysis(
 
     spinner.stop(true);
     const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(
-      statusLine(
-        "✔",
-        `Scan complete: ${dependencyCount} dependencies analysed in ${elapsedSeconds}s`,
-      ),
-    );
+    if (!opts.quiet) {
+      console.log(
+        statusLine(
+          "✔",
+          `Scan complete: ${dependencyCount} dependencies analysed in ${elapsedSeconds}s`,
+        ),
+      );
+    }
 
-    if (options.emitArtifactSummary) {
+    if (!opts.quiet && options.emitArtifactSummary) {
       if (!shouldWriteArtifacts) {
         console.log(
           statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."),
@@ -1957,7 +1972,7 @@ async function executeAnalysis(
     if (shouldWriteArtifacts) {
       if (!opts.keepTemp) {
         await removeDir(tempDir);
-      } else {
+      } else if (!opts.quiet) {
         console.log(statusLine("✔", `Temporary data kept at ${tempDir}`));
       }
     }
@@ -1971,25 +1986,29 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
     emitWorkspacePackageSummary: true,
   });
 
-  if (opts.open && !result.shouldWriteArtifacts) {
-    console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
-  } else if (opts.open && result.outputCreated && !isCI()) {
-    console.log(
-      statusLine(
-        "↗",
-        `Opening ${path.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
-      ),
-    );
-    openInBrowser(result.outputPath);
-  } else if (opts.open && result.outputCreated && isCI()) {
-    console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+  if (!opts.quiet) {
+    if (opts.open && !result.shouldWriteArtifacts) {
+      console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
+    } else if (opts.open && result.outputCreated && !isCI()) {
+      console.log(
+        statusLine(
+          "↗",
+          `Opening ${path.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+        ),
+      );
+      openInBrowser(result.outputPath);
+    } else if (opts.open && result.outputCreated && isCI()) {
+      console.log(statusLine("✖", "Skipping auto-open in CI environment."));
+    }
   }
 
   printCliSummary(result.summary);
   printPolicyViolations(result.policyViolations);
-  console.log(
-    "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
-  );
+  if (!opts.quiet) {
+    console.log(
+      "Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at dependency-radar.com",
+    );
+  }
 
   if (result.policyViolations.length > 0) {
     process.exit(1);
@@ -2047,6 +2066,24 @@ async function run(): Promise<void> {
 }
 
 run();
+
+function createProgressReporter(
+  text: string,
+  quiet: boolean,
+): {
+  stop: (success?: boolean) => void;
+  update: (nextText: string) => void;
+  log: (line: string) => void;
+} {
+  if (!quiet) return startSpinner(text);
+  return {
+    stop: () => {},
+    update: () => {},
+    log: (line: string) => {
+      process.stdout.write(`${colorLeadingSymbol(line)}\n`);
+    },
+  };
+}
 
 /**
  * Displays a rotating CLI spinner with a message and returns controls to stop, update, or log lines.

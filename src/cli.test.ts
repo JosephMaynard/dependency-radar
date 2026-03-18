@@ -149,6 +149,63 @@ describe('cli summary output', () => {
   );
 
   it(
+    'suppresses progress/info logs in quiet mode but still prints the summary',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const result = runCli(
+        ['scan', '--project', repoRoot, '--offline', '--no-report', '--open', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Summary:');
+      expect(output).not.toContain('Single project detected');
+      expect(output).not.toContain('Scan complete:');
+      expect(output).not.toContain('Report output disabled');
+      expect(output).not.toContain('Skipping auto-open because --no-report is enabled.');
+      expect(output).not.toContain('Enrich this scan with maintenance signals');
+    },
+  );
+
+  it(
+    'still prints policy failures in quiet mode',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(
+        repoRoot,
+        'test-fixtures',
+        'license-edge-cases',
+      );
+      const result = runCli(
+        [
+          'scan',
+          '--project',
+          fixtureProject,
+          '--offline',
+          '--no-report',
+          '--quiet',
+          '--fail-on',
+          'licence-mismatch',
+        ],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(1);
+
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Summary:');
+      expect(output).toContain('Policy violations detected');
+      expect(output).toContain('licence mismatch');
+      expect(output).not.toContain('Single project detected');
+      expect(output).not.toContain('Enrich this scan with maintenance signals');
+    },
+  );
+
+  it(
     'returns exit code 1 when explain cannot find the package',
     { timeout: 30000 },
     () => {
