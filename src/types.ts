@@ -129,6 +129,7 @@ export interface DependencyRecord {
     latestVersion?: string;
     blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
+    targetNodeCompatible?: boolean;
   };
   // Usage answers why this dependency exists and where it shows up in the project.
   usage: {
@@ -151,6 +152,27 @@ export interface DependencyRecord {
     subDeps?: SubDependencyMap;
   };
   execution?: DependencyExecutionInfo;
+}
+
+export type FindingSeverity = 'info' | 'warning' | 'error';
+export type FindingCategory =
+  | 'security'
+  | 'license'
+  | 'execution'
+  | 'upgrade'
+  | 'supply-chain';
+
+export interface DependencyFinding {
+  id: string;
+  category: FindingCategory;
+  severity: FindingSeverity;
+  packageId: string;
+  packageName: string;
+  packageVersion: string;
+  title: string;
+  message: string;
+  evidence?: string;
+  recommendation?: string;
 }
 
 export interface ToolResult<T> {
@@ -197,7 +219,7 @@ export interface ProjectDependencyPolicySummary {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.3';
+  schemaVersion: '1.4';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -224,6 +246,7 @@ export interface AggregatedData {
     nodeVersion: string;
     runtimeVersion: string;
     minRequiredMajor: number;
+    targetNodeMajor?: number;
     platform?: string;
     arch?: string;
     ci?: boolean;
@@ -246,7 +269,9 @@ export interface AggregatedData {
     dependencyCount: number;
     directCount: number;
     transitiveCount: number;
+    findingCount?: number;
   };
+  findings?: DependencyFinding[];
   dependencies: Record<string, DependencyRecord>;
 }
 

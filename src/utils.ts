@@ -12,9 +12,11 @@ export interface CommandResult {
 export function runCommand(
   command: string,
   args: string[],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}
+  options: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; maxOutputBytes?: number } = {}
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
+    const timeoutMs = options.timeoutMs ?? Number(process.env.DEPENDENCY_RADAR_COMMAND_TIMEOUT_MS || 120_000);
+    const maxOutputBytes = options.maxOutputBytes ?? 50 * 1024 * 1024;
     const child = spawn(command, args, {
       cwd: options.cwd,
       shell: false,
@@ -23,12 +25,57 @@ export function runCommand(
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let settled = false;
+    let timedOut = false;
+    let outputExceeded = false;
+    const timer = timeoutMs > 0
+      ? setTimeout(() => {
+          timedOut = true;
+          child.kill('SIGTERM');
+          setTimeout(() => {
+            if (!settled) child.kill('SIGKILL');
+          }, 2000).unref?.();
+        }, timeoutMs)
+      : undefined;
 
-    child.stdout.on('data', (d) => stdoutChunks.push(Buffer.from(d)));
-    child.stderr.on('data', (d) => stderrChunks.push(Buffer.from(d)));
+    function collect(chunks: Buffer[], currentBytes: number, data: Buffer): number {
+      const nextBytes = currentBytes + data.length;
+      if (nextBytes > maxOutputBytes) {
+        outputExceeded = true;
+        const remaining = Math.max(0, maxOutputBytes - currentBytes);
+        if (remaining > 0) chunks.push(Buffer.from(data.subarray(0, remaining)));
+        child.kill('SIGTERM');
+        return maxOutputBytes;
+      }
+      chunks.push(Buffer.from(data));
+      return nextBytes;
+    }
 
-    child.on('error', (err) => reject(err));
+    child.stdout.on('data', (d) => {
+      stdoutBytes = collect(stdoutChunks, stdoutBytes, Buffer.from(d));
+    });
+    child.stderr.on('data', (d) => {
+      stderrBytes = collect(stderrChunks, stderrBytes, Buffer.from(d));
+    });
+
+    child.on('error', (err) => {
+      if (timer) clearTimeout(timer);
+      settled = true;
+      reject(err);
+    });
     child.on('close', (code) => {
+      if (timer) clearTimeout(timer);
+      settled = true;
+      if (timedOut) {
+        reject(new Error(`${command} timed out after ${timeoutMs}ms`));
+        return;
+      }
+      if (outputExceeded) {
+        reject(new Error(`${command} output exceeded ${maxOutputBytes} bytes`));
+        return;
+      }
       resolve({
         stdout: Buffer.concat(stdoutChunks).toString('utf8'),
         stderr: Buffer.concat(stderrChunks).toString('utf8'),

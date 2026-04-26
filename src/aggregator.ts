@@ -28,6 +28,7 @@ import {
   pickLicenseRisk,
   validateSpdxExpression
 } from './license';
+import { buildDependencyFindings } from './findings';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -71,6 +72,7 @@ interface AggregateInput {
     pnpm?: string;
     yarn?: string;
   };
+  targetNodeMajor?: number;
 }
 
 interface NodeInfo {
@@ -497,7 +499,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       ...(outdated ? { outdatedStatus: outdated.status } : {}),
       ...(outdated?.latestVersion ? { latestVersion: outdated.latestVersion } : {}),
       ...(upgrade?.blockers ? { blockers: upgrade.blockers } : {}),
-      ...(upgrade?.blocksNodeMajor ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {})
+      ...(upgrade?.blocksNodeMajor ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {}),
+      ...(typeof input.targetNodeMajor === 'number' && packageInsights.nodeEngine
+        ? { targetNodeCompatible: isNodeEngineTargetCompatible(packageInsights.nodeEngine, input.targetNodeMajor) }
+        : {})
     };
 
     dependencies[id] = {
@@ -558,8 +563,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const dependencyCount = nodes.length;
   const transitiveCount = dependencyCount - directCount;
 
-  return {
-    schemaVersion: '1.3',
+  const aggregated: AggregatedData = {
+    schemaVersion: '1.4',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
@@ -570,6 +575,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       nodeVersion,
       runtimeVersion,
       minRequiredMajor: minRequiredMajor ?? 0,
+      ...(typeof input.targetNodeMajor === 'number' ? { targetNodeMajor: input.targetNodeMajor } : {}),
       ...(input.platform ? { platform: input.platform } : {}),
       ...(input.arch ? { arch: input.arch } : {}),
       ...(typeof input.ci === 'boolean' ? { ci: input.ci } : {}),
@@ -593,6 +599,35 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     },
     dependencies
   };
+  const findings = buildDependencyFindings(aggregated, { targetNodeMajor: input.targetNodeMajor });
+  aggregated.findings = findings;
+  aggregated.summary.findingCount = findings.length;
+  return aggregated;
+}
+
+function isNodeEngineTargetCompatible(range: string, targetMajor: number): boolean {
+  const normalized = range.trim();
+  if (!normalized || normalized === '*' || normalized.toLowerCase() === 'x') return true;
+  const clauses = normalized.split('||').map((clause) => clause.trim()).filter(Boolean);
+  if (clauses.length === 0) return true;
+  return clauses.some((clause) => {
+    const lower = clause.match(/>=\s*v?(\d+)/);
+    const upper = clause.match(/<\s*v?(\d+)/);
+    if (lower && upper) {
+      const min = Number.parseInt(lower[1], 10);
+      const max = Number.parseInt(upper[1], 10);
+      return targetMajor >= min && targetMajor < max;
+    }
+    const majors = Array.from(clause.matchAll(/(?:^|[\s>=<~^])v?(\d+)/g))
+      .map((match) => Number.parseInt(match[1], 10))
+      .filter((major) => Number.isFinite(major));
+    if (majors.length === 0) return true;
+    if (/^\s*[~^]?\s*v?\d+/.test(clause) && !/[<>]/.test(clause)) {
+      return majors.includes(targetMajor);
+    }
+    if (lower && !upper) return targetMajor >= Number.parseInt(lower[1], 10);
+    return majors.includes(targetMajor);
+  });
 }
 
 function deriveMinRequiredMajor(engineRanges: string[]): number | undefined {

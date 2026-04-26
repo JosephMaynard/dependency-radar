@@ -8,7 +8,20 @@ const path_1 = __importDefault(require("path"));
 const promises_1 = __importDefault(require("fs/promises"));
 const module_1 = require("module");
 const utils_1 = require("../utils");
-const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.dependency-radar']);
+const IGNORED_DIRS = new Set([
+    'node_modules',
+    'dist',
+    'build',
+    'coverage',
+    '.dependency-radar',
+    '.git',
+    '.yarn',
+    '.pnpm-store',
+    '.next',
+    '.nuxt',
+    '.svelte-kit',
+    'storybook-static'
+]);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 /**
  * Builds an import graph for a project and optionally writes it to disk.
@@ -28,10 +41,7 @@ async function runImportGraph(projectPath, tempDir, options = {}) {
     const persistToDisk = options.persistToDisk !== false;
     const targetFile = path_1.default.join(tempDir, 'import-graph.json');
     try {
-        const srcPath = path_1.default.join(projectPath, 'src');
-        const hasSrc = await (0, utils_1.pathExists)(srcPath);
-        const entry = hasSrc ? srcPath : projectPath;
-        const files = await collectSourceFiles(entry);
+        const files = await collectSourceFiles(projectPath);
         const fileGraph = {};
         const packageGraph = {};
         const packageCounts = {};

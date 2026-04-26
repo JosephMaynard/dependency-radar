@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
 const license_1 = require("./license");
+const findings_1 = require("./findings");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
@@ -359,7 +360,10 @@ async function aggregateData(input) {
             ...(outdated ? { outdatedStatus: outdated.status } : {}),
             ...((outdated === null || outdated === void 0 ? void 0 : outdated.latestVersion) ? { latestVersion: outdated.latestVersion } : {}),
             ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blockers) ? { blockers: upgrade.blockers } : {}),
-            ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blocksNodeMajor) ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {})
+            ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blocksNodeMajor) ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {}),
+            ...(typeof input.targetNodeMajor === 'number' && packageInsights.nodeEngine
+                ? { targetNodeCompatible: isNodeEngineTargetCompatible(packageInsights.nodeEngine, input.targetNodeMajor) }
+                : {})
         };
         dependencies[id] = {
             package: {
@@ -416,8 +420,8 @@ async function aggregateData(input) {
     const nodeVersion = process.versions.node;
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
-    return {
-        schemaVersion: '1.3',
+    const aggregated = {
+        schemaVersion: '1.4',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
@@ -428,6 +432,7 @@ async function aggregateData(input) {
             nodeVersion,
             runtimeVersion,
             minRequiredMajor: minRequiredMajor !== null && minRequiredMajor !== void 0 ? minRequiredMajor : 0,
+            ...(typeof input.targetNodeMajor === 'number' ? { targetNodeMajor: input.targetNodeMajor } : {}),
             ...(input.platform ? { platform: input.platform } : {}),
             ...(input.arch ? { arch: input.arch } : {}),
             ...(typeof input.ci === 'boolean' ? { ci: input.ci } : {}),
@@ -451,6 +456,38 @@ async function aggregateData(input) {
         },
         dependencies
     };
+    const findings = (0, findings_1.buildDependencyFindings)(aggregated, { targetNodeMajor: input.targetNodeMajor });
+    aggregated.findings = findings;
+    aggregated.summary.findingCount = findings.length;
+    return aggregated;
+}
+function isNodeEngineTargetCompatible(range, targetMajor) {
+    const normalized = range.trim();
+    if (!normalized || normalized === '*' || normalized.toLowerCase() === 'x')
+        return true;
+    const clauses = normalized.split('||').map((clause) => clause.trim()).filter(Boolean);
+    if (clauses.length === 0)
+        return true;
+    return clauses.some((clause) => {
+        const lower = clause.match(/>=\s*v?(\d+)/);
+        const upper = clause.match(/<\s*v?(\d+)/);
+        if (lower && upper) {
+            const min = Number.parseInt(lower[1], 10);
+            const max = Number.parseInt(upper[1], 10);
+            return targetMajor >= min && targetMajor < max;
+        }
+        const majors = Array.from(clause.matchAll(/(?:^|[\s>=<~^])v?(\d+)/g))
+            .map((match) => Number.parseInt(match[1], 10))
+            .filter((major) => Number.isFinite(major));
+        if (majors.length === 0)
+            return true;
+        if (/^\s*[~^]?\s*v?\d+/.test(clause) && !/[<>]/.test(clause)) {
+            return majors.includes(targetMajor);
+        }
+        if (lower && !upper)
+            return targetMajor >= Number.parseInt(lower[1], 10);
+        return majors.includes(targetMajor);
+    });
 }
 function deriveMinRequiredMajor(engineRanges) {
     let strictest;

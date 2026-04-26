@@ -13,6 +13,15 @@ import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
 import { renderReport } from "./report";
+import { compareReports, formatCompareOutput } from "./compare";
+import {
+  defaultOutputName,
+  renderCycloneDx,
+  renderSarif,
+  renderSpdx,
+  type ReportFormat,
+} from "./outputFormats";
+import { formatWhyOutput } from "./why";
 import {
   SUPPORTED_FAIL_ON_RULES,
   evaluatePolicyViolations,
@@ -1051,8 +1060,9 @@ function buildCombinedDependencyGraph(
 }
 
 interface CliOptions {
-  command: "scan" | "explain";
+  command: "scan" | "explain" | "compare" | "why";
   packageName?: string;
+  comparePath?: string;
   invalidCommand?: string;
   project: string;
   quiet: boolean;
@@ -1064,6 +1074,8 @@ interface CliOptions {
   open: boolean;
   noReport: boolean;
   failOn: Set<FailOnRule>;
+  format: ReportFormat;
+  targetNodeMajor?: number;
 }
 
 /**
@@ -1089,12 +1101,13 @@ function parseArgs(argv: string[]): CliOptions {
     open: false,
     noReport: false,
     failOn: new Set<FailOnRule>(),
+    format: "html",
   };
 
   const args = [...argv];
   if (args[0] && !args[0].startsWith("-")) {
     const command = args.shift()!;
-    if (command === "scan" || command === "explain") {
+    if (command === "scan" || command === "explain" || command === "compare" || command === "why") {
       opts.command = command;
     } else {
       opts.invalidCommand = command;
@@ -1105,8 +1118,11 @@ function parseArgs(argv: string[]): CliOptions {
   while (args.length) {
     const arg = args.shift();
     if (!arg) break;
-    if (!arg.startsWith("-") && opts.command === "explain" && !opts.packageName) {
+    if (!arg.startsWith("-") && (opts.command === "explain" || opts.command === "why") && !opts.packageName) {
       opts.packageName = arg;
+    }
+    else if (!arg.startsWith("-") && opts.command === "compare" && !opts.comparePath) {
+      opts.comparePath = arg;
     }
     else if (arg === "--project" && args[0]) opts.project = args.shift()!;
     else if (arg === "--quiet") opts.quiet = true;
@@ -1115,7 +1131,35 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg === "--offline") {
       opts.audit = false;
       opts.outdated = false;
-    } else if (arg === "--json") opts.json = true;
+    } else if (arg === "--json") {
+      opts.json = true;
+      opts.format = "json";
+    }
+    else if (arg === "--format" && args[0]) {
+      const format = args.shift()!;
+      if (!isReportFormat(format)) {
+        console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
+        process.exit(1);
+      }
+      opts.format = format;
+      opts.json = format === "json";
+    }
+    else if (arg === "--sbom" && args[0]) {
+      const format = args.shift()!;
+      if (format !== "cyclonedx" && format !== "spdx") {
+        console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
+        process.exit(1);
+      }
+      opts.format = format;
+    }
+    else if (arg === "--target-node" && args[0]) {
+      const value = Number.parseInt(args.shift()!, 10);
+      if (!Number.isFinite(value) || value <= 0) {
+        console.error("--target-node must be a positive Node.js major version.");
+        process.exit(1);
+      }
+      opts.targetNodeMajor = value;
+    }
     else if (arg === "--open") opts.open = true;
     else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--fail-on") {
@@ -1149,6 +1193,10 @@ function parseArgs(argv: string[]): CliOptions {
   return opts;
 }
 
+function isReportFormat(value: string): value is ReportFormat {
+  return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
+}
+
 /**
  * Print the CLI usage and available options to the console.
  *
@@ -1158,13 +1206,18 @@ function parseArgs(argv: string[]): CliOptions {
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
 dependency-radar explain <package-name> [options]
+dependency-radar why <package-name> [options]
+dependency-radar compare <previous dependency-radar.json> [options]
 
 If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
   --quiet            Suppress progress/info logs but keep summary and failures
-  --out <path>       Output HTML file (default: dependency-radar.html)
+  --out <path>       Output file (default depends on format)
+  --format <format>  Output format: html, json, sarif, cyclonedx, spdx
+  --sbom <format>    Write an SBOM: cyclonedx or spdx
+  --target-node <n>  Add Node major compatibility findings
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
@@ -1175,6 +1228,8 @@ Options:
                                 licence-mismatch, copyleft-detected, unknown-licence
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
+\`why\` prints shortest dependency paths for one package.
+\`compare\` scans the current project and compares it with a previous JSON report.
 `);
 }
 
@@ -1546,6 +1601,14 @@ function printCliSummary(summary: CliSummary): void {
   console.log("");
 }
 
+function formatLabel(format: ReportFormat): string {
+  if (format === "html") return "Report";
+  if (format === "json") return "JSON";
+  if (format === "sarif") return "SARIF";
+  if (format === "cyclonedx") return "CycloneDX SBOM";
+  return "SPDX SBOM";
+}
+
 type CollectorAvailability = {
   audit: ExplainAvailability;
   importGraphComplete: boolean;
@@ -1585,8 +1648,8 @@ async function executeAnalysis(
       statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
     );
   }
-  if (opts.json && opts.out === "dependency-radar.html") {
-    opts.out = "dependency-radar.json";
+  if (opts.out === "dependency-radar.html" && opts.format !== "html") {
+    opts.out = defaultOutputName(opts.format);
     outputPath = path.resolve(opts.out);
   }
 
@@ -1602,7 +1665,7 @@ async function executeAnalysis(
       ) {
         outputPath = path.join(
           outputPath,
-          opts.json ? "dependency-radar.json" : "dependency-radar.html",
+          defaultOutputName(opts.format),
         );
       }
     } catch {
@@ -1898,6 +1961,7 @@ async function executeAnalysis(
       arch: process.arch,
       ci: isCI(),
       ...(toolVersions ? { toolVersions } : {}),
+      ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
     });
 
     dependencyCount = Object.keys(aggregated.dependencies).length;
@@ -1914,13 +1978,22 @@ async function executeAnalysis(
     }
 
     if (dependencyCount > 0 && shouldWriteArtifacts) {
-      if (opts.json) {
+      if (opts.format === "json") {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(
           outputPath,
           JSON.stringify(aggregated, null, 2),
           "utf8",
         );
+      } else if (opts.format === "sarif") {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, renderSarif(aggregated), "utf8");
+      } else if (opts.format === "cyclonedx") {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, renderCycloneDx(aggregated), "utf8");
+      } else if (opts.format === "spdx") {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, renderSpdx(aggregated), "utf8");
       } else {
         await renderReport(aggregated, outputPath);
       }
@@ -1945,13 +2018,13 @@ async function executeAnalysis(
         );
       } else if (outputCreated) {
         console.log(
-          statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`),
+          statusLine("✔", `${formatLabel(opts.format)} written to ${outputPath}`),
         );
       } else {
         console.log(
           statusLine(
             "✖",
-            `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+            `No dependencies were found - ${formatLabel(opts.format)} not created`,
           ),
         );
       }
@@ -2005,7 +2078,7 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
       console.log(
         statusLine(
           "↗",
-          `Opening ${path.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+          `Opening ${path.basename(result.outputPath)} using system default ${opts.format === "html" ? "browser" : "application"}.`,
         ),
       );
       openInBrowser(result.outputPath);
@@ -2057,6 +2130,44 @@ async function runExplainCommand(opts: CliOptions): Promise<void> {
   }
 }
 
+async function runWhyCommand(opts: CliOptions): Promise<void> {
+  const packageName = opts.packageName?.trim();
+  if (!packageName) {
+    console.error("Missing package name for why. Usage: dependency-radar why <package-name>");
+    process.exit(1);
+    return;
+  }
+
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: false,
+    emitArtifactSummary: false,
+    emitWorkspacePackageSummary: false,
+  });
+  console.log("");
+  const output = formatWhyOutput(result.aggregated, packageName);
+  console.log(output);
+  if (output.startsWith("Package not found")) {
+    process.exit(1);
+  }
+}
+
+async function runCompareCommand(opts: CliOptions): Promise<void> {
+  const previousPath = opts.comparePath?.trim();
+  if (!previousPath) {
+    console.error("Missing previous report path. Usage: dependency-radar compare <previous dependency-radar.json>");
+    process.exit(1);
+    return;
+  }
+  const previous = JSON.parse(await fs.readFile(path.resolve(previousPath), "utf8")) as AggregatedData;
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: false,
+    emitArtifactSummary: false,
+    emitWorkspacePackageSummary: false,
+  });
+  console.log("");
+  console.log(formatCompareOutput(compareReports(previous, result.aggregated)));
+}
+
 /**
  * Run the CLI entrypoint and dispatch to the selected command.
  */
@@ -2071,6 +2182,14 @@ async function run(): Promise<void> {
   try {
     if (opts.command === "explain") {
       await runExplainCommand(opts);
+      return;
+    }
+    if (opts.command === "why") {
+      await runWhyCommand(opts);
+      return;
+    }
+    if (opts.command === "compare") {
+      await runCompareCommand(opts);
       return;
     }
     await runScanCommand(opts);

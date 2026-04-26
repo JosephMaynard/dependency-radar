@@ -14,6 +14,9 @@ const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
 const npmOutdated_1 = require("./runners/npmOutdated");
 const report_1 = require("./report");
+const compare_1 = require("./compare");
+const outputFormats_1 = require("./outputFormats");
+const why_1 = require("./why");
 const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
@@ -933,11 +936,12 @@ function parseArgs(argv) {
         open: false,
         noReport: false,
         failOn: new Set(),
+        format: "html",
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
         const command = args.shift();
-        if (command === "scan" || command === "explain") {
+        if (command === "scan" || command === "explain" || command === "compare" || command === "why") {
             opts.command = command;
         }
         else {
@@ -949,8 +953,11 @@ function parseArgs(argv) {
         const arg = args.shift();
         if (!arg)
             break;
-        if (!arg.startsWith("-") && opts.command === "explain" && !opts.packageName) {
+        if (!arg.startsWith("-") && (opts.command === "explain" || opts.command === "why") && !opts.packageName) {
             opts.packageName = arg;
+        }
+        else if (!arg.startsWith("-") && opts.command === "compare" && !opts.comparePath) {
+            opts.comparePath = arg;
         }
         else if (arg === "--project" && args[0])
             opts.project = args.shift();
@@ -964,8 +971,35 @@ function parseArgs(argv) {
             opts.audit = false;
             opts.outdated = false;
         }
-        else if (arg === "--json")
+        else if (arg === "--json") {
             opts.json = true;
+            opts.format = "json";
+        }
+        else if (arg === "--format" && args[0]) {
+            const format = args.shift();
+            if (!isReportFormat(format)) {
+                console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
+                process.exit(1);
+            }
+            opts.format = format;
+            opts.json = format === "json";
+        }
+        else if (arg === "--sbom" && args[0]) {
+            const format = args.shift();
+            if (format !== "cyclonedx" && format !== "spdx") {
+                console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
+                process.exit(1);
+            }
+            opts.format = format;
+        }
+        else if (arg === "--target-node" && args[0]) {
+            const value = Number.parseInt(args.shift(), 10);
+            if (!Number.isFinite(value) || value <= 0) {
+                console.error("--target-node must be a positive Node.js major version.");
+                process.exit(1);
+            }
+            opts.targetNodeMajor = value;
+        }
         else if (arg === "--open")
             opts.open = true;
         else if (arg === "--no-report")
@@ -996,6 +1030,9 @@ function parseArgs(argv) {
     }
     return opts;
 }
+function isReportFormat(value) {
+    return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
+}
 /**
  * Print the CLI usage and available options to the console.
  *
@@ -1005,13 +1042,18 @@ function parseArgs(argv) {
 function printHelp() {
     console.log(`dependency-radar [scan] [options]
 dependency-radar explain <package-name> [options]
+dependency-radar why <package-name> [options]
+dependency-radar compare <previous dependency-radar.json> [options]
 
 If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
   --quiet            Suppress progress/info logs but keep summary and failures
-  --out <path>       Output HTML file (default: dependency-radar.html)
+  --out <path>       Output file (default depends on format)
+  --format <format>  Output format: html, json, sarif, cyclonedx, spdx
+  --sbom <format>    Write an SBOM: cyclonedx or spdx
+  --target-node <n>  Add Node major compatibility findings
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
@@ -1022,6 +1064,8 @@ Options:
                                 licence-mismatch, copyleft-detected, unknown-licence
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
+\`why\` prints shortest dependency paths for one package.
+\`compare\` scans the current project and compares it with a previous JSON report.
 `);
 }
 /**
@@ -1329,6 +1373,17 @@ function printCliSummary(summary) {
     }
     console.log("");
 }
+function formatLabel(format) {
+    if (format === "html")
+        return "Report";
+    if (format === "json")
+        return "JSON";
+    if (format === "sarif")
+        return "SARIF";
+    if (format === "cyclonedx")
+        return "CycloneDX SBOM";
+    return "SPDX SBOM";
+}
 async function executeAnalysis(opts, options) {
     var _a;
     const shouldWriteArtifacts = options.shouldWriteArtifacts;
@@ -1340,8 +1395,8 @@ async function executeAnalysis(opts, options) {
     if (opts.command === "scan" && opts.noReport && opts.keepTemp && !opts.quiet) {
         console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
     }
-    if (opts.json && opts.out === "dependency-radar.html") {
-        opts.out = "dependency-radar.json";
+    if (opts.out === "dependency-radar.html" && opts.format !== "html") {
+        opts.out = (0, outputFormats_1.defaultOutputName)(opts.format);
         outputPath = path_1.default.resolve(opts.out);
     }
     if (shouldWriteArtifacts) {
@@ -1352,7 +1407,7 @@ async function executeAnalysis(opts, options) {
             if ((stat && stat.isDirectory()) ||
                 endsWithSeparator ||
                 (!stat && !hasExtension)) {
-                outputPath = path_1.default.join(outputPath, opts.json ? "dependency-radar.json" : "dependency-radar.html");
+                outputPath = path_1.default.join(outputPath, (0, outputFormats_1.defaultOutputName)(opts.format));
             }
         }
         catch {
@@ -1536,6 +1591,7 @@ async function executeAnalysis(opts, options) {
             arch: process.arch,
             ci: isCI(),
             ...(toolVersions ? { toolVersions } : {}),
+            ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
         const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
@@ -1547,9 +1603,21 @@ async function executeAnalysis(opts, options) {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
         if (dependencyCount > 0 && shouldWriteArtifacts) {
-            if (opts.json) {
+            if (opts.format === "json") {
                 await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
                 await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
+            }
+            else if (opts.format === "sarif") {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, (0, outputFormats_1.renderSarif)(aggregated), "utf8");
+            }
+            else if (opts.format === "cyclonedx") {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, (0, outputFormats_1.renderCycloneDx)(aggregated), "utf8");
+            }
+            else if (opts.format === "spdx") {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, (0, outputFormats_1.renderSpdx)(aggregated), "utf8");
             }
             else {
                 await (0, report_1.renderReport)(aggregated, outputPath);
@@ -1566,10 +1634,10 @@ async function executeAnalysis(opts, options) {
                 console.log(statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."));
             }
             else if (outputCreated) {
-                console.log(statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`));
+                console.log(statusLine("✔", `${formatLabel(opts.format)} written to ${outputPath}`));
             }
             else {
-                console.log(statusLine("✖", `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`));
+                console.log(statusLine("✖", `No dependencies were found - ${formatLabel(opts.format)} not created`));
             }
         }
         return {
@@ -1619,7 +1687,7 @@ async function runScanCommand(opts) {
             console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
         }
         else if (opts.open && result.outputCreated && !isCI()) {
-            console.log(statusLine("↗", `Opening ${path_1.default.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`));
+            console.log(statusLine("↗", `Opening ${path_1.default.basename(result.outputPath)} using system default ${opts.format === "html" ? "browser" : "application"}.`));
             openInBrowser(result.outputPath);
         }
         else if (opts.open && result.outputCreated && isCI()) {
@@ -1658,6 +1726,43 @@ async function runExplainCommand(opts) {
         process.exit(1);
     }
 }
+async function runWhyCommand(opts) {
+    var _a;
+    const packageName = (_a = opts.packageName) === null || _a === void 0 ? void 0 : _a.trim();
+    if (!packageName) {
+        console.error("Missing package name for why. Usage: dependency-radar why <package-name>");
+        process.exit(1);
+        return;
+    }
+    const result = await executeAnalysis(opts, {
+        shouldWriteArtifacts: false,
+        emitArtifactSummary: false,
+        emitWorkspacePackageSummary: false,
+    });
+    console.log("");
+    const output = (0, why_1.formatWhyOutput)(result.aggregated, packageName);
+    console.log(output);
+    if (output.startsWith("Package not found")) {
+        process.exit(1);
+    }
+}
+async function runCompareCommand(opts) {
+    var _a;
+    const previousPath = (_a = opts.comparePath) === null || _a === void 0 ? void 0 : _a.trim();
+    if (!previousPath) {
+        console.error("Missing previous report path. Usage: dependency-radar compare <previous dependency-radar.json>");
+        process.exit(1);
+        return;
+    }
+    const previous = JSON.parse(await promises_1.default.readFile(path_1.default.resolve(previousPath), "utf8"));
+    const result = await executeAnalysis(opts, {
+        shouldWriteArtifacts: false,
+        emitArtifactSummary: false,
+        emitWorkspacePackageSummary: false,
+    });
+    console.log("");
+    console.log((0, compare_1.formatCompareOutput)((0, compare_1.compareReports)(previous, result.aggregated)));
+}
 /**
  * Run the CLI entrypoint and dispatch to the selected command.
  */
@@ -1671,6 +1776,14 @@ async function run() {
     try {
         if (opts.command === "explain") {
             await runExplainCommand(opts);
+            return;
+        }
+        if (opts.command === "why") {
+            await runWhyCommand(opts);
+            return;
+        }
+        if (opts.command === "compare") {
+            await runCompareCommand(opts);
             return;
         }
         await runScanCommand(opts);

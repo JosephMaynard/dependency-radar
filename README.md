@@ -34,6 +34,8 @@ This runs a scan against the current project and writes a self-contained `depend
 - **Full transitive tree** — shows depth, parent relationships, fan-in/fan-out, and dependency origins
 - **Workspace support** — works across npm, pnpm, and Yarn workspaces
 - **CI-friendly** — `--fail-on` flag lets you enforce licence and vulnerability policies in pipelines
+- **Review-friendly outputs** — emit JSON, SARIF, CycloneDX SBOM, or SPDX SBOM artifacts from the same local scan
+- **Change comparison** — compare a fresh scan with a previous `dependency-radar.json` to see added dependencies, removed dependencies, version changes, and new findings
 - **Completely offline-capable** — use `--offline` to skip registry calls; all package metadata is read from local `node_modules`
 - **Single self-contained HTML file** — no server needed; open it locally, attach it to a ticket, or share it with your team
 
@@ -94,6 +96,9 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--project <path>` | Path to the project to scan (defaults to current directory) |
 | `--quiet` | Suppress progress/info logs, browser opening, and footer messaging while keeping the final summary and failures visible |
 | `--out <path>` | Output path for the report file |
+| `--format <format>` | Output format: `html`, `json`, `sarif`, `cyclonedx`, or `spdx` |
+| `--sbom <format>` | Convenience alias for SBOM output: `cyclonedx` or `spdx` |
+| `--target-node <major>` | Add Node major compatibility findings based on local `engines.node` metadata |
 | `--offline` | Skip `npm audit` and `npm outdated` (useful for offline/air-gapped scans) |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
@@ -145,6 +150,26 @@ Notes:
 - "Static import evidence" means Dependency Radar found local source imports for that package. It is a code-usage heuristic, not exploit reachability analysis.
 - "Introduced via root packages" and "Direct parents" are shown from the current scan model. The command does not currently print full ancestry chains.
 
+### Show why a dependency is present
+
+Use `why` to print shortest dependency paths from direct dependencies to a package:
+
+```bash
+npx dependency-radar why lodash
+```
+
+This uses the same local scan model as the HTML report. When full paths are unavailable, it falls back to the package origins and direct parent evidence available in the report model.
+
+### Compare against a previous report
+
+Use `compare` to scan the current project and compare it with an earlier JSON report:
+
+```bash
+npx dependency-radar compare ./dependency-radar-before.json --json --offline
+```
+
+The comparison highlights added dependencies, removed dependencies, one-version package changes, new findings, and resolved findings. This is useful in pull requests and release checks.
+
 ### CI policy enforcement (`--fail-on`)
 
 ```
@@ -174,6 +199,28 @@ npx dependency-radar --open
 
 ```
 npx dependency-radar --project ./my-app --out ./reports/dependency-radar.html
+```
+
+### Example: write SARIF for CI/code scanning
+
+```bash
+npx dependency-radar --format sarif --out ./reports/dependency-radar.sarif
+```
+
+### Example: write an SBOM
+
+```bash
+npx dependency-radar --sbom cyclonedx --out ./reports/bom.cdx.json
+```
+
+```bash
+npx dependency-radar --sbom spdx --out ./reports/bom.spdx.json
+```
+
+### Example: check Node upgrade readiness signals
+
+```bash
+npx dependency-radar --target-node 22
 ```
 
 ### Example: keep temp files for debugging
@@ -278,10 +325,15 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Root-cause/origin and runtime-impact heuristics
    - Install-time execution signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
-9. Write final output as either:
+9. Build normalized findings from the aggregated dependency model:
+   - Vulnerabilities, license review items, install-time execution surface, native bindings, deprecated packages, and target Node compatibility findings
+10. Write final output as one of:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
-10. Remove `.dependency-radar/` unless `--keep-temp` is set.
+   - SARIF (`--format sarif`)
+   - CycloneDX SBOM (`--format cyclonedx` / `--sbom cyclonedx`)
+   - SPDX SBOM (`--format spdx` / `--sbom spdx`)
+11. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
 The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
 
@@ -400,7 +452,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.3'; // Report schema version for compatibility checks
+  schemaVersion: '1.4'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -438,6 +490,7 @@ export interface AggregatedData {
     nodeVersion: string; // Node.js version from process.versions.node
     runtimeVersion: string; // Node.js runtime version from process.version
     minRequiredMajor: number; // Strictest Node major required by dependency engines (0 if unknown)
+    targetNodeMajor?: number; // Node major passed through --target-node
     platform?: string; // OS platform (process.platform)
     arch?: string; // CPU architecture (process.arch)
     ci?: boolean; // True when CI indicators are detected
@@ -460,7 +513,9 @@ export interface AggregatedData {
     dependencyCount: number; // Total EXTERNAL dependencies in the graph
     directCount: number; // External dependencies listed in package.json
     transitiveCount: number; // External dependencies pulled in by other dependencies
+    findingCount?: number; // Number of normalized findings generated from the dependency model
   };
+  findings?: DependencyFinding[]; // Normalized review/CI findings
   dependencies: Record<string, DependencyRecord>; // External third-party packages keyed by name@version
 }
 

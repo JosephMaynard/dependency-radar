@@ -225,4 +225,99 @@ describe('cli summary output', () => {
       expect(output).toContain('✖ Package not found: definitely-not-present');
     },
   );
+
+  it(
+    'writes SARIF output with dependency findings',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-sarif');
+      const outPath = path.join(outputDir, 'report.sarif');
+
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--format', 'sarif', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const sarif = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(sarif.version).toBe('2.1.0');
+      expect(sarif.runs[0].tool.driver.name).toBe('Dependency Radar');
+      expect(sarif.runs[0].results.length).toBeGreaterThan(0);
+    },
+  );
+
+  it(
+    'writes CycloneDX SBOM output',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-cdx');
+      const outPath = path.join(outputDir, 'bom.json');
+
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--sbom', 'cyclonedx', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const bom = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(bom.bomFormat).toBe('CycloneDX');
+      expect(Array.isArray(bom.components)).toBe(true);
+      expect(bom.components.length).toBeGreaterThan(0);
+    },
+  );
+
+  it(
+    'prints dependency paths with the why command',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const result = runCli(
+        ['why', '@dr-license/mismatch', '--project', fixtureProject, '--offline', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Dependency paths for @dr-license/mismatch');
+      expect(output).toContain('@dr-license/mismatch@1.0.0');
+    },
+  );
+
+  it(
+    'compares against a previous JSON report',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-compare');
+      const previousPath = path.join(outputDir, 'previous.json');
+      await fs.writeFile(previousPath, JSON.stringify({
+        schemaVersion: '1.4',
+        generatedAt: new Date(0).toISOString(),
+        dependencyRadarVersion: 'test',
+        git: { branch: '' },
+        project: { projectDir: '/fixture' },
+        environment: { nodeVersion: '0.0.0', runtimeVersion: 'v0.0.0', minRequiredMajor: 0 },
+        workspaces: { enabled: false },
+        summary: { dependencyCount: 0, directCount: 0, transitiveCount: 0 },
+        dependencies: {},
+        findings: []
+      }), 'utf8');
+
+      const result = runCli(
+        ['compare', previousPath, '--project', fixtureProject, '--offline', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Dependency Radar comparison');
+      expect(output).toContain('Added dependencies');
+    },
+  );
 });
