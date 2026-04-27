@@ -29,13 +29,17 @@ export function runCommand(
     let settled = false;
     let timedOut = false;
     let outputExceeded = false;
+    function terminate(): void {
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!settled) child.kill('SIGKILL');
+      }, 2000).unref?.();
+    }
+
     const timer = timeoutMs > 0
       ? setTimeout(() => {
           timedOut = true;
-          child.kill('SIGTERM');
-          setTimeout(() => {
-            if (!settled) child.kill('SIGKILL');
-          }, 2000).unref?.();
+          terminate();
         }, timeoutMs)
       : undefined;
 
@@ -46,7 +50,7 @@ export function runCommand(
         const remaining = Math.max(0, maxOutputBytes - totalBytes);
         if (remaining > 0) chunks.push(Buffer.from(data.subarray(0, remaining)));
         totalBytes = maxOutputBytes;
-        child.kill('SIGTERM');
+        terminate();
         return;
       }
       chunks.push(Buffer.from(data));

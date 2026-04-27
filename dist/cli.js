@@ -1796,7 +1796,15 @@ async function runCompareCommand(opts) {
         process.exit(1);
         return;
     }
-    const previous = JSON.parse(await promises_1.default.readFile(path_1.default.resolve(previousPath), "utf8"));
+    let previous;
+    try {
+        previous = JSON.parse(await promises_1.default.readFile(path_1.default.resolve(previousPath), "utf8"));
+    }
+    catch (err) {
+        console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+        return;
+    }
     const result = await executeAnalysis(opts, {
         shouldWriteArtifacts: false,
         emitArtifactSummary: false,

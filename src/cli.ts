@@ -2188,7 +2188,14 @@ async function runCompareCommand(opts: CliOptions): Promise<void> {
     process.exit(1);
     return;
   }
-  const previous = JSON.parse(await fs.readFile(path.resolve(previousPath), "utf8")) as AggregatedData;
+  let previous: AggregatedData;
+  try {
+    previous = JSON.parse(await fs.readFile(path.resolve(previousPath), "utf8")) as AggregatedData;
+  } catch (err: any) {
+    console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+    return;
+  }
   const result = await executeAnalysis(opts, {
     shouldWriteArtifacts: false,
     emitArtifactSummary: false,

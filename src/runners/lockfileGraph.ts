@@ -130,11 +130,9 @@ function parseBunTree(projectPath: string, searchRoot: string): LockfileTreeResu
   const packageJson = readJsonSafe(packageJsonPath);
   if (!packageJson || typeof packageJson !== 'object') return undefined;
 
-  if (raw.trim().startsWith('{')) {
-    const parsed = readBunJsonLock(raw);
-    if (parsed) {
-      return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
-    }
+  const parsed = readBunJsonLock(raw);
+  if (parsed) {
+    return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
   }
 
   const yarnLike = parseYarnV1(raw) || parseYarnV2(raw);
@@ -190,8 +188,8 @@ function findBunPackageEntry(name: string, spec: string, packages: Record<string
   if (packages[exactKey]) return packages[exactKey];
   if (packages[name]) return packages[name];
   const prefix = `${name}@`;
-  const key = Object.keys(packages).find((candidate) => candidate === name || candidate.startsWith(prefix));
-  return key ? packages[key] : undefined;
+  const matches = Object.keys(packages).filter((candidate) => candidate.startsWith(prefix));
+  return matches.length === 1 ? packages[matches[0]] : undefined;
 }
 
 function buildBunJsonNode(

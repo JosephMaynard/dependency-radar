@@ -98,11 +98,9 @@ function parseBunTree(projectPath, searchRoot) {
     const packageJson = readJsonSafe(packageJsonPath);
     if (!packageJson || typeof packageJson !== 'object')
         return undefined;
-    if (raw.trim().startsWith('{')) {
-        const parsed = readBunJsonLock(raw);
-        if (parsed) {
-            return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
-        }
+    const parsed = readBunJsonLock(raw);
+    if (parsed) {
+        return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
     }
     const yarnLike = parseYarnV1(raw) || parseYarnV2(raw);
     if (!yarnLike)
@@ -158,8 +156,8 @@ function findBunPackageEntry(name, spec, packages) {
     if (packages[name])
         return packages[name];
     const prefix = `${name}@`;
-    const key = Object.keys(packages).find((candidate) => candidate === name || candidate.startsWith(prefix));
-    return key ? packages[key] : undefined;
+    const matches = Object.keys(packages).filter((candidate) => candidate.startsWith(prefix));
+    return matches.length === 1 ? packages[matches[0]] : undefined;
 }
 function buildBunJsonNode(name, spec, packages, memo, stack) {
     const memoKey = `${name}@${spec}`;

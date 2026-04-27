@@ -39,15 +39,18 @@ function runCommand(command, args, options = {}) {
         let settled = false;
         let timedOut = false;
         let outputExceeded = false;
+        function terminate() {
+            var _a, _b;
+            child.kill('SIGTERM');
+            (_b = (_a = setTimeout(() => {
+                if (!settled)
+                    child.kill('SIGKILL');
+            }, 2000)).unref) === null || _b === void 0 ? void 0 : _b.call(_a);
+        }
         const timer = timeoutMs > 0
             ? setTimeout(() => {
-                var _a, _b;
                 timedOut = true;
-                child.kill('SIGTERM');
-                (_b = (_a = setTimeout(() => {
-                    if (!settled)
-                        child.kill('SIGKILL');
-                }, 2000)).unref) === null || _b === void 0 ? void 0 : _b.call(_a);
+                terminate();
             }, timeoutMs)
             : undefined;
         function collect(chunks, data) {
@@ -58,7 +61,7 @@ function runCommand(command, args, options = {}) {
                 if (remaining > 0)
                     chunks.push(Buffer.from(data.subarray(0, remaining)));
                 totalBytes = maxOutputBytes;
-                child.kill('SIGTERM');
+                terminate();
                 return;
             }
             chunks.push(Buffer.from(data));

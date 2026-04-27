@@ -13,7 +13,8 @@ const IGNORED_DIRS = new Set([
     'dist',
     'build',
     'coverage',
-    'storybook-static'
+    'storybook-static',
+    '.dependency-radar'
 ]);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 /**
