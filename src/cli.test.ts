@@ -466,18 +466,19 @@ describe('cli summary output', () => {
         packageManager: 'bun@1.2.0',
         dependencies: { a: '1.0.0' }
       }), 'utf8');
-      await fs.writeFile(path.join(projectPath, 'bun.lock'), JSON.stringify({
-        lockfileVersion: 1,
-        packages: {
-          a: {
-            version: '1.0.0',
-            dependencies: { b: '1.0.0' }
+      await fs.writeFile(path.join(projectPath, 'bun.lock'), `{
+        // Bun text lockfiles are JSONC-like in the wild.
+        "lockfileVersion": 1,
+        "packages": {
+          "a@1.0.0": {
+            "version": "1.0.0",
+            "dependencies": { "b": "1.0.0" },
           },
-          b: {
-            version: '2.0.0'
-          }
-        }
-      }), 'utf8');
+          "b@1.0.0": {
+            "version": "2.0.0",
+          },
+        },
+      }`, 'utf8');
 
       const result = runCli(
         ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],

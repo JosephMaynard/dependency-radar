@@ -245,7 +245,7 @@ ${safeCssContent}
             </div>
 
             <div class="filter-group workspace-filter-group hidden" id="workspace-filter-wrap">
-              <span class="filter-label">Workspace</span>
+              <label class="filter-label" for="workspace-filter">Workspace</label>
               <select id="workspace-filter">
                 <option value="all">All workspaces</option>
               </select>

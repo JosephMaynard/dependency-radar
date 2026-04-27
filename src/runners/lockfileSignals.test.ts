@@ -180,6 +180,8 @@ describe('lockfile supply-chain signals', () => {
 
     expect(result.ok).toBe(true);
     expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.signatureAudit?.ok).toBe(false);
+    expect(result.data?.signatureAudit?.status).toBe('skipped');
     expect(result.data?.signatureAudit?.error).toBe('skipped (--offline)');
   });
 

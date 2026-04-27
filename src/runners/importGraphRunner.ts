@@ -9,13 +9,6 @@ const IGNORED_DIRS = new Set([
   'dist',
   'build',
   'coverage',
-  '.dependency-radar',
-  '.git',
-  '.yarn',
-  '.pnpm-store',
-  '.next',
-  '.nuxt',
-  '.svelte-kit',
   'storybook-static'
 ]);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];

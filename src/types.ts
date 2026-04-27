@@ -180,9 +180,7 @@ export type SupplyChainSignalType =
   | 'file-dependency'
   | 'non-registry-tarball'
   | 'missing-integrity'
-  | 'unexpected-registry-host'
-  | 'signature-verification-failed'
-  | 'signature-verification-unavailable';
+  | 'unexpected-registry-host';
 
 export interface SupplyChainSignal {
   type: SupplyChainSignalType;
@@ -198,6 +196,7 @@ export interface SupplyChainSummary {
   signatureAudit?: {
     attempted: boolean;
     ok: boolean;
+    status?: 'verified' | 'failed' | 'skipped';
     output?: string;
     error?: string;
   };

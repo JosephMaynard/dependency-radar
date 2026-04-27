@@ -9,9 +9,43 @@ const path_1 = __importDefault(require("path"));
 const utils_1 = require("../utils");
 const DEFAULT_REGISTRY_HOSTS = new Set(['registry.npmjs.org']);
 function stripJsonComments(raw) {
-    return raw
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    let out = '';
+    let quote;
+    let escaped = false;
+    for (let i = 0; i < raw.length; i += 1) {
+        const ch = raw[i];
+        const next = raw[i + 1];
+        if (quote) {
+            out += ch;
+            if (escaped)
+                escaped = false;
+            else if (ch === '\\')
+                escaped = true;
+            else if (ch === quote)
+                quote = undefined;
+            continue;
+        }
+        if (ch === '"' || ch === "'") {
+            quote = ch;
+            out += ch;
+            continue;
+        }
+        if (ch === '/' && next === '/') {
+            while (i < raw.length && raw[i] !== '\n')
+                i += 1;
+            out += '\n';
+            continue;
+        }
+        if (ch === '/' && next === '*') {
+            i += 2;
+            while (i < raw.length && !(raw[i] === '*' && raw[i + 1] === '/'))
+                i += 1;
+            i += 1;
+            continue;
+        }
+        out += ch;
+    }
+    return out.replace(/,\s*([}\]])/g, '$1');
 }
 function normalizeExpectedHosts(hosts) {
     const normalized = new Set(DEFAULT_REGISTRY_HOSTS);
@@ -225,6 +259,7 @@ async function runNpmAuditSignatures(projectPath) {
         return {
             attempted: true,
             ok: result.code === 0,
+            status: result.code === 0 ? 'verified' : 'failed',
             ...(output ? { output } : {}),
             ...(result.code === 0 ? {} : { error: `npm audit signatures exited with code ${result.code}` })
         };
@@ -233,6 +268,7 @@ async function runNpmAuditSignatures(projectPath) {
         return {
             attempted: true,
             ok: false,
+            status: 'failed',
             error: err instanceof Error ? err.message : String(err)
         };
     }
@@ -245,7 +281,7 @@ async function runLockfileSupplyChainSignals(projectPath, tempDir, options = {})
         const signatureAudit = options.auditSignatures && !options.offline
             ? await runNpmAuditSignatures(projectPath)
             : options.auditSignatures && options.offline
-                ? { attempted: false, ok: true, error: 'skipped (--offline)' }
+                ? { attempted: false, ok: false, status: 'skipped', error: 'skipped (--offline)' }
                 : undefined;
         const data = {
             signals,

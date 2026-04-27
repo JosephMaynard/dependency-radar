@@ -261,18 +261,19 @@ snapshots:
       version: '1.0.0',
       dependencies: { a: '1.0.0' }
     }));
-    await fs.writeFile(path.join(projectPath, 'bun.lock'), JSON.stringify({
-      lockfileVersion: 1,
-      packages: {
-        a: {
-          version: '1.0.0',
-          dependencies: { b: '1.0.0' }
+    await fs.writeFile(path.join(projectPath, 'bun.lock'), `{
+      // JSONC fixture with trailing commas.
+      "lockfileVersion": 1,
+      "packages": {
+        "a@1.0.0": {
+          "version": "1.0.0",
+          "dependencies": { "b": "1.0.0" },
         },
-        b: {
-          version: '2.0.0'
-        }
-      }
-    }));
+        "b@1.0.0": {
+          "version": "2.0.0",
+        },
+      },
+    }`);
 
     const result = await runNpmLs(projectPath, tempDir, 'bun');
     expect(result.ok).toBe(true);

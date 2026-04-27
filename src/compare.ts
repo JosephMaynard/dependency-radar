@@ -39,12 +39,13 @@ export function compareReports(previous: AggregatedData, current: AggregatedData
 
   const previousFindingIds = new Set((previous.findings || []).map((finding) => finding.id));
   const currentFindingIds = new Set((current.findings || []).map((finding) => finding.id));
+  const byFindingId = (a: DependencyFinding, b: DependencyFinding) => (a.id || '').localeCompare(b.id || '');
   return {
     added,
     removed,
     changedVersions,
-    newFindings: (current.findings || []).filter((finding) => !previousFindingIds.has(finding.id)),
-    resolvedFindings: (previous.findings || []).filter((finding) => !currentFindingIds.has(finding.id))
+    newFindings: (current.findings || []).filter((finding) => !previousFindingIds.has(finding.id)).sort(byFindingId),
+    resolvedFindings: (previous.findings || []).filter((finding) => !currentFindingIds.has(finding.id)).sort(byFindingId)
   };
 }
 
@@ -78,4 +79,3 @@ export function formatCompareOutput(result: CompareResult): string {
   ));
   return lines.join('\n').trimEnd();
 }
-

@@ -45,9 +45,7 @@ export const REPORT_JSON_SCHEMA = {
                   'file-dependency',
                   'non-registry-tarball',
                   'missing-integrity',
-                  'unexpected-registry-host',
-                  'signature-verification-failed',
-                  'signature-verification-unavailable'
+                  'unexpected-registry-host'
                 ]
               },
               packageName: { type: 'string' },
@@ -65,6 +63,7 @@ export const REPORT_JSON_SCHEMA = {
           properties: {
             attempted: { type: 'boolean' },
             ok: { type: 'boolean' },
+            status: { enum: ['verified', 'failed', 'skipped'] },
             output: { type: 'string' },
             error: { type: 'string' }
           },

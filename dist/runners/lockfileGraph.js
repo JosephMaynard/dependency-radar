@@ -47,9 +47,43 @@ async function tryBuildDependencyTreeFromLockfile(projectPath, tool, lockfileSea
     }
 }
 function stripJsonComments(raw) {
-    return raw
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    let out = '';
+    let quote;
+    let escaped = false;
+    for (let i = 0; i < raw.length; i += 1) {
+        const ch = raw[i];
+        const next = raw[i + 1];
+        if (quote) {
+            out += ch;
+            if (escaped)
+                escaped = false;
+            else if (ch === '\\')
+                escaped = true;
+            else if (ch === quote)
+                quote = undefined;
+            continue;
+        }
+        if (ch === '"' || ch === "'") {
+            quote = ch;
+            out += ch;
+            continue;
+        }
+        if (ch === '/' && next === '/') {
+            while (i < raw.length && raw[i] !== '\n')
+                i += 1;
+            out += '\n';
+            continue;
+        }
+        if (ch === '/' && next === '*') {
+            i += 2;
+            while (i < raw.length && !(raw[i] === '*' && raw[i + 1] === '/'))
+                i += 1;
+            i += 1;
+            continue;
+        }
+        out += ch;
+    }
+    return out.replace(/,\s*([}\]])/g, '$1');
 }
 function parseBunTree(projectPath, searchRoot) {
     const lockPath = findUpwards(projectPath, ['bun.lock'], searchRoot);
@@ -89,8 +123,8 @@ function buildBunJsonResolvedTree(lock, packageJson) {
     const dependencies = {};
     const memo = new Map();
     const stack = new Set();
-    for (const depName of Object.keys(rootDeps)) {
-        const node = buildBunJsonNode(depName, packages, memo, stack);
+    for (const [depName, depSpec] of Object.entries(rootDeps)) {
+        const node = buildBunJsonNode(depName, depSpec, packages, memo, stack);
         if (node)
             dependencies[node.name] = node;
     }
@@ -117,35 +151,39 @@ function extractVersionFromBunResolution(value) {
     const match = value.match(/@npm:([^#\s]+)/);
     return match ? match[1] : undefined;
 }
-function findBunPackageEntry(name, packages) {
+function findBunPackageEntry(name, spec, packages) {
+    const exactKey = `${name}@${spec}`;
+    if (packages[exactKey])
+        return packages[exactKey];
     if (packages[name])
         return packages[name];
     const prefix = `${name}@`;
     const key = Object.keys(packages).find((candidate) => candidate === name || candidate.startsWith(prefix));
     return key ? packages[key] : undefined;
 }
-function buildBunJsonNode(name, packages, memo, stack) {
-    if (memo.has(name))
-        return memo.get(name);
-    if (stack.has(name))
+function buildBunJsonNode(name, spec, packages, memo, stack) {
+    const memoKey = `${name}@${spec}`;
+    if (memo.has(memoKey))
+        return memo.get(memoKey);
+    if (stack.has(memoKey))
         return undefined;
-    const entry = normalizeBunPackageEntry(findBunPackageEntry(name, packages));
+    const entry = normalizeBunPackageEntry(findBunPackageEntry(name, spec, packages));
     if (!(entry === null || entry === void 0 ? void 0 : entry.version))
         return undefined;
     const out = { name, version: entry.version, dependencies: {} };
-    stack.add(name);
+    stack.add(memoKey);
     const childDeps = mergeStringRecord(entry.dependencies, entry.optionalDependencies);
     for (const childName of Object.keys(childDeps)) {
         if (isWorkspaceLikeSpecifier(childDeps[childName]))
             continue;
-        const child = buildBunJsonNode(childName, packages, memo, stack);
+        const child = buildBunJsonNode(childName, childDeps[childName], packages, memo, stack);
         if (child)
             out.dependencies[child.name] = child;
     }
-    stack.delete(name);
+    stack.delete(memoKey);
     if (out.dependencies && Object.keys(out.dependencies).length === 0)
         delete out.dependencies;
-    memo.set(name, out);
+    memo.set(memoKey, out);
     return out;
 }
 /**

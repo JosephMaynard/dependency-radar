@@ -29,6 +29,7 @@ import {
   validateSpdxExpression
 } from './license';
 import { buildDependencyFindings } from './findings';
+import { isNodeEngineTargetCompatible } from './nodeEngine';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -620,31 +621,6 @@ function normalizeSupplyChain(data: any): AggregatedData['supplyChain'] | undefi
     signals,
     ...(signatureAudit ? { signatureAudit } : {})
   };
-}
-
-function isNodeEngineTargetCompatible(range: string, targetMajor: number): boolean {
-  const normalized = range.trim();
-  if (!normalized || normalized === '*' || normalized.toLowerCase() === 'x') return true;
-  const clauses = normalized.split('||').map((clause) => clause.trim()).filter(Boolean);
-  if (clauses.length === 0) return true;
-  return clauses.some((clause) => {
-    const lower = clause.match(/>=\s*v?(\d+)/);
-    const upper = clause.match(/<\s*v?(\d+)/);
-    if (lower && upper) {
-      const min = Number.parseInt(lower[1], 10);
-      const max = Number.parseInt(upper[1], 10);
-      return targetMajor >= min && targetMajor < max;
-    }
-    const majors = Array.from(clause.matchAll(/(?:^|[\s>=<~^])v?(\d+)/g))
-      .map((match) => Number.parseInt(match[1], 10))
-      .filter((major) => Number.isFinite(major));
-    if (majors.length === 0) return true;
-    if (/^\s*[~^]?\s*v?\d+/.test(clause) && !/[<>]/.test(clause)) {
-      return majors.includes(targetMajor);
-    }
-    if (lower && !upper) return targetMajor >= Number.parseInt(lower[1], 10);
-    return majors.includes(targetMajor);
-  });
 }
 
 function deriveMinRequiredMajor(engineRanges: string[]): number | undefined {

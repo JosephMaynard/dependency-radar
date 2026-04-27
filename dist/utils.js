@@ -35,8 +35,7 @@ function runCommand(command, args, options = {}) {
         });
         const stdoutChunks = [];
         const stderrChunks = [];
-        let stdoutBytes = 0;
-        let stderrBytes = 0;
+        let totalBytes = 0;
         let settled = false;
         let timedOut = false;
         let outputExceeded = false;
@@ -51,24 +50,25 @@ function runCommand(command, args, options = {}) {
                 }, 2000)).unref) === null || _b === void 0 ? void 0 : _b.call(_a);
             }, timeoutMs)
             : undefined;
-        function collect(chunks, currentBytes, data) {
-            const nextBytes = currentBytes + data.length;
+        function collect(chunks, data) {
+            const nextBytes = totalBytes + data.length;
             if (nextBytes > maxOutputBytes) {
                 outputExceeded = true;
-                const remaining = Math.max(0, maxOutputBytes - currentBytes);
+                const remaining = Math.max(0, maxOutputBytes - totalBytes);
                 if (remaining > 0)
                     chunks.push(Buffer.from(data.subarray(0, remaining)));
+                totalBytes = maxOutputBytes;
                 child.kill('SIGTERM');
-                return maxOutputBytes;
+                return;
             }
             chunks.push(Buffer.from(data));
-            return nextBytes;
+            totalBytes = nextBytes;
         }
         child.stdout.on('data', (d) => {
-            stdoutBytes = collect(stdoutChunks, stdoutBytes, Buffer.from(d));
+            collect(stdoutChunks, Buffer.from(d));
         });
         child.stderr.on('data', (d) => {
-            stderrBytes = collect(stderrChunks, stderrBytes, Buffer.from(d));
+            collect(stderrChunks, Buffer.from(d));
         });
         child.on('error', (err) => {
             if (timer)

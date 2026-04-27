@@ -25,8 +25,7 @@ export function runCommand(
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
+    let totalBytes = 0;
     let settled = false;
     let timedOut = false;
     let outputExceeded = false;
@@ -40,24 +39,25 @@ export function runCommand(
         }, timeoutMs)
       : undefined;
 
-    function collect(chunks: Buffer[], currentBytes: number, data: Buffer): number {
-      const nextBytes = currentBytes + data.length;
+    function collect(chunks: Buffer[], data: Buffer): void {
+      const nextBytes = totalBytes + data.length;
       if (nextBytes > maxOutputBytes) {
         outputExceeded = true;
-        const remaining = Math.max(0, maxOutputBytes - currentBytes);
+        const remaining = Math.max(0, maxOutputBytes - totalBytes);
         if (remaining > 0) chunks.push(Buffer.from(data.subarray(0, remaining)));
+        totalBytes = maxOutputBytes;
         child.kill('SIGTERM');
-        return maxOutputBytes;
+        return;
       }
       chunks.push(Buffer.from(data));
-      return nextBytes;
+      totalBytes = nextBytes;
     }
 
     child.stdout.on('data', (d) => {
-      stdoutBytes = collect(stdoutChunks, stdoutBytes, Buffer.from(d));
+      collect(stdoutChunks, Buffer.from(d));
     });
     child.stderr.on('data', (d) => {
-      stderrBytes = collect(stderrChunks, stderrBytes, Buffer.from(d));
+      collect(stderrChunks, Buffer.from(d));
     });
 
     child.on('error', (err) => {

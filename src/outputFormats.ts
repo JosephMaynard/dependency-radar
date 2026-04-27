@@ -1,14 +1,15 @@
 import type { AggregatedData, DependencyFinding, DependencyRecord } from './types';
+import { createHash } from 'crypto';
 
 export type ReportFormat = 'html' | 'json' | 'sarif' | 'cyclonedx' | 'spdx';
 
 function purl(dep: DependencyRecord): string {
   const encodedName = dep.package.name.startsWith('@')
-    ? dep.package.name
+    ? `%40${dep.package.name
         .slice(1)
         .split('/')
         .map(encodeURIComponent)
-        .join('/')
+        .join('/')}`
     : encodeURIComponent(dep.package.name);
   return `pkg:npm/${encodedName}@${encodeURIComponent(dep.package.version)}`;
 }
@@ -57,18 +58,21 @@ export function renderSarif(data: AggregatedData): string {
             recommendation: finding.recommendation,
             evidence: finding.evidence
           },
-          locations: [
-            {
-              physicalLocation: {
-                artifactLocation: { uri: 'package.json' },
-                region: { startLine: 1 }
-              }
-            }
-          ]
+          locations: [sarifLocation(finding)]
         }))
       }
     ]
   }, null, 2);
+}
+
+function sarifLocation(finding: DependencyFinding): any {
+  const extra = finding as DependencyFinding & { sourceFile?: string; sourcePath?: string; startLine?: number };
+  return {
+    physicalLocation: {
+      artifactLocation: { uri: extra.sourceFile || extra.sourcePath || 'package.json' },
+      region: { startLine: extra.startLine || 1 }
+    }
+  };
 }
 
 function licenseIds(dep: DependencyRecord): Array<{ license: { id: string } } | { license: { name: string } }> {
@@ -109,12 +113,29 @@ export function renderCycloneDx(data: AggregatedData): string {
     })),
     dependencies: dependencies.map((dep) => ({
       ref: dep.package.id,
-      dependsOn: Object.values(dep.graph.subDeps || {})
-        .flatMap((group) => Object.values(group || {}) as Array<[string, string | null]>)
-        .map((entry) => entry[1])
-        .filter((resolved): resolved is string => Boolean(resolved))
+      dependsOn: subDependencyRefs(dep)
     }))
   }, null, 2);
+}
+
+function subDependencyRefs(dep: DependencyRecord): string[] {
+  return Object.values(dep.graph.subDeps || {})
+    .flatMap((group) => Object.values(group || {}))
+    .filter((entry): entry is [string, string | null] =>
+      Array.isArray(entry) && entry.length >= 2 && (entry[1] === null || typeof entry[1] === 'string')
+    )
+    .map((entry) => entry[1])
+    .filter((resolved): resolved is string => Boolean(resolved));
+}
+
+function spdxNamespace(data: AggregatedData): string {
+  const stable = JSON.stringify({
+    name: data.project.name || 'dependency-radar',
+    version: data.project.version || '0.0.0',
+    generatedAt: data.generatedAt,
+    dependencies: Object.keys(data.dependencies || {}).sort()
+  });
+  return `https://www.dependency-radar.com/spdx/${createHash('sha256').update(stable).digest('hex').slice(0, 24)}`;
 }
 
 export function renderSpdx(data: AggregatedData): string {
@@ -147,7 +168,7 @@ export function renderSpdx(data: AggregatedData): string {
     dataLicense: 'CC0-1.0',
     SPDXID: 'SPDXRef-DOCUMENT',
     name: `${data.project.name || 'dependency-radar'} dependency report`,
-    documentNamespace: `https://www.dependency-radar.com/spdx/${Date.now()}`,
+    documentNamespace: spdxNamespace(data),
     creationInfo: {
       created: data.generatedAt,
       creators: [`Tool: dependency-radar-${data.dependencyRadarVersion}`]

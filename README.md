@@ -307,7 +307,7 @@ The blocker detail counts can overlap: a single package may contribute to multip
 | Yarn Classic (v1) | ✅ Lockfile-first (`yarn.lock`) | ✅ | ✅ | ✅ |
 | Yarn Berry (v2+, node-modules linker) | ✅ Lockfile-first (`yarn.lock`) | ✅ | ⚠️ Plugin-dependent | ✅ |
 | Yarn Plug'n'Play | ⚠️ Lockfile-derived graph only; package metadata may be incomplete without `node_modules` | ✅ | ⚠️ Plugin-dependent | ✅ |
-| Bun | ⚠️ Text `bun.lock` parsing; binary `bun.lockb` is reported with a migration hint | | | ⚠️ package.json workspaces only |
+| Bun | ⚠️ Text `bun.lock` parsing; binary `bun.lockb` is reported with a migration hint | N/A | ❌ | ⚠️ package.json workspaces only |
 
 ## Requirements
 

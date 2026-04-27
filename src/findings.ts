@@ -1,4 +1,5 @@
 import type { AggregatedData, DependencyFinding, DependencyRecord, SupplyChainSignal } from './types';
+import { isNodeEngineTargetCompatible } from './nodeEngine';
 
 function vulnerabilityTotal(dep: DependencyRecord): number {
   const summary = dep.security.summary;
@@ -14,33 +15,9 @@ function findingId(dep: DependencyRecord, suffix: string): string {
   return `${dep.package.id}:${suffix}`.replace(/[^a-zA-Z0-9_.@/-]+/g, '-');
 }
 
-function parseSupportedNodeMajors(range: string | null): Set<number> | undefined {
-  if (!range || !range.trim()) return undefined;
-  const majors = new Set<number>();
-  const clauses = range.split('||').map((clause) => clause.trim()).filter(Boolean);
-  for (const clause of clauses) {
-    const exacts = Array.from(clause.matchAll(/(?:^|[\s>=<~^])v?(\d+)(?:\.\d+)?(?:\.\d+)?/g))
-      .map((match) => Number.parseInt(match[1], 10))
-      .filter((major) => Number.isFinite(major));
-    for (const major of exacts) majors.add(major);
-    const lower = clause.match(/>=\s*v?(\d+)/);
-    const upper = clause.match(/<\s*v?(\d+)/);
-    if (lower && upper) {
-      const start = Number.parseInt(lower[1], 10);
-      const end = Number.parseInt(upper[1], 10);
-      for (let major = start; major < end && major < start + 20; major += 1) {
-        majors.add(major);
-      }
-    }
-  }
-  return majors.size > 0 ? majors : undefined;
-}
-
 function supportsTargetNode(dep: DependencyRecord, targetNodeMajor: number | undefined): boolean | undefined {
   if (!targetNodeMajor || !dep.upgrade.nodeEngine) return undefined;
-  const supportedMajors = parseSupportedNodeMajors(dep.upgrade.nodeEngine);
-  if (!supportedMajors) return undefined;
-  return supportedMajors.has(targetNodeMajor);
+  return isNodeEngineTargetCompatible(dep.upgrade.nodeEngine, targetNodeMajor);
 }
 
 function baseFinding(
@@ -70,7 +47,7 @@ export function buildDependencyFindings(
       findings.push(baseFinding(dep, 'vulnerabilities', {
         category: 'security',
         severity: highest === 'critical' || highest === 'high' ? 'error' : 'warning',
-        title: `${vulnCount} known vulnerability${vulnCount === 1 ? '' : 'ies'}`,
+        title: `${vulnCount} known ${vulnCount === 1 ? 'vulnerability' : 'vulnerabilities'}`,
         message: `${dep.package.id} has audit advisories; highest severity is ${highest}.`,
         evidence: dep.security.advisories?.map((advisory) => advisory.id).join(', '),
         recommendation: dep.upgrade.latestVersion
@@ -190,9 +167,7 @@ function buildSupplyChainFinding(signal: SupplyChainSignal): DependencyFinding {
     'file-dependency': 'Local file dependency source',
     'non-registry-tarball': 'Non-registry tarball source',
     'missing-integrity': 'Missing lockfile integrity',
-    'unexpected-registry-host': 'Unexpected registry host',
-    'signature-verification-failed': 'Signature verification failed',
-    'signature-verification-unavailable': 'Signature verification unavailable'
+    'unexpected-registry-host': 'Unexpected registry host'
   };
   const severity: DependencyFinding['severity'] =
     signal.type === 'missing-integrity' || signal.type === 'unexpected-registry-host'

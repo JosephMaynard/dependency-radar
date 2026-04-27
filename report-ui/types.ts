@@ -196,6 +196,7 @@ export interface AggregatedData {
     signatureAudit?: {
       attempted: boolean;
       ok: boolean;
+      status?: 'verified' | 'failed' | 'skipped';
       output?: string;
       error?: string;
     };

@@ -32,12 +32,13 @@ function compareReports(previous, current) {
     changedVersions.sort((a, b) => a.name.localeCompare(b.name));
     const previousFindingIds = new Set((previous.findings || []).map((finding) => finding.id));
     const currentFindingIds = new Set((current.findings || []).map((finding) => finding.id));
+    const byFindingId = (a, b) => (a.id || '').localeCompare(b.id || '');
     return {
         added,
         removed,
         changedVersions,
-        newFindings: (current.findings || []).filter((finding) => !previousFindingIds.has(finding.id)),
-        resolvedFindings: (previous.findings || []).filter((finding) => !currentFindingIds.has(finding.id))
+        newFindings: (current.findings || []).filter((finding) => !previousFindingIds.has(finding.id)).sort(byFindingId),
+        resolvedFindings: (previous.findings || []).filter((finding) => !currentFindingIds.has(finding.id)).sort(byFindingId)
     };
 }
 function section(title, lines, empty) {

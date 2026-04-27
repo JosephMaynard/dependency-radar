@@ -7,6 +7,7 @@ exports.aggregateData = aggregateData;
 const utils_1 = require("./utils");
 const license_1 = require("./license");
 const findings_1 = require("./findings");
+const nodeEngine_1 = require("./nodeEngine");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
@@ -363,7 +364,7 @@ async function aggregateData(input) {
             ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blockers) ? { blockers: upgrade.blockers } : {}),
             ...((upgrade === null || upgrade === void 0 ? void 0 : upgrade.blocksNodeMajor) ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {}),
             ...(typeof input.targetNodeMajor === 'number' && packageInsights.nodeEngine
-                ? { targetNodeCompatible: isNodeEngineTargetCompatible(packageInsights.nodeEngine, input.targetNodeMajor) }
+                ? { targetNodeCompatible: (0, nodeEngine_1.isNodeEngineTargetCompatible)(packageInsights.nodeEngine, input.targetNodeMajor) }
                 : {})
         };
         dependencies[id] = {
@@ -476,34 +477,6 @@ function normalizeSupplyChain(data) {
         signals,
         ...(signatureAudit ? { signatureAudit } : {})
     };
-}
-function isNodeEngineTargetCompatible(range, targetMajor) {
-    const normalized = range.trim();
-    if (!normalized || normalized === '*' || normalized.toLowerCase() === 'x')
-        return true;
-    const clauses = normalized.split('||').map((clause) => clause.trim()).filter(Boolean);
-    if (clauses.length === 0)
-        return true;
-    return clauses.some((clause) => {
-        const lower = clause.match(/>=\s*v?(\d+)/);
-        const upper = clause.match(/<\s*v?(\d+)/);
-        if (lower && upper) {
-            const min = Number.parseInt(lower[1], 10);
-            const max = Number.parseInt(upper[1], 10);
-            return targetMajor >= min && targetMajor < max;
-        }
-        const majors = Array.from(clause.matchAll(/(?:^|[\s>=<~^])v?(\d+)/g))
-            .map((match) => Number.parseInt(match[1], 10))
-            .filter((major) => Number.isFinite(major));
-        if (majors.length === 0)
-            return true;
-        if (/^\s*[~^]?\s*v?\d+/.test(clause) && !/[<>]/.test(clause)) {
-            return majors.includes(targetMajor);
-        }
-        if (lower && !upper)
-            return targetMajor >= Number.parseInt(lower[1], 10);
-        return majors.includes(targetMajor);
-    });
 }
 function deriveMinRequiredMajor(engineRanges) {
     let strictest;
