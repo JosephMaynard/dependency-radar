@@ -32,8 +32,11 @@ async function tryBuildDependencyTreeFromLockfile(projectPath, tool, lockfileSea
         else if (tool === 'npm') {
             result = parseNpmTree(projectPath, searchRoot);
         }
-        else {
+        else if (tool === 'yarn') {
             result = parseYarnTree(projectPath, searchRoot);
+        }
+        else {
+            result = parseBunTree(projectPath, searchRoot);
         }
         treeCache.set(cacheKey, result || null);
         return result;
@@ -42,6 +45,108 @@ async function tryBuildDependencyTreeFromLockfile(projectPath, tool, lockfileSea
         treeCache.set(cacheKey, null);
         return undefined;
     }
+}
+function stripJsonComments(raw) {
+    return raw
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+function parseBunTree(projectPath, searchRoot) {
+    const lockPath = findUpwards(projectPath, ['bun.lock'], searchRoot);
+    if (!lockPath)
+        return undefined;
+    const raw = readCachedText(lockPath);
+    if (!raw)
+        return undefined;
+    const packageJsonPath = path_1.default.join(projectPath, 'package.json');
+    if (!safePathExists(packageJsonPath))
+        return undefined;
+    const packageJson = readJsonSafe(packageJsonPath);
+    if (!packageJson || typeof packageJson !== 'object')
+        return undefined;
+    if (raw.trim().startsWith('{')) {
+        const parsed = readBunJsonLock(raw);
+        if (parsed) {
+            return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
+        }
+    }
+    const yarnLike = parseYarnV1(raw) || parseYarnV2(raw);
+    if (!yarnLike)
+        return undefined;
+    return { sourceFile: lockPath, data: buildYarnResolvedTree(yarnLike, packageJson) };
+}
+function readBunJsonLock(raw) {
+    try {
+        return JSON.parse(stripJsonComments(raw));
+    }
+    catch {
+        return undefined;
+    }
+}
+function buildBunJsonResolvedTree(lock, packageJson) {
+    const packages = (lock === null || lock === void 0 ? void 0 : lock.packages) && typeof lock.packages === 'object' ? lock.packages : {};
+    const rootDeps = collectPackageJsonDependencySpecs(packageJson);
+    const dependencies = {};
+    const memo = new Map();
+    const stack = new Set();
+    for (const depName of Object.keys(rootDeps)) {
+        const node = buildBunJsonNode(depName, packages, memo, stack);
+        if (node)
+            dependencies[node.name] = node;
+    }
+    return { dependencies };
+}
+function normalizeBunPackageEntry(rawEntry) {
+    const entry = Array.isArray(rawEntry)
+        ? rawEntry.find((item) => item && typeof item === 'object' && !Array.isArray(item))
+        : rawEntry;
+    if (!entry || typeof entry !== 'object')
+        return undefined;
+    const version = typeof entry.version === 'string'
+        ? entry.version
+        : typeof entry.resolution === 'string'
+            ? extractVersionFromBunResolution(entry.resolution)
+            : undefined;
+    return {
+        ...(version ? { version } : {}),
+        ...(entry.dependencies && typeof entry.dependencies === 'object' ? { dependencies: entry.dependencies } : {}),
+        ...(entry.optionalDependencies && typeof entry.optionalDependencies === 'object' ? { optionalDependencies: entry.optionalDependencies } : {})
+    };
+}
+function extractVersionFromBunResolution(value) {
+    const match = value.match(/@npm:([^#\s]+)/);
+    return match ? match[1] : undefined;
+}
+function findBunPackageEntry(name, packages) {
+    if (packages[name])
+        return packages[name];
+    const prefix = `${name}@`;
+    const key = Object.keys(packages).find((candidate) => candidate === name || candidate.startsWith(prefix));
+    return key ? packages[key] : undefined;
+}
+function buildBunJsonNode(name, packages, memo, stack) {
+    if (memo.has(name))
+        return memo.get(name);
+    if (stack.has(name))
+        return undefined;
+    const entry = normalizeBunPackageEntry(findBunPackageEntry(name, packages));
+    if (!(entry === null || entry === void 0 ? void 0 : entry.version))
+        return undefined;
+    const out = { name, version: entry.version, dependencies: {} };
+    stack.add(name);
+    const childDeps = mergeStringRecord(entry.dependencies, entry.optionalDependencies);
+    for (const childName of Object.keys(childDeps)) {
+        if (isWorkspaceLikeSpecifier(childDeps[childName]))
+            continue;
+        const child = buildBunJsonNode(childName, packages, memo, stack);
+        if (child)
+            out.dependencies[child.name] = child;
+    }
+    stack.delete(name);
+    if (out.dependencies && Object.keys(out.dependencies).length === 0)
+        delete out.dependencies;
+    memo.set(name, out);
+    return out;
 }
 /**
  * Builds a dependency tree from a pnpm lockfile for the given project path.

@@ -33,7 +33,7 @@ type LsProgressOptions = {
 export async function runNpmLs(
   projectPath: string,
   tempDir: string,
-  tool: 'npm' | 'pnpm' | 'yarn' = 'npm',
+  tool: 'npm' | 'pnpm' | 'yarn' | 'bun' = 'npm',
   options: LsProgressOptions = {}
 ): Promise<ToolResult<any>> {
   const persistToDisk = options.persistToDisk !== false;
@@ -50,8 +50,21 @@ export async function runNpmLs(
       }
       return { ok: true, data: lockfileTree.data, ...(persistToDisk ? { file: targetFile } : {}) };
     }
+    if (tool === 'bun') {
+      const lockbPath = path.join(projectPath, 'bun.lockb');
+      if (fs.existsSync(lockbPath) && !fs.existsSync(path.join(projectPath, 'bun.lock'))) {
+        const error = 'Binary bun.lockb is not supported. Run `bun install --save-text-lockfile --frozen-lockfile --lockfile-only` and commit bun.lock.';
+        if (persistToDisk) await writeJsonFile(targetFile, { error });
+        return { ok: false, error, ...(persistToDisk ? { file: targetFile } : {}) };
+      }
+    }
     if (tool === 'pnpm') {
       return await runPnpmLsWithFallback(projectPath, targetFile, options);
+    }
+    if (tool === 'bun') {
+      const error = 'bun.lock could not be parsed and Bun has no supported list fallback in this release.';
+      if (persistToDisk) await writeJsonFile(targetFile, { error });
+      return { ok: false, error, ...(persistToDisk ? { file: targetFile } : {}) };
     }
     const { args, normalize } = buildLsCommand(tool);
     const result = await runCommand(tool, args, { cwd: projectPath });
@@ -86,7 +99,7 @@ export async function runNpmLs(
  * @param tool - The package manager identifier ('npm', 'pnpm', or 'yarn') used to choose arguments and normalizer.
  * @returns An object with `args`, the CLI arguments to run the tool's list command, and `normalize`, a function that converts the tool's parsed output into a `ResolvedTree` or `undefined` when parsing/normalization fails.
  */
-function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn'): { args: string[]; normalize: (data: any) => ResolvedTree | undefined } {
+function buildLsCommand(tool: 'npm' | 'pnpm' | 'yarn' | 'bun'): { args: string[]; normalize: (data: any) => ResolvedTree | undefined } {
   if (tool === 'yarn') {
     return {
       args: ['list', '--json', '--depth', 'Infinity'],
@@ -230,7 +243,7 @@ function trimText(text: string, maxChars: number): string {
   return trimmed.slice(trimmed.length - maxChars);
 }
 
-function buildLsFailureMessage(tool: 'npm' | 'pnpm' | 'yarn', code: number | null, stderr: string): string {
+function buildLsFailureMessage(tool: 'npm' | 'pnpm' | 'yarn' | 'bun', code: number | null, stderr: string): string {
   if (isOutOfMemoryError(stderr)) {
     return `${tool} ls ran out of memory while building the dependency tree`;
   }

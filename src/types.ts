@@ -1,6 +1,6 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
-export type PackageManager = 'npm' | 'pnpm' | 'yarn';
+export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
 export interface VulnerabilityAdvisory {
   id: string;
@@ -175,6 +175,34 @@ export interface DependencyFinding {
   recommendation?: string;
 }
 
+export type SupplyChainSignalType =
+  | 'git-dependency'
+  | 'file-dependency'
+  | 'non-registry-tarball'
+  | 'missing-integrity'
+  | 'unexpected-registry-host'
+  | 'signature-verification-failed'
+  | 'signature-verification-unavailable';
+
+export interface SupplyChainSignal {
+  type: SupplyChainSignalType;
+  packageName?: string;
+  packageVersion?: string;
+  packageId?: string;
+  source: string;
+  detail: string;
+}
+
+export interface SupplyChainSummary {
+  signals: SupplyChainSignal[];
+  signatureAudit?: {
+    attempted: boolean;
+    ok: boolean;
+    output?: string;
+    error?: string;
+  };
+}
+
 export interface ToolResult<T> {
   ok: boolean;
   data?: T;
@@ -257,6 +285,7 @@ export interface AggregatedData {
       npm?: string;
       pnpm?: string;
       yarn?: string;
+      bun?: string;
     };
   };
   workspaces: {
@@ -271,6 +300,7 @@ export interface AggregatedData {
     transitiveCount: number;
     findingCount?: number;
   };
+  supplyChain?: SupplyChainSummary;
   findings?: DependencyFinding[];
   dependencies: Record<string, DependencyRecord>;
 }

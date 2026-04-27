@@ -36,6 +36,7 @@ This runs a scan against the current project and writes a self-contained `depend
 - **CI-friendly** — `--fail-on` flag lets you enforce licence and vulnerability policies in pipelines
 - **Review-friendly outputs** — emit JSON, SARIF, CycloneDX SBOM, or SPDX SBOM artifacts from the same local scan
 - **Change comparison** — compare a fresh scan with a previous `dependency-radar.json` to see added dependencies, removed dependencies, version changes, and new findings
+- **Lockfile supply-chain signals** — flags git/local/tarball sources, missing integrity, unexpected registry hosts, and optional npm signature/provenance verification
 - **Completely offline-capable** — use `--offline` to skip registry calls; all package metadata is read from local `node_modules`
 - **Single self-contained HTML file** — no server needed; open it locally, attach it to a ticket, or share it with your team
 
@@ -99,6 +100,8 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--format <format>` | Output format: `html`, `json`, `sarif`, `cyclonedx`, or `spdx` |
 | `--sbom <format>` | Convenience alias for SBOM output: `cyclonedx` or `spdx` |
 | `--target-node <major>` | Add Node major compatibility findings based on local `engines.node` metadata |
+| `--audit-signatures` | Run `npm audit signatures` for registry signature/provenance verification (opt-in; skipped with `--offline`) |
+| `--schema` | Print the current Dependency Radar JSON schema, or write it with `--out <path>` |
 | `--offline` | Skip `npm audit` and `npm outdated` (useful for offline/air-gapped scans) |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
@@ -186,6 +189,7 @@ Supported rules:
 | `licence-mismatch` | Fail if at least one dependency has a declared-vs-inferred licence mismatch |
 | `copyleft-detected` | Fail if strong copyleft (GPL/AGPL) appears in runtime dependencies |
 | `unknown-licence` | Fail if at least one dependency has neither declared nor inferred licence data |
+| `supply-chain-source` | Fail if lockfile source signals detect git/local/tarball sources, missing integrity, or unexpected registry hosts |
 
 When rules are violated, Dependency Radar prints `✖ Policy violations detected:` and exits `1`. Unknown rules also exit `1` with a clear error message.
 
@@ -221,6 +225,20 @@ npx dependency-radar --sbom spdx --out ./reports/bom.spdx.json
 
 ```bash
 npx dependency-radar --target-node 22
+```
+
+### Example: verify npm registry signatures/provenance
+
+```bash
+npx dependency-radar --audit-signatures
+```
+
+This runs `npm audit signatures` as an opt-in online check. It is skipped when `--offline` is used.
+
+### Example: write the JSON schema
+
+```bash
+npx dependency-radar --schema --out ./reports/dependency-radar.schema.json
 ```
 
 ### Example: keep temp files for debugging
@@ -288,7 +306,8 @@ The blocker detail counts can overlap: a single package may contribute to multip
 | pnpm | ✅ Lockfile-first (`pnpm-lock.yaml`) | ✅ | ✅ | ✅ |
 | Yarn Classic (v1) | ✅ Lockfile-first (`yarn.lock`) | ✅ | ✅ | ✅ |
 | Yarn Berry (v2+, node-modules linker) | ✅ Lockfile-first (`yarn.lock`) | ✅ | ⚠️ Plugin-dependent | ✅ |
-| Yarn Plug'n'Play | ❌ Not yet supported | | | |
+| Yarn Plug'n'Play | ⚠️ Lockfile-derived graph only; package metadata may be incomplete without `node_modules` | ✅ | ⚠️ Plugin-dependent | ✅ |
+| Bun | ⚠️ Text `bun.lock` parsing; binary `bun.lockb` is reported with a migration hint | | | ⚠️ package.json workspaces only |
 
 ## Requirements
 
@@ -299,12 +318,13 @@ The blocker detail counts can overlap: a single package may contribute to multip
 
 When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
 
-1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`).
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
 2. Detect workspace/package-manager context:
    - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
    - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions
    - Package manager from `packageManager`, lockfiles, and installed metadata
    - Yarn Plug'n'Play detection (`.pnp.cjs`/`.pnp.js` or `.yarnrc.yml nodeLinker: pnp`)
+   - Bun text lockfile detection (`bun.lock`; binary `bun.lockb` is not parsed)
 3. Create a temporary `.dependency-radar/` directory inside the scanned project.
 4. For each workspace package (or just the project root in single-package mode), collect dependency graph data:
    - Lockfile-first graph parsing (`pnpm-lock.yaml`, `npm-shrinkwrap.json`/`package-lock.json`, `yarn.lock`)
@@ -314,6 +334,8 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Vulnerabilities (`npm audit` / `pnpm audit` / `yarn audit` or `yarn npm audit`)
    - Version drift (`npm outdated` / `pnpm outdated` / `yarn outdated`, where available)
    - Source import graph (static import/require parsing in `src/` or project root)
+   - Lockfile supply-chain source signals
+   - Optional npm registry signature/provenance verification (`--audit-signatures`)
 6. Normalize outputs into one internal shape and merge workspace package results.
    - PNPM lock/CLI dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
 7. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
@@ -326,7 +348,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Install-time execution signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
 9. Build normalized findings from the aggregated dependency model:
-   - Vulnerabilities, license review items, install-time execution surface, native bindings, deprecated packages, and target Node compatibility findings
+   - Vulnerabilities, license review items, install-time execution surface, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
 10. Write final output as one of:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
@@ -495,7 +517,7 @@ export interface AggregatedData {
     arch?: string; // CPU architecture (process.arch)
     ci?: boolean; // True when CI indicators are detected
     packageManagerField?: string; // package.json packageManager field (e.g. pnpm@9.1.0)
-    packageManager?: 'npm' | 'pnpm' | 'yarn'; // Package manager used for dependency/audit/outdated collection
+    packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun'; // Package manager used for dependency/audit/outdated collection
     packageManagerVersion?: string; // Version of the selected package manager (when available)
     toolVersions?: {
       npm?: string;
@@ -505,7 +527,7 @@ export interface AggregatedData {
   };
   workspaces: {
     enabled: boolean; // True when the scan used workspace aggregation
-    type?: 'npm' | 'pnpm' | 'yarn' | 'none'; // Workspace mode (CLI currently always emits this)
+    type?: 'npm' | 'pnpm' | 'yarn' | 'bun' | 'none'; // Workspace mode (CLI currently always emits this)
     packageCount?: number; // Number of workspace packages scanned (CLI currently always emits this)
     workspacePackages?: WorkspacePackage[]; // Lightweight first-party workspace metadata
   };
@@ -514,6 +536,29 @@ export interface AggregatedData {
     directCount: number; // External dependencies listed in package.json
     transitiveCount: number; // External dependencies pulled in by other dependencies
     findingCount?: number; // Number of normalized findings generated from the dependency model
+  };
+  supplyChain?: {
+    signals: Array<{
+      type:
+        | 'git-dependency'
+        | 'file-dependency'
+        | 'non-registry-tarball'
+        | 'missing-integrity'
+        | 'unexpected-registry-host'
+        | 'signature-verification-failed'
+        | 'signature-verification-unavailable';
+      packageName?: string;
+      packageVersion?: string;
+      packageId?: string;
+      source: string;
+      detail: string;
+    }>;
+    signatureAudit?: {
+      attempted: boolean;
+      ok: boolean;
+      output?: string;
+      error?: string;
+    };
   };
   findings?: DependencyFinding[]; // Normalized review/CI findings
   dependencies: Record<string, DependencyRecord>; // External third-party packages keyed by name@version

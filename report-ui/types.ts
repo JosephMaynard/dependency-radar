@@ -173,7 +173,7 @@ export interface AggregatedData {
   };
   workspaces: {
     enabled: boolean;
-    type?: 'npm' | 'pnpm' | 'yarn' | 'none';
+    type?: 'npm' | 'pnpm' | 'yarn' | 'bun' | 'none';
     packageCount?: number;
     workspacePackages?: Array<{
       name: string;
@@ -183,6 +183,22 @@ export interface AggregatedData {
         dev: number;
       };
     }>;
+  };
+  supplyChain?: {
+    signals: Array<{
+      type: string;
+      packageName?: string;
+      packageVersion?: string;
+      packageId?: string;
+      source: string;
+      detail: string;
+    }>;
+    signatureAudit?: {
+      attempted: boolean;
+      ok: boolean;
+      output?: string;
+      error?: string;
+    };
   };
   summary: {
     dependencyCount: number;

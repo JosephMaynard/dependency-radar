@@ -19,7 +19,7 @@ export type LockfileTreeResult = {
   data: ResolvedTree;
 };
 
-type Tool = 'npm' | 'pnpm' | 'yarn';
+type Tool = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
 type PnpmInstallState = {
   enabled: boolean;
@@ -75,8 +75,10 @@ export async function tryBuildDependencyTreeFromLockfile(
       result = parsePnpmTree(projectPath, searchRoot);
     } else if (tool === 'npm') {
       result = parseNpmTree(projectPath, searchRoot);
-    } else {
+    } else if (tool === 'yarn') {
       result = parseYarnTree(projectPath, searchRoot);
+    } else {
+      result = parseBunTree(projectPath, searchRoot);
     }
     treeCache.set(cacheKey, result || null);
     return result;
@@ -84,6 +86,109 @@ export async function tryBuildDependencyTreeFromLockfile(
     treeCache.set(cacheKey, null);
     return undefined;
   }
+}
+
+function stripJsonComments(raw: string): string {
+  return raw
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+function parseBunTree(projectPath: string, searchRoot: string): LockfileTreeResult | undefined {
+  const lockPath = findUpwards(projectPath, ['bun.lock'], searchRoot);
+  if (!lockPath) return undefined;
+  const raw = readCachedText(lockPath);
+  if (!raw) return undefined;
+
+  const packageJsonPath = path.join(projectPath, 'package.json');
+  if (!safePathExists(packageJsonPath)) return undefined;
+  const packageJson = readJsonSafe(packageJsonPath);
+  if (!packageJson || typeof packageJson !== 'object') return undefined;
+
+  if (raw.trim().startsWith('{')) {
+    const parsed = readBunJsonLock(raw);
+    if (parsed) {
+      return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
+    }
+  }
+
+  const yarnLike = parseYarnV1(raw) || parseYarnV2(raw);
+  if (!yarnLike) return undefined;
+  return { sourceFile: lockPath, data: buildYarnResolvedTree(yarnLike, packageJson) };
+}
+
+function readBunJsonLock(raw: string): any | undefined {
+  try {
+    return JSON.parse(stripJsonComments(raw));
+  } catch {
+    return undefined;
+  }
+}
+
+function buildBunJsonResolvedTree(lock: any, packageJson: any): ResolvedTree {
+  const packages = lock?.packages && typeof lock.packages === 'object' ? lock.packages : {};
+  const rootDeps = collectPackageJsonDependencySpecs(packageJson);
+  const dependencies: Record<string, ResolvedNode> = {};
+  const memo = new Map<string, ResolvedNode | undefined>();
+  const stack = new Set<string>();
+  for (const depName of Object.keys(rootDeps)) {
+    const node = buildBunJsonNode(depName, packages, memo, stack);
+    if (node) dependencies[node.name] = node;
+  }
+  return { dependencies };
+}
+
+function normalizeBunPackageEntry(rawEntry: any): { version?: string; dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> } | undefined {
+  const entry = Array.isArray(rawEntry)
+    ? rawEntry.find((item) => item && typeof item === 'object' && !Array.isArray(item))
+    : rawEntry;
+  if (!entry || typeof entry !== 'object') return undefined;
+  const version = typeof entry.version === 'string'
+    ? entry.version
+    : typeof entry.resolution === 'string'
+      ? extractVersionFromBunResolution(entry.resolution)
+      : undefined;
+  return {
+    ...(version ? { version } : {}),
+    ...(entry.dependencies && typeof entry.dependencies === 'object' ? { dependencies: entry.dependencies } : {}),
+    ...(entry.optionalDependencies && typeof entry.optionalDependencies === 'object' ? { optionalDependencies: entry.optionalDependencies } : {})
+  };
+}
+
+function extractVersionFromBunResolution(value: string): string | undefined {
+  const match = value.match(/@npm:([^#\s]+)/);
+  return match ? match[1] : undefined;
+}
+
+function findBunPackageEntry(name: string, packages: Record<string, any>): any | undefined {
+  if (packages[name]) return packages[name];
+  const prefix = `${name}@`;
+  const key = Object.keys(packages).find((candidate) => candidate === name || candidate.startsWith(prefix));
+  return key ? packages[key] : undefined;
+}
+
+function buildBunJsonNode(
+  name: string,
+  packages: Record<string, any>,
+  memo: Map<string, ResolvedNode | undefined>,
+  stack: Set<string>
+): ResolvedNode | undefined {
+  if (memo.has(name)) return memo.get(name);
+  if (stack.has(name)) return undefined;
+  const entry = normalizeBunPackageEntry(findBunPackageEntry(name, packages));
+  if (!entry?.version) return undefined;
+  const out: ResolvedNode = { name, version: entry.version, dependencies: {} };
+  stack.add(name);
+  const childDeps = mergeStringRecord(entry.dependencies, entry.optionalDependencies);
+  for (const childName of Object.keys(childDeps)) {
+    if (isWorkspaceLikeSpecifier(childDeps[childName])) continue;
+    const child = buildBunJsonNode(childName, packages, memo, stack);
+    if (child) out.dependencies![child.name] = child;
+  }
+  stack.delete(name);
+  if (out.dependencies && Object.keys(out.dependencies).length === 0) delete out.dependencies;
+  memo.set(name, out);
+  return out;
 }
 
 /**

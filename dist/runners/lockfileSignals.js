@@ -1,0 +1,254 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.runLockfileSupplyChainSignals = runLockfileSupplyChainSignals;
+const promises_1 = __importDefault(require("fs/promises"));
+const path_1 = __importDefault(require("path"));
+const utils_1 = require("../utils");
+const DEFAULT_REGISTRY_HOSTS = new Set(['registry.npmjs.org']);
+function stripJsonComments(raw) {
+    return raw
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+function normalizeExpectedHosts(hosts) {
+    const normalized = new Set(DEFAULT_REGISTRY_HOSTS);
+    for (const host of hosts || []) {
+        const trimmed = host.trim().toLowerCase();
+        if (trimmed)
+            normalized.add(trimmed);
+    }
+    return normalized;
+}
+function addSignal(signals, seen, signal) {
+    const key = `${signal.type}|${signal.packageName || ''}|${signal.packageVersion || ''}|${signal.source}|${signal.detail}`;
+    if (seen.has(key))
+        return;
+    seen.add(key);
+    signals.push(signal);
+}
+function packageFromKey(key) {
+    const cleaned = key.replace(/^node_modules\//, '').replace(/^\/?/, '');
+    const atIndex = cleaned.startsWith('@') ? cleaned.indexOf('@', 1) : cleaned.indexOf('@');
+    if (atIndex > 0) {
+        return { name: cleaned.slice(0, atIndex), version: cleaned.slice(atIndex + 1).split(/[(/]/)[0] };
+    }
+    return { name: cleaned || undefined };
+}
+function inspectResolvedUrl(signals, seen, sourceFile, packageName, packageVersion, value, expectedHosts) {
+    const lower = value.toLowerCase();
+    if (lower.startsWith('git+') || lower.startsWith('git://') || lower.startsWith('github:') || lower.includes('github.com:')) {
+        addSignal(signals, seen, {
+            type: 'git-dependency',
+            packageName,
+            packageVersion,
+            source: sourceFile,
+            detail: `${packageName || 'dependency'} resolves from git source ${value}`
+        });
+        return;
+    }
+    if (lower.startsWith('file:') || lower.startsWith('link:') || lower.startsWith('portal:')) {
+        addSignal(signals, seen, {
+            type: 'file-dependency',
+            packageName,
+            packageVersion,
+            source: sourceFile,
+            detail: `${packageName || 'dependency'} resolves from local source ${value}`
+        });
+        return;
+    }
+    if (!/^https?:\/\//i.test(value))
+        return;
+    try {
+        const url = new URL(value);
+        const host = url.host.toLowerCase();
+        if (!expectedHosts.has(host)) {
+            addSignal(signals, seen, {
+                type: value.endsWith('.tgz') ? 'non-registry-tarball' : 'unexpected-registry-host',
+                packageName,
+                packageVersion,
+                source: sourceFile,
+                detail: `${packageName || 'dependency'} resolves from ${host}`
+            });
+        }
+    }
+    catch {
+        // Ignore malformed URL strings.
+    }
+}
+function inspectNpmLockObject(obj, sourceFile, expectedHosts) {
+    const signals = [];
+    const seen = new Set();
+    const packages = (obj === null || obj === void 0 ? void 0 : obj.packages) && typeof obj.packages === 'object'
+        ? obj.packages
+        : undefined;
+    if (packages) {
+        for (const [key, entry] of Object.entries(packages)) {
+            if (!entry || typeof entry !== 'object' || key === '')
+                continue;
+            const pkg = packageFromKey(key);
+            const resolved = typeof entry.resolved === 'string' ? entry.resolved : '';
+            if (resolved)
+                inspectResolvedUrl(signals, seen, sourceFile, pkg.name, entry.version || pkg.version, resolved, expectedHosts);
+            if (resolved && !entry.integrity && !resolved.startsWith('file:') && !resolved.startsWith('link:')) {
+                addSignal(signals, seen, {
+                    type: 'missing-integrity',
+                    packageName: pkg.name,
+                    packageVersion: entry.version || pkg.version,
+                    source: sourceFile,
+                    detail: `${pkg.name || key} has a resolved source but no integrity field`
+                });
+            }
+        }
+        return signals;
+    }
+    const dependencies = (obj === null || obj === void 0 ? void 0 : obj.dependencies) && typeof obj.dependencies === 'object' ? obj.dependencies : {};
+    for (const [name, entry] of Object.entries(dependencies)) {
+        if (!entry || typeof entry !== 'object')
+            continue;
+        const resolved = typeof entry.resolved === 'string' ? entry.resolved : '';
+        if (resolved)
+            inspectResolvedUrl(signals, seen, sourceFile, name, entry.version, resolved, expectedHosts);
+        if (resolved && !entry.integrity && !resolved.startsWith('file:') && !resolved.startsWith('link:')) {
+            addSignal(signals, seen, {
+                type: 'missing-integrity',
+                packageName: name,
+                packageVersion: entry.version,
+                source: sourceFile,
+                detail: `${name} has a resolved source but no integrity field`
+            });
+        }
+    }
+    return signals;
+}
+function inspectTextLock(raw, sourceFile, expectedHosts) {
+    const signals = [];
+    const seen = new Set();
+    let currentName;
+    let currentVersion;
+    let currentHasIntegrity = false;
+    let currentResolved = '';
+    const flush = () => {
+        if (currentResolved && !currentHasIntegrity && !currentResolved.startsWith('file:') && !currentResolved.startsWith('link:')) {
+            addSignal(signals, seen, {
+                type: 'missing-integrity',
+                packageName: currentName,
+                packageVersion: currentVersion,
+                source: sourceFile,
+                detail: `${currentName || 'dependency'} has a resolved source but no integrity field`
+            });
+        }
+    };
+    for (const rawLine of raw.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#'))
+            continue;
+        if (!rawLine.startsWith(' ') && line.endsWith(':')) {
+            flush();
+            currentHasIntegrity = false;
+            currentResolved = '';
+            const selector = line.slice(0, -1).replace(/^["']|["']$/g, '');
+            const first = selector.split(',')[0].trim();
+            currentName = first.startsWith('@')
+                ? first.split('@').slice(0, 3).join('@').replace(/@$/, '')
+                : first.split('@')[0];
+            currentVersion = undefined;
+            continue;
+        }
+        const versionMatch = line.match(/^version\s+["']?([^"'\s]+)["']?/);
+        if (versionMatch)
+            currentVersion = versionMatch[1];
+        const resolvedMatch = line.match(/^(resolved|resolution)\s+["']?([^"']+)["']?/);
+        if (resolvedMatch) {
+            currentResolved = resolvedMatch[2];
+            inspectResolvedUrl(signals, seen, sourceFile, currentName, currentVersion, currentResolved, expectedHosts);
+        }
+        if (/^integrity\s+/.test(line) || /checksum:\s+/.test(line)) {
+            currentHasIntegrity = true;
+        }
+        const specMatch = line.match(/(?:^|["'\s])((?:git\+|git:\/\/|github:|file:|link:|portal:|https?:\/\/)[^"'\s]+)/);
+        if (specMatch)
+            inspectResolvedUrl(signals, seen, sourceFile, currentName, currentVersion, specMatch[1], expectedHosts);
+    }
+    flush();
+    return signals;
+}
+async function collectLockfileSignals(projectPath, expectedHosts) {
+    const signals = [];
+    const candidates = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock'];
+    for (const fileName of candidates) {
+        const filePath = path_1.default.join(projectPath, fileName);
+        if (!(await (0, utils_1.pathExists)(filePath)))
+            continue;
+        const raw = await promises_1.default.readFile(filePath, 'utf8');
+        if (fileName === 'package-lock.json' || fileName === 'npm-shrinkwrap.json') {
+            try {
+                signals.push(...inspectNpmLockObject(JSON.parse(raw), fileName, expectedHosts));
+            }
+            catch {
+                signals.push(...inspectTextLock(raw, fileName, expectedHosts));
+            }
+        }
+        else if (fileName === 'bun.lock' && raw.trim().startsWith('{')) {
+            try {
+                signals.push(...inspectNpmLockObject(JSON.parse(stripJsonComments(raw)), fileName, expectedHosts));
+            }
+            catch {
+                signals.push(...inspectTextLock(raw, fileName, expectedHosts));
+            }
+        }
+        else {
+            signals.push(...inspectTextLock(raw, fileName, expectedHosts));
+        }
+    }
+    return signals;
+}
+async function runNpmAuditSignatures(projectPath) {
+    try {
+        const result = await (0, utils_1.runCommand)('npm', ['audit', 'signatures'], { cwd: projectPath });
+        const output = `${result.stdout || ''}${result.stderr ? `\n${result.stderr}` : ''}`.trim();
+        return {
+            attempted: true,
+            ok: result.code === 0,
+            ...(output ? { output } : {}),
+            ...(result.code === 0 ? {} : { error: `npm audit signatures exited with code ${result.code}` })
+        };
+    }
+    catch (err) {
+        return {
+            attempted: true,
+            ok: false,
+            error: err instanceof Error ? err.message : String(err)
+        };
+    }
+}
+async function runLockfileSupplyChainSignals(projectPath, tempDir, options = {}) {
+    const persistToDisk = options.persistToDisk !== false;
+    const targetFile = path_1.default.join(tempDir, 'supply-chain-signals.json');
+    try {
+        const signals = await collectLockfileSignals(projectPath, normalizeExpectedHosts(options.expectedRegistryHosts));
+        const signatureAudit = options.auditSignatures && !options.offline
+            ? await runNpmAuditSignatures(projectPath)
+            : options.auditSignatures && options.offline
+                ? { attempted: false, ok: true, error: 'skipped (--offline)' }
+                : undefined;
+        const data = {
+            signals,
+            ...(signatureAudit ? { signatureAudit } : {})
+        };
+        if (persistToDisk)
+            await (0, utils_1.writeJsonFile)(targetFile, data);
+        return { ok: true, data, ...(persistToDisk ? { file: targetFile } : {}) };
+    }
+    catch (err) {
+        if (persistToDisk)
+            await (0, utils_1.writeJsonFile)(targetFile, { error: String(err) });
+        return {
+            ok: false,
+            error: `lockfile supply-chain signal collection failed: ${String(err)}`,
+            ...(persistToDisk ? { file: targetFile } : {})
+        };
+    }
+}

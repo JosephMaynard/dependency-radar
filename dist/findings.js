@@ -52,7 +52,7 @@ function baseFinding(dep, suffix, fields) {
     };
 }
 function buildDependencyFindings(data, options = {}) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     const findings = [];
     for (const dep of Object.values(data.dependencies || {})) {
         const vulnCount = vulnerabilityTotal(dep);
@@ -136,6 +136,24 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
     }
+    for (const signal of ((_k = data.supplyChain) === null || _k === void 0 ? void 0 : _k.signals) || []) {
+        findings.push(buildSupplyChainFinding(signal));
+    }
+    const signatureAudit = (_l = data.supplyChain) === null || _l === void 0 ? void 0 : _l.signatureAudit;
+    if ((signatureAudit === null || signatureAudit === void 0 ? void 0 : signatureAudit.attempted) && !signatureAudit.ok) {
+        findings.push({
+            id: 'supply-chain:signature-verification-failed',
+            category: 'supply-chain',
+            severity: 'warning',
+            packageId: 'project',
+            packageName: 'project',
+            packageVersion: '',
+            title: 'npm signature/provenance verification failed',
+            message: signatureAudit.error || 'npm audit signatures did not complete successfully.',
+            evidence: signatureAudit.output,
+            recommendation: 'Review npm audit signatures output and verify registry/provenance status.'
+        });
+    }
     return findings.sort((a, b) => {
         const severityOrder = { error: 2, warning: 1, info: 0 };
         const diff = severityOrder[b.severity] - severityOrder[a.severity];
@@ -143,4 +161,33 @@ function buildDependencyFindings(data, options = {}) {
             return diff;
         return a.packageId.localeCompare(b.packageId) || a.id.localeCompare(b.id);
     });
+}
+function buildSupplyChainFinding(signal) {
+    const packageId = signal.packageId || (signal.packageName && signal.packageVersion
+        ? `${signal.packageName}@${signal.packageVersion}`
+        : signal.packageName || 'lockfile');
+    const titleByType = {
+        'git-dependency': 'Git dependency source',
+        'file-dependency': 'Local file dependency source',
+        'non-registry-tarball': 'Non-registry tarball source',
+        'missing-integrity': 'Missing lockfile integrity',
+        'unexpected-registry-host': 'Unexpected registry host',
+        'signature-verification-failed': 'Signature verification failed',
+        'signature-verification-unavailable': 'Signature verification unavailable'
+    };
+    const severity = signal.type === 'missing-integrity' || signal.type === 'unexpected-registry-host'
+        ? 'warning'
+        : 'info';
+    return {
+        id: `${packageId}:${signal.type}`.replace(/[^a-zA-Z0-9_.@/-]+/g, '-'),
+        category: 'supply-chain',
+        severity,
+        packageId,
+        packageName: signal.packageName || packageId,
+        packageVersion: signal.packageVersion || '',
+        title: titleByType[signal.type],
+        message: signal.detail,
+        evidence: signal.source,
+        recommendation: 'Review the dependency source and confirm it is expected for this project.'
+    };
 }

@@ -12,6 +12,7 @@ import { runImportGraph } from "./runners/importGraphRunner";
 import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
+import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
 import { compareReports, formatCompareOutput } from "./compare";
 import {
@@ -22,6 +23,7 @@ import {
   type ReportFormat,
 } from "./outputFormats";
 import { formatWhyOutput } from "./why";
+import { renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
   evaluatePolicyViolations,
@@ -39,8 +41,8 @@ import fs from "fs/promises";
 import { ensureDir, removeDir, runCommand, pathExists } from "./utils";
 
 // Workspace detection and helpers
-type WorkspaceType = "pnpm" | "npm" | "yarn" | "none";
-type PackageManager = "npm" | "pnpm" | "yarn";
+type WorkspaceType = "pnpm" | "npm" | "yarn" | "bun" | "none";
+type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
 interface WorkspaceDiscovery {
   type: WorkspaceType;
@@ -507,6 +509,7 @@ function inferPackageManager(rootPkg: any): PackageManager | undefined {
   if (!raw) return undefined;
   if (raw.startsWith("pnpm@") || raw === "pnpm") return "pnpm";
   if (raw.startsWith("yarn@") || raw === "yarn") return "yarn";
+  if (raw.startsWith("bun@") || raw === "bun") return "bun";
   if (raw.startsWith("npm@") || raw === "npm") return "npm";
   return undefined;
 }
@@ -521,6 +524,7 @@ async function detectPackageManager(
   if (workspaceType === "pnpm" || workspaceType === "yarn")
     return workspaceType;
   if (await detectYarnPnP(projectPath)) return "yarn";
+  if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
   if (await pathExists(path.join(projectPath, "node_modules", ".pnpm")))
     return "pnpm";
   if (
@@ -536,6 +540,7 @@ async function detectScanManager(
 ): Promise<PackageManager> {
   if (await pathExists(path.join(projectPath, "pnpm-lock.yaml"))) return "pnpm";
   if (await pathExists(path.join(projectPath, "yarn.lock"))) return "yarn";
+  if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
   if (
     (await pathExists(path.join(projectPath, "package-lock.json"))) ||
     (await pathExists(path.join(projectPath, "npm-shrinkwrap.json")))
@@ -544,6 +549,7 @@ async function detectScanManager(
   }
   if (await pathExists(path.join(projectPath, "node_modules", ".pnpm")))
     return "pnpm";
+  if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
   if (
     await pathExists(path.join(projectPath, "node_modules", ".yarn-state.yml"))
   )
@@ -1076,6 +1082,8 @@ interface CliOptions {
   failOn: Set<FailOnRule>;
   format: ReportFormat;
   targetNodeMajor?: number;
+  auditSignatures: boolean;
+  schema: boolean;
 }
 
 /**
@@ -1102,6 +1110,8 @@ function parseArgs(argv: string[]): CliOptions {
     noReport: false,
     failOn: new Set<FailOnRule>(),
     format: "html",
+    auditSignatures: false,
+    schema: false,
   };
 
   const args = [...argv];
@@ -1160,6 +1170,8 @@ function parseArgs(argv: string[]): CliOptions {
       }
       opts.targetNodeMajor = value;
     }
+    else if (arg === "--audit-signatures") opts.auditSignatures = true;
+    else if (arg === "--schema") opts.schema = true;
     else if (arg === "--open") opts.open = true;
     else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--fail-on") {
@@ -1197,6 +1209,10 @@ function isReportFormat(value: string): value is ReportFormat {
   return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
 }
 
+function supportsRegistryCollectors(manager: PackageManager): manager is "npm" | "pnpm" | "yarn" {
+  return manager === "npm" || manager === "pnpm" || manager === "yarn";
+}
+
 /**
  * Print the CLI usage and available options to the console.
  *
@@ -1218,6 +1234,8 @@ Options:
   --format <format>  Output format: html, json, sarif, cyclonedx, spdx
   --sbom <format>    Write an SBOM: cyclonedx or spdx
   --target-node <n>  Add Node major compatibility findings
+  --audit-signatures Verify npm registry signatures/provenance (opt-in, online only)
+  --schema           Print JSON schema, or write it when --out is provided
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
@@ -1225,7 +1243,8 @@ Options:
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Supported: reachable-vuln, production-vuln, high-severity-vuln,
-                                licence-mismatch, copyleft-detected, unknown-licence
+                                licence-mismatch, copyleft-detected, unknown-licence,
+                                supply-chain-source
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
 \`why\` prints shortest dependency paths for one package.
@@ -1678,13 +1697,10 @@ async function executeAnalysis(
   const workspace = await detectWorkspace(projectPath);
   const yarnPnP = await detectYarnPnP(projectPath);
   if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
-    console.error(
-      "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
-    );
-    console.error(
-      "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
-    );
-    process.exit(1);
+    if (!opts.quiet) {
+      console.log(statusLine("⚠", "Yarn Plug'n'Play detected; using the root package and yarn.lock where possible."));
+    }
+    workspace.packagePaths = [projectPath];
   }
   const hasProjectNodeModules = await pathExists(
     path.join(projectPath, "node_modules"),
@@ -1726,25 +1742,23 @@ async function executeAnalysis(
     getToolVersion("pnpm", projectPath),
     getToolVersion("yarn", projectPath),
   ]);
+  const bunVersion = await getToolVersion("bun", projectPath);
   const toolVersions = compactToolVersions({
     npm: npmVersion,
     pnpm: pnpmVersion,
     yarn: yarnVersion,
+    bun: bunVersion,
   });
   const packageManagerVersion =
     scanManager === "npm"
       ? npmVersion
       : scanManager === "pnpm"
         ? pnpmVersion
-        : yarnVersion;
-  if (packageManager === "yarn" && yarnPnP) {
-    console.error(
-      "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
-    );
-    console.error(
-      "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
-    );
-    process.exit(1);
+        : scanManager === "yarn"
+          ? yarnVersion
+          : bunVersion;
+  if (!opts.quiet && packageManager === "yarn" && yarnPnP) {
+    console.log(statusLine("⚠", "Yarn Plug'n'Play detected; using lockfile-derived graph data where available."));
   }
 
   const packagePaths = workspace.packagePaths;
@@ -1786,6 +1800,11 @@ async function executeAnalysis(
     const perPackageLs: Array<ToolResult<any>> = [];
     const perPackageImportGraph: Array<ToolResult<any>> = [];
     const perPackageOutdated: OutdatedAttempt[] = [];
+    const supplyChainResult = await runLockfileSupplyChainSignals(projectPath, tempDir, {
+      persistToDisk: shouldWriteArtifacts,
+      auditSignatures: opts.auditSignatures,
+      offline: !opts.audit
+    }).catch((err) => ({ ok: false, error: String(err) }) as ToolResult<any>);
 
     for (const meta of packageMetas) {
       spinner.update(
@@ -1800,6 +1819,7 @@ async function executeAnalysis(
       }
       const [a, l, ig, o] = await Promise.all([
         opts.audit
+        && supportsRegistryCollectors(scanManager)
           ? runPackageAudit(
               meta.path,
               pkgTempDir,
@@ -1824,6 +1844,7 @@ async function executeAnalysis(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
         opts.outdated
+        && supportsRegistryCollectors(scanManager)
           ? runPackageOutdated(
               meta.path,
               pkgTempDir,
@@ -1849,6 +1870,14 @@ async function executeAnalysis(
             `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`,
           ),
         );
+      }
+    }
+    if (opts.auditSignatures && !opts.quiet) {
+      const audit = supplyChainResult.ok ? supplyChainResult.data?.signatureAudit : undefined;
+      if (audit?.error === "skipped (--offline)") {
+        spinner.log(statusLine("⚠", "npm audit signatures skipped (--offline)"));
+      } else {
+        spinner.log(statusLine(audit?.ok ? "✔" : "✖", `npm audit signatures ${audit?.ok ? "verified" : "unavailable"}`));
       }
     }
     if (opts.outdated) {
@@ -1933,6 +1962,7 @@ async function executeAnalysis(
       npmLsResult,
       importGraphResult,
       outdatedResult,
+      supplyChainResult,
       pkgOverride: mergedPkgForAggregator,
       projectPackageJson: rootPkg,
       ...(projectDependencyPolicy ? { projectDependencyPolicy } : {}),
@@ -2180,6 +2210,10 @@ async function run(): Promise<void> {
   }
 
   try {
+    if (opts.schema) {
+      await runSchemaCommand(opts);
+      return;
+    }
     if (opts.command === "explain") {
       await runExplainCommand(opts);
       return;
@@ -2197,6 +2231,20 @@ async function run(): Promise<void> {
     console.error("Failed to generate report:", err);
     process.exit(1);
   }
+}
+
+async function runSchemaCommand(opts: CliOptions): Promise<void> {
+  const schema = renderReportJsonSchema();
+  if (opts.out && opts.out !== "dependency-radar.html") {
+    const outputPath = path.resolve(opts.out);
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, schema, "utf8");
+    if (!opts.quiet) {
+      console.log(statusLine("✔", `JSON schema written to ${outputPath}`));
+    }
+    return;
+  }
+  console.log(schema);
 }
 
 run();

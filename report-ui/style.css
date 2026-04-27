@@ -397,6 +397,10 @@ body {
   gap: 6px;
 }
 
+.workspace-filter-group.hidden {
+  display: none;
+}
+
 .filter-label {
   font-size: 12px;
   font-weight: 500;

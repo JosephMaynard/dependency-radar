@@ -39,6 +39,7 @@ interface AggregateInput {
   npmLsResult?: ToolResult<any>;
   importGraphResult?: ToolResult<any>;
   outdatedResult?: OutdatedResult;
+  supplyChainResult?: ToolResult<any>;
   // Optional: allow CLI to pass a merged view of workspace package.json dependencies
   pkgOverride?: any;
   // Root package.json of the scanned project (used for project metadata output).
@@ -71,6 +72,7 @@ interface AggregateInput {
     npm?: string;
     pnpm?: string;
     yarn?: string;
+    bun?: string;
   };
   targetNodeMajor?: number;
 }
@@ -423,6 +425,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const importGraph = normalizeImportGraph(input.importGraphResult?.data);
   const usageResult = buildUsageSummary(importGraph, input.projectPath);
   const outdatedById = buildOutdatedMap(input.outdatedResult);
+  const supplyChain = normalizeSupplyChain(input.supplyChainResult?.data);
   const outdatedUnknownNames = new Set(input.outdatedResult?.unknownNames || []);
   const packageMetaCache = new Map<string, PackageMeta>();
   const resolvePaths = input.resolvePaths && input.resolvePaths.length > 0
@@ -597,12 +600,26 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       directCount,
       transitiveCount
     },
+    ...(supplyChain ? { supplyChain } : {}),
     dependencies
   };
   const findings = buildDependencyFindings(aggregated, { targetNodeMajor: input.targetNodeMajor });
   aggregated.findings = findings;
   aggregated.summary.findingCount = findings.length;
   return aggregated;
+}
+
+function normalizeSupplyChain(data: any): AggregatedData['supplyChain'] | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const signals = Array.isArray(data.signals) ? data.signals : [];
+  const signatureAudit = data.signatureAudit && typeof data.signatureAudit === 'object'
+    ? data.signatureAudit
+    : undefined;
+  if (signals.length === 0 && !signatureAudit) return undefined;
+  return {
+    signals,
+    ...(signatureAudit ? { signatureAudit } : {})
+  };
 }
 
 function isNodeEngineTargetCompatible(range: string, targetMajor: number): boolean {

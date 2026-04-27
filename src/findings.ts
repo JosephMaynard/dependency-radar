@@ -1,4 +1,4 @@
-import type { AggregatedData, DependencyFinding, DependencyRecord } from './types';
+import type { AggregatedData, DependencyFinding, DependencyRecord, SupplyChainSignal } from './types';
 
 function vulnerabilityTotal(dep: DependencyRecord): number {
   const summary = dep.security.summary;
@@ -58,7 +58,7 @@ function baseFinding(
 }
 
 export function buildDependencyFindings(
-  data: Pick<AggregatedData, 'dependencies'>,
+  data: Pick<AggregatedData, 'dependencies' | 'supplyChain'>,
   options: { targetNodeMajor?: number } = {}
 ): DependencyFinding[] {
   const findings: DependencyFinding[] = [];
@@ -151,6 +151,26 @@ export function buildDependencyFindings(
     }
   }
 
+  for (const signal of data.supplyChain?.signals || []) {
+    findings.push(buildSupplyChainFinding(signal));
+  }
+
+  const signatureAudit = data.supplyChain?.signatureAudit;
+  if (signatureAudit?.attempted && !signatureAudit.ok) {
+    findings.push({
+      id: 'supply-chain:signature-verification-failed',
+      category: 'supply-chain',
+      severity: 'warning',
+      packageId: 'project',
+      packageName: 'project',
+      packageVersion: '',
+      title: 'npm signature/provenance verification failed',
+      message: signatureAudit.error || 'npm audit signatures did not complete successfully.',
+      evidence: signatureAudit.output,
+      recommendation: 'Review npm audit signatures output and verify registry/provenance status.'
+    });
+  }
+
   return findings.sort((a, b) => {
     const severityOrder = { error: 2, warning: 1, info: 0 };
     const diff = severityOrder[b.severity] - severityOrder[a.severity];
@@ -159,3 +179,35 @@ export function buildDependencyFindings(
   });
 }
 
+function buildSupplyChainFinding(signal: SupplyChainSignal): DependencyFinding {
+  const packageId = signal.packageId || (
+    signal.packageName && signal.packageVersion
+      ? `${signal.packageName}@${signal.packageVersion}`
+      : signal.packageName || 'lockfile'
+  );
+  const titleByType: Record<SupplyChainSignal['type'], string> = {
+    'git-dependency': 'Git dependency source',
+    'file-dependency': 'Local file dependency source',
+    'non-registry-tarball': 'Non-registry tarball source',
+    'missing-integrity': 'Missing lockfile integrity',
+    'unexpected-registry-host': 'Unexpected registry host',
+    'signature-verification-failed': 'Signature verification failed',
+    'signature-verification-unavailable': 'Signature verification unavailable'
+  };
+  const severity: DependencyFinding['severity'] =
+    signal.type === 'missing-integrity' || signal.type === 'unexpected-registry-host'
+      ? 'warning'
+      : 'info';
+  return {
+    id: `${packageId}:${signal.type}`.replace(/[^a-zA-Z0-9_.@/-]+/g, '-'),
+    category: 'supply-chain',
+    severity,
+    packageId,
+    packageName: signal.packageName || packageId,
+    packageVersion: signal.packageVersion || '',
+    title: titleByType[signal.type],
+    message: signal.detail,
+    evidence: signal.source,
+    recommendation: 'Review the dependency source and confirm it is expected for this project.'
+  };
+}

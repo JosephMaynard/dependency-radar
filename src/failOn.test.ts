@@ -124,7 +124,7 @@ function makeDependency(options: {
 function makeAggregatedData(dependencies: Record<string, DependencyRecord>): AggregatedData {
   const count = Object.keys(dependencies).length;
   return {
-    schemaVersion: '1.3',
+    schemaVersion: '1.4',
     generatedAt: '2026-03-01T00:00:00.000Z',
     dependencyRadarVersion: 'test',
     git: {
@@ -235,5 +235,32 @@ describe('evaluatePolicyViolations', () => {
     );
 
     expect(violations).toEqual([]);
+  });
+
+  it('fails on supply-chain-source signals', () => {
+    const aggregated = makeAggregatedData({});
+    aggregated.supplyChain = {
+      signals: [
+        {
+          type: 'git-dependency',
+          packageName: 'git-dep',
+          source: 'package-lock.json',
+          detail: 'git-dep resolves from git'
+        }
+      ]
+    };
+
+    const violations = evaluatePolicyViolations(
+      aggregated,
+      new Set(['supply-chain-source'])
+    );
+
+    expect(violations).toEqual([
+      {
+        rule: 'supply-chain-source',
+        count: 1,
+        message: '1 lockfile supply-chain source finding'
+      }
+    ]);
   });
 });

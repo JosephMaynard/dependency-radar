@@ -424,6 +424,24 @@ function escapeHtml(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+function buildWorkspaceFilterOptions(report: AggregatedData): string[] {
+  const names = new Set<string>();
+  (report.workspaces.workspacePackages || []).forEach((workspace) => {
+    if (workspace.name) names.add(workspace.name);
+  });
+  Object.values(report.dependencies || {}).forEach((dep) => {
+    (dep.usage.origins.workspaces || []).forEach((workspaceName) => {
+      if (workspaceName) names.add(workspaceName);
+    });
+  });
+  const ordered = Array.from(names).sort((a, b) => {
+    if (a === "root") return -1;
+    if (b === "root") return 1;
+    return a.localeCompare(b);
+  });
+  return report.workspaces.enabled ? ordered : [];
+}
+
 function getHighestRisk(
   summary: SecuritySummary,
   licenseRisk: "green" | "amber" | "red",
@@ -1663,6 +1681,8 @@ async function init(): Promise<void> {
     search: document.getElementById("search") as HTMLInputElement,
     direct: document.getElementById("direct-filter") as HTMLSelectElement,
     runtime: document.getElementById("runtime-filter") as HTMLSelectElement,
+    workspace: document.getElementById("workspace-filter") as HTMLSelectElement,
+    workspaceWrap: document.getElementById("workspace-filter-wrap") as HTMLElement,
     sort: document.getElementById("sort-by") as HTMLSelectElement,
     sortDirection: document.getElementById(
       "sort-direction",
@@ -1928,6 +1948,21 @@ async function init(): Promise<void> {
   });
 
   const allDependencies = Object.values(report.dependencies || {});
+  const workspaceNames = buildWorkspaceFilterOptions(report);
+  if (controls.workspace && controls.workspaceWrap && workspaceNames.length > 1) {
+    controls.workspace.textContent = "";
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = "All workspaces";
+    controls.workspace.appendChild(allOption);
+    workspaceNames.forEach((workspaceName) => {
+      const option = document.createElement("option");
+      option.value = workspaceName;
+      option.textContent = workspaceName === "root" ? "Workspace root" : workspaceName;
+      controls.workspace.appendChild(option);
+    });
+    controls.workspaceWrap.classList.remove("hidden");
+  }
   const depByKey = new Map<string, DependencyRecord>();
   allDependencies.forEach((dep) => {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
@@ -2007,6 +2042,7 @@ async function init(): Promise<void> {
     const term = (controls.search.value || "").toLowerCase();
     const directFilter = controls.direct.value;
     const runtimeFilter = controls.runtime.value;
+    const workspaceFilter = controls.workspace?.value || "all";
     const hasVulns = controls.hasVulns.checked;
 
     const showPermissive = controls.licensePermissive.checked;
@@ -2037,6 +2073,11 @@ async function init(): Promise<void> {
       if (directFilter === "direct" && !dep.usage.direct) return false;
       if (directFilter === "transitive" && dep.usage.direct) return false;
       if (runtimeFilter !== "all" && dep.usage.scope !== runtimeFilter)
+        return false;
+      if (
+        workspaceFilter !== "all" &&
+        !(dep.usage.origins.workspaces || []).includes(workspaceFilter)
+      )
         return false;
       if (
         hasVulns &&
@@ -2094,6 +2135,10 @@ async function init(): Promise<void> {
       "</strong> of <strong>" +
       totalCount +
       "</strong> dependencies";
+    if ((controls.workspace?.value || "all") !== "all") {
+      summaryEl.innerHTML +=
+        ' in <strong>' + escapeHtml(controls.workspace.value) + '</strong>';
+    }
 
     if (deps.length === 0) {
       container.innerHTML =
@@ -2278,6 +2323,7 @@ async function init(): Promise<void> {
     controls.runtime,
     controls.sort,
     controls.hasVulns,
+    controls.workspace,
     controls.licensePermissive,
     controls.licenseWeakCopyleft,
     controls.licenseStrongCopyleft,

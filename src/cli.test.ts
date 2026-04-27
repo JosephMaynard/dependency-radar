@@ -320,4 +320,70 @@ describe('cli summary output', () => {
       expect(output).toContain('Added dependencies');
     },
   );
+
+  it('prints the JSON schema without scanning', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const result = runCli(['--schema', '--quiet'], repoRoot);
+
+    expect(result.status).toBe(0);
+    const schema = JSON.parse(result.stdout);
+    expect(schema.title).toBe('Dependency Radar Report');
+    expect(schema.properties.schemaVersion.const).toBe('1.4');
+  });
+
+  it(
+    'skips audit signatures when offline',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--audit-signatures', '--no-report', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Summary:');
+    },
+  );
+
+  it(
+    'fails on supply-chain-source policy violations',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-supply-policy');
+      const projectPath = path.join(outputDir, 'project');
+      await fs.mkdir(projectPath, { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'supply-policy-fixture',
+        version: '1.0.0',
+        dependencies: { 'git-dep': 'github:example/git-dep' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            name: 'supply-policy-fixture',
+            version: '1.0.0',
+            dependencies: { 'git-dep': 'github:example/git-dep' }
+          },
+          'node_modules/git-dep': {
+            version: '1.0.0',
+            resolved: 'git+https://github.com/example/git-dep.git'
+          }
+        }
+      }), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--no-report', '--quiet', '--fail-on', 'supply-chain-source'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(1);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('supply-chain source');
+    },
+  );
 });
