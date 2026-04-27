@@ -63,6 +63,110 @@ describe('lockfile supply-chain signals', () => {
     expect(types.has('missing-integrity')).toBe(true);
   });
 
+  it('detects file dependencies and unexpected registry hosts', async () => {
+    const projectPath = await makeTempDir('dr-lockfile-sources');
+    const tempDir = await makeTempDir('dr-lockfile-sources-out');
+    await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        'node_modules/local-dep': {
+          version: '1.0.0',
+          resolved: 'file:../local-dep',
+          integrity: 'sha512-local'
+        },
+        'node_modules/custom-registry-dep': {
+          version: '2.0.0',
+          resolved: 'https://registry.company.test/custom-registry-dep',
+          integrity: 'sha512-custom'
+        }
+      }
+    }));
+
+    const result = await runLockfileSupplyChainSignals(projectPath, tempDir, { persistToDisk: false });
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.signals.map((signal) => signal.type)).toEqual(
+      expect.arrayContaining(['file-dependency', 'unexpected-registry-host'])
+    );
+    expect(result.data?.signals.find((signal) => signal.type === 'unexpected-registry-host')?.detail)
+      .toContain('registry.company.test');
+  });
+
+  it('allows configured registry hosts without unexpected-host findings', async () => {
+    const projectPath = await makeTempDir('dr-lockfile-expected-host');
+    const tempDir = await makeTempDir('dr-lockfile-expected-host-out');
+    await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        'node_modules/custom-registry-dep': {
+          version: '2.0.0',
+          resolved: 'https://registry.company.test/custom-registry-dep',
+          integrity: 'sha512-custom'
+        }
+      }
+    }));
+
+    const result = await runLockfileSupplyChainSignals(projectPath, tempDir, {
+      persistToDisk: false,
+      expectedRegistryHosts: ['registry.company.test']
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.signals.some((signal) => signal.type === 'unexpected-registry-host')).toBe(false);
+  });
+
+  it('normalizes scoped package names from text lockfile selectors', async () => {
+    const projectPath = await makeTempDir('dr-lockfile-scoped');
+    const tempDir = await makeTempDir('dr-lockfile-scoped-out');
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), [
+      '"@scope/pkg@^1.0.0":',
+      '  version "1.2.3"',
+      '  resolved "https://downloads.example.com/scope-pkg-1.2.3.tgz"',
+      '  integrity sha512-scoped'
+    ].join('\n'));
+
+    const result = await runLockfileSupplyChainSignals(projectPath, tempDir, { persistToDisk: false });
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.signals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'non-registry-tarball',
+          packageName: '@scope/pkg',
+          packageVersion: '1.2.3'
+        })
+      ])
+    );
+  });
+
+  it('normalizes package names from nested package-lock paths', async () => {
+    const projectPath = await makeTempDir('dr-lockfile-nested');
+    const tempDir = await makeTempDir('dr-lockfile-nested-out');
+    await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        'node_modules/parent/node_modules/@scope/nested': {
+          version: '4.5.6',
+          resolved: 'https://downloads.example.com/scope-nested-4.5.6.tgz',
+          integrity: 'sha512-nested'
+        }
+      }
+    }));
+
+    const result = await runLockfileSupplyChainSignals(projectPath, tempDir, { persistToDisk: false });
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.signals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'non-registry-tarball',
+          packageName: '@scope/nested',
+          packageVersion: '4.5.6'
+        })
+      ])
+    );
+  });
+
   it('skips npm audit signatures in offline mode', async () => {
     const projectPath = await makeTempDir('dr-lockfile-signatures');
     const tempDir = await makeTempDir('dr-lockfile-signatures-out');
@@ -95,4 +199,3 @@ describe('lockfile supply-chain signals', () => {
     expect(result.data?.signatureAudit?.ok).toBe(true);
   });
 });
-

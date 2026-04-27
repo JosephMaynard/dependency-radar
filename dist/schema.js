@@ -11,7 +11,7 @@ exports.REPORT_JSON_SCHEMA = {
     required: ['schemaVersion', 'generatedAt', 'dependencyRadarVersion', 'project', 'environment', 'workspaces', 'summary', 'dependencies'],
     properties: {
         schemaVersion: { const: exports.REPORT_SCHEMA_VERSION },
-        generatedAt: { type: 'string' },
+        generatedAt: { type: 'string', format: 'date-time' },
         dependencyRadarVersion: { type: 'string' },
         git: {
             type: 'object',
@@ -34,13 +34,68 @@ exports.REPORT_JSON_SCHEMA = {
         },
         supplyChain: {
             type: 'object',
+            required: ['signals'],
             properties: {
-                signals: { type: 'array', items: { type: 'object', additionalProperties: true } },
-                signatureAudit: { type: 'object', additionalProperties: true }
+                signals: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        required: ['type', 'source', 'detail'],
+                        properties: {
+                            type: {
+                                enum: [
+                                    'git-dependency',
+                                    'file-dependency',
+                                    'non-registry-tarball',
+                                    'missing-integrity',
+                                    'unexpected-registry-host',
+                                    'signature-verification-failed',
+                                    'signature-verification-unavailable'
+                                ]
+                            },
+                            packageName: { type: 'string' },
+                            packageVersion: { type: 'string' },
+                            packageId: { type: 'string' },
+                            source: { type: 'string' },
+                            detail: { type: 'string' }
+                        },
+                        additionalProperties: false
+                    }
+                },
+                signatureAudit: {
+                    type: 'object',
+                    required: ['attempted', 'ok'],
+                    properties: {
+                        attempted: { type: 'boolean' },
+                        ok: { type: 'boolean' },
+                        output: { type: 'string' },
+                        error: { type: 'string' }
+                    },
+                    additionalProperties: false
+                }
             },
-            additionalProperties: true
+            additionalProperties: false
         },
-        findings: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        findings: {
+            type: 'array',
+            items: {
+                type: 'object',
+                required: ['id', 'category', 'severity', 'packageId', 'packageName', 'packageVersion', 'title', 'message'],
+                properties: {
+                    id: { type: 'string' },
+                    category: { enum: ['security', 'license', 'execution', 'upgrade', 'supply-chain'] },
+                    severity: { enum: ['info', 'warning', 'error'] },
+                    packageId: { type: 'string' },
+                    packageName: { type: 'string' },
+                    packageVersion: { type: 'string' },
+                    title: { type: 'string' },
+                    message: { type: 'string' },
+                    evidence: { type: 'string' },
+                    recommendation: { type: 'string' }
+                },
+                additionalProperties: false
+            }
+        },
         dependencies: {
             type: 'object',
             additionalProperties: { type: 'object', additionalProperties: true }

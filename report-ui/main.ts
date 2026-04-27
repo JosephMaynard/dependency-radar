@@ -5,6 +5,7 @@
 
 import "./style.css";
 import { buildCtaUrl } from "../src/cta";
+import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { initGraphView, type GraphViewHandle } from "./graphView";
 import type {
   AggregatedData,
@@ -422,24 +423,6 @@ function escapeHtml(str: string | null | undefined): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function buildWorkspaceFilterOptions(report: AggregatedData): string[] {
-  const names = new Set<string>();
-  (report.workspaces.workspacePackages || []).forEach((workspace) => {
-    if (workspace.name) names.add(workspace.name);
-  });
-  Object.values(report.dependencies || {}).forEach((dep) => {
-    (dep.usage.origins.workspaces || []).forEach((workspaceName) => {
-      if (workspaceName) names.add(workspaceName);
-    });
-  });
-  const ordered = Array.from(names).sort((a, b) => {
-    if (a === "root") return -1;
-    if (b === "root") return 1;
-    return a.localeCompare(b);
-  });
-  return report.workspaces.enabled ? ordered : [];
 }
 
 function getHighestRisk(

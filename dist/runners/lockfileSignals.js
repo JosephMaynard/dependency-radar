@@ -30,12 +30,28 @@ function addSignal(signals, seen, signal) {
     signals.push(signal);
 }
 function packageFromKey(key) {
-    const cleaned = key.replace(/^node_modules\//, '').replace(/^\/?/, '');
-    const atIndex = cleaned.startsWith('@') ? cleaned.indexOf('@', 1) : cleaned.indexOf('@');
-    if (atIndex > 0) {
-        return { name: cleaned.slice(0, atIndex), version: cleaned.slice(atIndex + 1).split(/[(/]/)[0] };
+    var _a, _b;
+    const cleaned = key.replace(/^\/?/, '');
+    const afterLastNodeModules = ((_a = cleaned.split('/node_modules/').pop()) === null || _a === void 0 ? void 0 : _a.replace(/^node_modules\//, '')) || cleaned;
+    const parts = afterLastNodeModules.split('/').filter(Boolean);
+    if (((_b = parts[0]) === null || _b === void 0 ? void 0 : _b.startsWith('@')) && parts[1]) {
+        return { name: `${parts[0]}/${parts[1]}` };
     }
-    return { name: cleaned || undefined };
+    return { name: parts[0] || undefined };
+}
+function packageNameFromSelector(selector) {
+    var _a;
+    const first = (_a = selector.split(',')[0]) === null || _a === void 0 ? void 0 : _a.trim();
+    if (!first)
+        return undefined;
+    const normalized = first.replace(/^["']|["']$/g, '');
+    if (normalized.startsWith('@')) {
+        const parts = normalized.split('@');
+        const scopedName = parts.length >= 3 ? `@${parts[1]}` : normalized;
+        return scopedName || undefined;
+    }
+    const atIndex = normalized.indexOf('@');
+    return atIndex > 0 ? normalized.slice(0, atIndex) : normalized;
 }
 function inspectResolvedUrl(signals, seen, sourceFile, packageName, packageVersion, value, expectedHosts) {
     const lower = value.toLowerCase();
@@ -150,10 +166,7 @@ function inspectTextLock(raw, sourceFile, expectedHosts) {
             currentHasIntegrity = false;
             currentResolved = '';
             const selector = line.slice(0, -1).replace(/^["']|["']$/g, '');
-            const first = selector.split(',')[0].trim();
-            currentName = first.startsWith('@')
-                ? first.split('@').slice(0, 3).join('@').replace(/@$/, '')
-                : first.split('@')[0];
+            currentName = packageNameFromSelector(selector);
             currentVersion = undefined;
             continue;
         }

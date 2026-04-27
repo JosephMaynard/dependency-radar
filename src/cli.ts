@@ -1711,11 +1711,11 @@ async function executeAnalysis(
         ? "single project"
         : `${workspace.type.toUpperCase()} workspace`;
     const yarnHint = yarnPnP
-      ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
+      ? " Yarn Plug'n'Play appears enabled; lockfile graph data will be used where possible, but package metadata from zip/cache files is not crawled in this release."
       : "";
     console.warn(
       colorLeadingSymbol(
-        `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+        `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install before scanning when local package metadata is required.${yarnHint}`,
       ),
     );
   }

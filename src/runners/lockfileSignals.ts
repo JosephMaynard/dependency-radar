@@ -39,12 +39,26 @@ function addSignal(
 }
 
 function packageFromKey(key: string): { name?: string; version?: string } {
-  const cleaned = key.replace(/^node_modules\//, '').replace(/^\/?/, '');
-  const atIndex = cleaned.startsWith('@') ? cleaned.indexOf('@', 1) : cleaned.indexOf('@');
-  if (atIndex > 0) {
-    return { name: cleaned.slice(0, atIndex), version: cleaned.slice(atIndex + 1).split(/[(/]/)[0] };
+  const cleaned = key.replace(/^\/?/, '');
+  const afterLastNodeModules = cleaned.split('/node_modules/').pop()?.replace(/^node_modules\//, '') || cleaned;
+  const parts = afterLastNodeModules.split('/').filter(Boolean);
+  if (parts[0]?.startsWith('@') && parts[1]) {
+    return { name: `${parts[0]}/${parts[1]}` };
   }
-  return { name: cleaned || undefined };
+  return { name: parts[0] || undefined };
+}
+
+function packageNameFromSelector(selector: string): string | undefined {
+  const first = selector.split(',')[0]?.trim();
+  if (!first) return undefined;
+  const normalized = first.replace(/^["']|["']$/g, '');
+  if (normalized.startsWith('@')) {
+    const parts = normalized.split('@');
+    const scopedName = parts.length >= 3 ? `@${parts[1]}` : normalized;
+    return scopedName || undefined;
+  }
+  const atIndex = normalized.indexOf('@');
+  return atIndex > 0 ? normalized.slice(0, atIndex) : normalized;
 }
 
 function inspectResolvedUrl(
@@ -173,10 +187,7 @@ function inspectTextLock(
       currentHasIntegrity = false;
       currentResolved = '';
       const selector = line.slice(0, -1).replace(/^["']|["']$/g, '');
-      const first = selector.split(',')[0].trim();
-      currentName = first.startsWith('@')
-        ? first.split('@').slice(0, 3).join('@').replace(/@$/, '')
-        : first.split('@')[0];
+      currentName = packageNameFromSelector(selector);
       currentVersion = undefined;
       continue;
     }
@@ -289,4 +300,3 @@ export async function runLockfileSupplyChainSignals(
     };
   }
 }
-
