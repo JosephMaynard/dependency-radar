@@ -128,6 +128,7 @@ function expandToken(token) {
         const minor = Number(tilde[2] || 0);
         return [`>=${major}.${minor}.${tilde[3] || 0}`, `<${major}.${minor + 1}.0`];
     }
+    // Bare versions intentionally lock to semver-major compatibility, discarding minor/patch.
     if (/^v?\d+(?:\.\d+){0,2}$/.test(trimmed)) {
         const [major] = parseVersion(trimmed);
         return [`>=${major}.0.0`, `<${major + 1}.0.0`];

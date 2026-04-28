@@ -10,4 +10,11 @@ describe('isNodeEngineTargetCompatible', () => {
     expect(isNodeEngineTargetCompatible('^18 || >=20', 20)).toBe(true);
     expect(isNodeEngineTargetCompatible('>18.10.0 <18.12.0', 18)).toBe(true);
   });
+
+  it('treats bare versions as major-compatible ranges', () => {
+    for (const range of ['18', '18.17', '18.17.0']) {
+      expect(isNodeEngineTargetCompatible(range, 18)).toBe(true);
+      expect(isNodeEngineTargetCompatible(range, 19)).toBe(false);
+    }
+  });
 });
