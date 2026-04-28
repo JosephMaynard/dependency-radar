@@ -143,7 +143,7 @@ export function renderSpdx(data: AggregatedData): string {
   const packages = dependencies.map((dep) => {
     const declared = dep.compliance.license.declared;
     const inferred = dep.compliance.license.inferred;
-    const license = declared?.valid
+    const license = declared?.valid && declared.spdxId
       ? declared.spdxId
       : inferred?.spdxId || 'NOASSERTION';
     return {

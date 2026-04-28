@@ -538,6 +538,7 @@ async function detectScanManager(
   projectPath: string,
   fallback: PackageManager,
 ): Promise<PackageManager> {
+  if (fallback === "bun" && ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb"))))) return "bun";
   if (await pathExists(path.join(projectPath, "pnpm-lock.yaml"))) return "pnpm";
   if (await pathExists(path.join(projectPath, "yarn.lock"))) return "yarn";
   if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
@@ -1084,6 +1085,7 @@ interface CliOptions {
   targetNodeMajor?: number;
   auditSignatures: boolean;
   schema: boolean;
+  outProvided: boolean;
 }
 
 /**
@@ -1112,6 +1114,7 @@ function parseArgs(argv: string[]): CliOptions {
     format: "html",
     auditSignatures: false,
     schema: false,
+    outProvided: false,
   };
 
   const args = [...argv];
@@ -1136,7 +1139,10 @@ function parseArgs(argv: string[]): CliOptions {
     }
     else if (arg === "--project" && args[0]) opts.project = args.shift()!;
     else if (arg === "--quiet") opts.quiet = true;
-    else if (arg === "--out" && args[0]) opts.out = args.shift()!;
+    else if (arg === "--out" && args[0]) {
+      opts.out = args.shift()!;
+      opts.outProvided = true;
+    }
     else if (arg === "--keep-temp") opts.keepTemp = true;
     else if (arg === "--offline") {
       opts.audit = false;
@@ -1667,7 +1673,7 @@ async function executeAnalysis(
       statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
     );
   }
-  if (opts.out === "dependency-radar.html" && opts.format !== "html") {
+  if (!opts.outProvided && opts.format !== "html") {
     opts.out = defaultOutputName(opts.format);
     outputPath = path.resolve(opts.out);
   }
@@ -2242,7 +2248,7 @@ async function run(): Promise<void> {
 
 async function runSchemaCommand(opts: CliOptions): Promise<void> {
   const schema = renderReportJsonSchema();
-  if (opts.out && opts.out !== "dependency-radar.html") {
+  if (opts.outProvided) {
     const outputPath = path.resolve(opts.out);
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, schema, "utf8");

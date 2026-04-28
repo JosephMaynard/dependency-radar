@@ -24,6 +24,29 @@ function satisfiesComparator(target: VersionTuple, comparator: string): boolean 
   return diff === 0;
 }
 
+function comparatorAllowsTargetMajor(comparator: string, minTarget: VersionTuple, maxTarget: VersionTuple): boolean {
+  const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})/);
+  if (!match) return true;
+  const version = parseVersion(match[2]);
+  if (!version) return true;
+  const op = match[1] || '=';
+  if (op === '<') return compare(minTarget, version) < 0;
+  if (op === '<=') return compare(minTarget, version) <= 0;
+  if (op === '>') return compare(maxTarget, version) > 0;
+  if (op === '>=') return compare(maxTarget, version) > 0;
+  return compare(minTarget, version) <= 0 && compare(version, maxTarget) < 0;
+}
+
+function comparatorsOverlapTargetMajor(comparators: string[], targetMajor: number): boolean {
+  const minTarget: VersionTuple = [targetMajor, 0, 0];
+  const maxTarget: VersionTuple = [targetMajor + 1, 0, 0];
+  if (!comparators.every((comparator) => comparatorAllowsTargetMajor(comparator, minTarget, maxTarget))) return false;
+  return (
+    comparators.every((comparator) => satisfiesComparator(minTarget, comparator)) ||
+    comparators.every((comparator) => satisfiesComparator([targetMajor, 999, 999], comparator))
+  );
+}
+
 function expandToken(token: string): string[] {
   const trimmed = token.trim();
   if (!trimmed || trimmed === '*' || /^[xX]$/.test(trimmed)) return [];
@@ -47,13 +70,12 @@ function expandToken(token: string): string[] {
 
 export function isNodeEngineTargetCompatible(range: string | null | undefined, targetMajor: number): boolean | undefined {
   if (!range || !range.trim()) return undefined;
-  const target: VersionTuple = [targetMajor, 0, 0];
   const clauses = range.split('||').map((clause) => clause.trim()).filter(Boolean);
   if (clauses.length === 0) return undefined;
   return clauses.some((clause) => {
     const hyphen = clause.match(/^\s*v?(\d+(?:\.\d+){0,2})\s+-\s+v?(\d+(?:\.\d+){0,2})\s*$/);
     const tokens = hyphen ? [`>=${hyphen[1]}`, `<=${hyphen[2]}`] : clause.split(/\s+/);
     const comparators = tokens.flatMap(expandToken);
-    return comparators.length === 0 || comparators.every((comparator) => satisfiesComparator(target, comparator));
+    return comparators.length === 0 || comparatorsOverlapTargetMajor(comparators, targetMajor);
   });
 }

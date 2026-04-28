@@ -25,9 +25,13 @@ const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 function runCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
-        var _a, _b;
-        const timeoutMs = (_a = options.timeoutMs) !== null && _a !== void 0 ? _a : Number(process.env.DEPENDENCY_RADAR_COMMAND_TIMEOUT_MS || 120000);
-        const maxOutputBytes = (_b = options.maxOutputBytes) !== null && _b !== void 0 ? _b : 50 * 1024 * 1024;
+        var _a;
+        const validPositive = (value, fallback) => {
+            const parsed = typeof value === 'number' ? value : Number(value);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+        };
+        const timeoutMs = validPositive((_a = options.timeoutMs) !== null && _a !== void 0 ? _a : process.env.DEPENDENCY_RADAR_COMMAND_TIMEOUT_MS, 120000);
+        const maxOutputBytes = validPositive(options.maxOutputBytes, 50 * 1024 * 1024);
         const child = (0, child_process_1.spawn)(command, args, {
             cwd: options.cwd,
             shell: false,

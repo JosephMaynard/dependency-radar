@@ -139,7 +139,7 @@ function renderSpdx(data) {
     const packages = dependencies.map((dep) => {
         const declared = dep.compliance.license.declared;
         const inferred = dep.compliance.license.inferred;
-        const license = (declared === null || declared === void 0 ? void 0 : declared.valid)
+        const license = (declared === null || declared === void 0 ? void 0 : declared.valid) && declared.spdxId
             ? declared.spdxId
             : (inferred === null || inferred === void 0 ? void 0 : inferred.spdxId) || 'NOASSERTION';
         return {

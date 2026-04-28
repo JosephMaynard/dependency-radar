@@ -453,6 +453,8 @@ async function detectPackageManager(projectPath, rootPkg, workspaceType) {
     return "npm";
 }
 async function detectScanManager(projectPath, fallback) {
+    if (fallback === "bun" && ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lock"))) || (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lockb")))))
+        return "bun";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "pnpm-lock.yaml")))
         return "pnpm";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "yarn.lock")))
@@ -949,6 +951,7 @@ function parseArgs(argv) {
         format: "html",
         auditSignatures: false,
         schema: false,
+        outProvided: false,
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
@@ -975,8 +978,10 @@ function parseArgs(argv) {
             opts.project = args.shift();
         else if (arg === "--quiet")
             opts.quiet = true;
-        else if (arg === "--out" && args[0])
+        else if (arg === "--out" && args[0]) {
             opts.out = args.shift();
+            opts.outProvided = true;
+        }
         else if (arg === "--keep-temp")
             opts.keepTemp = true;
         else if (arg === "--offline") {
@@ -1417,7 +1422,7 @@ async function executeAnalysis(opts, options) {
     if (opts.command === "scan" && opts.noReport && opts.keepTemp && !opts.quiet) {
         console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
     }
-    if (opts.out === "dependency-radar.html" && opts.format !== "html") {
+    if (!opts.outProvided && opts.format !== "html") {
         opts.out = (0, outputFormats_1.defaultOutputName)(opts.format);
         outputPath = path_1.default.resolve(opts.out);
     }
@@ -1849,7 +1854,7 @@ async function run() {
 }
 async function runSchemaCommand(opts) {
     const schema = (0, schema_1.renderReportJsonSchema)();
-    if (opts.out && opts.out !== "dependency-radar.html") {
+    if (opts.outProvided) {
         const outputPath = path_1.default.resolve(opts.out);
         await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
         await promises_1.default.writeFile(outputPath, schema, "utf8");

@@ -134,6 +134,7 @@ function parseBunTree(projectPath: string, searchRoot: string): LockfileTreeResu
   if (parsed) {
     return { sourceFile: lockPath, data: buildBunJsonResolvedTree(parsed, packageJson) };
   }
+  if (raw.trim().startsWith('{')) return undefined;
 
   const yarnLike = parseYarnV1(raw) || parseYarnV2(raw);
   if (!yarnLike) return undefined;

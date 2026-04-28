@@ -15,8 +15,12 @@ export function runCommand(
   options: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; maxOutputBytes?: number } = {}
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
-    const timeoutMs = options.timeoutMs ?? Number(process.env.DEPENDENCY_RADAR_COMMAND_TIMEOUT_MS || 120_000);
-    const maxOutputBytes = options.maxOutputBytes ?? 50 * 1024 * 1024;
+    const validPositive = (value: unknown, fallback: number): number => {
+      const parsed = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    };
+    const timeoutMs = validPositive(options.timeoutMs ?? process.env.DEPENDENCY_RADAR_COMMAND_TIMEOUT_MS, 120_000);
+    const maxOutputBytes = validPositive(options.maxOutputBytes, 50 * 1024 * 1024);
     const child = spawn(command, args, {
       cwd: options.cwd,
       shell: false,
