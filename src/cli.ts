@@ -12,7 +12,18 @@ import { runImportGraph } from "./runners/importGraphRunner";
 import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
+import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
+import { compareReports, formatCompareOutput } from "./compare";
+import {
+  defaultOutputName,
+  renderCycloneDx,
+  renderSarif,
+  renderSpdx,
+  type ReportFormat,
+} from "./outputFormats";
+import { formatWhyOutput } from "./why";
+import { REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
   evaluatePolicyViolations,
@@ -30,8 +41,8 @@ import fs from "fs/promises";
 import { ensureDir, removeDir, runCommand, pathExists } from "./utils";
 
 // Workspace detection and helpers
-type WorkspaceType = "pnpm" | "npm" | "yarn" | "none";
-type PackageManager = "npm" | "pnpm" | "yarn";
+type WorkspaceType = "pnpm" | "npm" | "yarn" | "bun" | "none";
+type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
 interface WorkspaceDiscovery {
   type: WorkspaceType;
@@ -42,6 +53,11 @@ interface WorkspaceDiscovery {
 type OutdatedAttempt = {
   attempted: boolean;
   result?: ToolResult<any>;
+};
+
+const skippedToolResult: ToolResult<any> = {
+  ok: true,
+  status: "skipped",
 };
 
 type WorkspacePackageMeta = { path: string; name: string; pkg: any };
@@ -498,6 +514,7 @@ function inferPackageManager(rootPkg: any): PackageManager | undefined {
   if (!raw) return undefined;
   if (raw.startsWith("pnpm@") || raw === "pnpm") return "pnpm";
   if (raw.startsWith("yarn@") || raw === "yarn") return "yarn";
+  if (raw.startsWith("bun@") || raw === "bun") return "bun";
   if (raw.startsWith("npm@") || raw === "npm") return "npm";
   return undefined;
 }
@@ -512,6 +529,7 @@ async function detectPackageManager(
   if (workspaceType === "pnpm" || workspaceType === "yarn")
     return workspaceType;
   if (await detectYarnPnP(projectPath)) return "yarn";
+  if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
   if (await pathExists(path.join(projectPath, "node_modules", ".pnpm")))
     return "pnpm";
   if (
@@ -525,8 +543,10 @@ async function detectScanManager(
   projectPath: string,
   fallback: PackageManager,
 ): Promise<PackageManager> {
+  if (fallback === "bun" && ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb"))))) return "bun";
   if (await pathExists(path.join(projectPath, "pnpm-lock.yaml"))) return "pnpm";
   if (await pathExists(path.join(projectPath, "yarn.lock"))) return "yarn";
+  if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
   if (
     (await pathExists(path.join(projectPath, "package-lock.json"))) ||
     (await pathExists(path.join(projectPath, "npm-shrinkwrap.json")))
@@ -1051,9 +1071,11 @@ function buildCombinedDependencyGraph(
 }
 
 interface CliOptions {
-  command: "scan" | "explain";
+  command: "scan" | "explain" | "compare" | "why" | "schema";
   packageName?: string;
+  comparePath?: string;
   invalidCommand?: string;
+  commandProvided: boolean;
   project: string;
   quiet: boolean;
   out: string;
@@ -1064,6 +1086,11 @@ interface CliOptions {
   open: boolean;
   noReport: boolean;
   failOn: Set<FailOnRule>;
+  format: ReportFormat;
+  targetNodeMajor?: number;
+  auditSignatures: boolean;
+  schema: boolean;
+  outProvided: boolean;
 }
 
 /**
@@ -1079,6 +1106,7 @@ interface CliOptions {
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     command: "scan",
+    commandProvided: false,
     project: process.cwd(),
     quiet: false,
     out: "dependency-radar.html",
@@ -1089,13 +1117,18 @@ function parseArgs(argv: string[]): CliOptions {
     open: false,
     noReport: false,
     failOn: new Set<FailOnRule>(),
+    format: "html",
+    auditSignatures: false,
+    schema: false,
+    outProvided: false,
   };
 
   const args = [...argv];
   if (args[0] && !args[0].startsWith("-")) {
     const command = args.shift()!;
-    if (command === "scan" || command === "explain") {
+    if (command === "scan" || command === "explain" || command === "compare" || command === "why" || command === "schema") {
       opts.command = command;
+      opts.commandProvided = true;
     } else {
       opts.invalidCommand = command;
       return opts;
@@ -1105,17 +1138,53 @@ function parseArgs(argv: string[]): CliOptions {
   while (args.length) {
     const arg = args.shift();
     if (!arg) break;
-    if (!arg.startsWith("-") && opts.command === "explain" && !opts.packageName) {
+    if (!arg.startsWith("-") && (opts.command === "explain" || opts.command === "why") && !opts.packageName) {
       opts.packageName = arg;
+    }
+    else if (!arg.startsWith("-") && opts.command === "compare" && !opts.comparePath) {
+      opts.comparePath = arg;
     }
     else if (arg === "--project" && args[0]) opts.project = args.shift()!;
     else if (arg === "--quiet") opts.quiet = true;
-    else if (arg === "--out" && args[0]) opts.out = args.shift()!;
+    else if (arg === "--out" && args[0]) {
+      opts.out = args.shift()!;
+      opts.outProvided = true;
+    }
     else if (arg === "--keep-temp") opts.keepTemp = true;
     else if (arg === "--offline") {
       opts.audit = false;
       opts.outdated = false;
-    } else if (arg === "--json") opts.json = true;
+    } else if (arg === "--json") {
+      opts.json = true;
+      opts.format = "json";
+    }
+    else if (arg === "--format" && args[0]) {
+      const format = args.shift()!;
+      if (!isReportFormat(format)) {
+        console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
+        process.exit(1);
+      }
+      opts.format = format;
+      opts.json = format === "json";
+    }
+    else if (arg === "--sbom" && args[0]) {
+      const format = args.shift()!;
+      if (format !== "cyclonedx" && format !== "spdx") {
+        console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
+        process.exit(1);
+      }
+      opts.format = format;
+    }
+    else if (arg === "--target-node" && args[0]) {
+      const value = Number.parseInt(args.shift()!, 10);
+      if (!Number.isFinite(value) || value <= 0) {
+        console.error("--target-node must be a positive Node.js major version.");
+        process.exit(1);
+      }
+      opts.targetNodeMajor = value;
+    }
+    else if (arg === "--audit-signatures") opts.auditSignatures = true;
+    else if (arg === "--schema") opts.schema = true;
     else if (arg === "--open") opts.open = true;
     else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--fail-on") {
@@ -1149,6 +1218,14 @@ function parseArgs(argv: string[]): CliOptions {
   return opts;
 }
 
+function isReportFormat(value: string): value is ReportFormat {
+  return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
+}
+
+function supportsRegistryCollectors(manager: PackageManager): manager is "npm" | "pnpm" | "yarn" {
+  return manager === "npm" || manager === "pnpm" || manager === "yarn";
+}
+
 /**
  * Print the CLI usage and available options to the console.
  *
@@ -1158,13 +1235,20 @@ function parseArgs(argv: string[]): CliOptions {
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
 dependency-radar explain <package-name> [options]
+dependency-radar why <package-name> [options]
+dependency-radar compare <previous dependency-radar.json> [options]
 
 If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
   --quiet            Suppress progress/info logs but keep summary and failures
-  --out <path>       Output HTML file (default: dependency-radar.html)
+  --out <path>       Output file (default depends on format)
+  --format <format>  Output format: html, json, sarif, cyclonedx, spdx
+  --sbom <format>    Write an SBOM: cyclonedx or spdx
+  --target-node <n>  Add Node major compatibility findings
+  --audit-signatures Verify npm registry signatures/provenance (opt-in, online only)
+  --schema           Print JSON schema, or write it when --out is provided
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
@@ -1172,9 +1256,12 @@ Options:
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Supported: reachable-vuln, production-vuln, high-severity-vuln,
-                                licence-mismatch, copyleft-detected, unknown-licence
+                                licence-mismatch, copyleft-detected, unknown-licence,
+                                supply-chain-source
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
+\`why\` prints shortest dependency paths for one package.
+\`compare\` scans the current project and compares it with a previous JSON report.
 `);
 }
 
@@ -1546,6 +1633,14 @@ function printCliSummary(summary: CliSummary): void {
   console.log("");
 }
 
+function formatLabel(format: ReportFormat): string {
+  if (format === "html") return "Report";
+  if (format === "json") return "JSON";
+  if (format === "sarif") return "SARIF";
+  if (format === "cyclonedx") return "CycloneDX SBOM";
+  return "SPDX SBOM";
+}
+
 type CollectorAvailability = {
   audit: ExplainAvailability;
   importGraphComplete: boolean;
@@ -1575,7 +1670,9 @@ async function executeAnalysis(
 ): Promise<AnalysisExecutionResult> {
   const shouldWriteArtifacts = options.shouldWriteArtifacts;
   const projectPath = path.resolve(opts.project);
-  let outputPath = path.resolve(opts.out);
+  let outputPath = opts.outProvided
+    ? path.resolve(opts.out)
+    : path.resolve(projectPath, opts.out);
   const startTime = Date.now();
   let dependencyCount = 0;
   let outputCreated = false;
@@ -1585,9 +1682,9 @@ async function executeAnalysis(
       statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."),
     );
   }
-  if (opts.json && opts.out === "dependency-radar.html") {
-    opts.out = "dependency-radar.json";
-    outputPath = path.resolve(opts.out);
+  if (!opts.outProvided && opts.format !== "html") {
+    opts.out = defaultOutputName(opts.format);
+    outputPath = path.resolve(projectPath, opts.out);
   }
 
   if (shouldWriteArtifacts) {
@@ -1602,7 +1699,7 @@ async function executeAnalysis(
       ) {
         outputPath = path.join(
           outputPath,
-          opts.json ? "dependency-radar.json" : "dependency-radar.html",
+          defaultOutputName(opts.format),
         );
       }
     } catch {
@@ -1615,13 +1712,10 @@ async function executeAnalysis(
   const workspace = await detectWorkspace(projectPath);
   const yarnPnP = await detectYarnPnP(projectPath);
   if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
-    console.error(
-      "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
-    );
-    console.error(
-      "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
-    );
-    process.exit(1);
+    if (!opts.quiet) {
+      console.log(statusLine("⚠", "Yarn Plug'n'Play detected; using the root package and yarn.lock where possible."));
+    }
+    workspace.packagePaths = [projectPath];
   }
   const hasProjectNodeModules = await pathExists(
     path.join(projectPath, "node_modules"),
@@ -1632,11 +1726,11 @@ async function executeAnalysis(
         ? "single project"
         : `${workspace.type.toUpperCase()} workspace`;
     const yarnHint = yarnPnP
-      ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
+      ? " Yarn Plug'n'Play appears enabled; lockfile graph data will be used where possible, but package metadata from zip/cache files is not crawled in this release."
       : "";
     console.warn(
       colorLeadingSymbol(
-        `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`,
+        `⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install before scanning when local package metadata is required.${yarnHint}`,
       ),
     );
   }
@@ -1663,25 +1757,23 @@ async function executeAnalysis(
     getToolVersion("pnpm", projectPath),
     getToolVersion("yarn", projectPath),
   ]);
+  const bunVersion = await getToolVersion("bun", projectPath);
   const toolVersions = compactToolVersions({
     npm: npmVersion,
     pnpm: pnpmVersion,
     yarn: yarnVersion,
+    bun: bunVersion,
   });
   const packageManagerVersion =
     scanManager === "npm"
       ? npmVersion
       : scanManager === "pnpm"
         ? pnpmVersion
-        : yarnVersion;
-  if (packageManager === "yarn" && yarnPnP) {
-    console.error(
-      "Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.",
-    );
-    console.error(
-      "Switch to nodeLinker: node-modules or run in a non-PnP environment.",
-    );
-    process.exit(1);
+        : scanManager === "yarn"
+          ? yarnVersion
+          : bunVersion;
+  if (!opts.quiet && packageManager === "yarn" && yarnPnP) {
+    console.log(statusLine("⚠", "Yarn Plug'n'Play detected; using lockfile-derived graph data where available."));
   }
 
   const packagePaths = workspace.packagePaths;
@@ -1723,6 +1815,11 @@ async function executeAnalysis(
     const perPackageLs: Array<ToolResult<any>> = [];
     const perPackageImportGraph: Array<ToolResult<any>> = [];
     const perPackageOutdated: OutdatedAttempt[] = [];
+    const supplyChainResult = await runLockfileSupplyChainSignals(projectPath, tempDir, {
+      persistToDisk: shouldWriteArtifacts,
+      auditSignatures: opts.auditSignatures,
+      offline: !opts.audit
+    }).catch((err) => ({ ok: false, error: String(err) }) as ToolResult<any>);
 
     for (const meta of packageMetas) {
       spinner.update(
@@ -1737,6 +1834,7 @@ async function executeAnalysis(
       }
       const [a, l, ig, o] = await Promise.all([
         opts.audit
+        && supportsRegistryCollectors(scanManager)
           ? runPackageAudit(
               meta.path,
               pkgTempDir,
@@ -1746,7 +1844,7 @@ async function executeAnalysis(
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
-          : Promise.resolve(undefined),
+          : Promise.resolve(opts.audit ? skippedToolResult : undefined),
         runNpmLs(meta.path, pkgTempDir, scanManager, {
           contextLabel: meta.name,
           lockfileSearchRoot: projectPath,
@@ -1761,6 +1859,7 @@ async function executeAnalysis(
           (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
         ),
         opts.outdated
+        && supportsRegistryCollectors(scanManager)
           ? runPackageOutdated(
               meta.path,
               pkgTempDir,
@@ -1769,7 +1868,7 @@ async function executeAnalysis(
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
-          : Promise.resolve(undefined),
+          : Promise.resolve(opts.outdated ? skippedToolResult : undefined),
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
@@ -1779,24 +1878,36 @@ async function executeAnalysis(
 
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
+      const auditSkipped = perPackageAudit.every((r) => r?.status === "skipped");
       if (!opts.quiet || !auditOk) {
         spinner.log(
           statusLine(
-            auditOk ? "✔" : "✖",
-            `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`,
+            auditSkipped ? "ℹ" : auditOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} audit data ${auditSkipped ? "skipped" : auditOk ? "collected" : "unavailable"}`,
           ),
         );
+      }
+    }
+    if (opts.auditSignatures && !opts.quiet) {
+      const audit = supplyChainResult.ok ? supplyChainResult.data?.signatureAudit : undefined;
+      if (audit?.status === "skipped") {
+        spinner.log(statusLine("⚠", "npm audit signatures skipped (--offline)"));
+      } else {
+        spinner.log(statusLine(audit?.ok ? "✔" : "✖", `npm audit signatures ${audit?.ok ? "verified" : "unavailable"}`));
       }
     }
     if (opts.outdated) {
       const outdatedOk = perPackageOutdated.every(
         (r) => r.result && r.result.ok,
       );
+      const outdatedSkipped = perPackageOutdated.every(
+        (r) => r.result?.status === "skipped",
+      );
       if (!opts.quiet || !outdatedOk) {
         spinner.log(
           statusLine(
-            outdatedOk ? "✔" : "✖",
-            `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`,
+            outdatedSkipped ? "ℹ" : outdatedOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} outdated data ${outdatedSkipped ? "skipped" : outdatedOk ? "collected" : "unavailable"}`,
           ),
         );
       }
@@ -1870,6 +1981,7 @@ async function executeAnalysis(
       npmLsResult,
       importGraphResult,
       outdatedResult,
+      supplyChainResult,
       pkgOverride: mergedPkgForAggregator,
       projectPackageJson: rootPkg,
       ...(projectDependencyPolicy ? { projectDependencyPolicy } : {}),
@@ -1898,6 +2010,7 @@ async function executeAnalysis(
       arch: process.arch,
       ci: isCI(),
       ...(toolVersions ? { toolVersions } : {}),
+      ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
     });
 
     dependencyCount = Object.keys(aggregated.dependencies).length;
@@ -1914,13 +2027,22 @@ async function executeAnalysis(
     }
 
     if (dependencyCount > 0 && shouldWriteArtifacts) {
-      if (opts.json) {
+      if (opts.format === "json") {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(
           outputPath,
           JSON.stringify(aggregated, null, 2),
           "utf8",
         );
+      } else if (opts.format === "sarif") {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, renderSarif(aggregated), "utf8");
+      } else if (opts.format === "cyclonedx") {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, renderCycloneDx(aggregated), "utf8");
+      } else if (opts.format === "spdx") {
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, renderSpdx(aggregated), "utf8");
       } else {
         await renderReport(aggregated, outputPath);
       }
@@ -1945,13 +2067,13 @@ async function executeAnalysis(
         );
       } else if (outputCreated) {
         console.log(
-          statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`),
+          statusLine("✔", `${formatLabel(opts.format)} written to ${outputPath}`),
         );
       } else {
         console.log(
           statusLine(
             "✖",
-            `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`,
+            `No dependencies were found - ${formatLabel(opts.format)} not created`,
           ),
         );
       }
@@ -2005,7 +2127,7 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
       console.log(
         statusLine(
           "↗",
-          `Opening ${path.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`,
+          `Opening ${path.basename(result.outputPath)} using system default ${opts.format === "html" ? "browser" : "application"}.`,
         ),
       );
       openInBrowser(result.outputPath);
@@ -2057,6 +2179,66 @@ async function runExplainCommand(opts: CliOptions): Promise<void> {
   }
 }
 
+async function runWhyCommand(opts: CliOptions): Promise<void> {
+  const packageName = opts.packageName?.trim();
+  if (!packageName) {
+    console.error("Missing package name for why. Usage: dependency-radar why <package-name>");
+    process.exit(1);
+    return;
+  }
+
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: false,
+    emitArtifactSummary: false,
+    emitWorkspacePackageSummary: false,
+  });
+  console.log("");
+  const output = formatWhyOutput(result.aggregated, packageName);
+  console.log(output);
+  if (output.startsWith("Package not found")) {
+    process.exit(1);
+  }
+}
+
+async function runCompareCommand(opts: CliOptions): Promise<void> {
+  const previousPath = opts.comparePath?.trim();
+  if (!previousPath) {
+    console.error("Missing previous report path. Usage: dependency-radar compare <previous dependency-radar.json>");
+    process.exit(1);
+    return;
+  }
+  let previous: AggregatedData;
+  try {
+    const parsed = JSON.parse(await fs.readFile(path.resolve(previousPath), "utf8"));
+    const schemaVersion = parsed && typeof parsed === "object" ? parsed.schemaVersion : undefined;
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      schemaVersion !== REPORT_SCHEMA_VERSION ||
+      !parsed.project ||
+      !parsed.summary ||
+      !parsed.dependencies ||
+      typeof parsed.dependencies !== "object"
+    ) {
+      console.error(`Previous report schema mismatch: expected schemaVersion ${REPORT_SCHEMA_VERSION}, found ${schemaVersion ?? "missing"}.`);
+      process.exit(1);
+      return;
+    }
+    previous = parsed as AggregatedData;
+  } catch (err: any) {
+    console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+    return;
+  }
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: false,
+    emitArtifactSummary: false,
+    emitWorkspacePackageSummary: false,
+  });
+  console.log("");
+  console.log(formatCompareOutput(compareReports(previous, result.aggregated)));
+}
+
 /**
  * Run the CLI entrypoint and dispatch to the selected command.
  */
@@ -2069,8 +2251,20 @@ async function run(): Promise<void> {
   }
 
   try {
+    if ((opts.schema && !opts.commandProvided) || opts.command === "schema") {
+      await runSchemaCommand(opts);
+      return;
+    }
     if (opts.command === "explain") {
       await runExplainCommand(opts);
+      return;
+    }
+    if (opts.command === "why") {
+      await runWhyCommand(opts);
+      return;
+    }
+    if (opts.command === "compare") {
+      await runCompareCommand(opts);
       return;
     }
     await runScanCommand(opts);
@@ -2078,6 +2272,20 @@ async function run(): Promise<void> {
     console.error("Failed to generate report:", err);
     process.exit(1);
   }
+}
+
+async function runSchemaCommand(opts: CliOptions): Promise<void> {
+  const schema = renderReportJsonSchema();
+  if (opts.outProvided) {
+    const outputPath = path.resolve(opts.out);
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, schema, "utf8");
+    if (!opts.quiet) {
+      console.log(statusLine("✔", `JSON schema written to ${outputPath}`));
+    }
+    return;
+  }
+  console.log(schema);
 }
 
 run();

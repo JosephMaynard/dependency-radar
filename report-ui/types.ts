@@ -88,6 +88,7 @@ export interface DependencyRecord {
     latestVersion?: string;
     blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
+    targetNodeCompatible?: boolean;
   };
   usage: {
     direct: boolean;
@@ -130,7 +131,7 @@ export interface DependencyRecord {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.2' | '1.3';
+  schemaVersion: '1.2' | '1.3' | '1.4';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -168,10 +169,11 @@ export interface AggregatedData {
     nodeVersion: string;
     runtimeVersion: string;
     minRequiredMajor: number;
+    targetNodeMajor?: number;
   };
   workspaces: {
     enabled: boolean;
-    type?: 'npm' | 'pnpm' | 'yarn' | 'none';
+    type?: 'npm' | 'pnpm' | 'yarn' | 'bun' | 'none';
     packageCount?: number;
     workspacePackages?: Array<{
       name: string;
@@ -182,10 +184,40 @@ export interface AggregatedData {
       };
     }>;
   };
+  supplyChain?: {
+    signals: Array<{
+      type: string;
+      packageName?: string;
+      packageVersion?: string;
+      packageId?: string;
+      source: string;
+      detail: string;
+    }>;
+    signatureAudit?: {
+      attempted: boolean;
+      ok: boolean;
+      status?: 'verified' | 'failed' | 'skipped';
+      output?: string;
+      error?: string;
+    };
+  };
   summary: {
     dependencyCount: number;
     directCount: number;
     transitiveCount: number;
+    findingCount?: number;
   };
+  findings?: Array<{
+    id: string;
+    category: string;
+    severity: 'info' | 'warning' | 'error';
+    packageId: string;
+    packageName: string;
+    packageVersion: string;
+    title: string;
+    message: string;
+    evidence?: string;
+    recommendation?: string;
+  }>;
   dependencies: Record<string, DependencyRecord>;
 }

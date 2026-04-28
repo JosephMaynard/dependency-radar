@@ -2,9 +2,16 @@ import path from 'path';
 import fsp from 'fs/promises';
 import { builtinModules } from 'module';
 import { ToolResult } from '../types';
-import { pathExists, writeJsonFile } from '../utils';
+import { writeJsonFile } from '../utils';
 
-const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.dependency-radar']);
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  'storybook-static',
+  '.dependency-radar'
+]);
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 
 /**
@@ -29,10 +36,7 @@ export async function runImportGraph(
   const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, 'import-graph.json');
   try {
-    const srcPath = path.join(projectPath, 'src');
-    const hasSrc = await pathExists(srcPath);
-    const entry = hasSrc ? srcPath : projectPath;
-    const files = await collectSourceFiles(entry);
+    const files = await collectSourceFiles(projectPath);
     const fileGraph: Record<string, string[]> = {};
     const packageGraph: Record<string, string[]> = {};
     const packageCounts: Record<string, Record<string, number>> = {};

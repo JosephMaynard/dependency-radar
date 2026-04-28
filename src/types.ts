@@ -1,6 +1,6 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
-export type PackageManager = 'npm' | 'pnpm' | 'yarn';
+export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
 export interface VulnerabilityAdvisory {
   id: string;
@@ -129,6 +129,7 @@ export interface DependencyRecord {
     latestVersion?: string;
     blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
+    targetNodeCompatible?: boolean;
   };
   // Usage answers why this dependency exists and where it shows up in the project.
   usage: {
@@ -153,8 +154,57 @@ export interface DependencyRecord {
   execution?: DependencyExecutionInfo;
 }
 
+export type FindingSeverity = 'info' | 'warning' | 'error';
+export type FindingCategory =
+  | 'security'
+  | 'license'
+  | 'execution'
+  | 'upgrade'
+  | 'supply-chain';
+
+export interface DependencyFinding {
+  id: string;
+  category: FindingCategory;
+  severity: FindingSeverity;
+  packageId: string;
+  packageName: string;
+  packageVersion: string;
+  title: string;
+  message: string;
+  evidence?: string;
+  recommendation?: string;
+}
+
+export type SupplyChainSignalType =
+  | 'git-dependency'
+  | 'file-dependency'
+  | 'non-registry-tarball'
+  | 'missing-integrity'
+  | 'unexpected-registry-host';
+
+export interface SupplyChainSignal {
+  type: SupplyChainSignalType;
+  packageName?: string;
+  packageVersion?: string;
+  packageId?: string;
+  source: string;
+  detail: string;
+}
+
+export interface SupplyChainSummary {
+  signals: SupplyChainSignal[];
+  signatureAudit?: {
+    attempted: boolean;
+    ok: boolean;
+    status?: 'verified' | 'failed' | 'skipped';
+    output?: string;
+    error?: string;
+  };
+}
+
 export interface ToolResult<T> {
   ok: boolean;
+  status?: 'skipped';
   data?: T;
   error?: string;
   file?: string;
@@ -197,7 +247,7 @@ export interface ProjectDependencyPolicySummary {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.3';
+  schemaVersion: '1.4';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -224,6 +274,7 @@ export interface AggregatedData {
     nodeVersion: string;
     runtimeVersion: string;
     minRequiredMajor: number;
+    targetNodeMajor?: number;
     platform?: string;
     arch?: string;
     ci?: boolean;
@@ -234,6 +285,7 @@ export interface AggregatedData {
       npm?: string;
       pnpm?: string;
       yarn?: string;
+      bun?: string;
     };
   };
   workspaces: {
@@ -246,7 +298,10 @@ export interface AggregatedData {
     dependencyCount: number;
     directCount: number;
     transitiveCount: number;
+    findingCount?: number;
   };
+  supplyChain?: SupplyChainSummary;
+  findings?: DependencyFinding[];
   dependencies: Record<string, DependencyRecord>;
 }
 

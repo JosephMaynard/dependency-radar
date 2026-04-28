@@ -7,7 +7,8 @@ export type FailOnRule =
   | 'high-severity-vuln'
   | 'licence-mismatch'
   | 'copyleft-detected'
-  | 'unknown-licence';
+  | 'unknown-licence'
+  | 'supply-chain-source';
 
 export type PolicyViolation = {
   rule: FailOnRule;
@@ -21,7 +22,8 @@ export const SUPPORTED_FAIL_ON_RULES = [
   'high-severity-vuln',
   'licence-mismatch',
   'copyleft-detected',
-  'unknown-licence'
+  'unknown-licence',
+  'supply-chain-source'
 ] as const;
 
 const SUPPORTED_FAIL_ON_RULE_SET = new Set<FailOnRule>(SUPPORTED_FAIL_ON_RULES);
@@ -133,6 +135,7 @@ export function evaluatePolicyViolations(
   let licenceMismatchCount = 0;
   let copyleftDetectedCount = 0;
   let unknownLicenceCount = 0;
+  let supplyChainSourceCount = 0;
 
   for (const dep of Object.values(aggregated.dependencies || {})) {
     const isRuntime = dep.usage.scope === 'runtime';
@@ -160,6 +163,14 @@ export function evaluatePolicyViolations(
       unknownLicenceCount += 1;
     }
   }
+
+  supplyChainSourceCount = (aggregated.supplyChain?.signals || []).filter((signal) =>
+    signal.type === 'git-dependency' ||
+    signal.type === 'file-dependency' ||
+    signal.type === 'non-registry-tarball' ||
+    signal.type === 'missing-integrity' ||
+    signal.type === 'unexpected-registry-host'
+  ).length;
 
   const violations: PolicyViolation[] = [];
 
@@ -226,6 +237,17 @@ export function evaluatePolicyViolations(
         unknownLicenceCount,
         'dependency with unknown licence',
         'dependencies with unknown licence'
+      )}`
+    });
+  }
+  if (rules.has('supply-chain-source') && supplyChainSourceCount > 0) {
+    violations.push({
+      rule: 'supply-chain-source',
+      count: supplyChainSourceCount,
+      message: `${supplyChainSourceCount} ${pluralize(
+        supplyChainSourceCount,
+        'lockfile supply-chain source finding',
+        'lockfile supply-chain source findings'
       )}`
     });
   }

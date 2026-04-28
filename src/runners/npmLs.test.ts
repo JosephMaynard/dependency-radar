@@ -253,6 +253,51 @@ snapshots:
     expect(result.data?.dependencies.a?.dependencies?.b?.path).toBe(path.join(projectPath, 'node_modules', 'b'));
   });
 
+  it('builds bun tree from text bun.lock without running a fallback command', async () => {
+    const projectPath = await makeTempDir('dr-lock-bun');
+    const tempDir = await makeTempDir('dr-lock-bun-out');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-bun',
+      version: '1.0.0',
+      dependencies: { a: '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'bun.lock'), `{
+      // JSONC fixture with trailing commas.
+      "lockfileVersion": 1,
+      "packages": {
+        "a@1.0.0": {
+          "version": "1.0.0",
+          "dependencies": { "b": "1.0.0" },
+        },
+        "b@1.0.0": {
+          "version": "2.0.0",
+        },
+      },
+    }`);
+
+    const result = await runNpmLs(projectPath, tempDir, 'bun');
+    expect(result.ok).toBe(true);
+    expect(runCommandMock).not.toHaveBeenCalled();
+    expect(result.data?.dependencies.a).toBeDefined();
+    expect(result.data?.dependencies.a?.dependencies?.b?.version).toBe('2.0.0');
+  });
+
+  it('returns a clear error for binary bun.lockb without text bun.lock', async () => {
+    const projectPath = await makeTempDir('dr-lock-bunb');
+    const tempDir = await makeTempDir('dr-lock-bunb-out');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'lock-bunb',
+      version: '1.0.0',
+      dependencies: { a: '1.0.0' }
+    }));
+    await fs.writeFile(path.join(projectPath, 'bun.lockb'), 'binary');
+
+    const result = await runNpmLs(projectPath, tempDir, 'bun');
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Binary bun.lockb is not supported');
+    expect(runCommandMock).not.toHaveBeenCalled();
+  });
+
   it('filters npm optional platform packages that are not installed', async () => {
     const projectPath = await makeTempDir('dr-lock-npm-installed-only');
     const tempDir = await makeTempDir('dr-lock-npm-installed-only-out');

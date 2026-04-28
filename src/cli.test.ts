@@ -225,4 +225,308 @@ describe('cli summary output', () => {
       expect(output).toContain('✖ Package not found: definitely-not-present');
     },
   );
+
+  it(
+    'writes SARIF output with dependency findings',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-sarif');
+      const outPath = path.join(outputDir, 'report.sarif');
+
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--format', 'sarif', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const sarif = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(sarif.version).toBe('2.1.0');
+      expect(sarif.runs[0].tool.driver.name).toBe('Dependency Radar');
+      expect(sarif.runs[0].results.length).toBeGreaterThan(0);
+    },
+  );
+
+  it(
+    'writes CycloneDX SBOM output',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-cdx');
+      const outPath = path.join(outputDir, 'bom.json');
+
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--sbom', 'cyclonedx', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const bom = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(bom.bomFormat).toBe('CycloneDX');
+      expect(Array.isArray(bom.components)).toBe(true);
+      expect(bom.components.length).toBeGreaterThan(0);
+    },
+  );
+
+  it(
+    'prints dependency paths with the why command',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const result = runCli(
+        ['why', '@dr-license/mismatch', '--project', fixtureProject, '--offline', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Dependency paths for @dr-license/mismatch');
+      expect(output).toContain('@dr-license/mismatch@1.0.0');
+    },
+  );
+
+  it(
+    'compares against a previous JSON report',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-compare');
+      const previousPath = path.join(outputDir, 'previous.json');
+      await fs.writeFile(previousPath, JSON.stringify({
+        schemaVersion: '1.4',
+        generatedAt: new Date(0).toISOString(),
+        dependencyRadarVersion: 'test',
+        git: { branch: '' },
+        project: { projectDir: '/fixture' },
+        environment: { nodeVersion: '0.0.0', runtimeVersion: 'v0.0.0', minRequiredMajor: 0 },
+        workspaces: { enabled: false },
+        summary: { dependencyCount: 0, directCount: 0, transitiveCount: 0 },
+        dependencies: {},
+        findings: []
+      }), 'utf8');
+
+      const result = runCli(
+        ['compare', previousPath, '--project', fixtureProject, '--offline', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Dependency Radar comparison');
+      expect(output).toContain('Added dependencies');
+    },
+  );
+
+  it('prints the JSON schema without scanning', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const result = runCli(['--schema', '--quiet'], repoRoot);
+
+    expect(result.status).toBe(0);
+    const schema = JSON.parse(result.stdout);
+    expect(schema.title).toBe('Dependency Radar Report');
+    expect(schema.properties.schemaVersion.const).toBe('1.4');
+  });
+
+  it('writes the JSON schema to --out without scanning', async () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const outputDir = await makeTempDir('dr-cli-schema-out');
+    const outPath = path.join(outputDir, 'dependency-radar.schema.json');
+    const result = runCli(['--schema', '--out', outPath, '--quiet'], repoRoot);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('');
+    const schema = JSON.parse(await fs.readFile(outPath, 'utf8'));
+    expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(schema.properties.schemaVersion.const).toBe('1.4');
+    expect(schema.properties.supplyChain.properties.signals.items.required).toEqual(['type', 'source', 'detail']);
+    expect(schema.properties.findings.items.required).toContain('packageId');
+  });
+
+  it(
+    'skips audit signatures when offline',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--audit-signatures', '--no-report', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Summary:');
+    },
+  );
+
+  it(
+    'fails on supply-chain-source policy violations',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-supply-policy');
+      const projectPath = path.join(outputDir, 'project');
+      await fs.mkdir(projectPath, { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'supply-policy-fixture',
+        version: '1.0.0',
+        dependencies: { 'git-dep': 'github:example/git-dep' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            name: 'supply-policy-fixture',
+            version: '1.0.0',
+            dependencies: { 'git-dep': 'github:example/git-dep' }
+          },
+          'node_modules/git-dep': {
+            version: '1.0.0',
+            resolved: 'git+https://github.com/example/git-dep.git'
+          }
+        }
+      }), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--no-report', '--quiet', '--fail-on', 'supply-chain-source'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(1);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('supply-chain source');
+    },
+  );
+
+  it(
+    'writes supply-chain source signals and findings to JSON output',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-supply-json');
+      const projectPath = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'report.json');
+      await fs.mkdir(projectPath, { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'supply-json-fixture',
+        version: '1.0.0',
+        dependencies: { 'git-dep': 'github:example/git-dep' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            name: 'supply-json-fixture',
+            version: '1.0.0',
+            dependencies: { 'git-dep': 'github:example/git-dep' }
+          },
+          'node_modules/git-dep': {
+            version: '1.0.0',
+            resolved: 'git+https://github.com/example/git-dep.git'
+          }
+        }
+      }), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(report.supplyChain.signals).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'git-dependency', packageName: 'git-dep' })
+        ])
+      );
+      expect(report.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ category: 'supply-chain', title: 'Git dependency source' })
+        ])
+      );
+    },
+  );
+
+  it(
+    'scans text bun.lock projects through the CLI',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-bun');
+      const projectPath = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'bun-report.json');
+      await fs.mkdir(projectPath, { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'bun-cli-fixture',
+        version: '1.0.0',
+        packageManager: 'bun@1.2.0',
+        dependencies: { a: '1.0.0' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'bun.lock'), `{
+        // Bun text lockfiles are JSONC-like in the wild.
+        "lockfileVersion": 1,
+        "packages": {
+          "a@1.0.0": {
+            "version": "1.0.0",
+            "dependencies": { "b": "1.0.0" },
+          },
+          "b@1.0.0": {
+            "version": "2.0.0",
+          },
+        },
+      }`, 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(report.environment.packageManager).toBe('bun');
+      expect(report.dependencies['a@1.0.0']).toBeDefined();
+      expect(report.dependencies['b@2.0.0']).toBeDefined();
+    },
+  );
+
+  it(
+    'uses lockfile-derived graph data instead of hard-failing Yarn PnP projects',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-yarn-pnp');
+      const projectPath = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'yarn-report.json');
+      await fs.mkdir(projectPath, { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'yarn-pnp-cli-fixture',
+        version: '1.0.0',
+        packageManager: 'yarn@4.0.0',
+        dependencies: { a: '1.0.0' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, '.pnp.cjs'), 'module.exports = {};', 'utf8');
+      await fs.writeFile(path.join(projectPath, 'yarn.lock'), [
+        '# yarn lockfile v1',
+        '',
+        'a@1.0.0:',
+        '  version "1.0.0"',
+        '  resolved "https://registry.yarnpkg.com/a/-/a-1.0.0.tgz"',
+        '  integrity sha512-a'
+      ].join('\n'), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(report.environment.packageManager).toBe('yarn');
+      expect(report.dependencies['a@1.0.0']).toBeDefined();
+    },
+  );
 });

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 type ProjectPackageManifest = {
   dependencies?: Record<string, string>;
   packageManager?: string;
+  scripts?: Record<string, string>;
 };
 
 /**
@@ -34,5 +35,11 @@ describe('package manifest policy', () => {
     // Explicit npm pin avoids Corepack auto-pinning pnpm/yarn during tooling runs.
     expect(typeof manifest.packageManager).toBe('string');
     expect(manifest.packageManager).toMatch(/^npm@/);
+  });
+
+  it('cleans dist before building publish artifacts', async () => {
+    const manifest = await loadRootPackageManifest();
+    expect(manifest.scripts?.clean).toContain('rmSync');
+    expect(manifest.scripts?.build).toMatch(/^npm run clean &&/);
   });
 });

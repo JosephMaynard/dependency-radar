@@ -244,6 +244,13 @@ ${safeCssContent}
               </select>
             </div>
 
+            <div class="filter-group workspace-filter-group hidden" id="workspace-filter-wrap">
+              <label class="filter-label" for="workspace-filter">Workspace</label>
+              <select id="workspace-filter">
+                <option value="all">All workspaces</option>
+              </select>
+            </div>
+
             <button type="button" class="license-filter-toggle" id="license-toggle">
               License Categories
               <span class="chevron">▼</span>

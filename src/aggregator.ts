@@ -28,6 +28,8 @@ import {
   pickLicenseRisk,
   validateSpdxExpression
 } from './license';
+import { buildDependencyFindings } from './findings';
+import { isNodeEngineTargetCompatible } from './nodeEngine';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -38,6 +40,7 @@ interface AggregateInput {
   npmLsResult?: ToolResult<any>;
   importGraphResult?: ToolResult<any>;
   outdatedResult?: OutdatedResult;
+  supplyChainResult?: ToolResult<any>;
   // Optional: allow CLI to pass a merged view of workspace package.json dependencies
   pkgOverride?: any;
   // Root package.json of the scanned project (used for project metadata output).
@@ -70,7 +73,9 @@ interface AggregateInput {
     npm?: string;
     pnpm?: string;
     yarn?: string;
+    bun?: string;
   };
+  targetNodeMajor?: number;
 }
 
 interface NodeInfo {
@@ -421,6 +426,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const importGraph = normalizeImportGraph(input.importGraphResult?.data);
   const usageResult = buildUsageSummary(importGraph, input.projectPath);
   const outdatedById = buildOutdatedMap(input.outdatedResult);
+  const supplyChain = normalizeSupplyChain(input.supplyChainResult?.data);
   const outdatedUnknownNames = new Set(input.outdatedResult?.unknownNames || []);
   const packageMetaCache = new Map<string, PackageMeta>();
   const resolvePaths = input.resolvePaths && input.resolvePaths.length > 0
@@ -497,7 +503,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       ...(outdated ? { outdatedStatus: outdated.status } : {}),
       ...(outdated?.latestVersion ? { latestVersion: outdated.latestVersion } : {}),
       ...(upgrade?.blockers ? { blockers: upgrade.blockers } : {}),
-      ...(upgrade?.blocksNodeMajor ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {})
+      ...(upgrade?.blocksNodeMajor ? { blocksNodeMajor: upgrade.blocksNodeMajor } : {}),
+      ...(typeof input.targetNodeMajor === 'number' && packageInsights.nodeEngine
+        ? { targetNodeCompatible: isNodeEngineTargetCompatible(packageInsights.nodeEngine, input.targetNodeMajor) }
+        : {})
     };
 
     dependencies[id] = {
@@ -558,8 +567,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const dependencyCount = nodes.length;
   const transitiveCount = dependencyCount - directCount;
 
-  return {
-    schemaVersion: '1.3',
+  const aggregated: AggregatedData = {
+    schemaVersion: '1.4',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
@@ -570,6 +579,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       nodeVersion,
       runtimeVersion,
       minRequiredMajor: minRequiredMajor ?? 0,
+      ...(typeof input.targetNodeMajor === 'number' ? { targetNodeMajor: input.targetNodeMajor } : {}),
       ...(input.platform ? { platform: input.platform } : {}),
       ...(input.arch ? { arch: input.arch } : {}),
       ...(typeof input.ci === 'boolean' ? { ci: input.ci } : {}),
@@ -591,7 +601,25 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       directCount,
       transitiveCount
     },
+    ...(supplyChain ? { supplyChain } : {}),
     dependencies
+  };
+  const findings = buildDependencyFindings(aggregated, { targetNodeMajor: input.targetNodeMajor });
+  aggregated.findings = findings;
+  aggregated.summary.findingCount = findings.length;
+  return aggregated;
+}
+
+function normalizeSupplyChain(data: any): AggregatedData['supplyChain'] | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const signals = Array.isArray(data.signals) ? data.signals : [];
+  const signatureAudit = data.signatureAudit && typeof data.signatureAudit === 'object'
+    ? data.signatureAudit
+    : undefined;
+  if (signals.length === 0 && !signatureAudit) return undefined;
+  return {
+    signals,
+    ...(signatureAudit ? { signatureAudit } : {})
   };
 }
 

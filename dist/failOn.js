@@ -10,7 +10,8 @@ exports.SUPPORTED_FAIL_ON_RULES = [
     'high-severity-vuln',
     'licence-mismatch',
     'copyleft-detected',
-    'unknown-licence'
+    'unknown-licence',
+    'supply-chain-source'
 ];
 const SUPPORTED_FAIL_ON_RULE_SET = new Set(exports.SUPPORTED_FAIL_ON_RULES);
 /**
@@ -97,7 +98,7 @@ function parseFailOnRules(value) {
  * @returns An array of PolicyViolation objects for each rule that has one or more matching issues; returns an empty array if no violations are found
  */
 function evaluatePolicyViolations(aggregated, rules) {
-    var _a;
+    var _a, _b;
     if (rules.size === 0)
         return [];
     let reachableProductionVulnCount = 0;
@@ -106,6 +107,7 @@ function evaluatePolicyViolations(aggregated, rules) {
     let licenceMismatchCount = 0;
     let copyleftDetectedCount = 0;
     let unknownLicenceCount = 0;
+    let supplyChainSourceCount = 0;
     for (const dep of Object.values(aggregated.dependencies || {})) {
         const isRuntime = dep.usage.scope === 'runtime';
         const hasVuln = vulnerabilityCount(dep) > 0;
@@ -130,6 +132,11 @@ function evaluatePolicyViolations(aggregated, rules) {
             unknownLicenceCount += 1;
         }
     }
+    supplyChainSourceCount = (((_b = aggregated.supplyChain) === null || _b === void 0 ? void 0 : _b.signals) || []).filter((signal) => signal.type === 'git-dependency' ||
+        signal.type === 'file-dependency' ||
+        signal.type === 'non-registry-tarball' ||
+        signal.type === 'missing-integrity' ||
+        signal.type === 'unexpected-registry-host').length;
     const violations = [];
     if (rules.has('reachable-vuln') && reachableProductionVulnCount > 0) {
         violations.push({
@@ -171,6 +178,13 @@ function evaluatePolicyViolations(aggregated, rules) {
             rule: 'unknown-licence',
             count: unknownLicenceCount,
             message: `${unknownLicenceCount} ${pluralize(unknownLicenceCount, 'dependency with unknown licence', 'dependencies with unknown licence')}`
+        });
+    }
+    if (rules.has('supply-chain-source') && supplyChainSourceCount > 0) {
+        violations.push({
+            rule: 'supply-chain-source',
+            count: supplyChainSourceCount,
+            message: `${supplyChainSourceCount} ${pluralize(supplyChainSourceCount, 'lockfile supply-chain source finding', 'lockfile supply-chain source findings')}`
         });
     }
     return violations;

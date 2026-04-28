@@ -13,10 +13,19 @@ const importGraphRunner_1 = require("./runners/importGraphRunner");
 const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
 const npmOutdated_1 = require("./runners/npmOutdated");
+const lockfileSignals_1 = require("./runners/lockfileSignals");
 const report_1 = require("./report");
+const compare_1 = require("./compare");
+const outputFormats_1 = require("./outputFormats");
+const why_1 = require("./why");
+const schema_1 = require("./schema");
 const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
+const skippedToolResult = {
+    ok: true,
+    status: "skipped",
+};
 function normalizeSlashes(p) {
     return p.split(path_1.default.sep).join("/");
 }
@@ -425,6 +434,8 @@ function inferPackageManager(rootPkg) {
         return "pnpm";
     if (raw.startsWith("yarn@") || raw === "yarn")
         return "yarn";
+    if (raw.startsWith("bun@") || raw === "bun")
+        return "bun";
     if (raw.startsWith("npm@") || raw === "npm")
         return "npm";
     return undefined;
@@ -437,6 +448,8 @@ async function detectPackageManager(projectPath, rootPkg, workspaceType) {
         return workspaceType;
     if (await detectYarnPnP(projectPath))
         return "yarn";
+    if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lock"))) || (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lockb"))))
+        return "bun";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".pnpm")))
         return "pnpm";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".yarn-state.yml")))
@@ -444,10 +457,14 @@ async function detectPackageManager(projectPath, rootPkg, workspaceType) {
     return "npm";
 }
 async function detectScanManager(projectPath, fallback) {
+    if (fallback === "bun" && ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lock"))) || (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lockb")))))
+        return "bun";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "pnpm-lock.yaml")))
         return "pnpm";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "yarn.lock")))
         return "yarn";
+    if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lock"))) || (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lockb"))))
+        return "bun";
     if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "package-lock.json"))) ||
         (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "npm-shrinkwrap.json")))) {
         return "npm";
@@ -923,6 +940,7 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
 function parseArgs(argv) {
     const opts = {
         command: "scan",
+        commandProvided: false,
         project: process.cwd(),
         quiet: false,
         out: "dependency-radar.html",
@@ -933,12 +951,17 @@ function parseArgs(argv) {
         open: false,
         noReport: false,
         failOn: new Set(),
+        format: "html",
+        auditSignatures: false,
+        schema: false,
+        outProvided: false,
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
         const command = args.shift();
-        if (command === "scan" || command === "explain") {
+        if (command === "scan" || command === "explain" || command === "compare" || command === "why" || command === "schema") {
             opts.command = command;
+            opts.commandProvided = true;
         }
         else {
             opts.invalidCommand = command;
@@ -949,23 +972,59 @@ function parseArgs(argv) {
         const arg = args.shift();
         if (!arg)
             break;
-        if (!arg.startsWith("-") && opts.command === "explain" && !opts.packageName) {
+        if (!arg.startsWith("-") && (opts.command === "explain" || opts.command === "why") && !opts.packageName) {
             opts.packageName = arg;
+        }
+        else if (!arg.startsWith("-") && opts.command === "compare" && !opts.comparePath) {
+            opts.comparePath = arg;
         }
         else if (arg === "--project" && args[0])
             opts.project = args.shift();
         else if (arg === "--quiet")
             opts.quiet = true;
-        else if (arg === "--out" && args[0])
+        else if (arg === "--out" && args[0]) {
             opts.out = args.shift();
+            opts.outProvided = true;
+        }
         else if (arg === "--keep-temp")
             opts.keepTemp = true;
         else if (arg === "--offline") {
             opts.audit = false;
             opts.outdated = false;
         }
-        else if (arg === "--json")
+        else if (arg === "--json") {
             opts.json = true;
+            opts.format = "json";
+        }
+        else if (arg === "--format" && args[0]) {
+            const format = args.shift();
+            if (!isReportFormat(format)) {
+                console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
+                process.exit(1);
+            }
+            opts.format = format;
+            opts.json = format === "json";
+        }
+        else if (arg === "--sbom" && args[0]) {
+            const format = args.shift();
+            if (format !== "cyclonedx" && format !== "spdx") {
+                console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
+                process.exit(1);
+            }
+            opts.format = format;
+        }
+        else if (arg === "--target-node" && args[0]) {
+            const value = Number.parseInt(args.shift(), 10);
+            if (!Number.isFinite(value) || value <= 0) {
+                console.error("--target-node must be a positive Node.js major version.");
+                process.exit(1);
+            }
+            opts.targetNodeMajor = value;
+        }
+        else if (arg === "--audit-signatures")
+            opts.auditSignatures = true;
+        else if (arg === "--schema")
+            opts.schema = true;
         else if (arg === "--open")
             opts.open = true;
         else if (arg === "--no-report")
@@ -996,6 +1055,12 @@ function parseArgs(argv) {
     }
     return opts;
 }
+function isReportFormat(value) {
+    return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
+}
+function supportsRegistryCollectors(manager) {
+    return manager === "npm" || manager === "pnpm" || manager === "yarn";
+}
 /**
  * Print the CLI usage and available options to the console.
  *
@@ -1005,13 +1070,20 @@ function parseArgs(argv) {
 function printHelp() {
     console.log(`dependency-radar [scan] [options]
 dependency-radar explain <package-name> [options]
+dependency-radar why <package-name> [options]
+dependency-radar compare <previous dependency-radar.json> [options]
 
 If no command is provided, \`scan\` is run by default.
 
 Options:
   --project <path>   Project folder (default: cwd)
   --quiet            Suppress progress/info logs but keep summary and failures
-  --out <path>       Output HTML file (default: dependency-radar.html)
+  --out <path>       Output file (default depends on format)
+  --format <format>  Output format: html, json, sarif, cyclonedx, spdx
+  --sbom <format>    Write an SBOM: cyclonedx or spdx
+  --target-node <n>  Add Node major compatibility findings
+  --audit-signatures Verify npm registry signatures/provenance (opt-in, online only)
+  --schema           Print JSON schema, or write it when --out is provided
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
@@ -1019,9 +1091,12 @@ Options:
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Supported: reachable-vuln, production-vuln, high-severity-vuln,
-                                licence-mismatch, copyleft-detected, unknown-licence
+                                licence-mismatch, copyleft-detected, unknown-licence,
+                                supply-chain-source
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
+\`why\` prints shortest dependency paths for one package.
+\`compare\` scans the current project and compares it with a previous JSON report.
 `);
 }
 /**
@@ -1329,20 +1404,33 @@ function printCliSummary(summary) {
     }
     console.log("");
 }
+function formatLabel(format) {
+    if (format === "html")
+        return "Report";
+    if (format === "json")
+        return "JSON";
+    if (format === "sarif")
+        return "SARIF";
+    if (format === "cyclonedx")
+        return "CycloneDX SBOM";
+    return "SPDX SBOM";
+}
 async function executeAnalysis(opts, options) {
-    var _a;
+    var _a, _b;
     const shouldWriteArtifacts = options.shouldWriteArtifacts;
     const projectPath = path_1.default.resolve(opts.project);
-    let outputPath = path_1.default.resolve(opts.out);
+    let outputPath = opts.outProvided
+        ? path_1.default.resolve(opts.out)
+        : path_1.default.resolve(projectPath, opts.out);
     const startTime = Date.now();
     let dependencyCount = 0;
     let outputCreated = false;
     if (opts.command === "scan" && opts.noReport && opts.keepTemp && !opts.quiet) {
         console.log(statusLine("⚠", "--keep-temp is ignored when --no-report is enabled."));
     }
-    if (opts.json && opts.out === "dependency-radar.html") {
-        opts.out = "dependency-radar.json";
-        outputPath = path_1.default.resolve(opts.out);
+    if (!opts.outProvided && opts.format !== "html") {
+        opts.out = (0, outputFormats_1.defaultOutputName)(opts.format);
+        outputPath = path_1.default.resolve(projectPath, opts.out);
     }
     if (shouldWriteArtifacts) {
         try {
@@ -1352,7 +1440,7 @@ async function executeAnalysis(opts, options) {
             if ((stat && stat.isDirectory()) ||
                 endsWithSeparator ||
                 (!stat && !hasExtension)) {
-                outputPath = path_1.default.join(outputPath, opts.json ? "dependency-radar.json" : "dependency-radar.html");
+                outputPath = path_1.default.join(outputPath, (0, outputFormats_1.defaultOutputName)(opts.format));
             }
         }
         catch {
@@ -1363,9 +1451,10 @@ async function executeAnalysis(opts, options) {
     const workspace = await detectWorkspace(projectPath);
     const yarnPnP = await detectYarnPnP(projectPath);
     if (workspace.type === "yarn" && workspace.packagePaths.length === 0) {
-        console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
-        console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
-        process.exit(1);
+        if (!opts.quiet) {
+            console.log(statusLine("⚠", "Yarn Plug'n'Play detected; using the root package and yarn.lock where possible."));
+        }
+        workspace.packagePaths = [projectPath];
     }
     const hasProjectNodeModules = await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules"));
     if (!hasProjectNodeModules) {
@@ -1373,9 +1462,9 @@ async function executeAnalysis(opts, options) {
             ? "single project"
             : `${workspace.type.toUpperCase()} workspace`;
         const yarnHint = yarnPnP
-            ? " Yarn Plug'n'Play appears enabled; Dependency Radar currently requires node_modules linker."
+            ? " Yarn Plug'n'Play appears enabled; lockfile graph data will be used where possible, but package metadata from zip/cache files is not crawled in this release."
             : "";
-        console.warn(colorLeadingSymbol(`⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install (npm install, pnpm install, or yarn install) before scanning.${yarnHint}`));
+        console.warn(colorLeadingSymbol(`⚠ node_modules was not found at ${projectPath}. Scan completeness may be reduced for this ${workspaceHint}. Run your package manager install before scanning when local package metadata is required.${yarnHint}`));
     }
     const rootPkg = await readJsonFile(path_1.default.join(projectPath, "package.json"));
     const projectDependencyPolicy = workspace.pnpmWorkspaceOverrides
@@ -1394,20 +1483,22 @@ async function executeAnalysis(opts, options) {
         getToolVersion("pnpm", projectPath),
         getToolVersion("yarn", projectPath),
     ]);
+    const bunVersion = await getToolVersion("bun", projectPath);
     const toolVersions = compactToolVersions({
         npm: npmVersion,
         pnpm: pnpmVersion,
         yarn: yarnVersion,
+        bun: bunVersion,
     });
     const packageManagerVersion = scanManager === "npm"
         ? npmVersion
         : scanManager === "pnpm"
             ? pnpmVersion
-            : yarnVersion;
-    if (packageManager === "yarn" && yarnPnP) {
-        console.error("Yarn Plug'n'Play (nodeLinker: pnp) detected. This is not supported yet.");
-        console.error("Switch to nodeLinker: node-modules or run in a non-PnP environment.");
-        process.exit(1);
+            : scanManager === "yarn"
+                ? yarnVersion
+                : bunVersion;
+    if (!opts.quiet && packageManager === "yarn" && yarnPnP) {
+        console.log(statusLine("⚠", "Yarn Plug'n'Play detected; using lockfile-derived graph data where available."));
     }
     const packagePaths = workspace.packagePaths;
     const workspaceLabel = workspace.type === "none"
@@ -1430,6 +1521,11 @@ async function executeAnalysis(opts, options) {
         const perPackageLs = [];
         const perPackageImportGraph = [];
         const perPackageOutdated = [];
+        const supplyChainResult = await (0, lockfileSignals_1.runLockfileSupplyChainSignals)(projectPath, tempDir, {
+            persistToDisk: shouldWriteArtifacts,
+            auditSignatures: opts.auditSignatures,
+            offline: !opts.audit
+        }).catch((err) => ({ ok: false, error: String(err) }));
         for (const meta of packageMetas) {
             spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
             const pkgTempDir = path_1.default.join(tempDir, meta.name.replace(/[^a-zA-Z0-9._-]/g, "_"));
@@ -1438,8 +1534,9 @@ async function executeAnalysis(opts, options) {
             }
             const [a, l, ig, o] = await Promise.all([
                 opts.audit
+                    && supportsRegistryCollectors(scanManager)
                     ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(undefined),
+                    : Promise.resolve(opts.audit ? skippedToolResult : undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
                     contextLabel: meta.name,
                     lockfileSearchRoot: projectPath,
@@ -1450,8 +1547,9 @@ async function executeAnalysis(opts, options) {
                     persistToDisk: shouldWriteArtifacts,
                 }).catch((err) => ({ ok: false, error: String(err) })),
                 opts.outdated
+                    && supportsRegistryCollectors(scanManager)
                     ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(undefined),
+                    : Promise.resolve(opts.outdated ? skippedToolResult : undefined),
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
@@ -1460,14 +1558,25 @@ async function executeAnalysis(opts, options) {
         }
         if (opts.audit) {
             const auditOk = perPackageAudit.every((r) => r && r.ok);
+            const auditSkipped = perPackageAudit.every((r) => (r === null || r === void 0 ? void 0 : r.status) === "skipped");
             if (!opts.quiet || !auditOk) {
-                spinner.log(statusLine(auditOk ? "✔" : "✖", `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`));
+                spinner.log(statusLine(auditSkipped ? "ℹ" : auditOk ? "✔" : "✖", `${scanManager.toUpperCase()} audit data ${auditSkipped ? "skipped" : auditOk ? "collected" : "unavailable"}`));
+            }
+        }
+        if (opts.auditSignatures && !opts.quiet) {
+            const audit = supplyChainResult.ok ? (_a = supplyChainResult.data) === null || _a === void 0 ? void 0 : _a.signatureAudit : undefined;
+            if ((audit === null || audit === void 0 ? void 0 : audit.status) === "skipped") {
+                spinner.log(statusLine("⚠", "npm audit signatures skipped (--offline)"));
+            }
+            else {
+                spinner.log(statusLine((audit === null || audit === void 0 ? void 0 : audit.ok) ? "✔" : "✖", `npm audit signatures ${(audit === null || audit === void 0 ? void 0 : audit.ok) ? "verified" : "unavailable"}`));
             }
         }
         if (opts.outdated) {
             const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
+            const outdatedSkipped = perPackageOutdated.every((r) => { var _a; return ((_a = r.result) === null || _a === void 0 ? void 0 : _a.status) === "skipped"; });
             if (!opts.quiet || !outdatedOk) {
-                spinner.log(statusLine(outdatedOk ? "✔" : "✖", `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`));
+                spinner.log(statusLine(outdatedSkipped ? "ℹ" : outdatedOk ? "✔" : "✖", `${scanManager.toUpperCase()} outdated data ${outdatedSkipped ? "skipped" : outdatedOk ? "collected" : "unavailable"}`));
             }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
@@ -1498,7 +1607,7 @@ async function executeAnalysis(opts, options) {
         if (lsFailures.length > 0) {
             const packageList = lsFailures.map((entry) => { var _a; return (_a = entry.meta) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean);
             spinner.log(`Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${packageList.join(", ")}).`);
-            spinner.log(`First dependency tree error: ${((_a = lsFailures[0].result) === null || _a === void 0 ? void 0 : _a.error) || "pnpm ls failed"}`);
+            spinner.log(`First dependency tree error: ${((_b = lsFailures[0].result) === null || _b === void 0 ? void 0 : _b.error) || "pnpm ls failed"}`);
         }
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
@@ -1509,6 +1618,7 @@ async function executeAnalysis(opts, options) {
             npmLsResult,
             importGraphResult,
             outdatedResult,
+            supplyChainResult,
             pkgOverride: mergedPkgForAggregator,
             projectPackageJson: rootPkg,
             ...(projectDependencyPolicy ? { projectDependencyPolicy } : {}),
@@ -1536,6 +1646,7 @@ async function executeAnalysis(opts, options) {
             arch: process.arch,
             ci: isCI(),
             ...(toolVersions ? { toolVersions } : {}),
+            ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
         });
         dependencyCount = Object.keys(aggregated.dependencies).length;
         const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
@@ -1547,9 +1658,21 @@ async function executeAnalysis(opts, options) {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
         if (dependencyCount > 0 && shouldWriteArtifacts) {
-            if (opts.json) {
+            if (opts.format === "json") {
                 await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
                 await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
+            }
+            else if (opts.format === "sarif") {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, (0, outputFormats_1.renderSarif)(aggregated), "utf8");
+            }
+            else if (opts.format === "cyclonedx") {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, (0, outputFormats_1.renderCycloneDx)(aggregated), "utf8");
+            }
+            else if (opts.format === "spdx") {
+                await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+                await promises_1.default.writeFile(outputPath, (0, outputFormats_1.renderSpdx)(aggregated), "utf8");
             }
             else {
                 await (0, report_1.renderReport)(aggregated, outputPath);
@@ -1566,10 +1689,10 @@ async function executeAnalysis(opts, options) {
                 console.log(statusLine("ℹ", "Report output disabled (--no-report); no report artifacts written."));
             }
             else if (outputCreated) {
-                console.log(statusLine("✔", `${opts.json ? "JSON" : "Report"} written to ${outputPath}`));
+                console.log(statusLine("✔", `${formatLabel(opts.format)} written to ${outputPath}`));
             }
             else {
-                console.log(statusLine("✖", `No dependencies were found - ${opts.json ? "JSON file" : "Report"} not created`));
+                console.log(statusLine("✖", `No dependencies were found - ${formatLabel(opts.format)} not created`));
             }
         }
         return {
@@ -1619,7 +1742,7 @@ async function runScanCommand(opts) {
             console.log(statusLine("✖", "Skipping auto-open because --no-report is enabled."));
         }
         else if (opts.open && result.outputCreated && !isCI()) {
-            console.log(statusLine("↗", `Opening ${path_1.default.basename(result.outputPath)} using system default ${opts.json ? "application" : "browser"}.`));
+            console.log(statusLine("↗", `Opening ${path_1.default.basename(result.outputPath)} using system default ${opts.format === "html" ? "browser" : "application"}.`));
             openInBrowser(result.outputPath);
         }
         else if (opts.open && result.outputCreated && isCI()) {
@@ -1658,6 +1781,64 @@ async function runExplainCommand(opts) {
         process.exit(1);
     }
 }
+async function runWhyCommand(opts) {
+    var _a;
+    const packageName = (_a = opts.packageName) === null || _a === void 0 ? void 0 : _a.trim();
+    if (!packageName) {
+        console.error("Missing package name for why. Usage: dependency-radar why <package-name>");
+        process.exit(1);
+        return;
+    }
+    const result = await executeAnalysis(opts, {
+        shouldWriteArtifacts: false,
+        emitArtifactSummary: false,
+        emitWorkspacePackageSummary: false,
+    });
+    console.log("");
+    const output = (0, why_1.formatWhyOutput)(result.aggregated, packageName);
+    console.log(output);
+    if (output.startsWith("Package not found")) {
+        process.exit(1);
+    }
+}
+async function runCompareCommand(opts) {
+    var _a;
+    const previousPath = (_a = opts.comparePath) === null || _a === void 0 ? void 0 : _a.trim();
+    if (!previousPath) {
+        console.error("Missing previous report path. Usage: dependency-radar compare <previous dependency-radar.json>");
+        process.exit(1);
+        return;
+    }
+    let previous;
+    try {
+        const parsed = JSON.parse(await promises_1.default.readFile(path_1.default.resolve(previousPath), "utf8"));
+        const schemaVersion = parsed && typeof parsed === "object" ? parsed.schemaVersion : undefined;
+        if (!parsed ||
+            typeof parsed !== "object" ||
+            schemaVersion !== schema_1.REPORT_SCHEMA_VERSION ||
+            !parsed.project ||
+            !parsed.summary ||
+            !parsed.dependencies ||
+            typeof parsed.dependencies !== "object") {
+            console.error(`Previous report schema mismatch: expected schemaVersion ${schema_1.REPORT_SCHEMA_VERSION}, found ${schemaVersion !== null && schemaVersion !== void 0 ? schemaVersion : "missing"}.`);
+            process.exit(1);
+            return;
+        }
+        previous = parsed;
+    }
+    catch (err) {
+        console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+        return;
+    }
+    const result = await executeAnalysis(opts, {
+        shouldWriteArtifacts: false,
+        emitArtifactSummary: false,
+        emitWorkspacePackageSummary: false,
+    });
+    console.log("");
+    console.log((0, compare_1.formatCompareOutput)((0, compare_1.compareReports)(previous, result.aggregated)));
+}
 /**
  * Run the CLI entrypoint and dispatch to the selected command.
  */
@@ -1669,8 +1850,20 @@ async function run() {
         return;
     }
     try {
+        if ((opts.schema && !opts.commandProvided) || opts.command === "schema") {
+            await runSchemaCommand(opts);
+            return;
+        }
         if (opts.command === "explain") {
             await runExplainCommand(opts);
+            return;
+        }
+        if (opts.command === "why") {
+            await runWhyCommand(opts);
+            return;
+        }
+        if (opts.command === "compare") {
+            await runCompareCommand(opts);
             return;
         }
         await runScanCommand(opts);
@@ -1679,6 +1872,19 @@ async function run() {
         console.error("Failed to generate report:", err);
         process.exit(1);
     }
+}
+async function runSchemaCommand(opts) {
+    const schema = (0, schema_1.renderReportJsonSchema)();
+    if (opts.outProvided) {
+        const outputPath = path_1.default.resolve(opts.out);
+        await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
+        await promises_1.default.writeFile(outputPath, schema, "utf8");
+        if (!opts.quiet) {
+            console.log(statusLine("✔", `JSON schema written to ${outputPath}`));
+        }
+        return;
+    }
+    console.log(schema);
 }
 run();
 function createProgressReporter(text, quiet) {

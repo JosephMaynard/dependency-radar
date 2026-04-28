@@ -12,9 +12,15 @@ export interface CommandResult {
 export function runCommand(
   command: string,
   args: string[],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}
+  options: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; maxOutputBytes?: number } = {}
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
+    const validPositive = (value: unknown, fallback: number): number => {
+      const parsed = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    };
+    const timeoutMs = validPositive(options.timeoutMs ?? process.env.DEPENDENCY_RADAR_COMMAND_TIMEOUT_MS, 120_000);
+    const maxOutputBytes = validPositive(options.maxOutputBytes, 50 * 1024 * 1024);
     const child = spawn(command, args, {
       cwd: options.cwd,
       shell: false,
@@ -23,12 +29,61 @@ export function runCommand(
 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
+    let totalBytes = 0;
+    let settled = false;
+    let timedOut = false;
+    let outputExceeded = false;
+    function terminate(): void {
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!settled) child.kill('SIGKILL');
+      }, 2000).unref?.();
+    }
 
-    child.stdout.on('data', (d) => stdoutChunks.push(Buffer.from(d)));
-    child.stderr.on('data', (d) => stderrChunks.push(Buffer.from(d)));
+    const timer = timeoutMs > 0
+      ? setTimeout(() => {
+          timedOut = true;
+          terminate();
+        }, timeoutMs)
+      : undefined;
 
-    child.on('error', (err) => reject(err));
+    function collect(chunks: Buffer[], data: Buffer): void {
+      const nextBytes = totalBytes + data.length;
+      if (nextBytes > maxOutputBytes) {
+        outputExceeded = true;
+        const remaining = Math.max(0, maxOutputBytes - totalBytes);
+        if (remaining > 0) chunks.push(Buffer.from(data.subarray(0, remaining)));
+        totalBytes = maxOutputBytes;
+        terminate();
+        return;
+      }
+      chunks.push(Buffer.from(data));
+      totalBytes = nextBytes;
+    }
+
+    child.stdout.on('data', (d) => {
+      collect(stdoutChunks, Buffer.from(d));
+    });
+    child.stderr.on('data', (d) => {
+      collect(stderrChunks, Buffer.from(d));
+    });
+
+    child.on('error', (err) => {
+      if (timer) clearTimeout(timer);
+      settled = true;
+      reject(err);
+    });
     child.on('close', (code) => {
+      if (timer) clearTimeout(timer);
+      settled = true;
+      if (timedOut) {
+        reject(new Error(`${command} timed out after ${timeoutMs}ms`));
+        return;
+      }
+      if (outputExceeded) {
+        reject(new Error(`${command} output exceeded ${maxOutputBytes} bytes`));
+        return;
+      }
       resolve({
         stdout: Buffer.concat(stdoutChunks).toString('utf8'),
         stderr: Buffer.concat(stderrChunks).toString('utf8'),

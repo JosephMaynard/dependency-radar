@@ -30,8 +30,23 @@ async function runNpmLs(projectPath, tempDir, tool = 'npm', options = {}) {
             }
             return { ok: true, data: lockfileTree.data, ...(persistToDisk ? { file: targetFile } : {}) };
         }
+        if (tool === 'bun') {
+            const lockbPath = path_1.default.join(projectPath, 'bun.lockb');
+            if (fs_1.default.existsSync(lockbPath) && !fs_1.default.existsSync(path_1.default.join(projectPath, 'bun.lock'))) {
+                const error = 'Binary bun.lockb is not supported. Run `bun install --save-text-lockfile --frozen-lockfile --lockfile-only` and commit bun.lock.';
+                if (persistToDisk)
+                    await (0, utils_1.writeJsonFile)(targetFile, { error });
+                return { ok: false, error, ...(persistToDisk ? { file: targetFile } : {}) };
+            }
+        }
         if (tool === 'pnpm') {
             return await runPnpmLsWithFallback(projectPath, targetFile, options);
+        }
+        if (tool === 'bun') {
+            const error = 'bun.lock could not be parsed and Bun has no supported list fallback in this release.';
+            if (persistToDisk)
+                await (0, utils_1.writeJsonFile)(targetFile, { error });
+            return { ok: false, error, ...(persistToDisk ? { file: targetFile } : {}) };
         }
         const { args, normalize } = buildLsCommand(tool);
         const result = await (0, utils_1.runCommand)(tool, args, { cwd: projectPath });
