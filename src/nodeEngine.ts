@@ -1,8 +1,21 @@
 type VersionTuple = [number, number, number];
 
-function parseVersion(value: string): VersionTuple | undefined {
+type ParsedVersion = {
+  version: VersionTuple;
+  parts: number;
+};
+
+function parseVersionParts(value: string): ParsedVersion | undefined {
   const match = value.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
-  return match ? [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)] : undefined;
+  if (!match) return undefined;
+  return {
+    version: [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)],
+    parts: match[3] ? 3 : match[2] ? 2 : 1,
+  };
+}
+
+function parseVersion(value: string): VersionTuple | undefined {
+  return parseVersionParts(value)?.version;
 }
 
 function compare(a: VersionTuple, b: VersionTuple): number {
@@ -39,11 +52,15 @@ type VersionInterval = {
 function boundsForComparator(comparator: string): VersionInterval | undefined {
   const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})$/);
   if (!match) return undefined;
-  const version = parseVersion(match[2]);
-  if (!version) return undefined;
+  const parsed = parseVersionParts(match[2]);
+  if (!parsed) return undefined;
+  const version = parsed.version;
+  const nextMajor: VersionTuple = [version[0] + 1, 0, 0];
   const op = match[1] || '=';
   if (op === '<') return { lowerInclusive: true, upper: version, upperInclusive: false };
+  if (op === '<=' && parsed.parts === 1) return { lowerInclusive: true, upper: nextMajor, upperInclusive: false };
   if (op === '<=') return { lowerInclusive: true, upper: version, upperInclusive: true };
+  if (op === '>' && parsed.parts === 1) return { lower: nextMajor, lowerInclusive: true, upperInclusive: true };
   if (op === '>') return { lower: version, lowerInclusive: false, upperInclusive: true };
   if (op === '>=') return { lower: version, lowerInclusive: true, upperInclusive: true };
   return { lower: version, lowerInclusive: true, upper: version, upperInclusive: true };

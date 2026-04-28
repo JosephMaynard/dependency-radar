@@ -1,9 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isNodeEngineTargetCompatible = isNodeEngineTargetCompatible;
-function parseVersion(value) {
+function parseVersionParts(value) {
     const match = value.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
-    return match ? [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)] : undefined;
+    if (!match)
+        return undefined;
+    return {
+        version: [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)],
+        parts: match[3] ? 3 : match[2] ? 2 : 1,
+    };
+}
+function parseVersion(value) {
+    var _a;
+    return (_a = parseVersionParts(value)) === null || _a === void 0 ? void 0 : _a.version;
 }
 function compare(a, b) {
     for (let i = 0; i < 3; i += 1)
@@ -38,14 +47,20 @@ function boundsForComparator(comparator) {
     const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})$/);
     if (!match)
         return undefined;
-    const version = parseVersion(match[2]);
-    if (!version)
+    const parsed = parseVersionParts(match[2]);
+    if (!parsed)
         return undefined;
+    const version = parsed.version;
+    const nextMajor = [version[0] + 1, 0, 0];
     const op = match[1] || '=';
     if (op === '<')
         return { lowerInclusive: true, upper: version, upperInclusive: false };
+    if (op === '<=' && parsed.parts === 1)
+        return { lowerInclusive: true, upper: nextMajor, upperInclusive: false };
     if (op === '<=')
         return { lowerInclusive: true, upper: version, upperInclusive: true };
+    if (op === '>' && parsed.parts === 1)
+        return { lower: nextMajor, lowerInclusive: true, upperInclusive: true };
     if (op === '>')
         return { lower: version, lowerInclusive: false, upperInclusive: true };
     if (op === '>=')
