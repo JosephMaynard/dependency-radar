@@ -1668,7 +1668,9 @@ async function executeAnalysis(
 ): Promise<AnalysisExecutionResult> {
   const shouldWriteArtifacts = options.shouldWriteArtifacts;
   const projectPath = path.resolve(opts.project);
-  let outputPath = path.resolve(opts.out);
+  let outputPath = opts.outProvided
+    ? path.resolve(opts.out)
+    : path.resolve(projectPath, opts.out);
   const startTime = Date.now();
   let dependencyCount = 0;
   let outputCreated = false;

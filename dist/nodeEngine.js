@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isNodeEngineTargetCompatible = isNodeEngineTargetCompatible;
 function parseVersion(value) {
-    const match = value.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+    const match = value.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
     return match ? [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)] : undefined;
 }
 function compare(a, b) {
@@ -12,12 +12,12 @@ function compare(a, b) {
     return 0;
 }
 function satisfiesComparator(target, comparator) {
-    const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})/);
+    const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})$/);
     if (!match)
-        return true;
+        return false;
     const version = parseVersion(match[2]);
     if (!version)
-        return true;
+        return false;
     const diff = compare(target, version);
     const op = match[1] || '=';
     if (op === '<')
@@ -32,10 +32,10 @@ function satisfiesComparator(target, comparator) {
 }
 function comparatorAllowsTargetMajor(comparator, minTarget, maxTarget) {
     const bounds = boundsForComparator(comparator);
-    return !bounds || intervalsOverlap(bounds, { lower: minTarget, lowerInclusive: true, upper: maxTarget, upperInclusive: false });
+    return Boolean(bounds && intervalsOverlap(bounds, { lower: minTarget, lowerInclusive: true, upper: maxTarget, upperInclusive: false }));
 }
 function boundsForComparator(comparator) {
-    const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})/);
+    const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})$/);
     if (!match)
         return undefined;
     const version = parseVersion(match[2]);
@@ -117,12 +117,12 @@ function expandToken(token) {
     const trimmed = token.trim();
     if (!trimmed || trimmed === '*' || /^[xX]$/.test(trimmed))
         return [];
-    const caret = trimmed.match(/^\^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+    const caret = trimmed.match(/^\^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
     if (caret) {
         const major = Number(caret[1]);
         return [`>=${major}.${caret[2] || 0}.${caret[3] || 0}`, `<${major + 1}.0.0`];
     }
-    const tilde = trimmed.match(/^~\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+    const tilde = trimmed.match(/^~\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
     if (tilde) {
         const major = Number(tilde[1]);
         const minor = Number(tilde[2] || 0);

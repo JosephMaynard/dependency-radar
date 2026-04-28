@@ -17,4 +17,10 @@ describe('isNodeEngineTargetCompatible', () => {
       expect(isNodeEngineTargetCompatible(range, 19)).toBe(false);
     }
   });
+
+  it('fails closed for malformed comparator tokens', () => {
+    expect(isNodeEngineTargetCompatible('>=18foo', 18)).toBe(false);
+    expect(isNodeEngineTargetCompatible('18.0.0-beta', 18)).toBe(false);
+    expect(isNodeEngineTargetCompatible('^18foo', 18)).toBe(false);
+  });
 });

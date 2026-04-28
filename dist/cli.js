@@ -1419,7 +1419,9 @@ async function executeAnalysis(opts, options) {
     var _a, _b;
     const shouldWriteArtifacts = options.shouldWriteArtifacts;
     const projectPath = path_1.default.resolve(opts.project);
-    let outputPath = path_1.default.resolve(opts.out);
+    let outputPath = opts.outProvided
+        ? path_1.default.resolve(opts.out)
+        : path_1.default.resolve(projectPath, opts.out);
     const startTime = Date.now();
     let dependencyCount = 0;
     let outputCreated = false;
