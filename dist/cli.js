@@ -471,8 +471,6 @@ async function detectScanManager(projectPath, fallback) {
     }
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".pnpm")))
         return "pnpm";
-    if ((await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lock"))) || (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "bun.lockb"))))
-        return "bun";
     if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "node_modules", ".yarn-state.yml")))
         return "yarn";
     return fallback;
@@ -942,6 +940,7 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
 function parseArgs(argv) {
     const opts = {
         command: "scan",
+        commandProvided: false,
         project: process.cwd(),
         quiet: false,
         out: "dependency-radar.html",
@@ -960,8 +959,9 @@ function parseArgs(argv) {
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
         const command = args.shift();
-        if (command === "scan" || command === "explain" || command === "compare" || command === "why") {
+        if (command === "scan" || command === "explain" || command === "compare" || command === "why" || command === "schema") {
             opts.command = command;
+            opts.commandProvided = true;
         }
         else {
             opts.invalidCommand = command;
@@ -1565,7 +1565,7 @@ async function executeAnalysis(opts, options) {
         }
         if (opts.auditSignatures && !opts.quiet) {
             const audit = supplyChainResult.ok ? (_a = supplyChainResult.data) === null || _a === void 0 ? void 0 : _a.signatureAudit : undefined;
-            if ((audit === null || audit === void 0 ? void 0 : audit.error) === "skipped (--offline)") {
+            if ((audit === null || audit === void 0 ? void 0 : audit.status) === "skipped") {
                 spinner.log(statusLine("⚠", "npm audit signatures skipped (--offline)"));
             }
             else {
@@ -1811,7 +1811,20 @@ async function runCompareCommand(opts) {
     }
     let previous;
     try {
-        previous = JSON.parse(await promises_1.default.readFile(path_1.default.resolve(previousPath), "utf8"));
+        const parsed = JSON.parse(await promises_1.default.readFile(path_1.default.resolve(previousPath), "utf8"));
+        const schemaVersion = parsed && typeof parsed === "object" ? parsed.schemaVersion : undefined;
+        if (!parsed ||
+            typeof parsed !== "object" ||
+            schemaVersion !== schema_1.REPORT_SCHEMA_VERSION ||
+            !parsed.project ||
+            !parsed.summary ||
+            !parsed.dependencies ||
+            typeof parsed.dependencies !== "object") {
+            console.error(`Previous report schema mismatch: expected schemaVersion ${schema_1.REPORT_SCHEMA_VERSION}, found ${schemaVersion !== null && schemaVersion !== void 0 ? schemaVersion : "missing"}.`);
+            process.exit(1);
+            return;
+        }
+        previous = parsed;
     }
     catch (err) {
         console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
@@ -1837,7 +1850,7 @@ async function run() {
         return;
     }
     try {
-        if (opts.schema) {
+        if ((opts.schema && !opts.commandProvided) || opts.command === "schema") {
             await runSchemaCommand(opts);
             return;
         }

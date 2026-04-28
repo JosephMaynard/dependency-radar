@@ -23,7 +23,7 @@ import {
   type ReportFormat,
 } from "./outputFormats";
 import { formatWhyOutput } from "./why";
-import { renderReportJsonSchema } from "./schema";
+import { REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
   evaluatePolicyViolations,
@@ -555,7 +555,6 @@ async function detectScanManager(
   }
   if (await pathExists(path.join(projectPath, "node_modules", ".pnpm")))
     return "pnpm";
-  if ((await pathExists(path.join(projectPath, "bun.lock"))) || (await pathExists(path.join(projectPath, "bun.lockb")))) return "bun";
   if (
     await pathExists(path.join(projectPath, "node_modules", ".yarn-state.yml"))
   )
@@ -1072,10 +1071,11 @@ function buildCombinedDependencyGraph(
 }
 
 interface CliOptions {
-  command: "scan" | "explain" | "compare" | "why";
+  command: "scan" | "explain" | "compare" | "why" | "schema";
   packageName?: string;
   comparePath?: string;
   invalidCommand?: string;
+  commandProvided: boolean;
   project: string;
   quiet: boolean;
   out: string;
@@ -1106,6 +1106,7 @@ interface CliOptions {
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     command: "scan",
+    commandProvided: false,
     project: process.cwd(),
     quiet: false,
     out: "dependency-radar.html",
@@ -1125,8 +1126,9 @@ function parseArgs(argv: string[]): CliOptions {
   const args = [...argv];
   if (args[0] && !args[0].startsWith("-")) {
     const command = args.shift()!;
-    if (command === "scan" || command === "explain" || command === "compare" || command === "why") {
+    if (command === "scan" || command === "explain" || command === "compare" || command === "why" || command === "schema") {
       opts.command = command;
+      opts.commandProvided = true;
     } else {
       opts.invalidCommand = command;
       return opts;
@@ -1888,7 +1890,7 @@ async function executeAnalysis(
     }
     if (opts.auditSignatures && !opts.quiet) {
       const audit = supplyChainResult.ok ? supplyChainResult.data?.signatureAudit : undefined;
-      if (audit?.error === "skipped (--offline)") {
+      if (audit?.status === "skipped") {
         spinner.log(statusLine("⚠", "npm audit signatures skipped (--offline)"));
       } else {
         spinner.log(statusLine(audit?.ok ? "✔" : "✖", `npm audit signatures ${audit?.ok ? "verified" : "unavailable"}`));
@@ -2207,7 +2209,22 @@ async function runCompareCommand(opts: CliOptions): Promise<void> {
   }
   let previous: AggregatedData;
   try {
-    previous = JSON.parse(await fs.readFile(path.resolve(previousPath), "utf8")) as AggregatedData;
+    const parsed = JSON.parse(await fs.readFile(path.resolve(previousPath), "utf8"));
+    const schemaVersion = parsed && typeof parsed === "object" ? parsed.schemaVersion : undefined;
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      schemaVersion !== REPORT_SCHEMA_VERSION ||
+      !parsed.project ||
+      !parsed.summary ||
+      !parsed.dependencies ||
+      typeof parsed.dependencies !== "object"
+    ) {
+      console.error(`Previous report schema mismatch: expected schemaVersion ${REPORT_SCHEMA_VERSION}, found ${schemaVersion ?? "missing"}.`);
+      process.exit(1);
+      return;
+    }
+    previous = parsed as AggregatedData;
   } catch (err: any) {
     console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
@@ -2234,7 +2251,7 @@ async function run(): Promise<void> {
   }
 
   try {
-    if (opts.schema) {
+    if ((opts.schema && !opts.commandProvided) || opts.command === "schema") {
       await runSchemaCommand(opts);
       return;
     }

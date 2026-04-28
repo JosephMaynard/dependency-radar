@@ -114,9 +114,18 @@ function comparatorsOverlapTargetMajor(comparators, targetMajor) {
     return intervalsOverlap(interval, target);
 }
 function expandToken(token) {
+    var _a, _b;
     const trimmed = token.trim();
     if (!trimmed || trimmed === '*' || /^[xX]$/.test(trimmed))
         return [];
+    const xRange = trimmed.match(/^v?(\d+)(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?$/);
+    if (xRange && (((_a = xRange[2]) === null || _a === void 0 ? void 0 : _a.match(/^[xX*]$/)) || ((_b = xRange[3]) === null || _b === void 0 ? void 0 : _b.match(/^[xX*]$/)))) {
+        const major = Number(xRange[1]);
+        if (!xRange[2] || /^[xX*]$/.test(xRange[2]))
+            return [`>=${major}.0.0`, `<${major + 1}.0.0`];
+        const minor = Number(xRange[2]);
+        return [`>=${major}.${minor}.0`, `<${major}.${minor + 1}.0`];
+    }
     const caret = trimmed.match(/^\^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
     if (caret) {
         const major = Number(caret[1]);
@@ -125,13 +134,20 @@ function expandToken(token) {
     const tilde = trimmed.match(/^~\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
     if (tilde) {
         const major = Number(tilde[1]);
-        const minor = Number(tilde[2] || 0);
+        if (!tilde[2])
+            return [`>=${major}.0.0`, `<${major + 1}.0.0`];
+        const minor = Number(tilde[2]);
         return [`>=${major}.${minor}.${tilde[3] || 0}`, `<${major}.${minor + 1}.0`];
     }
-    // Bare versions intentionally lock to semver-major compatibility, discarding minor/patch.
-    if (/^v?\d+(?:\.\d+){0,2}$/.test(trimmed)) {
-        const [major] = parseVersion(trimmed);
-        return [`>=${major}.0.0`, `<${major + 1}.0.0`];
+    const bare = trimmed.match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/);
+    if (bare) {
+        const major = Number(bare[1]);
+        if (!bare[2])
+            return [`>=${major}.0.0`, `<${major + 1}.0.0`];
+        const minor = Number(bare[2]);
+        if (!bare[3])
+            return [`>=${major}.${minor}.0`, `<${major}.${minor + 1}.0`];
+        return [`=${major}.${minor}.${bare[3]}`];
     }
     return [trimmed];
 }
