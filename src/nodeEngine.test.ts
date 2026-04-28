@@ -8,5 +8,6 @@ describe('isNodeEngineTargetCompatible', () => {
     expect(isNodeEngineTargetCompatible('>18', 18)).toBe(true);
     expect(isNodeEngineTargetCompatible('<=18', 19)).toBe(false);
     expect(isNodeEngineTargetCompatible('^18 || >=20', 20)).toBe(true);
+    expect(isNodeEngineTargetCompatible('>18.10.0 <18.12.0', 18)).toBe(true);
   });
 });

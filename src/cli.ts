@@ -55,6 +55,11 @@ type OutdatedAttempt = {
   result?: ToolResult<any>;
 };
 
+const skippedToolResult: ToolResult<any> = {
+  ok: true,
+  status: "skipped",
+};
+
 type WorkspacePackageMeta = { path: string; name: string; pkg: any };
 
 type ParsedYamlLine = {
@@ -1675,7 +1680,7 @@ async function executeAnalysis(
   }
   if (!opts.outProvided && opts.format !== "html") {
     opts.out = defaultOutputName(opts.format);
-    outputPath = path.resolve(opts.out);
+    outputPath = path.resolve(projectPath, opts.out);
   }
 
   if (shouldWriteArtifacts) {
@@ -1835,7 +1840,7 @@ async function executeAnalysis(
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
-          : Promise.resolve(undefined),
+          : Promise.resolve(opts.audit ? skippedToolResult : undefined),
         runNpmLs(meta.path, pkgTempDir, scanManager, {
           contextLabel: meta.name,
           lockfileSearchRoot: projectPath,
@@ -1859,7 +1864,7 @@ async function executeAnalysis(
             ).catch(
               (err) => ({ ok: false, error: String(err) }) as ToolResult<any>,
             )
-          : Promise.resolve(undefined),
+          : Promise.resolve(opts.outdated ? skippedToolResult : undefined),
       ]);
       perPackageAudit.push(a);
       perPackageLs.push(l);
@@ -1869,11 +1874,12 @@ async function executeAnalysis(
 
     if (opts.audit) {
       const auditOk = perPackageAudit.every((r) => r && r.ok);
+      const auditSkipped = perPackageAudit.every((r) => r?.status === "skipped");
       if (!opts.quiet || !auditOk) {
         spinner.log(
           statusLine(
-            auditOk ? "✔" : "✖",
-            `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`,
+            auditSkipped ? "ℹ" : auditOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} audit data ${auditSkipped ? "skipped" : auditOk ? "collected" : "unavailable"}`,
           ),
         );
       }
@@ -1890,11 +1896,14 @@ async function executeAnalysis(
       const outdatedOk = perPackageOutdated.every(
         (r) => r.result && r.result.ok,
       );
+      const outdatedSkipped = perPackageOutdated.every(
+        (r) => r.result?.status === "skipped",
+      );
       if (!opts.quiet || !outdatedOk) {
         spinner.log(
           statusLine(
-            outdatedOk ? "✔" : "✖",
-            `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`,
+            outdatedSkipped ? "ℹ" : outdatedOk ? "✔" : "✖",
+            `${scanManager.toUpperCase()} outdated data ${outdatedSkipped ? "skipped" : outdatedOk ? "collected" : "unavailable"}`,
           ),
         );
       }

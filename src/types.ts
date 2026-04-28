@@ -204,6 +204,7 @@ export interface SupplyChainSummary {
 
 export interface ToolResult<T> {
   ok: boolean;
+  status?: 'skipped';
   data?: T;
   error?: string;
   file?: string;

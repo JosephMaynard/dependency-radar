@@ -31,30 +31,87 @@ function satisfiesComparator(target, comparator) {
     return diff === 0;
 }
 function comparatorAllowsTargetMajor(comparator, minTarget, maxTarget) {
+    const bounds = boundsForComparator(comparator);
+    return !bounds || intervalsOverlap(bounds, { lower: minTarget, lowerInclusive: true, upper: maxTarget, upperInclusive: false });
+}
+function boundsForComparator(comparator) {
     const match = comparator.trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+(?:\.\d+){0,2})/);
     if (!match)
-        return true;
+        return undefined;
     const version = parseVersion(match[2]);
     if (!version)
-        return true;
+        return undefined;
     const op = match[1] || '=';
     if (op === '<')
-        return compare(minTarget, version) < 0;
+        return { lowerInclusive: true, upper: version, upperInclusive: false };
     if (op === '<=')
-        return compare(minTarget, version) <= 0;
+        return { lowerInclusive: true, upper: version, upperInclusive: true };
     if (op === '>')
-        return compare(maxTarget, version) > 0;
+        return { lower: version, lowerInclusive: false, upperInclusive: true };
     if (op === '>=')
-        return compare(maxTarget, version) > 0;
-    return compare(minTarget, version) <= 0 && compare(version, maxTarget) < 0;
+        return { lower: version, lowerInclusive: true, upperInclusive: true };
+    return { lower: version, lowerInclusive: true, upper: version, upperInclusive: true };
+}
+function laterLower(a, b) {
+    if (!a.lower)
+        return { lower: b.lower, lowerInclusive: b.lowerInclusive };
+    if (!b.lower)
+        return { lower: a.lower, lowerInclusive: a.lowerInclusive };
+    const diff = compare(a.lower, b.lower);
+    if (diff > 0)
+        return { lower: a.lower, lowerInclusive: a.lowerInclusive };
+    if (diff < 0)
+        return { lower: b.lower, lowerInclusive: b.lowerInclusive };
+    return { lower: a.lower, lowerInclusive: a.lowerInclusive && b.lowerInclusive };
+}
+function earlierUpper(a, b) {
+    if (!a.upper)
+        return { upper: b.upper, upperInclusive: b.upperInclusive };
+    if (!b.upper)
+        return { upper: a.upper, upperInclusive: a.upperInclusive };
+    const diff = compare(a.upper, b.upper);
+    if (diff < 0)
+        return { upper: a.upper, upperInclusive: a.upperInclusive };
+    if (diff > 0)
+        return { upper: b.upper, upperInclusive: b.upperInclusive };
+    return { upper: a.upper, upperInclusive: a.upperInclusive && b.upperInclusive };
+}
+function intervalsOverlap(a, b) {
+    const lower = laterLower(a, b);
+    const upper = earlierUpper(a, b);
+    if (!lower.lower || !upper.upper)
+        return true;
+    const diff = compare(lower.lower, upper.upper);
+    if (diff < 0)
+        return true;
+    if (diff > 0)
+        return false;
+    return lower.lowerInclusive && upper.upperInclusive;
 }
 function comparatorsOverlapTargetMajor(comparators, targetMajor) {
-    const minTarget = [targetMajor, 0, 0];
-    const maxTarget = [targetMajor + 1, 0, 0];
-    if (!comparators.every((comparator) => comparatorAllowsTargetMajor(comparator, minTarget, maxTarget)))
-        return false;
-    return (comparators.every((comparator) => satisfiesComparator(minTarget, comparator)) ||
-        comparators.every((comparator) => satisfiesComparator([targetMajor, 999, 999], comparator)));
+    const target = {
+        lower: [targetMajor, 0, 0],
+        lowerInclusive: true,
+        upper: [targetMajor + 1, 0, 0],
+        upperInclusive: false,
+    };
+    let interval = {
+        lowerInclusive: true,
+        upperInclusive: true,
+    };
+    for (const comparator of comparators) {
+        if (!comparatorAllowsTargetMajor(comparator, target.lower, target.upper))
+            return false;
+        const bounds = boundsForComparator(comparator);
+        if (!bounds)
+            continue;
+        const lower = laterLower(interval, bounds);
+        const upper = earlierUpper(interval, bounds);
+        interval = { ...lower, ...upper };
+        if (!intervalsOverlap(interval, target))
+            return false;
+    }
+    return intervalsOverlap(interval, target);
 }
 function expandToken(token) {
     const trimmed = token.trim();

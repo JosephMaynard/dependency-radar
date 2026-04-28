@@ -22,6 +22,10 @@ const schema_1 = require("./schema");
 const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
+const skippedToolResult = {
+    ok: true,
+    status: "skipped",
+};
 function normalizeSlashes(p) {
     return p.split(path_1.default.sep).join("/");
 }
@@ -1424,7 +1428,7 @@ async function executeAnalysis(opts, options) {
     }
     if (!opts.outProvided && opts.format !== "html") {
         opts.out = (0, outputFormats_1.defaultOutputName)(opts.format);
-        outputPath = path_1.default.resolve(opts.out);
+        outputPath = path_1.default.resolve(projectPath, opts.out);
     }
     if (shouldWriteArtifacts) {
         try {
@@ -1530,7 +1534,7 @@ async function executeAnalysis(opts, options) {
                 opts.audit
                     && supportsRegistryCollectors(scanManager)
                     ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(undefined),
+                    : Promise.resolve(opts.audit ? skippedToolResult : undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
                     contextLabel: meta.name,
                     lockfileSearchRoot: projectPath,
@@ -1543,7 +1547,7 @@ async function executeAnalysis(opts, options) {
                 opts.outdated
                     && supportsRegistryCollectors(scanManager)
                     ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(undefined),
+                    : Promise.resolve(opts.outdated ? skippedToolResult : undefined),
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
@@ -1552,8 +1556,9 @@ async function executeAnalysis(opts, options) {
         }
         if (opts.audit) {
             const auditOk = perPackageAudit.every((r) => r && r.ok);
+            const auditSkipped = perPackageAudit.every((r) => (r === null || r === void 0 ? void 0 : r.status) === "skipped");
             if (!opts.quiet || !auditOk) {
-                spinner.log(statusLine(auditOk ? "✔" : "✖", `${scanManager.toUpperCase()} audit data ${auditOk ? "collected" : "unavailable"}`));
+                spinner.log(statusLine(auditSkipped ? "ℹ" : auditOk ? "✔" : "✖", `${scanManager.toUpperCase()} audit data ${auditSkipped ? "skipped" : auditOk ? "collected" : "unavailable"}`));
             }
         }
         if (opts.auditSignatures && !opts.quiet) {
@@ -1567,8 +1572,9 @@ async function executeAnalysis(opts, options) {
         }
         if (opts.outdated) {
             const outdatedOk = perPackageOutdated.every((r) => r.result && r.result.ok);
+            const outdatedSkipped = perPackageOutdated.every((r) => { var _a; return ((_a = r.result) === null || _a === void 0 ? void 0 : _a.status) === "skipped"; });
             if (!opts.quiet || !outdatedOk) {
-                spinner.log(statusLine(outdatedOk ? "✔" : "✖", `${scanManager.toUpperCase()} outdated data ${outdatedOk ? "collected" : "unavailable"}`));
+                spinner.log(statusLine(outdatedSkipped ? "ℹ" : outdatedOk ? "✔" : "✖", `${scanManager.toUpperCase()} outdated data ${outdatedSkipped ? "skipped" : outdatedOk ? "collected" : "unavailable"}`));
             }
         }
         const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
