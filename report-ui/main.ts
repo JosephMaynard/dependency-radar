@@ -1674,7 +1674,7 @@ async function init(): Promise<void> {
     themeSwitch: document.getElementById("theme-switch") as HTMLElement,
     licenseToggle: document.getElementById(
       "license-toggle",
-    ) as HTMLButtonElement,
+    ) as HTMLButtonElement | null,
     licensePanel: document.getElementById("license-panel") as HTMLElement,
     licensePermissive: document.getElementById(
       "license-permissive",
@@ -1696,7 +1696,37 @@ async function init(): Promise<void> {
     filtersToggle: document.getElementById(
       "filters-toggle",
     ) as HTMLButtonElement,
+    filterCountBadge: document.getElementById(
+      "filter-count-badge",
+    ) as HTMLElement | null,
     filterControls: document.getElementById("filter-controls") as HTMLElement,
+    activeFiltersRow: document.getElementById(
+      "active-filters-row",
+    ) as HTMLElement | null,
+    activeFilterChips: document.getElementById(
+      "active-filter-chips",
+    ) as HTMLElement | null,
+    activeFilterClear: document.getElementById(
+      "active-filter-clear",
+    ) as HTMLButtonElement | null,
+    clearAllFilters: document.getElementById(
+      "clear-all-filters",
+    ) as HTMLButtonElement | null,
+    licensePermissiveLabel: document.getElementById(
+      "license-permissive-label",
+    ) as HTMLElement | null,
+    licenseWeakCopyleftLabel: document.getElementById(
+      "license-weak-copyleft-label",
+    ) as HTMLElement | null,
+    licenseStrongCopyleftLabel: document.getElementById(
+      "license-strong-copyleft-label",
+    ) as HTMLElement | null,
+    licenseUnknownLabel: document.getElementById(
+      "license-unknown-label",
+    ) as HTMLElement | null,
+    hasVulnsLabel: document.getElementById(
+      "has-vulns-label",
+    ) as HTMLElement | null,
     columnHeadersContainer: document.getElementById(
       "column-headers-container",
     ) as HTMLElement,
@@ -1795,36 +1825,36 @@ async function init(): Promise<void> {
   const syncResponsiveFilterState = (): void => {
     const isMobile = mobileFilterQuery.matches;
     if (isMobile) {
-      // Mobile defaults to collapsed controls and always-open license section.
       setFiltersOpen(false);
-      controls.licensePanel.classList.add("open");
-      controls.licenseToggle.classList.add("open");
       lastViewportWasMobile = true;
       return;
     }
     if (lastViewportWasMobile) {
-      // Reset classes when moving back to desktop from mobile.
       setFiltersOpen(false);
-      controls.licensePanel.classList.remove("open");
-      controls.licenseToggle.classList.remove("open");
     }
     lastViewportWasMobile = false;
   };
 
-  // License panel toggle
-  controls.licenseToggle.addEventListener("click", () => {
-    if (mobileFilterQuery.matches) return;
-    controls.licenseToggle.classList.toggle("open");
-    controls.licensePanel.classList.toggle("open");
-  });
-
-  // Mobile filters toggle
+  // Filters popover toggle
   if (controls.filtersToggle && controls.filterControls) {
     controls.filtersToggle.addEventListener("click", () => {
       const isOpen = !controls.filterControls.classList.contains("open");
       setFiltersOpen(isOpen);
     });
   }
+  document.addEventListener("click", (event) => {
+    if (!controls.filterControls || !controls.filtersToggle) return;
+    const target = event.target as Node;
+    if (
+      !controls.filterControls.contains(target) &&
+      !controls.filtersToggle.contains(target)
+    ) {
+      setFiltersOpen(false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setFiltersOpen(false);
+  });
 
   window.addEventListener("resize", syncResponsiveFilterState);
   syncResponsiveFilterState();
@@ -1932,20 +1962,96 @@ async function init(): Promise<void> {
 
   const allDependencies = Object.values(report.dependencies || {});
   const workspaceNames = buildWorkspaceFilterOptions(report);
+  const formatCount = (label: string, count: number): string =>
+    label + " (" + count + ")";
+  const hasVulnerabilities = (dep: DependencyRecord): boolean =>
+    severityOrder[highestSeverity(normalizeSecurity(dep).summary)] > 0;
+  const countBy = (
+    predicate: (dep: DependencyRecord) => boolean,
+  ): number => allDependencies.reduce((count, dep) => count + (predicate(dep) ? 1 : 0), 0);
+  function updateFilterOptionCounts(): void {
+    const total = allDependencies.length;
+    controls.direct.options[0].textContent = formatCount("All", total);
+    controls.direct.options[1].textContent = formatCount(
+      "Direct",
+      countBy((dep) => dep.usage.direct),
+    );
+    controls.direct.options[2].textContent = formatCount(
+      "Transitive",
+      countBy((dep) => !dep.usage.direct),
+    );
+
+    const scopeLabels: Record<string, string> = {
+      all: "All",
+      runtime: "Production",
+      dev: "Development",
+      optional: "Optional",
+      peer: "Peer",
+    };
+    Array.from(controls.runtime.options).forEach((option) => {
+      option.textContent = formatCount(
+        scopeLabels[option.value] || option.textContent || option.value,
+        option.value === "all"
+          ? total
+          : countBy((dep) => dep.usage.scope === option.value),
+      );
+    });
+
+    const licenseCounts = {
+      permissive: 0,
+      weakCopyleft: 0,
+      strongCopyleft: 0,
+      unknown: 0,
+    };
+    allDependencies.forEach((dep) => {
+      licenseCounts[getLicenseCategory(resolvePrimaryLicense(dep).value)] += 1;
+    });
+    if (controls.licensePermissiveLabel)
+      controls.licensePermissiveLabel.textContent = formatCount(
+        "Permissive",
+        licenseCounts.permissive,
+      );
+    if (controls.licenseWeakCopyleftLabel)
+      controls.licenseWeakCopyleftLabel.textContent = formatCount(
+        "Weak Copyleft",
+        licenseCounts.weakCopyleft,
+      );
+    if (controls.licenseStrongCopyleftLabel)
+      controls.licenseStrongCopyleftLabel.textContent = formatCount(
+        "Strong Copyleft",
+        licenseCounts.strongCopyleft,
+      );
+    if (controls.licenseUnknownLabel)
+      controls.licenseUnknownLabel.textContent = formatCount(
+        "Other / Unknown",
+        licenseCounts.unknown,
+      );
+    if (controls.hasVulnsLabel)
+      controls.hasVulnsLabel.textContent = formatCount(
+        "Has vulnerabilities",
+        countBy(hasVulnerabilities),
+      );
+  }
   if (controls.workspace && controls.workspaceWrap && workspaceNames.length > 1) {
     controls.workspace.textContent = "";
     const allOption = document.createElement("option");
     allOption.value = "all";
-    allOption.textContent = "All workspaces";
+    allOption.textContent = formatCount("All workspaces", allDependencies.length);
     controls.workspace.appendChild(allOption);
     workspaceNames.forEach((workspaceName) => {
       const option = document.createElement("option");
       option.value = workspaceName;
-      option.textContent = workspaceName === "root" ? "Workspace root" : workspaceName;
+      option.textContent = formatCount(
+        workspaceName === "root" ? "Workspace root" : workspaceName,
+        countBy((dep) =>
+          (dep.usage.origins.workspaces || []).includes(workspaceName),
+        ),
+      );
       controls.workspace.appendChild(option);
     });
     controls.workspaceWrap.classList.remove("hidden");
   }
+  updateFilterOptionCounts();
   const depByKey = new Map<string, DependencyRecord>();
   allDependencies.forEach((dep) => {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
@@ -2064,7 +2170,7 @@ async function init(): Promise<void> {
         return false;
       if (
         hasVulns &&
-        severityOrder[highestSeverity(normalizeSecurity(dep).summary)] === 0
+        !hasVulnerabilities(dep)
       )
         return false;
 
@@ -2077,6 +2183,136 @@ async function init(): Promise<void> {
 
       return true;
     });
+  }
+
+  type ActiveFilterChip = {
+    id: string;
+    label: string;
+    remove: () => void;
+  };
+
+  function selectedOptionLabel(select: HTMLSelectElement): string {
+    const option = select.selectedOptions[0];
+    return (option?.textContent || "").replace(/\s+\(\d+\)$/, "");
+  }
+
+  function resetNonSearchFilters(): void {
+    controls.direct.value = "all";
+    controls.runtime.value = "all";
+    if (controls.workspace) controls.workspace.value = "all";
+    controls.hasVulns.checked = false;
+    controls.licensePermissive.checked = true;
+    controls.licenseWeakCopyleft.checked = true;
+    controls.licenseStrongCopyleft.checked = true;
+    controls.licenseUnknown.checked = true;
+  }
+
+  function getActiveFilterChips(): ActiveFilterChip[] {
+    const chips: ActiveFilterChip[] = [];
+    if (controls.direct.value !== "all") {
+      chips.push({
+        id: "type",
+        label: "Type: " + selectedOptionLabel(controls.direct),
+        remove: () => {
+          controls.direct.value = "all";
+        },
+      });
+    }
+    if (controls.runtime.value !== "all") {
+      chips.push({
+        id: "scope",
+        label: "Scope: " + selectedOptionLabel(controls.runtime),
+        remove: () => {
+          controls.runtime.value = "all";
+        },
+      });
+    }
+    if (controls.workspace && controls.workspace.value !== "all") {
+      chips.push({
+        id: "workspace",
+        label: "Workspace: " + selectedOptionLabel(controls.workspace),
+        remove: () => {
+          controls.workspace.value = "all";
+        },
+      });
+    }
+    const licenseFilters = [
+      {
+        id: "license-permissive",
+        checked: controls.licensePermissive.checked,
+        label: "License: Permissive",
+        reset: () => {
+          controls.licensePermissive.checked = true;
+        },
+      },
+      {
+        id: "license-weak-copyleft",
+        checked: controls.licenseWeakCopyleft.checked,
+        label: "License: Weak Copyleft",
+        reset: () => {
+          controls.licenseWeakCopyleft.checked = true;
+        },
+      },
+      {
+        id: "license-strong-copyleft",
+        checked: controls.licenseStrongCopyleft.checked,
+        label: "License: Strong Copyleft",
+        reset: () => {
+          controls.licenseStrongCopyleft.checked = true;
+        },
+      },
+      {
+        id: "license-unknown",
+        checked: controls.licenseUnknown.checked,
+        label: "License: Other / Unknown",
+        reset: () => {
+          controls.licenseUnknown.checked = true;
+        },
+      },
+    ];
+    licenseFilters.forEach((filter) => {
+      if (filter.checked) return;
+      chips.push({
+        id: filter.id,
+        label: filter.label,
+        remove: filter.reset,
+      });
+    });
+    if (controls.hasVulns.checked) {
+      chips.push({
+        id: "has-vulns",
+        label: "Has vulnerabilities",
+        remove: () => {
+          controls.hasVulns.checked = false;
+        },
+      });
+    }
+    return chips;
+  }
+
+  function syncActiveFilterUi(): void {
+    const chips = getActiveFilterChips();
+    const activeCount = chips.length;
+    controls.filtersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (controls.filterCountBadge) {
+      controls.filterCountBadge.hidden = activeCount === 0;
+      controls.filterCountBadge.textContent = String(activeCount);
+    }
+    if (controls.activeFiltersRow && controls.activeFilterChips) {
+      controls.activeFiltersRow.hidden = activeCount === 0;
+      controls.activeFilterChips.innerHTML = chips
+        .map(
+          (chip) =>
+            '<span class="active-filter-chip">' +
+            escapeHtml(chip.label) +
+            '<button type="button" class="active-filter-remove" data-filter-chip="' +
+            escapeHtml(chip.id) +
+            '" aria-label="Remove ' +
+            escapeHtml(chip.label) +
+            '">×</button></span>',
+        )
+        .join("");
+    }
   }
 
   function sortDeps(deps: DependencyRecord[]): DependencyRecord[] {
@@ -2107,6 +2343,7 @@ async function init(): Promise<void> {
   }
 
   function renderList(): void {
+    syncActiveFilterUi();
     const filtered = applyFilters();
     const deps = sortDeps(filtered);
 
@@ -2323,6 +2560,26 @@ async function init(): Promise<void> {
     ctrl.addEventListener("input", handleFilterControlChange);
     ctrl.addEventListener("change", handleFilterControlChange);
   });
+
+  controls.activeFilterChips?.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "[data-filter-chip]",
+    );
+    if (!button) return;
+    const chip = getActiveFilterChips().find(
+      (item) => item.id === button.dataset.filterChip,
+    );
+    if (!chip) return;
+    chip.remove();
+    handleFilterControlChange();
+  });
+
+  const clearFilters = (): void => {
+    resetNonSearchFilters();
+    handleFilterControlChange();
+  };
+  controls.activeFilterClear?.addEventListener("click", clearFilters);
+  controls.clearAllFilters?.addEventListener("click", clearFilters);
 
   controls.viewGraphButton?.addEventListener("click", () => {
     setActiveView("graph");

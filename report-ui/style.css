@@ -287,10 +287,11 @@ body {
 }
 
 .filter-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   align-items: center;
-  gap: 4px 16px;
+  gap: 8px;
 }
 
 .filter-top-row {
@@ -301,9 +302,9 @@ body {
 }
 
 .filter-top-row .search-wrapper {
-  flex: 1;
-  min-width: 0;
-  max-width: none;
+  flex: 1 1 420px;
+  min-width: 240px;
+  max-width: 520px;
 }
 
 .view-switch {
@@ -340,25 +341,38 @@ body {
 }
 
 .filter-controls {
-  display: block;
+  position: absolute;
+  top: calc(100% - 4px);
+  left: min(530px, calc(100% - 440px));
+  z-index: 120;
+  width: min(440px, calc(100vw - 48px));
   min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    opacity var(--transition),
+    transform var(--transition);
 }
 
 .filter-controls-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  display: grid;
+  gap: 14px;
 }
 
 .filters-toggle {
-  display: none;
-  padding: 6px 12px;
+  display: inline-flex;
+  padding: 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
-  background: transparent;
+  background: var(--bg-primary);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   align-items: center;
   gap: 6px;
@@ -371,6 +385,31 @@ body {
   color: var(--accent);
 }
 
+.filters-toggle.open,
+.filters-toggle.has-active-filters {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-subtle);
+}
+
+.filter-count-badge {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.filter-count-badge[hidden] {
+  display: none;
+}
+
 .filters-toggle .chevron {
   transition: transform var(--transition);
 }
@@ -379,7 +418,12 @@ body {
   transform: rotate(180deg);
 }
 
-.filter-row > .license-filter-panel-row,
+.filter-controls.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 .filter-row > .column-headers-section {
   grid-column: 1 / -1;
   width: 100%;
@@ -392,13 +436,36 @@ body {
 }
 
 .filter-group {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 6px;
 }
 
 .workspace-filter-group.hidden {
   display: none;
+}
+
+.filter-panel-section {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filter-panel-section:last-of-type {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.filter-panel-context:has(.workspace-filter-group.hidden) {
+  display: none;
+}
+
+.filter-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .filter-label {
@@ -462,6 +529,10 @@ select {
   transition:
     border-color var(--transition),
     background var(--transition);
+}
+
+.filter-controls select {
+  width: 100%;
 }
 
 select:focus {
@@ -557,8 +628,9 @@ select:focus {
   background: var(--accent);
 }
 
-/* ===== COLLAPSIBLE LICENSE FILTER ===== */
+/* ===== FILTER PANEL LICENSE CONTROLS ===== */
 .license-filter-toggle {
+  display: none;
   padding: 6px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
@@ -586,33 +658,25 @@ select:focus {
 }
 
 .license-filter-panel-row {
-  min-width: 0;
+  display: none;
 }
 
 .license-filter-panel {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid transparent;
-}
-
-.license-filter-panel.open {
-  max-height: 220px;
-  border-bottom-color: var(--border-color);
+  background: transparent;
 }
 
 .license-filter-inner {
   max-width: 100%;
   margin: 0;
-  padding: 12px 0;
+  padding: 0;
 }
 
 .license-filter-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .license-filter-title {
@@ -626,6 +690,8 @@ select:focus {
 .license-quick-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .quick-action-btn {
@@ -645,9 +711,8 @@ select:focus {
 }
 
 .license-groups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  display: grid;
+  gap: 8px;
 }
 
 .license-group-checkbox {
@@ -657,6 +722,75 @@ select:focus {
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
+}
+
+.filter-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.active-filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 6px;
+}
+
+.active-filters-row[hidden] {
+  display: none;
+}
+
+.active-filters-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.active-filter-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.active-filter-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.active-filter-remove:hover {
+  color: var(--accent);
+}
+
+.active-filter-clear {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.active-filter-clear:hover {
+  text-decoration: underline;
 }
 
 .license-group-checkbox input[type="checkbox"] {
@@ -2078,12 +2212,8 @@ details[open] > summary .expand-icon {
 
 /* Medium desktop/tablet landscape: stack search above controls */
 @media (max-width: 1180px) and (min-width: 769px) {
-  .filter-row {
-    grid-template-columns: 1fr;
-  }
-
   .filter-top-row {
-    max-width: 560px;
+    max-width: none;
   }
 
   .graph-overlay-top {
@@ -2158,8 +2288,13 @@ details[open] > summary .expand-icon {
     flex: 1 1 100%;
   }
 
+  .filter-top-row .search-wrapper {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
   .view-switch {
-    order: 2;
+    order: 3;
   }
 
   .view-switch-btn {
@@ -2167,11 +2302,13 @@ details[open] > summary .expand-icon {
   }
 
   .filters-toggle {
-    display: inline-flex;
+    order: 2;
     flex-shrink: 0;
   }
 
   .filter-controls {
+    position: static;
+    width: 100%;
     max-height: 0;
     opacity: 0;
     overflow: hidden;
@@ -2183,6 +2320,8 @@ details[open] > summary .expand-icon {
       transform 0.25s ease-out,
       margin-top 0.25s ease-out;
     margin-top: 0;
+    padding: 0 12px;
+    box-shadow: none;
   }
 
   .filter-controls.open {
@@ -2190,47 +2329,21 @@ details[open] > summary .expand-icon {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
-    margin-top: 10px;
-  }
-
-  .license-filter-panel-row {
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transform: translateY(-8px);
-    pointer-events: none;
-    transition:
-      max-height 0.3s ease-out,
-      opacity 0.25s ease-out,
-      transform 0.25s ease-out,
-      margin-top 0.25s ease-out;
-    margin-top: 0;
-  }
-
-  .filter-controls.open + .license-filter-panel-row {
-    max-height: 560px;
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
     margin-top: 8px;
+    padding: 12px;
   }
 
   .filter-controls-row {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
     gap: 10px;
   }
 
   .filter-group {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: grid;
   }
 
   .filter-group select {
-    flex: 1;
-    max-width: 200px;
+    max-width: none;
   }
 
   /* Show mobile-only sort dropdown */
@@ -2240,23 +2353,13 @@ details[open] > summary .expand-icon {
   }
 
   .theme-toggle {
-    order: 100; /* Push to end of flex container */
+    order: 4;
     margin-left: auto;
   }
 
   /* License toggle is replaced by always-open panel on mobile */
   .license-filter-toggle {
     display: none;
-  }
-
-  .license-filter-panel,
-  .license-filter-panel.open {
-    max-height: none;
-    border-bottom-color: var(--border-color);
-  }
-
-  .license-filter-inner {
-    padding: 12px 0 10px;
   }
 
   /* Hide column headers on mobile - use sort dropdown instead */
