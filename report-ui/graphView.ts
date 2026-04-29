@@ -163,6 +163,11 @@ type EdgeRoutingConfig = {
   edgeCurve: number;
 };
 
+type FocusLayoutPoint = {
+  x: number;
+  y: number;
+};
+
 declare global {
   interface Window {
     __DEPENDENCY_DATA__?: unknown;
@@ -189,6 +194,12 @@ const GRAPH_LABEL_FONT =
   '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const PAN_BOUNDS_X_PADDING = 120;
 const PAN_BOUNDS_Y_PADDING = 90;
+const FOCUS_LAYER_GAP = 170;
+const FOCUS_ROW_GAP = 34;
+const FOCUS_MIN_ROW_GAP = 24;
+const FOCUS_MAX_COLUMN_SPREAD = 660;
+const VIEWPORT_ANIMATION_EASING = 0.12;
+const FOCUS_LAYOUT_EASING = 0.18;
 
 /**
  * Constrains a number to lie within the inclusive range [min, max].
@@ -640,6 +651,29 @@ function collectDescendants(graph: WorkspaceGraph, slug: string): Set<string> {
   return result;
 }
 
+function collectDirectedDistances(
+  graph: WorkspaceGraph,
+  slug: string,
+  direction: "parents" | "children",
+): Map<string, number> {
+  const distances = new Map<string, number>();
+  const queue: Array<{ slug: string; distance: number }> = [
+    { slug, distance: 0 },
+  ];
+  let index = 0;
+  while (index < queue.length) {
+    const current = queue[index++];
+    const node = graph.nodes.get(current.slug);
+    if (!node) continue;
+    node[direction].forEach((nextSlug) => {
+      if (distances.has(nextSlug)) return;
+      distances.set(nextSlug, current.distance + 1);
+      queue.push({ slug: nextSlug, distance: current.distance + 1 });
+    });
+  }
+  return distances;
+}
+
 function adaptDataset(
   report: AggregatedData,
   knownDepKeys: Set<string>,
@@ -825,6 +859,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let focusNodes = new Set<string>();
   let focusEdges = new Set<string>();
   let focusPushNodes = new Set<string>();
+  let focusLayoutTargets = new Map<string, FocusLayoutPoint>();
+  let focusCenterX: number | null = null;
+  let focusCenterY: number | null = null;
   let hoverNodes = new Set<string>();
   let hoverEdges = new Set<string>();
   let popoverSlug: string | null = null;
@@ -836,6 +873,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let minZoom = 0.1;
   let defaultPanX = 0;
   let defaultPanY = 0;
+  let targetPanX: number | null = null;
+  let targetPanY: number | null = null;
 
   let active = false;
   let dirty = true;
@@ -1013,6 +1052,44 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panY = clamped.y;
   }
 
+  function setViewportTarget(nextPanX: number, nextPanY: number): void {
+    const clamped = clampPanToGraph(nextPanX, nextPanY);
+    targetPanX = clamped.x;
+    targetPanY = clamped.y;
+  }
+
+  function clearViewportTarget(): void {
+    targetPanX = null;
+    targetPanY = null;
+  }
+
+  function animateViewport(): boolean {
+    if (targetPanX === null || targetPanY === null) return false;
+    if (reducedMotionQuery?.matches) {
+      setPan(targetPanX, targetPanY);
+      clearViewportTarget();
+      dirty = true;
+      return false;
+    }
+
+    panX += (targetPanX - panX) * VIEWPORT_ANIMATION_EASING;
+    panY += (targetPanY - panY) * VIEWPORT_ANIMATION_EASING;
+    setPan(panX, panY);
+
+    const settled =
+      Math.abs((targetPanX ?? panX) - panX) < 0.35 &&
+      Math.abs((targetPanY ?? panY) - panY) < 0.35;
+    if (settled) {
+      setPan(targetPanX, targetPanY);
+      clearViewportTarget();
+      dirty = true;
+      return false;
+    }
+
+    dirty = true;
+    return true;
+  }
+
   /**
    * Set the view zoom level around a given screen anchor point and update pan accordingly.
    *
@@ -1026,6 +1103,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    */
   function applyZoom(nextZoom: number, anchorX: number, anchorY: number): void {
     stopInertia();
+    clearViewportTarget();
     const clamped = clamp(nextZoom, minZoom, MAX_ZOOM);
     const wx = worldX(anchorX);
     const wy = worldY(anchorY);
@@ -1045,6 +1123,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    */
   function panBy(dx: number, dy: number): void {
     stopInertia();
+    clearViewportTarget();
     setPan(panX + dx, panY + dy);
     dirty = true;
     requestRender();
@@ -1254,6 +1333,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function fitGraph(): void {
     if (!currentGraph) return;
     stopInertia();
+    clearViewportTarget();
     updateFitMetrics();
     zoom = fitZoom;
     setPan(defaultPanX, defaultPanY);
@@ -1623,8 +1703,85 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
   }
 
+  function buildFocusLayoutTargets(
+    graph: WorkspaceGraph,
+    slug: string,
+    centerX: number,
+    centerY: number,
+  ): Map<string, FocusLayoutPoint> {
+    const targets = new Map<string, FocusLayoutPoint>();
+    const ancestorDistances = collectDirectedDistances(graph, slug, "parents");
+    const descendantDistances = collectDirectedDistances(graph, slug, "children");
+    const columns = new Map<number, GraphNode[]>();
+
+    targets.set(slug, { x: centerX, y: centerY });
+
+    focusNodes.forEach((nodeSlug) => {
+      if (nodeSlug === slug) return;
+      const node = graph.nodes.get(nodeSlug);
+      if (!node) return;
+      const ancestorDistance = ancestorDistances.get(nodeSlug);
+      const descendantDistance = descendantDistances.get(nodeSlug);
+      let column = 0;
+      if (
+        typeof ancestorDistance === "number" &&
+        (typeof descendantDistance !== "number" ||
+          ancestorDistance <= descendantDistance)
+      ) {
+        column = -ancestorDistance;
+      } else if (typeof descendantDistance === "number") {
+        column = descendantDistance;
+      }
+      if (column === 0) column = node.baseX < centerX ? -1 : 1;
+      const bucket = columns.get(column) || [];
+      bucket.push(node);
+      columns.set(column, bucket);
+    });
+
+    columns.forEach((nodes, column) => {
+      nodes.sort((a, b) => {
+        const distanceA =
+          column < 0
+            ? ancestorDistances.get(a.slug) || 0
+            : descendantDistances.get(a.slug) || 0;
+        const distanceB =
+          column < 0
+            ? ancestorDistances.get(b.slug) || 0
+            : descendantDistances.get(b.slug) || 0;
+        if (distanceA !== distanceB) return distanceA - distanceB;
+        if (a.baseY !== b.baseY) return a.baseY - b.baseY;
+        return a.ref.name.localeCompare(b.ref.name);
+      });
+
+      const rowGap = clamp(
+        FOCUS_MAX_COLUMN_SPREAD / Math.max(1, nodes.length - 1),
+        FOCUS_MIN_ROW_GAP,
+        FOCUS_ROW_GAP,
+      );
+      const top = centerY - ((nodes.length - 1) * rowGap) * 0.5;
+      nodes.forEach((node, index) => {
+        const columnDistance = Math.abs(column);
+        const columnGap = FOCUS_LAYER_GAP * (1 + Math.max(0, columnDistance - 1) * 0.78);
+        targets.set(node.slug, {
+          x: centerX + Math.sign(column) * columnGap,
+          y: top + index * rowGap,
+        });
+      });
+    });
+
+    return targets;
+  }
+
+  function focusViewportOn(centerX: number, centerY: number): void {
+    if (!currentGraph) return;
+    const desiredZoom = clamp(Math.max(zoom, fitZoom * 1.35), minZoom, MAX_ZOOM);
+    zoom += (desiredZoom - zoom) * (reducedMotionQuery?.matches ? 1 : 0.35);
+    setViewportTarget(width * 0.46 - centerX * zoom, height * 0.5 - centerY * zoom);
+  }
+
   function applyFocus(slug: string): void {
     if (!currentGraph || !currentGraph.nodes.has(slug)) return;
+    stopInertia();
     focusSlug = slug;
     const ancestors = collectAncestors(currentGraph, slug);
     const descendants = collectDescendants(currentGraph, slug);
@@ -1678,6 +1835,24 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       focusPushNodes.add(nodeSlug);
     });
 
+    const firstFocus = focusCenterX === null || focusCenterY === null;
+    const previousFocusStillConnected =
+      !firstFocus && Boolean(popoverSlug) && focusNodes.has(popoverSlug);
+    if (firstFocus || !previousFocusStillConnected) {
+      focusCenterX = selected.renderX;
+      focusCenterY = selected.renderY;
+    }
+    focusLayoutTargets = buildFocusLayoutTargets(
+      currentGraph,
+      slug,
+      focusCenterX ?? selected.renderX,
+      focusCenterY ?? selected.renderY,
+    );
+    focusViewportOn(
+      focusCenterX ?? selected.renderX,
+      focusCenterY ?? selected.renderY,
+    );
+
     dirty = true;
     requestRender();
   }
@@ -1687,6 +1862,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     focusNodes = new Set();
     focusEdges = new Set();
     focusPushNodes = new Set();
+    focusLayoutTargets = new Map();
+    focusCenterX = null;
+    focusCenterY = null;
+    clearViewportTarget();
     dirty = true;
     requestRender();
   }
@@ -1723,6 +1902,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         (Boolean(focusSlug) && focusNodes.has(node.slug)) ||
           (!focusSlug && Boolean(hoverSlug) && hoverNodes.has(node.slug)),
       );
+      const focusTarget = focusLayoutTargets.get(node.slug);
+      if (selected && focusTarget) {
+        node.targetX = focusTarget.x;
+        node.targetY = focusTarget.y;
+        return;
+      }
       if (!selected || !focusPushNodes.has(node.slug)) {
         node.targetX = node.baseX;
         node.targetY = node.baseY;
@@ -1756,8 +1941,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         node.renderLabelChars = node.targetLabelChars;
         return;
       }
-      node.renderX += (node.targetX - node.renderX) * 0.15;
-      node.renderY += (node.targetY - node.renderY) * 0.15;
+      const positionEasing = focusSlug ? FOCUS_LAYOUT_EASING : 0.15;
+      node.renderX += (node.targetX - node.renderX) * positionEasing;
+      node.renderY += (node.targetY - node.renderY) * positionEasing;
       node.renderRadius += (node.targetRadius - node.renderRadius) * 0.18;
       node.renderLabelChars +=
         (node.targetLabelChars - node.renderLabelChars) *
@@ -2200,11 +2386,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     updateTargets();
     const moving = animateNodes();
     const inertial = animateInertia(performance.now());
+    const viewportMoving = animateViewport();
 
-    if (dirty || moving || inertial) {
+    if (dirty || moving || inertial || viewportMoving) {
       renderGraph();
       dirty = false;
-      if (active && (dirty || moving || inertial)) {
+      if (active && (dirty || moving || inertial || viewportMoving)) {
         frameId = window.requestAnimationFrame(tick);
       } else {
         frameId = 0;
@@ -2261,6 +2448,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   function handleCanvasMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
     stopInertia();
+    clearViewportTarget();
     panState.down = true;
     panState.moved = false;
     panState.startX = event.clientX;
@@ -2361,6 +2549,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (event.touches.length === 0) return;
     event.preventDefault();
     stopInertia();
+    clearViewportTarget();
     resetInteractionVisualState();
 
     const rect = options.canvas.getBoundingClientRect();
