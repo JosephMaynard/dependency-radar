@@ -8,7 +8,7 @@ exports.JS_CONTENT = exports.CSS_CONTENT = void 0;
  * CSS content for the dependency radar HTML report
  * Built from report-ui/style.css
  */
-exports.CSS_CONTENT = `*,*:before,*:after{box-sizing:border-box}:root{--bg-primary: #0c1222;--bg-secondary: #151d2e;--bg-card: rgba(21, 29, 46, .95);--bg-card-hover: rgba(30, 41, 59, .95);--text-primary: #e8edf5;--text-secondary: #8b99b0;--text-muted: #5c6b82;--border-color: rgba(99, 120, 150, .2);--border-color-strong: rgba(99, 120, 150, .35);--accent: #06b6d4;--accent-hover: #22d3ee;--accent-subtle: rgba(6, 182, 212, .15);--title-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);--green: #10b981;--green-bg: rgba(16, 185, 129, .15);--amber: #f59e0b;--amber-bg: rgba(245, 158, 11, .15);--red: #ef4444;--red-bg: rgba(239, 68, 68, .15);--gray: #64748b;--gray-bg: rgba(100, 116, 139, .15);--license-permissive: #10b981;--license-weak-copyleft: #f59e0b;--license-strong-copyleft: #ef4444;--license-unknown: #64748b;--font-stack: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;--font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", monospace;--transition: .2s ease;--radius: 8px;--radius-lg: 12px;--graph-direct-runtime: var(--green);--graph-direct-dev: var(--amber);--graph-transitive: var(--accent);--graph-edge: var(--border-color-strong);--graph-highlight: var(--accent-hover);--graph-muted: var(--text-muted);--graph-vuln-high: var(--red);--graph-vuln-medium: var(--amber)}:root.light{--bg-primary: #f5f7fa;--bg-secondary: #e8ecf2;--bg-card: rgba(255, 255, 255, .98);--bg-card-hover: rgba(248, 250, 252, 1);--text-primary: #0f172a;--text-secondary: #475569;--text-muted: #64748b;--border-color: rgba(100, 116, 139, .18);--border-color-strong: rgba(100, 116, 139, .3);--accent: #0891b2;--accent-hover: #06b6d4;--accent-subtle: rgba(8, 145, 178, .1);--title-gradient: linear-gradient(135deg, #0891b2 0%, #059669 100%);--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}[data-theme=light]{--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}html{scroll-behavior:smooth}@media(prefers-reduced-motion:reduce){html,*,*:before,*:after{scroll-behavior:auto;animation-duration:0s!important;animation-iteration-count:1!important;transition:none!important;transform:none!important}}body{font-family:var(--font-stack);background:var(--bg-primary);color:var(--text-primary);margin:0;padding:0;line-height:1.5;transition:background var(--transition),color var(--transition)}.top-header{padding:28px 24px 20px;max-width:1400px;margin:0 auto}.header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}.header-content{display:flex;align-items:flex-start;gap:18px}.logo,.logo-wrapper{display:block;width:6rem;height:6rem;flex-shrink:0}.logo svg{width:100%;height:100%}.header-text h1{margin:0;font-size:26px;font-weight:700;background:var(--title-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.02em}.header-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:12px}.meta-item{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary)}.meta-item strong{color:var(--text-primary);font-family:var(--font-mono);font-size:11px;font-weight:500}.meta-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.3px}.header-disclaimer{display:block;width:100%;font-size:10px;color:var(--text-muted);margin-top:6px;padding-left:2px}.cta-section{flex-shrink:0;text-align:right;max-width:280px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px}.cta-link{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--accent);color:#fff;text-decoration:none;border-radius:var(--radius);font-size:13px;font-weight:600;transition:all var(--transition);box-shadow:0 2px 8px #06b6d440;margin-bottom:2px}.cta-link:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 4px 12px #06b6d459}.cta-text{display:block;font-size:11px;color:var(--text-muted);margin:0;text-decoration:none;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary)}.cta-url,.cta-url:visited{display:block;font-size:11px;color:var(--text-muted);margin:0;text-decoration:none}.cta-url:hover{text-decoration:underline}.cta-arrow{font-size:14px;transition:transform var(--transition)}.cta-link:hover .cta-arrow{transform:translate(2px)}.filter-bar{position:sticky;top:0;z-index:100;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:12px 24px 4px;transition:background var(--transition),border-color var(--transition)}.filter-bar-inner{max-width:1360px;margin:0 auto}.filter-row{display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);align-items:center;gap:4px 16px}.filter-top-row{display:flex;align-items:center;gap:10px;min-width:0}.filter-top-row .search-wrapper{flex:1;min-width:0;max-width:none}.view-switch{display:inline-flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary)}.view-switch-btn{border:none;background:transparent;color:var(--text-secondary);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;transition:color var(--transition),background var(--transition);white-space:nowrap}.view-switch-btn:hover{color:var(--text-primary)}.view-switch-btn.active{color:var(--text-primary);background:var(--accent-subtle)}.filter-controls{display:block;min-width:0}.filter-controls-row{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.filters-toggle{display:none;padding:6px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;align-items:center;gap:6px;transition:all var(--transition);white-space:nowrap}.filters-toggle:hover{border-color:var(--accent);color:var(--accent)}.filters-toggle .chevron{transition:transform var(--transition)}.filters-toggle.open .chevron{transform:rotate(180deg)}.filter-row>.license-filter-panel-row,.filter-row>.column-headers-section{grid-column:1 / -1;width:100%}.mobile-only,.sort-wrapper.mobile-only{display:none}.filter-group{display:flex;align-items:center;gap:6px}.workspace-filter-group.hidden{display:none}.filter-label{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.search-wrapper{position:relative;flex:1;min-width:180px;max-width:280px}.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none}input[type=search]{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:14px;transition:border-color var(--transition),background var(--transition)}input[type=search]:focus{outline:none;border-color:var(--accent)}input[type=search]::placeholder{color:var(--text-muted)}select{padding:8px 28px 8px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color var(--transition),background var(--transition)}select:focus{outline:none;border-color:var(--accent)}.sort-wrapper{display:flex;align-items:center;gap:4px}.sort-wrapper select{margin-left:auto}.sort-direction-btn{padding:8px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;transition:all var(--transition)}.sort-direction-btn:hover{border-color:var(--accent);color:var(--accent)}.checkbox-filter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.checkbox-filter input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.theme-toggle{margin-left:auto;display:flex;align-items:center;gap:8px}.theme-toggle-label{font-size:12px;color:var(--text-muted)}.theme-switch{position:relative;width:44px;height:24px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:12px;cursor:pointer;transition:background var(--transition),border-color var(--transition)}.theme-switch:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--text-secondary);border-radius:50%;transition:transform var(--transition),background var(--transition)}.theme-switch.light:after{transform:translate(20px);background:var(--accent)}.license-filter-toggle{padding:6px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all var(--transition)}.license-filter-toggle:hover{border-color:var(--accent);color:var(--accent)}.license-filter-toggle .chevron{transition:transform var(--transition)}.license-filter-toggle.open .chevron{transform:rotate(180deg)}.license-filter-panel-row{min-width:0}.license-filter-panel{max-height:0;overflow:hidden;transition:max-height .3s ease-out;background:var(--bg-secondary);border-bottom:1px solid transparent}.license-filter-panel.open{max-height:220px;border-bottom-color:var(--border-color)}.license-filter-inner{max-width:100%;margin:0;padding:12px 0}.license-filter-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}.license-filter-title{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.license-quick-actions{display:flex;gap:8px}.quick-action-btn{padding:4px 10px;font-size:11px;border:1px solid var(--border-color);border-radius:4px;background:transparent;color:var(--text-secondary);cursor:pointer;transition:all var(--transition)}.quick-action-btn:hover{border-color:var(--accent);color:var(--accent)}.license-groups{display:flex;flex-wrap:wrap;gap:16px}.license-group-checkbox{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.license-group-checkbox input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.license-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.license-dot.permissive{background:var(--license-permissive)}.license-dot.weak-copyleft{background:var(--license-weak-copyleft)}.license-dot.strong-copyleft{background:var(--license-strong-copyleft)}.license-dot.unknown{background:var(--license-unknown)}.tool-errors{max-width:1400px;margin:16px auto;padding:12px 16px;background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);color:var(--red)}.tool-errors:empty{display:none}.tool-errors strong{display:block;margin-bottom:8px}.main-content{max-width:1400px;margin:0 auto;padding:8px 24px 48px}.view-panel{display:none}.view-panel.active{display:block}.graph-mode .filter-bar,.graph-mode .top-header,.graph-mode .results-summary,.graph-mode .report-footer{display:none}.graph-mode .main-content{max-width:none;padding:24px}.graph-workspace-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;-webkit-user-select:none;user-select:none}.graph-workspace-select{min-width:200px;max-width:240px}select.graph-workspace-select{background-color:#ffffff0d;border:1px solid rgba(100,116,139,.25);color:var(--text-primary);transition:all var(--transition)}select.graph-workspace-select:hover{background-color:#ffffff1a;border-color:#64748b66}select.graph-workspace-select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-subtle)}[data-theme=light] select.graph-workspace-select{background-color:#00000008;border-color:#64748b33}[data-theme=light] select.graph-workspace-select:hover{background-color:#0000000f}.graph-canvas-shell{--graph-toolbar-height: 50px;position:relative;width:100%;height:74vh;min-height:420px;max-height:980px;border:1px solid var(--border-color);border-radius:var(--radius-lg);background:radial-gradient(circle at 15% 20%,var(--accent-subtle),transparent 35%),radial-gradient(circle at 80% 80%,var(--accent-subtle),transparent 42%),var(--bg-card);overflow:hidden}.graph-mode .graph-canvas-shell{height:calc(100dvh - 48px);min-height:520px;max-height:none}.graph-overlay{position:absolute;z-index:8;pointer-events:auto;display:flex;align-items:center;gap:8px;padding:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d}.graph-key:before,.graph-workspace-wrap:before{content:"";display:block;width:1px;height:20px;position:absolute;top:50%;left:0;transform:translateY(-50%);background-color:var(--text-secondary)}.graph-key{padding-left:24px;display:flex;flex-direction:row;align-items:center;gap:12px;max-width:100%;position:relative}.graph-key-items{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}.graph-key-item{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:12px;line-height:1.1;white-space:nowrap}.graph-key-dot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px #ffffff1f}.graph-key-dot.dependency{background:var(--graph-direct-runtime)}.graph-key-dot.dev-dependency{background:var(--graph-direct-dev)}.graph-key-dot.sub-dependency{background:var(--graph-transitive)}[data-theme=light] .graph-overlay{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-overlay.hidden,.graph-workspace-wrap.hidden{display:none}.graph-workspace-wrap{display:flex;padding-left:24px;flex-direction:row;align-items:center;gap:12px;position:relative}[data-theme=light] .graph-overlay-top{background:#ffffffb3;border-color:#64748b26}.graph-overlay-top{align-items:center;position:absolute;top:0;left:0;right:0;display:flex;flex-wrap:wrap;column-gap:24px;row-gap:8px;background:#0f172ab3;border-bottom:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0 12px;min-height:50px}.graph-back-btn{gap:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d;top:12px;left:12px;color:var(--text-primary);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;transition:transform var(--transition),background var(--transition),border-color var(--transition),color var(--transition),box-shadow var(--transition);-webkit-user-select:none;user-select:none}.graph-back-btn:hover{background:#ffffff1a;border-color:#64748b66;color:var(--text-primary);transform:translateY(-1px);box-shadow:0 4px 12px #0003}[data-theme=light] .graph-back-btn:hover{background:#0000000d;box-shadow:0 4px 12px #00000014}[data-theme=light] .graph-back-btn{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-controls{flex-direction:column;align-items:center;gap:8px;padding:8px;top:calc(var(--graph-toolbar-height, 50px) + 12px);right:12px}.zoom-controls{display:grid;grid-template-columns:repeat(2,52px);gap:6px}.zoom-controls>.graph-control-btn{font-size:18px;width:100%}.dpad{display:grid;grid-template-columns:34px 34px 34px;grid-template-rows:34px 34px 34px;grid-template-areas:". up ." "left . right" ". down .";gap:2px}.dpad .up{grid-area:up}.dpad .left{grid-area:left}.dpad .right{grid-area:right}.dpad .down{grid-area:down}.center-spacer{grid-column:2;grid-row:2;width:32px;height:32px;border:none;background:transparent}.graph-control-btn{border:1px solid rgba(100,116,139,.25);background:#ffffff0d;color:var(--text-primary);font-size:12px;width:34px;height:30px;border-radius:6px;cursor:pointer;line-height:1;transition:transform var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition),color var(--transition)}.graph-control-btn:hover{background:#ffffff1f;border-color:#64748b66;transform:translateY(-1px);box-shadow:0 3px 10px #0003}[data-theme=light] .graph-control-btn{background:#00000008;border-color:#64748b26}[data-theme=light] .graph-control-btn:hover{background:#00000014;border-color:#64748b4d;box-shadow:0 3px 10px #00000014}.reset-btn{width:112px;text-transform:lowercase;letter-spacing:.2px}.graph-popover{position:absolute;z-index:9;min-width:220px;max-width:min(320px,calc(100% - 24px));padding:12px 14px;border:1px solid var(--border-color-strong);background:#0f172ad9;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:12px;box-shadow:0 12px 40px #0006,inset 0 1px #ffffff1a;pointer-events:auto}[data-theme=light] .graph-popover{background:#ffffffd9;box-shadow:0 12px 40px #0000001f,inset 0 1px #fff9}.graph-popover[hidden]{display:none}.graph-popover-name{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:600;margin-bottom:4px}.graph-popover-meta{font-size:12px;color:var(--text-secondary);margin-bottom:3px}.graph-popover-action{margin-top:8px;width:100%;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;padding:7px 8px;cursor:pointer}.graph-popover-action:hover{border-color:var(--accent);color:var(--accent)}#graph-canvas{width:100%;height:100%;display:block;cursor:grab}#graph-canvas.is-clickable{cursor:pointer}#graph-canvas.is-panning{cursor:grabbing}.dep-list-highlight{animation:dep-list-highlight 2s ease-out}@keyframes dep-list-highlight{0%{box-shadow:0 0 0 0 var(--accent-subtle);border-color:var(--accent)}to{box-shadow:0 0 0 18px transparent;border-color:var(--border-color)}}.report-footer{max-width:1400px;margin:0 auto;padding:0 24px 40px;color:var(--text-secondary);font-size:12px}.report-footer p{margin:8px 0 0}.report-footer.hidden{display:none}.column-headers-section{max-width:1376px;margin:0 auto;display:flex;align-items:center;padding:12px 0 8px 14px}.package-header-wrapper{display:flex;flex-direction:row;justify-content:space-between;gap:2px;flex:1;min-width:0;padding-right:1rem}.results-summary{font-size:12px;color:var(--text-secondary);white-space:nowrap}.results-summary strong{color:var(--text-primary)}.package-header{align-self:flex-start;padding:4px 8px 4px 0}#column-headers-container{margin-left:auto;flex-shrink:0;width:60%}.column-headers{display:grid;grid-template-columns:repeat(5,1fr);width:100%}.column-header{display:flex;align-items:center;gap:4px;border:none;background:transparent;font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;cursor:pointer;padding:4px 8px 4px 10px;border-left:1px solid var(--border-color);transition:color var(--transition);white-space:nowrap;line-height:1.1;overflow:hidden}.column-header-no-border{border-left:none}.column-header:hover{color:var(--text-primary)}.column-header.sorted{color:var(--accent)}.column-header-label{flex-shrink:1;overflow:hidden;text-overflow:ellipsis}.sort-indicator{font-size:9px;opacity:.8}.column-header:not(.sorted) .sort-indicator{visibility:hidden}.dependency-grid{display:flex;flex-direction:column;gap:8px}.dep-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);overflow:hidden;transition:border-color var(--transition)}.dep-card:hover{border-color:var(--border-color-strong)}.dep-card[data-risk=red]{border-left:3px solid var(--red)}.dep-card[data-risk=amber]{border-left:3px solid var(--amber)}.dep-card[data-risk=green]{border-left:3px solid var(--green)}.dep-summary{display:flex;align-items:center;gap:10px;padding:0 0 0 12px;cursor:pointer;list-style:none;transition:background var(--transition)}.dep-summary:hover{background:var(--bg-card-hover)}.dep-summary::-webkit-details-marker{display:none}.expand-icon{width:16px;height:16px;flex-shrink:0;display:inline-block;color:var(--text-muted);transition:transform var(--transition);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain}details[open]>summary .expand-icon{transform:rotate(90deg)}.dep-name{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-primary);padding:8px 0}.dep-version{font-weight:400;color:var(--text-secondary)}.dep-indicators{display:grid;grid-template-columns:repeat(5,1fr);margin-left:auto;flex-shrink:0;width:60%}.badge-card{display:flex;flex-direction:column;justify-content:center;min-height:38px;padding:4px 8px 4px 10px;background:var(--bg-primary);border-left:1px solid var(--border-color);position:relative;overflow:hidden}.badge-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gray)}.badge-card.green:before{background:var(--green)}.badge-card.amber:before{background:var(--amber)}.badge-card.red:before{background:var(--red)}.badge-card.gray:before{background:var(--gray)}.badge-label{font-size:8px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;line-height:1.1;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;margin:-1px;overflow:hidden;padding:0;position:absolute}.badge-value{font-size:11px;font-weight:500;color:var(--text-primary);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dep-details{padding:0 16px 16px;border-top:1px solid var(--border-color);animation:slideDown .2s ease-out}@keyframes slideDown{0%{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}.package-links{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;margin-bottom:4px;border-bottom:1px solid var(--border-color)}.package-link{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-hover);border:1px solid var(--border-color);border-radius:var(--radius-md);color:var(--text-primary);text-decoration:none;font-size:13px;font-weight:500;transition:all var(--transition)}.package-link:hover{background:var(--accent);border-color:var(--accent);color:#fff}.package-link svg{width:14px;height:14px;flex-shrink:0}.section,.section:first-child{margin-top:16px}.section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-color)}.section-title{font-size:13px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.section-desc{font-size:11px;color:var(--text-muted)}.kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.kv-grid-tight{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.kv-item{display:flex;flex-direction:column;gap:2px}.kv-label{font-size:12px;font-weight:500;color:var(--text-muted)}.kv-value{font-size:14px;color:var(--text-primary);overflow-wrap:anywhere;word-break:break-word}.kv-inline-link{color:var(--accent);text-decoration:none;font-size:12px;margin-left:6px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;text-underline-offset:2px}.kv-inline-link:hover{text-decoration:underline}.kv-inline-link-icon{width:11px;height:11px;flex-shrink:0}.kv-inline-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}.risk-value{display:inline-flex;align-items:center;gap:6px}.risk-dot{width:8px;height:8px;border-radius:999px;background:var(--gray);flex-shrink:0}.risk-dot.green{background:var(--green)}.risk-dot.amber{background:var(--amber)}.risk-dot.red{background:var(--red)}.kv-hint{font-size:11px;color:var(--text-muted);font-style:italic}.micro-summary{display:grid;gap:6px;padding:6px 0 2px}.micro-line{font-size:13px;color:var(--text-primary)}.micro-sublist{margin-top:8px}.micro-subtitle{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}.section-block{margin-top:12px}.block-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.section-note{font-size:12px;color:var(--text-secondary);margin:6px 0 12px}.subsection{padding:12px 0;border-top:1px solid var(--border-color)}.subsection:first-child{border-top:none;padding-top:0}.subsection-header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.subsection-title{font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.4px}.subsection-desc{font-size:11px;color:var(--text-muted)}.subsection.warning .subsection-title{color:var(--red)}.detail-list{margin-top:12px}.detail-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.detail-items{list-style:none;padding:0;margin:0;display:grid;gap:6px}.detail-items.mono .detail-item{font-family:var(--font-mono)}.detail-item{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere;word-break:break-word}.detail-item.muted{color:var(--text-muted)}.declared-deps{display:grid;gap:8px}.declared-summary{font-size:12px;color:var(--text-secondary);margin:4px 0 8px}.declared-group{border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);padding:8px 10px}.declared-group-summary{font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}.declared-group-summary::-webkit-details-marker{display:none}.declared-count{font-size:11px;color:var(--text-muted);font-weight:500}.declared-group-title{display:inline-flex;align-items:baseline;gap:6px}.declared-table{display:grid;gap:6px;margin-top:8px}.declared-row{display:grid;grid-template-columns:minmax(160px,1.3fr) minmax(120px,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary)}.declared-name{font-size:12px;font-family:var(--font-mono);color:var(--text-primary);display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.declared-range{font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);overflow-wrap:anywhere}.status-pill{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid transparent}.status-pill.installed{color:var(--green);border-color:var(--green);background:var(--green-bg)}.status-pill.missing{color:var(--text-muted);border-color:var(--border-color-strong);background:var(--gray-bg)}.bullet-list{margin:6px 0 0;padding-left:18px;color:var(--text-secondary)}.bullet-list li{margin-bottom:6px}.subtle-divider{height:1px;background:var(--border-color);margin:12px 0}.package-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.package-tag{padding:2px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)}.package-list-toggle{font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 4px}.package-list-toggle:hover{text-decoration:underline}.vuln-table{width:100%;border-collapse:collapse;font-size:13px}.vuln-table th,.vuln-table td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-color);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}.vuln-table th{font-weight:500;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.vuln-table tr[data-severity=critical],.vuln-table tr[data-severity=high]{background:var(--red-bg)}.vuln-table tr[data-severity=moderate]{background:var(--amber-bg)}.vuln-table a{color:var(--accent);text-decoration:none}.vuln-table a:hover{text-decoration:underline}.no-vulns{font-size:13px;color:var(--text-secondary);padding:8px 0}.raw-data-toggle{margin-top:16px}.raw-data-toggle summary{font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:8px;list-style:none}.raw-data-toggle summary::-webkit-details-marker{display:none}.raw-data-pane{margin-top:8px;position:relative;display:flex;flex-direction:column;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius);max-height:300px;overflow:auto}.raw-data-pane pre{margin:0;padding:12px 12px 44px;background:transparent;border:none;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:pre;overflow:visible}.copy-json-btn{position:sticky;bottom:8px;align-self:flex-end;margin:0 8px 8px;padding:6px 10px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:11px;cursor:pointer;transition:all var(--transition)}.raw-data-toggle:not([open]) .copy-json-btn{display:none}.copy-json-btn:hover{border-color:var(--accent);color:var(--accent)}.copy-json-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.copy-json-btn.copied{border-color:var(--green);color:var(--green)}.dep-loading{padding:2rem 0}.dep-loading-bar{position:relative;height:.25rem;background:var(--border-color);overflow:hidden;border-radius:999px}.dep-loading-bar:after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;background:var(--accent);animation:dep-loading 1.2s ease-in-out infinite}@keyframes dep-loading{0%{transform:translate(0)}to{transform:translate(250%)}}.package-tag-link{text-decoration:none;color:var(--text-secondary);transition:all var(--transition)}.package-tag-link:hover{border-color:var(--accent);color:var(--accent)}.package-tag-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}.empty-state-icon{font-size:48px;margin-bottom:12px}.empty-state-text{font-size:16px}@media(max-width:1180px)and (min-width:769px){.filter-row{grid-template-columns:1fr}.filter-top-row{max-width:560px}.graph-overlay-top{padding:8px 12px}}@media(max-width:768px){.top-header{padding:20px 16px}.header-row{flex-direction:column;align-items:flex-start;gap:16px}.header-content{gap:12px}.logo,.logo-wrapper{width:48px;height:48px}.header-text h1{font-size:22px}.header-meta{gap:6px}.meta-item{padding:3px 8px;font-size:11px}.cta-section{width:100%;max-width:none;text-align:left}.cta-benefits{display:none}.filter-bar{padding:10px 16px}.filter-row{display:block}.filter-top-row{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;flex-wrap:wrap}.search-wrapper{max-width:none;flex:1 1 100%}.view-switch{order:2}.view-switch-btn{padding:6px 10px}.filters-toggle{display:inline-flex;flex-shrink:0}.filter-controls{max-height:0;opacity:0;overflow:hidden;transform:translateY(-8px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out;margin-top:0}.filter-controls.open{max-height:900px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:10px}.license-filter-panel-row{max-height:0;opacity:0;overflow:hidden;transform:translateY(-8px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out;margin-top:0}.filter-controls.open+.license-filter-panel-row{max-height:560px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px}.filter-controls-row{display:flex;flex-direction:column;align-items:stretch;gap:10px}.filter-group{display:flex;justify-content:space-between;align-items:center}.filter-group select{flex:1;max-width:200px}.mobile-only,.sort-wrapper.mobile-only{display:flex!important}.theme-toggle{order:100;margin-left:auto}.license-filter-toggle{display:none}.license-filter-panel,.license-filter-panel.open{max-height:none;border-bottom-color:var(--border-color)}.license-filter-inner{padding:12px 0 10px}#column-headers-container,.column-headers,.package-header{display:none}.column-headers-section{max-height:0;opacity:0;overflow:hidden;transform:translateY(-6px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out,padding .25s ease-out;margin-top:0;padding:0 16px}.filter-controls.open+.license-filter-panel-row+.column-headers-section{max-height:120px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:8px 16px}.package-header-wrapper{flex-direction:row}.main-content{padding:12px 16px 32px}.graph-workspace-select{min-width:170px}.graph-overlay{padding:6px}.graph-canvas-shell{height:62vh;min-height:340px}.graph-key{padding:6px 8px;gap:8px}.graph-key-items{gap:8px}.graph-key-item{font-size:11px}.graph-back-btn{left:8px;top:8px}.graph-mode .main-content{padding:8px}.graph-mode .graph-canvas-shell{height:calc(100dvh - 16px);min-height:420px}.graph-controls{top:calc(var(--graph-toolbar-height, 50px) + 8px)}.report-footer{padding:0 16px 32px}.vuln-table thead{display:none}.vuln-table tr{display:block;border-bottom:1px solid var(--border-color)}.vuln-table td{display:flex;justify-content:space-between;gap:12px;padding:6px 8px}.vuln-table td:before{content:attr(data-label);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);min-width:120px}.dep-summary{flex-wrap:wrap;padding:8px 12px}.dep-name{font-size:13px}.dep-indicators{display:flex;flex-wrap:wrap;min-width:auto;width:100%;margin-left:0;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);gap:4px}.badge-card{flex:1 1 calc(50% - 4px);min-width:0}.badge-value{font-size:10px}.badge-label{clip:none;clip-path:none;height:auto;width:auto;margin:0;overflow:auto;padding:0;position:relative;font-size:7px}.declared-row{grid-template-columns:1fr;gap:6px}.graph-overlay-top{padding:8px 12px}}@media(max-width:480px){.header-text h1{font-size:20px}.meta-item{font-size:10px;padding:2px 6px}.cta-link{width:100%;justify-content:center;padding:12px 16px}.badge-card{flex:1 1 100%}}
+exports.CSS_CONTENT = `*,*:before,*:after{box-sizing:border-box}:root{--bg-primary: #0c1222;--bg-secondary: #151d2e;--bg-card: rgba(21, 29, 46, .95);--bg-card-hover: rgba(30, 41, 59, .95);--text-primary: #e8edf5;--text-secondary: #8b99b0;--text-muted: #5c6b82;--border-color: rgba(99, 120, 150, .2);--border-color-strong: rgba(99, 120, 150, .35);--accent: #06b6d4;--accent-hover: #22d3ee;--accent-subtle: rgba(6, 182, 212, .15);--title-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);--green: #10b981;--green-bg: rgba(16, 185, 129, .15);--amber: #f59e0b;--amber-bg: rgba(245, 158, 11, .15);--red: #ef4444;--red-bg: rgba(239, 68, 68, .15);--gray: #64748b;--gray-bg: rgba(100, 116, 139, .15);--license-permissive: #10b981;--license-weak-copyleft: #f59e0b;--license-strong-copyleft: #ef4444;--license-unknown: #64748b;--font-stack: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;--font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", monospace;--transition: .2s ease;--radius: 8px;--radius-lg: 12px;--graph-direct-runtime: var(--green);--graph-direct-dev: var(--amber);--graph-transitive: var(--accent);--graph-edge: var(--border-color-strong);--graph-highlight: var(--accent-hover);--graph-muted: var(--text-muted);--graph-vuln-high: var(--red);--graph-vuln-medium: var(--amber)}:root.light{--bg-primary: #f5f7fa;--bg-secondary: #e8ecf2;--bg-card: rgba(255, 255, 255, .98);--bg-card-hover: rgba(248, 250, 252, 1);--text-primary: #0f172a;--text-secondary: #475569;--text-muted: #64748b;--border-color: rgba(100, 116, 139, .18);--border-color-strong: rgba(100, 116, 139, .3);--accent: #0891b2;--accent-hover: #06b6d4;--accent-subtle: rgba(8, 145, 178, .1);--title-gradient: linear-gradient(135deg, #0891b2 0%, #059669 100%);--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}[data-theme=light]{--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}html{scroll-behavior:smooth}@media(prefers-reduced-motion:reduce){html,*,*:before,*:after{scroll-behavior:auto;animation-duration:0s!important;animation-iteration-count:1!important;transition:none!important;transform:none!important}}body{font-family:var(--font-stack);background:var(--bg-primary);color:var(--text-primary);margin:0;padding:0;line-height:1.5;transition:background var(--transition),color var(--transition)}.top-header{padding:28px 24px 20px;max-width:1400px;margin:0 auto}.header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}.header-content{display:flex;align-items:flex-start;gap:18px}.logo,.logo-wrapper{display:block;width:6rem;height:6rem;flex-shrink:0}.logo svg{width:100%;height:100%}.header-text h1{margin:0;font-size:26px;font-weight:700;background:var(--title-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.02em}.header-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:12px}.meta-item{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary)}.metadata-toggle{font-family:inherit}.meta-item strong{color:var(--text-primary);font-family:var(--font-mono);font-size:11px;font-weight:500}.meta-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.3px}.header-disclaimer{display:block;width:100%;font-size:10px;color:var(--text-muted);margin-top:6px;padding-left:2px}.metadata-panel{position:absolute;top:calc(100% - 4px);left:min(660px,calc(100% - 520px));z-index:120;width:min(520px,calc(100vw - 48px));max-height:min(70vh,680px);overflow:auto;padding:14px;background:var(--bg-card);border:1px solid var(--border-color-strong);border-radius:var(--radius-lg);box-shadow:0 18px 42px #00000059;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity var(--transition),transform var(--transition)}.metadata-panel.open{opacity:1;transform:translateY(0);pointer-events:auto}.metadata-section{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border-color)}.metadata-section:last-child{padding-bottom:0;margin-bottom:0;border-bottom:none}.metadata-section-title{margin-bottom:8px;color:var(--text-primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.metadata-grid{display:grid;gap:8px}.metadata-row{display:grid;grid-template-columns:minmax(110px,.42fr) minmax(0,1fr);gap:10px;align-items:start}.metadata-row-label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.35px}.metadata-row-value{color:var(--text-primary);font-family:var(--font-mono);font-size:12px;line-height:1.4;overflow-wrap:anywhere}.metadata-list{display:grid;gap:6px}.metadata-list-item{padding:7px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:6px}.metadata-muted{color:var(--text-muted)}.cta-section{flex:0 1 660px;min-width:360px;display:flex;justify-content:flex-end}.cta-card{width:min(100%,560px);display:grid;grid-template-columns:auto minmax(190px,1fr) minmax(220px,.9fr);align-items:center;gap:16px;padding:8px 12px 8px 16px;color:var(--text-primary);text-decoration:none;border:1px solid rgba(6,182,212,.36);border-radius:18px;background:var(--bg-secondary);transition:border-color var(--transition),box-shadow var(--transition),transform var(--transition)}.cta-card:hover{border-color:#22d3eeb8;transform:translateY(-1px);box-shadow:0 18px 48px #0000004d,inset 0 1px #ffffff14,0 0 28px #06b6d433}.cta-card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.cta-icon{width:78px;height:78px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-hover);border:1px solid var(--border-color-strong);border-radius:999px;box-shadow:inset 0 0 20px #06b6d41a}.cta-icon-svg{width:58px;height:58px}.cta-copy,.cta-action{display:grid;gap:6px}.cta-title{color:var(--text-primary);font-size:16px;font-weight:800;line-height:1.1}.cta-text{color:var(--text-secondary);font-size:13px;line-height:1.45;text-wrap:balance}.cta-button{display:inline-flex;align-items:center;justify-content:center;gap:12px;padding:9px;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;box-shadow:0 8px 24px #06b6d43d}.cta-privacy{display:inline-flex;align-items:center;justify-content:center;gap:6px;color:var(--text-secondary);font-size:12px;font-weight:600}.cta-privacy svg{color:var(--accent-hover)}.cta-arrow{font-size:24px;line-height:1;transition:transform var(--transition)}.cta-card:hover .cta-arrow{transform:translate(2px)}.filter-bar{position:sticky;top:0;z-index:100;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:12px 24px 4px;transition:background var(--transition),border-color var(--transition)}.filter-bar-inner{max-width:1360px;margin:0 auto}.filter-row{position:relative;display:grid;grid-template-columns:1fr;align-items:center;gap:8px}.filter-top-row{display:flex;align-items:center;gap:10px;min-width:0}.filter-top-row .search-wrapper{flex:1 1 420px;min-width:240px;max-width:548px}.view-switch{display:inline-flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary)}.view-switch-btn{border:none;background:transparent;color:var(--text-secondary);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;transition:color var(--transition),background var(--transition);white-space:nowrap}.view-switch-btn:hover{color:var(--text-primary)}.view-switch-btn.active{color:var(--text-primary);background:var(--accent-subtle)}.filter-controls{position:absolute;top:calc(100% - 4px);left:min(530px,calc(100% - 440px));z-index:120;width:min(440px,calc(100vw - 48px));min-width:0;padding:14px;border:1px solid var(--border-color-strong);border-radius:var(--radius-lg);background:var(--bg-card);box-shadow:0 18px 42px #00000059;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity var(--transition),transform var(--transition)}.filter-controls-row{display:grid;gap:14px}.filters-toggle{display:inline-flex;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);font-size:13px;cursor:pointer;align-items:center;gap:6px;transition:all var(--transition);white-space:nowrap}.filters-toggle:hover{border-color:var(--accent);color:var(--accent)}.filters-toggle.open,.filters-toggle.has-active-filters{border-color:var(--accent);color:var(--text-primary);background:var(--accent-subtle)}.filter-count-badge{display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;line-height:1}.filter-count-badge[hidden]{display:none}.filters-toggle .chevron{transition:transform var(--transition)}.filters-toggle.open .chevron{transform:rotate(180deg)}.filter-controls.open{opacity:1;transform:translateY(0);pointer-events:auto}.filter-row>.column-headers-section{grid-column:1 / -1;width:100%}.mobile-only,.sort-wrapper.mobile-only{display:none}.filter-group{display:grid;gap:6px}.workspace-filter-group.hidden{display:none}.filter-panel-section{display:grid;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border-color)}.filter-panel-section:last-of-type{padding-bottom:0;border-bottom:none}.filter-panel-context:has(.workspace-filter-group.hidden){display:none}.filter-panel-title{font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.filter-label{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.search-wrapper{position:relative;flex:1;min-width:180px;max-width:280px}.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none}input[type=search]{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:14px;transition:border-color var(--transition),background var(--transition)}input[type=search]:focus{outline:none;border-color:var(--accent)}input[type=search]::placeholder{color:var(--text-muted)}select{padding:8px 28px 8px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color var(--transition),background var(--transition)}.filter-controls select{width:100%}select:focus{outline:none;border-color:var(--accent)}.sort-wrapper{display:flex;align-items:center;gap:4px}.sort-wrapper select{margin-left:auto}.sort-direction-btn{padding:8px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;transition:all var(--transition)}.sort-direction-btn:hover{border-color:var(--accent);color:var(--accent)}.checkbox-filter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.checkbox-filter input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.theme-toggle{margin-left:auto;display:flex;align-items:center;gap:8px}.theme-toggle-label{font-size:12px;color:var(--text-muted)}.theme-switch{appearance:none;position:relative;width:44px;height:24px;padding:0;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:12px;cursor:pointer;transition:background var(--transition),border-color var(--transition)}.theme-switch:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--text-secondary);border-radius:50%;transition:transform var(--transition),background var(--transition)}.theme-switch.light:after{transform:translate(20px);background:var(--accent)}.license-filter-toggle{display:none;padding:6px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;align-items:center;gap:6px;transition:all var(--transition)}.license-filter-toggle:hover{border-color:var(--accent);color:var(--accent)}.license-filter-toggle .chevron{transition:transform var(--transition)}.license-filter-toggle.open .chevron{transform:rotate(180deg)}.license-filter-panel-row{display:none}.license-filter-panel{background:transparent}.license-filter-inner{max-width:100%;margin:0;padding:0}.license-filter-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.license-filter-title{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.license-quick-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.quick-action-btn{padding:4px 10px;font-size:11px;border:1px solid var(--border-color);border-radius:4px;background:transparent;color:var(--text-secondary);cursor:pointer;transition:all var(--transition)}.quick-action-btn:hover{border-color:var(--accent);color:var(--accent)}.license-groups{display:grid;gap:8px}.license-group-checkbox{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.filter-panel-actions{display:flex;justify-content:flex-end}.active-filters-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:2px 0 6px}.active-filters-row[hidden]{display:none}.active-filters-label{color:var(--text-muted);font-size:12px}.active-filter-chips{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.active-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;line-height:1.2}.active-filter-remove{border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:0}.active-filter-remove:hover{color:var(--accent)}.active-filter-clear{border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;padding:4px 6px}.active-filter-clear:hover{text-decoration:underline}.license-group-checkbox input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.license-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.license-dot.permissive{background:var(--license-permissive)}.license-dot.weak-copyleft{background:var(--license-weak-copyleft)}.license-dot.strong-copyleft{background:var(--license-strong-copyleft)}.license-dot.unknown{background:var(--license-unknown)}.tool-errors{max-width:1400px;margin:16px auto;padding:12px 16px;background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);color:var(--red)}.tool-errors:empty{display:none}.tool-errors strong{display:block;margin-bottom:8px}.main-content{max-width:1400px;margin:0 auto;padding:8px 24px 48px}.view-panel{display:none}.view-panel.active{display:block}.graph-mode .filter-bar,.graph-mode .top-header,.graph-mode .results-summary,.graph-mode .report-footer{display:none}.graph-mode .main-content{max-width:none;padding:24px}.graph-workspace-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;-webkit-user-select:none;user-select:none}.graph-workspace-select{min-width:200px;max-width:240px}select.graph-workspace-select{background-color:#ffffff0d;border:1px solid rgba(100,116,139,.25);color:var(--text-primary);transition:all var(--transition)}select.graph-workspace-select:hover{background-color:#ffffff1a;border-color:#64748b66}select.graph-workspace-select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-subtle)}[data-theme=light] select.graph-workspace-select{background-color:#00000008;border-color:#64748b33}[data-theme=light] select.graph-workspace-select:hover{background-color:#0000000f}.graph-canvas-shell{--graph-toolbar-height: 50px;position:relative;width:100%;height:74vh;min-height:420px;max-height:980px;border:1px solid var(--border-color);border-radius:var(--radius-lg);background:radial-gradient(circle at 15% 20%,var(--accent-subtle),transparent 35%),radial-gradient(circle at 80% 80%,var(--accent-subtle),transparent 42%),var(--bg-card);overflow:hidden}.graph-mode .graph-canvas-shell{height:calc(100dvh - 48px);min-height:520px;max-height:none}.graph-overlay{position:absolute;z-index:8;pointer-events:auto;display:flex;align-items:center;gap:8px;padding:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d}.graph-key:before,.graph-workspace-wrap:before{content:"";display:block;width:1px;height:20px;position:absolute;top:50%;left:0;transform:translateY(-50%);background-color:var(--text-secondary)}.graph-key{padding-left:24px;display:flex;flex-direction:row;align-items:center;gap:12px;max-width:100%;position:relative}.graph-key-items{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}.graph-key-item{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:12px;line-height:1.1;white-space:nowrap}.graph-key-dot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px #ffffff1f}.graph-key-dot.dependency{background:var(--graph-direct-runtime)}.graph-key-dot.dev-dependency{background:var(--graph-direct-dev)}.graph-key-dot.sub-dependency{background:var(--graph-transitive)}[data-theme=light] .graph-overlay{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-overlay.hidden,.graph-workspace-wrap.hidden{display:none}.graph-workspace-wrap{display:flex;padding-left:24px;flex-direction:row;align-items:center;gap:12px;position:relative}[data-theme=light] .graph-overlay-top{background:#ffffffb3;border-color:#64748b26}.graph-overlay-top{align-items:center;position:absolute;top:0;left:0;right:0;display:flex;flex-wrap:wrap;column-gap:24px;row-gap:8px;background:#0f172ab3;border-bottom:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0 12px;min-height:50px}.graph-back-btn{gap:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d;top:12px;left:12px;color:var(--text-primary);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;transition:transform var(--transition),background var(--transition),border-color var(--transition),color var(--transition),box-shadow var(--transition);-webkit-user-select:none;user-select:none}.graph-back-btn:hover{background:#ffffff1a;border-color:#64748b66;color:var(--text-primary);transform:translateY(-1px);box-shadow:0 4px 12px #0003}[data-theme=light] .graph-back-btn:hover{background:#0000000d;box-shadow:0 4px 12px #00000014}[data-theme=light] .graph-back-btn{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-controls{flex-direction:column;align-items:center;gap:8px;padding:8px;top:calc(var(--graph-toolbar-height, 50px) + 12px);right:12px}.zoom-controls{display:grid;grid-template-columns:repeat(2,52px);gap:6px}.zoom-controls>.graph-control-btn{font-size:18px;width:100%}.dpad{display:grid;grid-template-columns:34px 34px 34px;grid-template-rows:34px 34px 34px;grid-template-areas:". up ." "left . right" ". down .";gap:2px}.dpad .up{grid-area:up}.dpad .left{grid-area:left}.dpad .right{grid-area:right}.dpad .down{grid-area:down}.center-spacer{grid-column:2;grid-row:2;width:32px;height:32px;border:none;background:transparent}.graph-control-btn{border:1px solid rgba(100,116,139,.25);background:#ffffff0d;color:var(--text-primary);font-size:12px;width:34px;height:30px;border-radius:6px;cursor:pointer;line-height:1;transition:transform var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition),color var(--transition)}.graph-control-btn:hover{background:#ffffff1f;border-color:#64748b66;transform:translateY(-1px);box-shadow:0 3px 10px #0003}[data-theme=light] .graph-control-btn{background:#00000008;border-color:#64748b26}[data-theme=light] .graph-control-btn:hover{background:#00000014;border-color:#64748b4d;box-shadow:0 3px 10px #00000014}.reset-btn{width:112px;text-transform:lowercase;letter-spacing:.2px}.graph-popover{position:absolute;z-index:9;min-width:220px;max-width:min(320px,calc(100% - 24px));padding:12px 14px;border:1px solid var(--border-color-strong);background:#0f172ad9;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:12px;box-shadow:0 12px 40px #0006,inset 0 1px #ffffff1a;pointer-events:auto}[data-theme=light] .graph-popover{background:#ffffffd9;box-shadow:0 12px 40px #0000001f,inset 0 1px #fff9}.graph-popover[hidden]{display:none}.graph-popover-name{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:600;margin-bottom:4px}.graph-popover-meta{font-size:12px;color:var(--text-secondary);margin-bottom:3px}.graph-popover-action{margin-top:8px;width:100%;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;padding:7px 8px;cursor:pointer}.graph-popover-action:hover{border-color:var(--accent);color:var(--accent)}#graph-canvas{width:100%;height:100%;display:block;cursor:grab}#graph-canvas.is-clickable{cursor:pointer}#graph-canvas.is-panning{cursor:grabbing}.dep-list-highlight{animation:dep-list-highlight 2s ease-out}@keyframes dep-list-highlight{0%{box-shadow:0 0 0 0 var(--accent-subtle);border-color:var(--accent)}to{box-shadow:0 0 0 18px transparent;border-color:var(--border-color)}}.report-footer{max-width:1400px;margin:0 auto;padding:0 24px 40px;color:var(--text-secondary);font-size:12px}.report-footer p{margin:8px 0 0}.report-footer.hidden{display:none}.column-headers-section{max-width:1376px;margin:0 auto;display:flex;align-items:center;padding:12px 0 8px 14px}.package-header-wrapper{display:flex;flex-direction:row;justify-content:space-between;gap:2px;flex:1;min-width:0;padding-right:1rem}.results-summary{font-size:12px;color:var(--text-secondary);white-space:nowrap}.results-summary strong{color:var(--text-primary)}.package-header{align-self:flex-start;padding:4px 8px 4px 0}#column-headers-container{margin-left:auto;flex-shrink:0;width:60%}.column-headers{display:grid;grid-template-columns:repeat(5,1fr);width:100%}.column-header{display:flex;align-items:center;gap:4px;border:none;background:transparent;font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;cursor:pointer;padding:4px 8px 4px 10px;border-left:1px solid var(--border-color);transition:color var(--transition);white-space:nowrap;line-height:1.1;overflow:hidden}.column-header-no-border{border-left:none}.column-header:hover{color:var(--text-primary)}.column-header.sorted{color:var(--accent)}.column-header-label{flex-shrink:1;overflow:hidden;text-overflow:ellipsis}.sort-indicator{font-size:9px;opacity:.8}.column-header:not(.sorted) .sort-indicator{visibility:hidden}.dependency-grid{display:flex;flex-direction:column;gap:8px}.dep-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);overflow:hidden;transition:border-color var(--transition)}.dep-card:hover{border-color:var(--border-color-strong)}.dep-card[data-risk=red]{border-left:3px solid var(--red)}.dep-card[data-risk=amber]{border-left:3px solid var(--amber)}.dep-card[data-risk=green]{border-left:3px solid var(--green)}.dep-summary{display:flex;align-items:stretch;gap:10px;padding:0 0 0 12px;cursor:pointer;list-style:none;transition:background var(--transition)}.dep-summary:hover{background:var(--bg-card-hover)}.dep-summary::-webkit-details-marker{display:none}.expand-icon{align-self:center;width:16px;height:16px;flex-shrink:0;display:inline-block;color:var(--text-muted);transition:transform var(--transition);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain}details[open]>summary .expand-icon{transform:rotate(90deg)}.dep-name{align-self:center;font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-primary);padding:8px 0}.dep-version{font-weight:400;color:var(--text-secondary)}.dep-indicators{display:grid;grid-template-columns:repeat(5,1fr);align-self:stretch;margin-left:auto;flex-shrink:0;width:60%}.badge-card{display:flex;flex-direction:column;justify-content:center;min-height:38px;padding:4px 8px 4px 10px;background:var(--bg-primary);border-left:1px solid var(--border-color);position:relative;overflow:hidden}.badge-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gray)}.badge-card.green:before{background:var(--green)}.badge-card.amber:before{background:var(--amber)}.badge-card.red:before{background:var(--red)}.badge-card.gray:before{background:var(--gray)}.badge-label{font-size:8px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;line-height:1.1;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;margin:-1px;overflow:hidden;padding:0;position:absolute}.badge-value{font-size:11px;font-weight:500;color:var(--text-primary);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dep-details{padding:0 16px 16px;border-top:1px solid var(--border-color);animation:slideDown .2s ease-out}@keyframes slideDown{0%{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}.package-links{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;margin-bottom:4px;border-bottom:1px solid var(--border-color)}.package-link{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-hover);border:1px solid var(--border-color);border-radius:var(--radius-md);color:var(--text-primary);text-decoration:none;font-size:13px;font-weight:500;transition:all var(--transition)}.package-link:hover{background:var(--accent);border-color:var(--accent);color:#fff}.package-link svg{width:14px;height:14px;flex-shrink:0}.section,.section:first-child{margin-top:16px}.section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-color)}.section-title{font-size:13px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.section-desc{font-size:11px;color:var(--text-muted)}.kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.kv-grid-tight{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.kv-item{display:flex;flex-direction:column;gap:2px}.kv-label{font-size:12px;font-weight:500;color:var(--text-muted)}.kv-value{font-size:14px;color:var(--text-primary);overflow-wrap:anywhere;word-break:break-word}.kv-inline-link{color:var(--accent);text-decoration:none;font-size:12px;margin-left:6px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;text-underline-offset:2px}.kv-inline-link:hover{text-decoration:underline}.kv-inline-link-icon{width:11px;height:11px;flex-shrink:0}.kv-inline-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}.risk-value{display:inline-flex;align-items:center;gap:6px}.risk-dot{width:8px;height:8px;border-radius:999px;background:var(--gray);flex-shrink:0}.risk-dot.green{background:var(--green)}.risk-dot.amber{background:var(--amber)}.risk-dot.red{background:var(--red)}.kv-hint{font-size:11px;color:var(--text-muted);font-style:italic}.micro-summary{display:grid;gap:6px;padding:6px 0 2px}.micro-line{font-size:13px;color:var(--text-primary)}.micro-sublist{margin-top:8px}.micro-subtitle{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}.section-block{margin-top:12px}.block-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.section-note{font-size:12px;color:var(--text-secondary);margin:6px 0 12px}.subsection{padding:12px 0;border-top:1px solid var(--border-color)}.subsection:first-child{border-top:none;padding-top:0}.subsection-header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.subsection-title{font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.4px}.subsection-desc{font-size:11px;color:var(--text-muted)}.subsection.warning .subsection-title{color:var(--red)}.detail-list{margin-top:12px}.detail-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.detail-items{list-style:none;padding:0;margin:0;display:grid;gap:6px}.detail-items.mono .detail-item{font-family:var(--font-mono)}.detail-item{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere;word-break:break-word}.detail-item.muted{color:var(--text-muted)}.declared-deps{display:grid;gap:8px}.declared-summary{font-size:12px;color:var(--text-secondary);margin:4px 0 8px}.declared-group{border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);padding:8px 10px}.declared-group-summary{font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}.declared-group-summary::-webkit-details-marker{display:none}.declared-count{font-size:11px;color:var(--text-muted);font-weight:500}.declared-group-title{display:inline-flex;align-items:baseline;gap:6px}.declared-table{display:grid;gap:6px;margin-top:8px}.declared-row{display:grid;grid-template-columns:minmax(160px,1.3fr) minmax(120px,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary)}.declared-name{font-size:12px;font-family:var(--font-mono);color:var(--text-primary);display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.declared-range{font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);overflow-wrap:anywhere}.status-pill{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid transparent}.status-pill.installed{color:var(--green);border-color:var(--green);background:var(--green-bg)}.status-pill.missing{color:var(--text-muted);border-color:var(--border-color-strong);background:var(--gray-bg)}.bullet-list{margin:6px 0 0;padding-left:18px;color:var(--text-secondary)}.bullet-list li{margin-bottom:6px}.subtle-divider{height:1px;background:var(--border-color);margin:12px 0}.package-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.package-tag{padding:2px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)}.package-list-toggle{font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 4px}.package-list-toggle:hover{text-decoration:underline}.vuln-table{width:100%;border-collapse:collapse;font-size:13px}.vuln-table th,.vuln-table td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-color);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}.vuln-table th{font-weight:500;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.vuln-table tr[data-severity=critical],.vuln-table tr[data-severity=high]{background:var(--red-bg)}.vuln-table tr[data-severity=moderate]{background:var(--amber-bg)}.vuln-table a{color:var(--accent);text-decoration:none}.vuln-table a:hover{text-decoration:underline}.no-vulns{font-size:13px;color:var(--text-secondary);padding:8px 0}.raw-data-toggle{margin-top:16px}.raw-data-toggle summary{font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:8px;list-style:none}.raw-data-toggle summary::-webkit-details-marker{display:none}.raw-data-pane{margin-top:8px;position:relative;display:flex;flex-direction:column;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius);max-height:300px;overflow:auto}.raw-data-pane pre{margin:0;padding:12px 12px 44px;background:transparent;border:none;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:pre;overflow:visible}.copy-json-btn{position:sticky;bottom:8px;align-self:flex-end;margin:0 8px 8px;padding:6px 10px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:11px;cursor:pointer;transition:all var(--transition)}.raw-data-toggle:not([open]) .copy-json-btn{display:none}.copy-json-btn:hover{border-color:var(--accent);color:var(--accent)}.copy-json-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.copy-json-btn.copied{border-color:var(--green);color:var(--green)}.dep-loading{padding:2rem 0}.dep-loading-bar{position:relative;height:.25rem;background:var(--border-color);overflow:hidden;border-radius:999px}.dep-loading-bar:after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;background:var(--accent);animation:dep-loading 1.2s ease-in-out infinite}@keyframes dep-loading{0%{transform:translate(0)}to{transform:translate(250%)}}.package-tag-link{text-decoration:none;color:var(--text-secondary);transition:all var(--transition)}.package-tag-link:hover{border-color:var(--accent);color:var(--accent)}.package-tag-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}.empty-state-icon{font-size:48px;margin-bottom:12px}.empty-state-text{font-size:16px}@media(max-width:1180px)and (min-width:769px){.header-row{flex-direction:column}.cta-section{flex:none;width:100%;min-width:0;max-width:none}.cta-card{width:100%;max-width:none}.filter-top-row{max-width:none}.graph-overlay-top{padding:8px 12px}}@media(max-width:768px){.top-header{padding:20px 16px}.header-row{flex-direction:column;align-items:flex-start;gap:16px}.header-content{gap:12px}.logo,.logo-wrapper{width:48px;height:48px}.header-text h1{font-size:22px}.header-meta{gap:6px}.meta-item{padding:3px 8px;font-size:11px}.cta-section{flex:none;width:100%;min-width:0;max-width:none;text-align:left}.cta-card{width:100%;min-height:0;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:14px;border-radius:14px}.cta-icon{width:56px;height:56px}.cta-icon-svg{width:42px;height:42px;display:block}.cta-title{font-size:18px}.cta-text{font-size:13px}.cta-action{grid-column:1 / -1;grid-template-columns:minmax(0,1fr)}.cta-button{font-size:14px}.cta-privacy{justify-content:flex-start;font-size:12px}.filter-bar{padding:10px 16px}.filter-row{display:block}.filter-top-row{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;flex-wrap:wrap}.search-wrapper{max-width:none;flex:1 1 100%}.filter-top-row .search-wrapper{flex-basis:100%;min-width:0}.view-switch{order:3}.view-switch-btn{padding:6px 10px}.filters-toggle{order:2;flex-shrink:0}.filter-controls,.metadata-panel{position:static;width:100%;max-height:0;opacity:0;overflow:hidden;transform:translateY(-8px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out;margin-top:0;padding:0 12px;box-shadow:none}.filter-controls.open,.metadata-panel.open{max-height:900px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:12px}.filter-controls-row{display:grid;gap:10px}.filter-group{display:grid}.filter-group select{max-width:none}.mobile-only,.sort-wrapper.mobile-only{display:flex!important}.theme-toggle{order:4;margin-left:auto}.license-filter-toggle,#column-headers-container,.column-headers,.package-header{display:none}.column-headers-section{max-height:0;opacity:0;overflow:hidden;transform:translateY(-6px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out,padding .25s ease-out;margin-top:0;padding:0 16px}.filter-controls.open+.license-filter-panel-row+.column-headers-section{max-height:120px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:8px 16px}.package-header-wrapper{flex-direction:row}.main-content{padding:12px 16px 32px}.graph-workspace-select{min-width:170px}.graph-overlay{padding:6px}.graph-canvas-shell{height:62vh;min-height:340px}.graph-key{padding:6px 8px;gap:8px}.graph-key-items{gap:8px}.graph-key-item{font-size:11px}.graph-back-btn{left:8px;top:8px}.graph-mode .main-content{padding:8px}.graph-mode .graph-canvas-shell{height:calc(100dvh - 16px);min-height:420px}.graph-controls{top:calc(var(--graph-toolbar-height, 50px) + 8px)}.report-footer{padding:0 16px 32px}.vuln-table thead{display:none}.vuln-table tr{display:block;border-bottom:1px solid var(--border-color)}.vuln-table td{display:flex;justify-content:space-between;gap:12px;padding:6px 8px}.vuln-table td:before{content:attr(data-label);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);min-width:120px}.dep-summary{align-items:center;flex-wrap:wrap;padding:8px 12px}.dep-name{font-size:13px}.dep-indicators{display:flex;flex-wrap:wrap;min-width:auto;width:100%;margin-left:0;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);gap:4px}.badge-card{flex:1 1 calc(50% - 4px);min-width:0}.badge-value{font-size:10px}.badge-label{clip:none;clip-path:none;height:auto;width:auto;margin:0;overflow:auto;padding:0;position:relative;font-size:7px}.declared-row{grid-template-columns:1fr;gap:6px}.graph-overlay-top{padding:8px 12px}}@media(max-width:480px){.header-text h1{font-size:20px}.meta-item{font-size:10px;padding:2px 6px}.cta-card{grid-template-columns:1fr;text-align:left}.cta-icon{display:none}.cta-action{grid-column:auto}.badge-card{flex:1 1 100%}}
 `;
 /**
  * JavaScript content for the dependency radar HTML report
@@ -16,28 +16,39 @@ exports.CSS_CONTENT = `*,*:before,*:after{box-sizing:border-box}:root{--bg-prima
  */
 exports.JS_CONTENT = `!function() {
     "use strict";
-    const e = 2.8, t = '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    function n(e, t, n) {
+    function e(e) {
+        if (!e.workspaces.enabled) return [];
+        const t = new Set;
+        return (e.workspaces.workspacePackages || []).forEach(e => {
+            e.name && t.add(e.name);
+        }), Object.values(e.dependencies || {}).forEach(e => {
+            (e.usage.origins.workspaces || []).forEach(e => {
+                e && t.add(e);
+            });
+        }), Array.from(t).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t));
+    }
+    const t = 2.8, n = '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    function a(e, t, n) {
         return Math.min(n, Math.max(t, e));
     }
     function r(e, t = !1) {
         return t ? e.length : Math.min(e.length, 34);
     }
-    function a(e) {
+    function s(e) {
         const t = r(e);
         return e.length <= 34 ? t : Math.max(1, t - 6);
     }
-    function s(e) {
+    function i(e) {
         const {labelGraphemes: t} = e;
         if (t.length <= 34) return e.ref.name;
-        const r = n(Math.round(e.renderLabelChars), 1, t.length);
-        return r >= t.length ? e.ref.name : \`\${t.slice(0, r - 1).join("")}…\`;
+        const n = a(Math.round(e.renderLabelChars), 1, t.length);
+        return n >= t.length ? e.ref.name : \`\${t.slice(0, n - 1).join("")}…\`;
     }
-    function i(e, t, r) {
-        const a = function(e) {
-            const t = e.trim(), r = t.match(/^#([0-9a-f]{3}|[0-9a-f]{6})\$/i);
-            if (r) {
-                const e = r[1];
+    function o(e, t, n) {
+        const r = function(e) {
+            const t = e.trim(), n = t.match(/^#([0-9a-f]{3}|[0-9a-f]{6})\$/i);
+            if (n) {
+                const e = n[1];
                 return 3 === e.length ? {
                     r: parseInt(e[0] + e[0], 16),
                     g: parseInt(e[1] + e[1], 16),
@@ -48,17 +59,17 @@ exports.JS_CONTENT = `!function() {
                     b: parseInt(e.slice(4, 6), 16)
                 };
             }
-            const a = t.match(/^rgba?\\(([^)]+)\\)\$/i);
-            if (!a) return null;
-            const s = a[1].replace(/\\//g, " ").split(/[\\s,]+/).filter(Boolean).slice(0, 3);
+            const r = t.match(/^rgba?\\(([^)]+)\\)\$/i);
+            if (!r) return null;
+            const s = r[1].replace(/\\//g, " ").split(/[\\s,]+/).filter(Boolean).slice(0, 3);
             if (3 !== s.length) return null;
             const i = e => {
                 if (e.endsWith("%")) {
                     const t = Number(e.slice(0, -1));
-                    return Number.isFinite(t) ? n(Math.round(t / 100 * 255), 0, 255) : null;
+                    return Number.isFinite(t) ? a(Math.round(t / 100 * 255), 0, 255) : null;
                 }
                 const t = Number(e);
-                return Number.isFinite(t) ? n(Math.round(t), 0, 255) : null;
+                return Number.isFinite(t) ? a(Math.round(t), 0, 255) : null;
             }, o = i(s[0]), c = i(s[1]), l = i(s[2]);
             return null === o || null === c || null === l ? null : {
                 r: o,
@@ -66,19 +77,19 @@ exports.JS_CONTENT = `!function() {
                 b: l
             };
         }(e);
-        if (!a) return r;
-        const s = n(t, 0, 1);
-        return \`rgb(\${Math.round(a.r + (255 - a.r) * s)}, \${Math.round(a.g + (255 - a.g) * s)}, \${Math.round(a.b + (255 - a.b) * s)})\`;
+        if (!r) return n;
+        const s = a(t, 0, 1);
+        return \`rgb(\${Math.round(r.r + (255 - r.r) * s)}, \${Math.round(r.g + (255 - r.g) * s)}, \${Math.round(r.b + (255 - r.b) * s)})\`;
     }
-    function o(e) {
+    function c(e) {
         return getComputedStyle(document.documentElement).getPropertyValue(e).trim();
     }
-    function c(e, t, n) {
+    function l(e, t, n) {
         if (0 === t.length) return;
         if (e.moveTo(t[0].x, t[0].y), 1 === t.length) return;
         if (2 === t.length) return void e.lineTo(t[1].x, t[1].y);
-        for (let a = 1; a < t.length - 1; a += 1) {
-            const r = t[a - 1], s = t[a], i = t[a + 1], o = s.x - r.x, c = s.y - r.y, l = i.x - s.x, d = i.y - s.y, u = Math.hypot(o, c), p = Math.hypot(l, d);
+        for (let r = 1; r < t.length - 1; r += 1) {
+            const a = t[r - 1], s = t[r], i = t[r + 1], o = s.x - a.x, c = s.y - a.y, l = i.x - s.x, d = i.y - s.y, u = Math.hypot(o, c), p = Math.hypot(l, d);
             if (u < .001 || p < .001) {
                 e.lineTo(s.x, s.y);
                 continue;
@@ -86,34 +97,34 @@ exports.JS_CONTENT = `!function() {
             const h = Math.min(n, .45 * u, .45 * p), g = s.x - o / u * h, m = s.y - c / u * h, v = s.x + l / p * h, f = s.y + d / p * h;
             e.lineTo(g, m), e.quadraticCurveTo(s.x, s.y, v, f);
         }
-        const r = t[t.length - 1];
-        e.lineTo(r.x, r.y);
+        const a = t[t.length - 1];
+        e.lineTo(a.x, a.y);
     }
-    function l(e, t, r, a) {
-        const s = t.renderX, i = t.renderY, o = r.renderX, l = r.renderY, d = r.depth - t.depth, u = Math.abs(d);
+    function d(e, t, n, r) {
+        const s = t.renderX, i = t.renderY, o = n.renderX, c = n.renderY, d = n.depth - t.depth, u = Math.abs(d);
         if (0 === u) {
-            const r = Math.abs(s - o) < a.sameColumnXThreshold, d = Math.abs(i - l), u = t.depth < a.maxDepth;
-            if (r && d > a.minDetourVerticalSpan && u) {
-                const r = a.paddingX + t.depth * a.layerGap, u = a.paddingX + (t.depth + 1) * a.layerGap, p = .5 * (r + u);
-                let h = p + a.detourInset;
-                const g = Math.min(i, l) - 12, m = Math.max(i, l) + 12;
-                (function(e, t, n, r, a) {
+            const n = Math.abs(s - o) < r.sameColumnXThreshold, d = Math.abs(i - c), u = t.depth < r.maxDepth;
+            if (n && d > r.minDetourVerticalSpan && u) {
+                const n = r.paddingX + t.depth * r.layerGap, u = r.paddingX + (t.depth + 1) * r.layerGap, p = .5 * (n + u);
+                let h = p + r.detourInset;
+                const g = Math.min(i, c) - 12, m = Math.max(i, c) + 12;
+                (function(e, t, n, a, r) {
                     const s = e.depthNodeIndex.get(t);
                     if (!s || 0 === s.length) return !1;
                     const i = function(e, t) {
-                        let n = 0, r = e.length;
-                        for (;n < r; ) {
-                            const a = n + (r - n >> 1);
-                            e[a].renderY < t ? n = a + 1 : r = a;
+                        let n = 0, a = e.length;
+                        for (;n < a; ) {
+                            const r = n + (a - n >> 1);
+                            e[r].renderY < t ? n = r + 1 : a = r;
                         }
                         return n;
                     }(s, n);
-                    for (let o = i; o < s.length && s[o].renderY <= r; o += 1) if (Math.abs(s[o].renderX - a) < e.detourNodeClearance) return !0;
+                    for (let o = i; o < s.length && s[o].renderY <= a; o += 1) if (Math.abs(s[o].renderX - r) < e.detourNodeClearance) return !0;
                     return !1;
-                })(a, t.depth + 1, g, m, h) && (h += 12);
-                h = n(h, p + 8, u - 24);
+                })(r, t.depth + 1, g, m, h) && (h += 12);
+                h = a(h, p + 8, u - 24);
                 const v = Math.max(1, h - s);
-                return void c(e, [ {
+                return void l(e, [ {
                     x: s,
                     y: i
                 }, {
@@ -121,51 +132,62 @@ exports.JS_CONTENT = `!function() {
                     y: i
                 }, {
                     x: h,
-                    y: l
+                    y: c
                 }, {
                     x: o,
-                    y: l
-                } ], n(.42 * Math.min(v, d), 16, 52));
+                    y: c
+                } ], a(.42 * Math.min(v, d), 16, 52));
             }
             e.moveTo(s, i);
-            const p = s + .5 * (o - s), h = i + (l - i) * a.edgeCurve;
-            return void e.quadraticCurveTo(p, h, o, l);
+            const p = s + .5 * (o - s), h = i + (c - i) * r.edgeCurve;
+            return void e.quadraticCurveTo(p, h, o, c);
         }
         if (1 === u) {
-            const n = Math.min(t.depth, r.depth), c = a.paddingX + n * a.layerGap + .5 * a.layerGap;
-            return e.moveTo(s, i), void e.bezierCurveTo(c, i, c, l, o, l);
+            const a = Math.min(t.depth, n.depth), l = r.paddingX + a * r.layerGap + .5 * r.layerGap;
+            return e.moveTo(s, i), void e.bezierCurveTo(l, i, l, c, o, c);
         }
-        const p = Math.sign(d), h = l - i, g = [ {
+        const p = Math.sign(d), h = c - i, g = [ {
             x: s,
             y: i
-        } ], m = a.paddingX + t.depth * a.layerGap + p * (.5 * a.layerGap);
+        } ], m = r.paddingX + t.depth * r.layerGap + p * (.5 * r.layerGap);
         g.push({
             x: m,
             y: i
         });
-        for (let n = 1; n < u; n += 1) {
-            const e = t.depth + p * n, r = a.paddingX + e * a.layerGap + p * (.5 * a.layerGap), s = n / u;
+        for (let a = 1; a < u; a += 1) {
+            const e = t.depth + p * a, n = r.paddingX + e * r.layerGap + p * (.5 * r.layerGap), s = a / u;
             g.push({
-                x: r,
+                x: n,
                 y: i + h * s
             });
         }
-        const v = a.paddingX + r.depth * a.layerGap - p * (.5 * a.layerGap);
+        const v = r.paddingX + n.depth * r.layerGap - p * (.5 * r.layerGap);
         g.push({
             x: v,
-            y: l
+            y: c
         }), g.push({
             x: o,
-            y: l
-        }), c(e, g, 14);
+            y: c
+        }), l(e, g, 14);
     }
-    function d(e, t) {
+    function u(e, t, n, r) {
+        r && t.highlighted ? function(e, t, n) {
+            const r = t.renderX, s = t.renderY, i = n.renderX, o = n.renderY, c = i - r, l = o - s;
+            if (e.moveTo(r, s), Math.abs(c) < 18) {
+                const t = r + (s <= o ? 26 : -26);
+                return void e.bezierCurveTo(t, s, t, o, i, o);
+            }
+            const d = a(.44 * Math.abs(c), 42, 150), u = Math.sign(c), p = a(.12 * Math.abs(l), 0, 24);
+            e.bezierCurveTo(r + u * d, s + p * Math.sign(l), i - u * d, o - p * Math.sign(l), i, o);
+        }(e, t.from, t.to) : d(e, t.from, t.to, n);
+    }
+    function p(e, t) {
         return \`\${e}@\${t}\`;
     }
-    function u(e, t) {
+    function h(e, t) {
         return \`\${e}->\${t}\`;
     }
-    function p(e) {
+    function g(e) {
         if (!e || "object" != typeof e) return !1;
         const t = e;
         if (!Array.isArray(t.workspaces)) return !1;
@@ -183,83 +205,100 @@ exports.JS_CONTENT = `!function() {
             return !(void 0 !== t.dependencies && !Array.isArray(t.dependencies)) && !(void 0 !== t.workspaceOrigins && !Array.isArray(t.workspaceOrigins));
         });
     }
-    function h(e) {
+    function m(e) {
         const t = e.compliance.license.declared?.valid ? e.compliance.license.declared.spdxId : void 0;
         return t || (e.compliance.license.inferred?.spdxId || "Unknown");
     }
-    function g(e) {
+    function v(e) {
         const t = e.security?.summary;
         return t ? Number(t.critical || 0) + Number(t.high || 0) + Number(t.moderate || 0) + Number(t.low || 0) : 0;
     }
-    function m(e) {
+    function f(e) {
         const t = e.security?.summary?.highest;
         return "critical" === t || "high" === t ? "high" : "moderate" === t ? "moderate" : "none";
     }
-    function v(e, t) {
-        const n = new Set, r = [ t ];
-        for (;r.length > 0; ) {
-            const t = r.pop();
+    function y(e, t) {
+        const n = new Set, a = [ t ];
+        for (;a.length > 0; ) {
+            const t = a.pop();
             if (!t) continue;
-            const a = e.nodes.get(t);
-            a && a.parents.forEach(e => {
-                n.has(e) || (n.add(e), r.push(e));
+            const r = e.nodes.get(t);
+            r && r.parents.forEach(e => {
+                n.has(e) || (n.add(e), a.push(e));
             });
         }
         return n;
     }
-    function f(e, t) {
-        const n = new Set, r = [ t ];
-        for (;r.length > 0; ) {
-            const t = r.pop();
+    function k(e, t) {
+        const n = new Set, a = [ t ];
+        for (;a.length > 0; ) {
+            const t = a.pop();
             if (!t) continue;
-            const a = e.nodes.get(t);
-            a && a.children.forEach(e => {
-                n.has(e) || (n.add(e), r.push(e));
+            const r = e.nodes.get(t);
+            r && r.children.forEach(e => {
+                n.has(e) || (n.add(e), a.push(e));
             });
         }
         return n;
     }
-    function y(c) {
-        const y = function(e, t, n) {
-            const r = window.__DEPENDENCY_DATA__;
-            if (p(r)) {
+    function b(e, t, n) {
+        const a = new Map, r = [ {
+            slug: t,
+            distance: 0
+        } ];
+        let s = 0;
+        for (;s < r.length; ) {
+            const t = r[s++], i = e.nodes.get(t.slug);
+            i && i[n].forEach(e => {
+                a.has(e) || (a.set(e, t.distance + 1), r.push({
+                    slug: e,
+                    distance: t.distance + 1
+                }));
+            });
+        }
+        return a;
+    }
+    function w(e) {
+        const l = function(e, t, n) {
+            const a = window.__DEPENDENCY_DATA__;
+            if (g(a)) {
                 const e = {};
-                return Object.entries(r.dependencies).forEach(([t, n]) => {
-                    const r = n, a = r.vulnerabilitySeverity || r.vulnerabilityHighest || r.highestSeverity || "none", s = String(a).trim().toLowerCase();
+                return Object.entries(a.dependencies).forEach(([t, n]) => {
+                    const a = n, r = a.vulnerabilitySeverity || a.vulnerabilityHighest || a.highestSeverity || "none", s = String(r).trim().toLowerCase();
                     let i = "none";
                     "critical" === s || "high" === s ? i = "high" : "moderate" !== s && "medium" !== s || (i = "moderate"), 
                     e[t] = {
-                        slug: String(r.slug || t),
-                        name: String(r.name || t),
-                        version: String(r.version || ""),
-                        dependencies: Array.isArray(r.dependencies) ? r.dependencies.map(e => String(e)) : [],
-                        license: String(r.license || "Unknown"),
-                        vulnerabilityCount: Number(r.vulnerabilityCount || 0),
+                        slug: String(a.slug || t),
+                        name: String(a.name || t),
+                        version: String(a.version || ""),
+                        dependencies: Array.isArray(a.dependencies) ? a.dependencies.map(e => String(e)) : [],
+                        license: String(a.license || "Unknown"),
+                        vulnerabilityCount: Number(a.vulnerabilityCount || 0),
                         vulnerabilitySeverity: i,
-                        isDevOnly: Boolean(r.isDevOnly),
-                        workspaceOrigins: Array.isArray(r.workspaceOrigins) ? r.workspaceOrigins.map(e => String(e)) : []
+                        isDevOnly: Boolean(a.isDevOnly),
+                        workspaceOrigins: Array.isArray(a.workspaceOrigins) ? a.workspaceOrigins.map(e => String(e)) : []
                     };
                 }), {
-                    workspaces: r.workspaces,
+                    workspaces: a.workspaces,
                     dependencies: e
                 };
             }
-            const a = {}, s = Object.values(e.dependencies || {});
+            const r = {}, s = Object.values(e.dependencies || {});
             s.forEach(e => {
-                const t = d(e.package.name, e.package.version);
-                a[t] = {
+                const t = p(e.package.name, e.package.version);
+                r[t] = {
                     slug: t,
                     name: e.package.name,
                     version: e.package.version,
                     dependencies: [],
-                    license: h(e),
-                    vulnerabilityCount: g(e),
-                    vulnerabilitySeverity: m(e),
+                    license: m(e),
+                    vulnerabilityCount: v(e),
+                    vulnerabilitySeverity: f(e),
                     isDevOnly: "dev" === e.usage.scope,
                     workspaceOrigins: e.usage.origins.workspaces || []
                 };
             }), s.forEach(e => {
-                const r = d(e.package.name, e.package.version), s = e.graph.subDeps;
+                const a = p(e.package.name, e.package.version), s = e.graph.subDeps;
                 if (!s) return;
                 const i = new Set;
                 [ "dep", "dev", "opt", "peer" ].forEach(e => {
@@ -268,9 +307,9 @@ exports.JS_CONTENT = `!function() {
                         const s = e[1];
                         if (!s) return;
                         const o = n(s);
-                        o && t.has(o) && a[o] && o !== r && i.add(o);
+                        o && t.has(o) && r[o] && o !== a && i.add(o);
                     });
-                }), a[r].dependencies = [ ...i ];
+                }), r[a].dependencies = [ ...i ];
             });
             const i = new Map, o = e => {
                 const t = i.get(e);
@@ -285,10 +324,10 @@ exports.JS_CONTENT = `!function() {
                 o(e.name);
             }), s.forEach(e => {
                 if (!e.usage.direct) return;
-                const t = d(e.package.name, e.package.version);
+                const t = p(e.package.name, e.package.version);
                 (e.usage.origins.workspaces?.length ? e.usage.origins.workspaces : [ "root" ]).forEach(n => {
-                    const r = o(n);
-                    "dev" === e.usage.scope ? r.directDevDependencies.add(t) : r.directDependencies.add(t);
+                    const a = o(n);
+                    "dev" === e.usage.scope ? a.directDevDependencies.add(t) : a.directDependencies.add(t);
                 });
             }), {
                 workspaces: [ ...i.entries() ].map(([e, t]) => ({
@@ -296,25 +335,25 @@ exports.JS_CONTENT = `!function() {
                     directDependencies: [ ...t.directDependencies ],
                     directDevDependencies: [ ...t.directDevDependencies ]
                 })).sort((e, t) => e.name.localeCompare(t.name)),
-                dependencies: a
+                dependencies: r
             };
-        }(c.report, c.knownDepKeys, c.resolveDepKey), b = new Map(y.workspaces.map(e => [ e.name, e ])), k = new Map, w = new Map;
-        Object.values(y.dependencies).forEach(e => {
-            const t = (e.dependencies || []).filter(t => t !== e.slug && Boolean(y.dependencies[t]));
-            w.set(e.slug, t), t.forEach(t => {
-                const n = k.get(t) || [];
-                n.push(e.slug), k.set(t, n);
+        }(e.report, e.knownDepKeys, e.resolveDepKey), d = new Map(l.workspaces.map(e => [ e.name, e ])), w = new Map, E = new Map;
+        Object.values(l.dependencies).forEach(e => {
+            const t = (e.dependencies || []).filter(t => t !== e.slug && Boolean(l.dependencies[t]));
+            E.set(e.slug, t), t.forEach(t => {
+                const n = w.get(t) || [];
+                n.push(e.slug), w.set(t, n);
             });
         });
-        let E = null, x = "", C = null, S = null, L = new Set, I = new Set, M = new Set, X = new Set, Y = new Set, P = null, D = 1, B = 0, A = 0, N = 1, T = .1, R = 0, H = 0, j = !1, O = !0, V = 0, \$ = Math.max(1, Math.floor(window.devicePixelRatio || 1)), G = 1, F = 1;
-        const W = {
+        let C = null, x = "", S = null, L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, B = new Set, A = new Set, N = null, T = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, \$ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
+        const J = {
             down: !1,
             moved: !1,
             startX: 0,
             startY: 0,
             startPanX: 0,
             startPanY: 0
-        }, U = {
+        }, Z = {
             active: !1,
             startX1: 0,
             startY1: 0,
@@ -326,7 +365,7 @@ exports.JS_CONTENT = `!function() {
             startZoom: 0,
             anchorX: null,
             anchorY: null
-        }, _ = {
+        }, Q = {
             active: !1,
             velocityX: 0,
             velocityY: 0,
@@ -334,10 +373,10 @@ exports.JS_CONTENT = `!function() {
             lastSampleY: 0,
             lastSampleTime: 0,
             lastFrameTime: 0
-        }, q = c.canvas.getContext("2d"), z = Boolean(q);
-        let K = !1, J = !1, Z = !1, Q = null, ee = null, te = null, ne = !1;
-        const re = "function" == typeof window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
-        let ae = {
+        }, ee = e.canvas.getContext("2d"), te = Boolean(ee);
+        let ne = !1, ae = !1, re = !1, se = null, ie = null, oe = null, ce = !1;
+        const le = "function" == typeof window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+        let de = {
             runtime: "#10b981",
             runtimeHighlight: "#34d399",
             dev: "#f59e0b",
@@ -352,149 +391,153 @@ exports.JS_CONTENT = `!function() {
             label: "#e8edf5",
             backgroundPrimary: "#0c1222"
         };
-        function se() {
-            const e = o("--graph-direct-runtime") || "#10b981", t = o("--graph-direct-dev") || "#f59e0b", n = o("--graph-transitive") || "#06b6d4";
-            ae = {
+        function ue() {
+            const e = c("--graph-direct-runtime") || "#10b981", t = c("--graph-direct-dev") || "#f59e0b", n = c("--graph-transitive") || "#06b6d4";
+            de = {
                 runtime: e,
-                runtimeHighlight: i(e, .2, "#34d399"),
+                runtimeHighlight: o(e, .2, "#34d399"),
                 dev: t,
-                devHighlight: i(t, .28, "#fcd34d"),
+                devHighlight: o(t, .28, "#fcd34d"),
                 transitive: n,
-                transitiveHighlight: i(n, .38, "#67e8f9"),
-                edge: o("--graph-edge") || "#64748b",
-                highlight: o("--graph-highlight") || "#22d3ee",
-                muted: o("--graph-muted") || "#64748b",
-                ringHigh: o("--graph-vuln-high") || "#ef4444",
-                ringModerate: o("--graph-vuln-medium") || "#f59e0b",
-                label: o("--text-primary") || "#e8edf5",
-                backgroundPrimary: o("--bg-primary") || "#0c1222"
+                transitiveHighlight: o(n, .38, "#67e8f9"),
+                edge: c("--graph-edge") || "#64748b",
+                highlight: c("--graph-highlight") || "#22d3ee",
+                muted: c("--graph-muted") || "#64748b",
+                ringHigh: c("--graph-vuln-high") || "#ef4444",
+                ringModerate: c("--graph-vuln-medium") || "#f59e0b",
+                label: c("--text-primary") || "#e8edf5",
+                backgroundPrimary: c("--bg-primary") || "#0c1222"
             };
         }
-        function ie() {
-            if (ne) return;
-            ne = !0, console.warn("Dependency Radar: unable to initialize 2D canvas; graph rendering disabled."), 
-            c.controlsRoot.classList.add("hidden"), c.workspaceWrap.classList.add("hidden"), 
-            c.canvas.style.display = "none";
-            const e = document.createElement("div");
-            e.className = "empty-state";
-            const t = document.createElement("div");
-            t.className = "empty-state-text", t.textContent = "Graph view is unavailable in this browser context.", 
-            e.appendChild(t), c.canvasHost.appendChild(e);
-        }
-        function oe(e) {
-            return (e - B) / D;
-        }
-        function ce(e) {
-            return (e - A) / D;
-        }
-        function le(e, t) {
-            const r = function(e, t) {
-                if (!E) return {
-                    x: e,
-                    y: t
-                };
-                const r = E.bounds.minX - 120, a = E.bounds.maxX + 120, s = E.bounds.minY - 90, i = E.bounds.maxY + 90, o = Math.min(.22 * G, 220), c = Math.min(.22 * F, 180), l = o - a * D, d = G - o - r * D, u = c - i * D, p = F - c - s * D;
-                return {
-                    x: l > d ? .5 * (l + d) : n(e, l, d),
-                    y: u > p ? .5 * (u + p) : n(t, u, p)
-                };
-            }(e, t);
-            B = r.x, A = r.y;
-        }
-        function de(t, r, a) {
-            he();
-            const s = n(t, T, e), i = oe(r), o = ce(a);
-            D = s, le(r - i * D, a - o * D), O = !0, He();
-        }
-        function ue(e, t) {
-            he(), le(B + e, A + t), O = !0, He();
-        }
         function pe() {
-            return !re?.matches;
+            if (ce) return;
+            ce = !0, console.warn("Dependency Radar: unable to initialize 2D canvas; graph rendering disabled."), 
+            e.controlsRoot.classList.add("hidden"), e.workspaceWrap.classList.add("hidden"), 
+            e.canvas.style.display = "none";
+            const t = document.createElement("div");
+            t.className = "empty-state";
+            const n = document.createElement("div");
+            n.className = "empty-state-text", n.textContent = "Graph view is unavailable in this browser context.", 
+            t.appendChild(n), e.canvasHost.appendChild(t);
         }
-        function he() {
-            _.active = !1, _.velocityX = 0, _.velocityY = 0, _.lastFrameTime = 0;
+        function he(e) {
+            return (e - j) / T;
         }
-        function ge(e, t, n) {
-            _.lastSampleX = e, _.lastSampleY = t, _.lastSampleTime = n;
+        function ge(e) {
+            return (e - R) / T;
         }
-        function me(e, t, n) {
-            const r = n - _.lastSampleTime;
-            if (r <= 0) return void ge(e, t, n);
-            const a = (e - _.lastSampleX) / r, s = (t - _.lastSampleY) / r;
-            _.velocityX += .22 * (a - _.velocityX), _.velocityY += .22 * (s - _.velocityY), 
-            ge(e, t, n);
+        function me(e, t) {
+            if (!C) return {
+                x: e,
+                y: t
+            };
+            const n = C.bounds.minX - 120, r = C.bounds.maxX + 120, s = C.bounds.minY - 90, i = C.bounds.maxY + 90, o = Math.min(.22 * z, 220), c = Math.min(.22 * K, 180), l = o - r * T, d = z - o - n * T, u = c - i * T, p = K - c - s * T;
+            return {
+                x: l > d ? .5 * (l + d) : a(e, l, d),
+                y: u > p ? .5 * (u + p) : a(t, u, p)
+            };
         }
-        function ve() {
-            if (!pe()) return void he();
-            Math.hypot(_.velocityX, _.velocityY) < .08 ? he() : (_.active = !0, _.lastFrameTime = performance.now(), 
-            Me(!1), He());
+        function ve(e, t) {
+            const n = me(e, t);
+            j = n.x, R = n.y;
         }
         function fe() {
-            const e = c.canvasHost.getBoundingClientRect();
-            G = Math.max(1, Math.floor(e.width)), F = Math.max(1, Math.floor(e.height)), \$ = Math.max(1, Math.floor(window.devicePixelRatio || 1)), 
-            c.canvas.width = G * \$, c.canvas.height = F * \$, c.canvas.style.width = \`\${G}px\`, 
-            c.canvas.style.height = \`\${F}px\`;
-            const t = c.canvasHost.querySelector(".graph-overlay-top"), n = t ? Math.ceil(t.getBoundingClientRect().height) : 50;
-            c.canvasHost.style.setProperty("--graph-toolbar-height", \`\${n}px\`), O = !0, He();
+            W = null, G = null;
         }
-        function ye() {
-            if (!E) return;
-            const r = E.bounds;
-            let a = r.maxX;
-            q && (q.save(), q.font = t, E.nodes.forEach(e => {
-                const t = s(e);
+        function ye(e, n, r) {
+            we(), fe();
+            const s = a(e, H, t), i = he(n), o = ge(r);
+            T = s, ve(n - i * T, r - o * T), U = !0, _e();
+        }
+        function ke(e, t) {
+            we(), fe(), ve(j + e, R + t), U = !0, _e();
+        }
+        function be() {
+            return !le?.matches;
+        }
+        function we() {
+            Q.active = !1, Q.velocityX = 0, Q.velocityY = 0, Q.lastFrameTime = 0;
+        }
+        function Ee(e, t, n) {
+            Q.lastSampleX = e, Q.lastSampleY = t, Q.lastSampleTime = n;
+        }
+        function Ce(e, t, n) {
+            const a = n - Q.lastSampleTime;
+            if (a <= 0) return void Ee(e, t, n);
+            const r = (e - Q.lastSampleX) / a, s = (t - Q.lastSampleY) / a;
+            Q.velocityX += .22 * (r - Q.velocityX), Q.velocityY += .22 * (s - Q.velocityY), 
+            Ee(e, t, n);
+        }
+        function xe() {
+            if (!be()) return void we();
+            Math.hypot(Q.velocityX, Q.velocityY) < .08 ? we() : (Q.active = !0, Q.lastFrameTime = performance.now(), 
+            je(!1), _e());
+        }
+        function Se() {
+            const t = e.canvasHost.getBoundingClientRect();
+            z = Math.max(1, Math.floor(t.width)), K = Math.max(1, Math.floor(t.height)), q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), 
+            e.canvas.width = z * q, e.canvas.height = K * q, e.canvas.style.width = \`\${z}px\`, 
+            e.canvas.style.height = \`\${K}px\`;
+            const n = e.canvasHost.querySelector(".graph-overlay-top"), a = n ? Math.ceil(n.getBoundingClientRect().height) : 50;
+            e.canvasHost.style.setProperty("--graph-toolbar-height", \`\${a}px\`), U = !0, _e();
+        }
+        function Le() {
+            if (!C) return;
+            const e = C.bounds;
+            let r = e.maxX;
+            ee && (ee.save(), ee.font = n, C.nodes.forEach(e => {
+                const t = i(e);
                 if (!t) return;
-                const n = q.measureText(t).width;
-                a = Math.max(a, e.baseX + e.radius + 6 + n);
-            }), q.restore());
-            const i = Math.max(1, r.maxY - r.minY), o = G / Math.max(1, a - r.minX), c = F / i;
-            N = n(Math.min(o, c), .05, e), T = n(.64 * N, .05, e), R = .5 * (G - Math.max(1, a - r.minX) * N) - r.minX * N, 
-            H = .5 * (F - i * N) - r.minY * N;
+                const n = ee.measureText(t).width;
+                r = Math.max(r, e.baseX + e.radius + 6 + n);
+            }), ee.restore());
+            const s = Math.max(1, e.maxY - e.minY), o = z / Math.max(1, r - e.minX), c = K / s;
+            V = a(Math.min(o, c), .05, t), H = a(.64 * V, .05, t), O = .5 * (z - Math.max(1, r - e.minX) * V) - e.minX * V, 
+            F = .5 * (K - s * V) - e.minY * V;
         }
-        function be(e, t) {
-            if (!E) return null;
-            const n = c.canvas.getBoundingClientRect();
-            if (e < n.left || e > n.right || t < n.top || t > n.bottom) return null;
-            const r = oe(e - n.left), a = ce(t - n.top);
-            let s = null, i = 1 / 0;
-            return E.nodes.forEach(e => {
-                const t = r - e.renderX, n = a - e.renderY, o = Math.sqrt(t * t + n * n);
-                o <= e.renderRadius + 5 && o < i && (i = o, s = e);
-            }), s;
+        function Ie(t, n) {
+            if (!C) return null;
+            const a = e.canvas.getBoundingClientRect();
+            if (t < a.left || t > a.right || n < a.top || n > a.bottom) return null;
+            const r = he(t - a.left), s = ge(n - a.top);
+            let i = null, o = 1 / 0;
+            return C.nodes.forEach(e => {
+                const t = r - e.renderX, n = s - e.renderY, a = Math.sqrt(t * t + n * n);
+                a <= e.renderRadius + 5 && a < o && (o = a, i = e);
+            }), i;
         }
-        function ke(e) {
-            c.canvas.classList.toggle("is-clickable", e && !W.down && !U.active);
+        function Me(t) {
+            e.canvas.classList.toggle("is-clickable", t && !J.down && !Z.active);
         }
-        function we(e = !1) {
-            ke(!1), e && c.canvas.classList.remove("is-panning");
+        function Ye(t = !1) {
+            Me(!1), t && e.canvas.classList.remove("is-panning");
         }
-        function Ee(e, t) {
-            const n = be(e, t);
-            return Ye(n ? n.slug : null), ke(Boolean(n)), n;
+        function Pe(e, t) {
+            const n = Ie(e, t);
+            return Ve(n ? n.slug : null), Me(Boolean(n)), n;
         }
-        function xe(e) {
-            const t = b.get(e);
+        function Xe(e) {
+            const t = d.get(e);
             if (!t) return null;
-            const n = new Set(t.directDependencies.filter(e => Boolean(y.dependencies[e]))), s = new Set(t.directDevDependencies.filter(e => Boolean(y.dependencies[e]))), i = new Set([ ...n, ...s ]);
-            0 === i.size && Object.keys(y.dependencies).filter(e => 0 === (k.get(e) || []).length).slice(0, 40).forEach(e => {
+            const n = new Set(t.directDependencies.filter(e => Boolean(l.dependencies[e]))), a = new Set(t.directDevDependencies.filter(e => Boolean(l.dependencies[e]))), i = new Set([ ...n, ...a ]);
+            0 === i.size && Object.keys(l.dependencies).filter(e => 0 === (w.get(e) || []).length).slice(0, 40).forEach(e => {
                 i.add(e);
             });
             const o = new Set, c = [ ...i ];
-            let l = 0;
-            for (;l < c.length; ) {
-                const e = c[l++];
-                e && (o.has(e) || y.dependencies[e] && (o.add(e), (w.get(e) || []).forEach(e => {
+            let u = 0;
+            for (;u < c.length; ) {
+                const e = c[u++];
+                e && (o.has(e) || l.dependencies[e] && (o.add(e), (E.get(e) || []).forEach(e => {
                     o.has(e) || c.push(e);
                 })));
             }
             if (0 === o.size) return null;
-            const d = new Map;
+            const p = new Map;
             o.forEach(e => {
-                const t = n.has(e) ? "direct-runtime" : s.has(e) ? "direct-dev" : "transitive", i = Array.from(y.dependencies[e].name);
-                d.set(e, {
+                const t = n.has(e) ? "direct-runtime" : a.has(e) ? "direct-dev" : "transitive", i = Array.from(l.dependencies[e].name);
+                p.set(e, {
                     slug: e,
-                    ref: y.dependencies[e],
+                    ref: l.dependencies[e],
                     labelGraphemes: i,
                     parents: new Set,
                     children: new Set,
@@ -512,62 +555,62 @@ exports.JS_CONTENT = `!function() {
                     targetRadius: 8,
                     renderRadius: 8,
                     targetLabelChars: r(i),
-                    renderLabelChars: a(i)
+                    renderLabelChars: s(i)
                 });
-            }), d.forEach(e => {
-                (k.get(e.slug) || []).forEach(t => {
-                    d.has(t) && e.parents.add(t);
-                }), (w.get(e.slug) || []).forEach(t => {
-                    d.has(t) && e.children.add(t);
+            }), p.forEach(e => {
+                (w.get(e.slug) || []).forEach(t => {
+                    p.has(t) && e.parents.add(t);
+                }), (E.get(e.slug) || []).forEach(t => {
+                    p.has(t) && e.children.add(t);
                 });
             });
-            const u = [];
+            const h = [];
             for (i.forEach(e => {
-                const t = d.get(e);
-                t && (t.depth = 0, u.push(e));
-            }); u.length > 0; ) {
-                const e = u.shift();
+                const t = p.get(e);
+                t && (t.depth = 0, h.push(e));
+            }); h.length > 0; ) {
+                const e = h.shift();
                 if (!e) continue;
-                const t = d.get(e);
+                const t = p.get(e);
                 t && t.children.forEach(e => {
-                    const n = d.get(e);
+                    const n = p.get(e);
                     if (!n) return;
-                    const r = t.depth + 1;
-                    r >= n.depth || (n.depth = r, u.push(e));
+                    const a = t.depth + 1;
+                    a >= n.depth || (n.depth = a, h.push(e));
                 });
             }
-            d.forEach(e => {
+            p.forEach(e => {
                 if (Number.isFinite(e.depth)) return;
                 let t = Number.POSITIVE_INFINITY;
                 e.parents.forEach(e => {
-                    const n = d.get(e);
+                    const n = p.get(e);
                     n && Number.isFinite(n.depth) && (t = Math.min(t, n.depth + 1));
                 }), e.depth = Number.isFinite(t) ? t : 0;
             });
-            const p = [ ...d.values() ].reduce((e, t) => Math.max(e, t.depth), 0), h = Array.from({
-                length: p + 1
+            const g = [ ...p.values() ].reduce((e, t) => Math.max(e, t.depth), 0), m = Array.from({
+                length: g + 1
             }, () => []);
-            d.forEach(e => {
-                h[e.depth].push(e.slug);
+            p.forEach(e => {
+                m[e.depth].push(e.slug);
             });
-            const g = [];
-            d.forEach(e => {
+            const v = [];
+            p.forEach(e => {
                 e.children.forEach(t => {
-                    g.push({
+                    v.push({
                         from: e.slug,
                         to: t,
                         direct: 0 === e.depth
                     });
                 });
             });
-            const m = {
+            const f = {
                 workspaceName: e,
-                nodes: d,
-                edges: g,
-                layers: h,
+                nodes: p,
+                edges: v,
+                layers: m,
                 directRuntime: n,
-                directDev: s,
-                directAll: new Set([ ...n, ...s ]),
+                directDev: a,
+                directAll: new Set([ ...n, ...a ]),
                 bounds: {
                     minX: 0,
                     maxX: 1,
@@ -575,62 +618,62 @@ exports.JS_CONTENT = `!function() {
                     maxY: 1
                 }
             };
-            return Ce(m), Se(m), m;
+            return De(f), Be(f), f;
         }
-        function Ce(e) {
+        function De(e) {
             e.nodes.forEach(e => {
                 e.amplification = 0;
             }), e.nodes.forEach(t => {
                 if (0 !== t.depth) return;
                 if (!e.directAll.has(t.slug)) return;
-                const n = new Set, r = [ ...t.children ];
-                for (;r.length > 0; ) {
-                    const a = r.pop();
-                    if (!a) continue;
-                    if (a === t.slug) continue;
-                    if (n.has(a)) continue;
-                    n.add(a);
-                    const s = e.nodes.get(a);
+                const n = new Set, a = [ ...t.children ];
+                for (;a.length > 0; ) {
+                    const r = a.pop();
+                    if (!r) continue;
+                    if (r === t.slug) continue;
+                    if (n.has(r)) continue;
+                    n.add(r);
+                    const s = e.nodes.get(r);
                     s && s.children.forEach(e => {
-                        n.has(e) || r.push(e);
+                        n.has(e) || a.push(e);
                     });
                 }
                 t.amplification = n.size;
             });
         }
-        function Se(e) {
+        function Be(e) {
             const t = new Map;
-            e.layers.forEach((n, r) => {
-                0 === r ? n.sort((t, n) => {
-                    const r = e.nodes.get(t), a = e.nodes.get(n);
-                    if (!r && !a) return 0;
-                    if (!r) return 1;
-                    if (!a) return -1;
-                    if (r.amplification !== a.amplification) return a.amplification - r.amplification;
-                    if (r.kind !== a.kind) {
-                        if ("direct-runtime" === r.kind) return -1;
-                        if ("direct-runtime" === a.kind) return 1;
-                    }
-                    return r.ref.name.localeCompare(a.ref.name);
-                }) : n.sort((n, r) => {
-                    const a = e.nodes.get(n), s = e.nodes.get(r);
-                    if (!a && !s) return 0;
+            e.layers.forEach((n, a) => {
+                0 === a ? n.sort((t, n) => {
+                    const a = e.nodes.get(t), r = e.nodes.get(n);
+                    if (!a && !r) return 0;
                     if (!a) return 1;
+                    if (!r) return -1;
+                    if (a.amplification !== r.amplification) return r.amplification - a.amplification;
+                    if (a.kind !== r.kind) {
+                        if ("direct-runtime" === a.kind) return -1;
+                        if ("direct-runtime" === r.kind) return 1;
+                    }
+                    return a.ref.name.localeCompare(r.ref.name);
+                }) : n.sort((n, a) => {
+                    const r = e.nodes.get(n), s = e.nodes.get(a);
+                    if (!r && !s) return 0;
+                    if (!r) return 1;
                     if (!s) return -1;
                     const i = (() => {
                         let e = 0, n = 0;
-                        return a.parents.forEach(r => {
-                            const a = t.get(r);
-                            "number" == typeof a && (e += 1, n += a);
+                        return r.parents.forEach(a => {
+                            const r = t.get(a);
+                            "number" == typeof r && (e += 1, n += r);
                         }), e > 0 ? n / e : Number.MAX_SAFE_INTEGER;
                     })(), o = (() => {
                         let e = 0, n = 0;
-                        return s.parents.forEach(r => {
-                            const a = t.get(r);
-                            "number" == typeof a && (e += 1, n += a);
+                        return s.parents.forEach(a => {
+                            const r = t.get(a);
+                            "number" == typeof r && (e += 1, n += r);
                         }), e > 0 ? n / e : Number.MAX_SAFE_INTEGER;
                     })();
-                    return i !== o ? i - o : a.ref.name.localeCompare(s.ref.name);
+                    return i !== o ? i - o : r.ref.name.localeCompare(s.ref.name);
                 }), n.forEach((e, n) => {
                     t.set(e, n);
                 });
@@ -641,16 +684,16 @@ exports.JS_CONTENT = `!function() {
                 maxX: Number.NEGATIVE_INFINITY,
                 minY: Number.POSITIVE_INFINITY,
                 maxY: Number.NEGATIVE_INFINITY
-            }, e.layers.forEach((t, s) => {
+            }, e.layers.forEach((t, a) => {
                 const i = Math.max(0, 43 * (t.length - 1)), o = 64 + .5 * (43 * n - i);
                 t.forEach((t, n) => {
                     const i = e.nodes.get(t);
                     if (!i) return;
-                    i.order = n, i.baseX = 96 + 240 * s, i.baseY = o + 43 * n, i.targetX = i.baseX, 
+                    i.order = n, i.baseX = 96 + 240 * a, i.baseY = o + 43 * n, i.targetX = i.baseX, 
                     i.targetY = i.baseY, i.renderX = i.baseX, i.renderY = i.baseY;
                     const c = .55 * Math.log(i.children.size + i.parents.size + 1), l = 0 === i.depth && e.directAll.has(i.slug) ? 1.05 * Math.log(i.amplification + 1) : 0;
                     i.radius = 6.7 + c + l, i.targetRadius = i.radius, i.renderRadius = i.radius, i.targetLabelChars = r(i.labelGraphemes), 
-                    i.renderLabelChars = a(i.labelGraphemes), e.bounds.minX = Math.min(e.bounds.minX, i.baseX), 
+                    i.renderLabelChars = s(i.labelGraphemes), e.bounds.minX = Math.min(e.bounds.minX, i.baseX), 
                     e.bounds.maxX = Math.max(e.bounds.maxX, i.baseX), e.bounds.minY = Math.min(e.bounds.minY, i.baseY), 
                     e.bounds.maxY = Math.max(e.bounds.maxY, i.baseY);
                 });
@@ -661,126 +704,169 @@ exports.JS_CONTENT = `!function() {
                 maxY: 1
             });
         }
-        function Le(e) {
-            if (!E || !E.nodes.has(e)) return;
-            C = e;
-            const t = v(E, e), n = f(E, e);
-            L = new Set([ e ]), t.forEach(e => {
-                L.add(e);
+        function Ae(e, n) {
+            if (!C) return;
+            const r = a(Math.max(T, 1.35 * V), H, t);
+            T += (r - T) * (le?.matches ? 1 : .35), function(e, t) {
+                const n = me(e, t);
+                W = n.x, G = n.y;
+            }(.46 * z - e * T, .5 * K - n * T);
+        }
+        function Ne(e) {
+            if (!C || !C.nodes.has(e)) return;
+            we(), S = e;
+            const t = y(C, e), n = k(C, e);
+            I = new Set([ e ]), t.forEach(e => {
+                I.add(e);
             }), n.forEach(e => {
-                L.add(e);
-            }), I = new Set;
-            const r = [ e ], a = new Set([ e ]);
+                I.add(e);
+            }), M = new Set;
+            const r = [ e ], s = new Set([ e ]);
             for (;r.length > 0; ) {
                 const e = r.pop();
                 if (!e) continue;
-                const t = E.nodes.get(e);
+                const t = C.nodes.get(e);
                 t && t.parents.forEach(t => {
-                    I.add(u(t, e)), a.has(t) || (a.add(t), r.push(t));
+                    M.add(h(t, e)), s.has(t) || (s.add(t), r.push(t));
                 });
             }
-            const s = [ e ], i = new Set([ e ]);
-            for (;s.length > 0; ) {
-                const e = s.pop();
+            const i = [ e ], o = new Set([ e ]);
+            for (;i.length > 0; ) {
+                const e = i.pop();
                 if (!e) continue;
-                const t = E.nodes.get(e);
+                const t = C.nodes.get(e);
                 t && t.children.forEach(t => {
-                    I.add(u(e, t)), i.has(t) || (i.add(t), s.push(t));
+                    M.add(h(e, t)), o.has(t) || (o.add(t), i.push(t));
                 });
             }
-            M = new Set(L);
-            const o = E.nodes.get(e);
-            o.parents.forEach(e => {
-                M.add(e);
-            }), o.children.forEach(e => {
-                M.add(e);
-            }), O = !0, He();
+            Y = new Set(I);
+            const c = C.nodes.get(e);
+            c.parents.forEach(e => {
+                Y.add(e);
+            }), c.children.forEach(e => {
+                Y.add(e);
+            });
+            const l = null === X || null === D, d = !l && Boolean(N) && I.has(N);
+            !l && d || (X = c.renderX, D = c.renderY), P = function(e, t, n, r) {
+                const s = new Map, i = b(e, t, "parents"), o = b(e, t, "children"), c = new Map;
+                return s.set(t, {
+                    x: n,
+                    y: r
+                }), I.forEach(a => {
+                    if (a === t) return;
+                    const r = e.nodes.get(a);
+                    if (!r) return;
+                    const s = i.get(a), l = o.get(a);
+                    let d = 0;
+                    "number" == typeof s && ("number" != typeof l || s <= l) ? d = -s : "number" == typeof l && (d = l), 
+                    0 === d && (d = r.baseX < n ? -1 : 1);
+                    const u = c.get(d) || [];
+                    u.push(r), c.set(d, u);
+                }), c.forEach((e, t) => {
+                    e.sort((e, n) => {
+                        const a = t < 0 ? i.get(e.slug) || 0 : o.get(e.slug) || 0, r = t < 0 ? i.get(n.slug) || 0 : o.get(n.slug) || 0;
+                        return a !== r ? a - r : e.baseY !== n.baseY ? e.baseY - n.baseY : e.ref.name.localeCompare(n.ref.name);
+                    });
+                    const c = a(660 / Math.max(1, e.length - 1), 24, 34), l = r - (e.length - 1) * c * .5;
+                    e.forEach((e, a) => {
+                        const r = Math.abs(t), i = 170 * (1 + .78 * Math.max(0, r - 1));
+                        s.set(e.slug, {
+                            x: n + Math.sign(t) * i,
+                            y: l + a * c
+                        });
+                    });
+                }), s;
+            }(C, e, X ?? c.renderX, D ?? c.renderY), Ae(X ?? c.renderX, D ?? c.renderY), U = !0, 
+            _e();
         }
-        function Ie() {
-            C = null, L = new Set, I = new Set, M = new Set, O = !0, He();
+        function Te() {
+            S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, 
+            fe(), U = !0, _e();
         }
-        function Me(e = !0) {
-            S = null, X = new Set, Y = new Set, e && (O = !0, He());
+        function je(e = !0) {
+            L = null, B = new Set, A = new Set, e && (U = !0, _e());
         }
-        function Xe() {
-            if (!E) return;
-            const e = C && E.nodes.get(C) || null;
-            E.nodes.forEach(t => {
-                if (t.targetRadius = function(e) {
-                    const t = C === e.slug, n = L.has(e.slug);
-                    let r = e.radius;
-                    t ? r *= 1.85 : C && n ? r *= 1.22 : C && !n ? r *= .84 : S && X.has(e.slug) ? r *= 1.1 : S && (r *= .9);
-                    return r;
-                }(t), t.targetLabelChars = r(t.labelGraphemes, Boolean(C) && L.has(t.slug) || !C && Boolean(S) && X.has(t.slug)), 
-                !e || !M.has(t.slug)) return t.targetX = t.baseX, void (t.targetY = t.baseY);
-                const n = t.baseX - e.baseX, a = t.baseY - e.baseY, s = 1 + 120 / (Math.sqrt(n * n + a * a) + 1);
-                t.targetX = e.baseX + n * s, t.targetY = e.baseY + a * s;
+        function Re() {
+            if (!C) return;
+            const e = S && C.nodes.get(S) || null;
+            C.nodes.forEach(t => {
+                t.targetRadius = function(e) {
+                    const t = S === e.slug, n = I.has(e.slug);
+                    let a = e.radius;
+                    t ? a *= 1.85 : S && n ? a *= 1.22 : S && !n ? a *= .84 : L && B.has(e.slug) ? a *= 1.1 : L && (a *= .9);
+                    return a;
+                }(t), t.targetLabelChars = r(t.labelGraphemes, Boolean(S) && I.has(t.slug) || !S && Boolean(L) && B.has(t.slug));
+                const n = P.get(t.slug);
+                if (e && n) return t.targetX = n.x, void (t.targetY = n.y);
+                if (!e || !Y.has(t.slug)) return t.targetX = t.baseX, void (t.targetY = t.baseY);
+                const a = t.baseX - e.baseX, s = t.baseY - e.baseY, i = 1 + 120 / (Math.sqrt(a * a + s * s) + 1);
+                t.targetX = e.baseX + a * i, t.targetY = e.baseY + s * i;
             });
         }
-        function Ye(e) {
-            if (C) return;
-            if (S = e, X = new Set, Y = new Set, !E || !e || !E.nodes.has(e)) return O = !0, 
-            void He();
-            const t = v(E, e), n = f(E, e);
-            X = new Set([ e ]), t.forEach(e => {
-                X.add(e);
+        function Ve(e) {
+            if (S) return;
+            if (L = e, B = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
+            void _e();
+            const t = y(C, e), n = k(C, e);
+            B = new Set([ e ]), t.forEach(e => {
+                B.add(e);
             }), n.forEach(e => {
-                X.add(e);
+                B.add(e);
             });
-            const r = E.nodes.get(e);
-            r && (r.parents.forEach(e => {
-                X.add(e);
-            }), r.children.forEach(e => {
-                X.add(e);
-            })), E.edges.forEach(e => {
-                X.has(e.from) && X.has(e.to) && Y.add(u(e.from, e.to));
-            }), O = !0, He();
+            const a = C.nodes.get(e);
+            a && (a.parents.forEach(e => {
+                B.add(e);
+            }), a.children.forEach(e => {
+                B.add(e);
+            })), C.edges.forEach(e => {
+                B.has(e.from) && B.has(e.to) && A.add(h(e.from, e.to));
+            }), U = !0, _e();
         }
-        function Pe(e) {
-            if (!E) return;
-            const t = E.nodes.get(e);
-            if (!t) return;
-            const n = 0 === t.depth && E.directAll.has(t.slug);
-            P = e, c.popoverName.textContent = t.ref.name, c.popoverVersion.textContent = \`Version: \${t.ref.version}\`, 
-            c.popoverLicense.textContent = \`License: \${t.ref.license || "Unknown"}\`, c.popoverVulns.textContent = \`Vulnerabilities: \${t.ref.vulnerabilityCount || 0}\`, 
-            c.popoverAmplification.textContent = n ? \`Amplification: \${t.amplification}\` : \`Dependencies: \${t.children.size} • Dependents: \${t.parents.size}\`, 
-            c.popover.hidden = !1, Be();
+        function He(t) {
+            if (!C) return;
+            const n = C.nodes.get(t);
+            if (!n) return;
+            const a = 0 === n.depth && C.directAll.has(n.slug);
+            N = t, e.popoverName.textContent = n.ref.name, e.popoverVersion.textContent = \`Version: \${n.ref.version}\`, 
+            e.popoverLicense.textContent = \`License: \${n.ref.license || "Unknown"}\`, e.popoverVulns.textContent = \`Vulnerabilities: \${n.ref.vulnerabilityCount || 0}\`, 
+            e.popoverAmplification.textContent = a ? \`Amplification: \${n.amplification}\` : \`Dependencies: \${n.children.size} • Dependents: \${n.parents.size}\`, 
+            e.popover.hidden = !1, Fe();
         }
-        function De() {
-            P = null, c.popover.hidden = !0;
+        function Oe() {
+            N = null, e.popover.hidden = !0;
         }
-        function Be() {
-            if (!E || !P || c.popover.hidden) return;
-            const e = E.nodes.get(P);
-            if (!e) return void De();
-            const t = e.renderX * D + B, r = e.renderY * D + A, a = c.canvasHost.getBoundingClientRect(), s = c.popover.getBoundingClientRect(), i = Math.max(8, a.width - s.width - 8), o = Math.max(8, a.height - s.height - 8), l = n(t + 14, 8, i), d = n(r + 14, 8, o);
-            c.popover.style.left = \`\${l}px\`, c.popover.style.top = \`\${d}px\`;
+        function Fe() {
+            if (!C || !N || e.popover.hidden) return;
+            const t = C.nodes.get(N);
+            if (!t) return void Oe();
+            const n = t.renderX * T + j, r = t.renderY * T + R, s = e.canvasHost.getBoundingClientRect(), i = e.popover.getBoundingClientRect(), o = Math.max(8, s.width - i.width - 8), c = Math.max(8, s.height - i.height - 8), l = a(n + 14, 8, o), d = a(r + 14, 8, c);
+            e.popover.style.left = \`\${l}px\`, e.popover.style.top = \`\${d}px\`;
         }
-        function Ae(e) {
-            return C ? L.has(e) ? 1 : .14 : S ? X.has(e) ? 1 : .16 : .95;
+        function We(e) {
+            return S ? I.has(e) ? 1 : .14 : L ? B.has(e) ? 1 : .16 : .95;
         }
-        function Ne() {
-            if (!q) return;
-            if (q.setTransform(\$, 0, 0, \$, 0, 0), q.clearRect(0, 0, G, F), !E) return;
-            const e = E, r = oe(0) - 80, a = oe(G) + 80, i = ce(0) - 80, o = ce(F) + 80;
-            q.setTransform(\$ * D, 0, 0, \$ * D, \$ * B, \$ * A);
-            const c = ae.runtime, d = ae.dev, p = ae.transitive, h = ae.edge, g = ae.highlight, m = ae.muted, v = ae.ringHigh, f = ae.ringModerate, y = ae.label, b = ae.backgroundPrimary, k = new Set;
+        function Ge() {
+            if (!ee) return;
+            if (ee.setTransform(q, 0, 0, q, 0, 0), ee.clearRect(0, 0, z, K), !C) return;
+            const e = C, t = he(0) - 80, r = he(z) + 80, s = ge(0) - 80, o = ge(K) + 80;
+            ee.setTransform(q * T, 0, 0, q * T, q * j, q * R);
+            const c = de.runtime, l = de.dev, d = de.transitive, p = de.edge, g = de.highlight, m = de.muted, v = de.ringHigh, f = de.ringModerate, y = de.label, k = de.backgroundPrimary, b = new Set;
             e.nodes.forEach(e => {
-                const t = Math.max(e.radius, e.renderRadius);
-                e.renderX + t >= r && e.renderX - t <= a && e.renderY + t >= i && e.renderY - t <= o && k.add(e.slug);
+                const n = Math.max(e.radius, e.renderRadius);
+                e.renderX + n >= t && e.renderX - n <= r && e.renderY + n >= s && e.renderY - n <= o && b.add(e.slug);
             });
             const w = [];
-            let x = 0;
+            let E = 0;
             e.nodes.forEach(e => {
-                if (!k.has(e.slug)) return;
+                if (!b.has(e.slug)) return;
                 let t = 0;
-                C === e.slug ? t = 2 : (L.has(e.slug) || X.has(e.slug)) && (t = 1), w.push({
+                S === e.slug ? t = 2 : (I.has(e.slug) || B.has(e.slug)) && (t = 1), w.push({
                     node: e,
                     priority: t,
-                    order: x++
+                    order: E++
                 });
             }), w.sort((e, t) => e.priority - t.priority || e.order - t.order);
-            const M = Math.max(0, e.layers.length - 1), P = function(e) {
+            const x = Math.max(0, e.layers.length - 1), Y = function(e) {
                 const t = new Map;
                 return e.nodes.forEach(e => {
                     const n = t.get(e.depth);
@@ -788,9 +874,9 @@ exports.JS_CONTENT = `!function() {
                 }), t.forEach(e => {
                     e.sort((e, t) => e.renderY - t.renderY);
                 }), t;
-            }(e), N = {
-                depthNodeIndex: P,
-                maxDepth: M,
+            }(e), P = {
+                depthNodeIndex: Y,
+                maxDepth: x,
                 sameColumnXThreshold: 6,
                 minDetourVerticalSpan: 80,
                 detourInset: 14,
@@ -798,264 +884,269 @@ exports.JS_CONTENT = `!function() {
                 paddingX: 96,
                 layerGap: 240,
                 edgeCurve: .2
-            }, T = [];
+            }, X = [];
             e.edges.forEach(t => {
-                const n = e.nodes.get(t.from), r = e.nodes.get(t.to);
-                if (!n || !r) return;
-                if (!k.has(n.slug) && !k.has(r.slug)) return;
-                const a = u(t.from, t.to);
-                T.push({
+                const n = e.nodes.get(t.from), a = e.nodes.get(t.to);
+                if (!n || !a) return;
+                if (!b.has(n.slug) && !b.has(a.slug)) return;
+                const r = h(t.from, t.to);
+                X.push({
                     from: n,
-                    to: r,
-                    highlighted: I.has(a) || !C && Y.has(a),
-                    span: Math.abs(r.depth - n.depth)
+                    to: a,
+                    highlighted: M.has(r) || !S && A.has(r),
+                    span: Math.abs(a.depth - n.depth)
                 });
-            }), T.sort((e, t) => t.span - e.span), q.globalCompositeOperation = "source-over", 
-            q.strokeStyle = C || S ? m : h, q.lineWidth = 1.05, q.globalAlpha = function() {
-                if (C || S) return .04 * n((D - .35) / .9, .75, 1);
-                return .25 * n((D - .35) / .9, .2, 1);
-            }(), q.beginPath(), T.forEach(e => {
-                e.highlighted || l(q, e.from, e.to, N);
-            }), q.stroke(), q.globalCompositeOperation = "lighter", q.strokeStyle = g, q.lineWidth = 1.2, 
-            q.globalAlpha = .36 * n((D - .35) / .9, .2, 1), q.beginPath(), T.forEach(e => {
-                e.highlighted && l(q, e.from, e.to, N);
-            }), q.stroke(), q.globalCompositeOperation = "source-over";
-            const R = e => {
-                const t = C === e.slug, n = e.renderRadius;
-                q.globalAlpha = 1, q.fillStyle = b, q.beginPath(), q.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
-                q.fill(), q.globalAlpha = Ae(e.slug);
-                const r = q.createRadialGradient(e.renderX - .3 * n, e.renderY - .3 * n, 0, e.renderX, e.renderY, 1.2 * n);
-                "direct-runtime" === e.kind ? (r.addColorStop(0, ae.runtimeHighlight), r.addColorStop(1, c)) : "direct-dev" === e.kind ? (r.addColorStop(0, ae.devHighlight), 
-                r.addColorStop(1, d)) : (r.addColorStop(0, ae.transitiveHighlight), r.addColorStop(1, p)), 
-                q.fillStyle = r, q.beginPath(), q.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
-                q.fill(), t && (q.globalAlpha = .95, q.strokeStyle = g, q.lineWidth = 1.5, q.beginPath(), 
-                q.arc(e.renderX, e.renderY, n + 4, 0, 2 * Math.PI), q.stroke());
-            }, H = e => {
+            }), X.sort((e, t) => t.span - e.span), ee.globalCompositeOperation = "source-over", 
+            ee.strokeStyle = S || L ? m : p, ee.lineWidth = 1.05, ee.globalAlpha = function() {
+                if (S || L) return .04 * a((T - .35) / .9, .75, 1);
+                return .25 * a((T - .35) / .9, .2, 1);
+            }(), ee.beginPath(), X.forEach(e => {
+                e.highlighted || u(ee, e, P, Boolean(S));
+            }), ee.stroke(), ee.globalCompositeOperation = "lighter", ee.strokeStyle = g, ee.lineWidth = 1.2, 
+            ee.globalAlpha = .36 * a((T - .35) / .9, .2, 1), ee.beginPath(), X.forEach(e => {
+                e.highlighted && u(ee, e, P, Boolean(S));
+            }), ee.stroke(), ee.globalCompositeOperation = "source-over";
+            const D = e => {
+                const t = S === e.slug, n = e.renderRadius;
+                ee.globalAlpha = 1, ee.fillStyle = k, ee.beginPath(), ee.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
+                ee.fill(), ee.globalAlpha = We(e.slug);
+                const a = ee.createRadialGradient(e.renderX - .3 * n, e.renderY - .3 * n, 0, e.renderX, e.renderY, 1.2 * n);
+                "direct-runtime" === e.kind ? (a.addColorStop(0, de.runtimeHighlight), a.addColorStop(1, c)) : "direct-dev" === e.kind ? (a.addColorStop(0, de.devHighlight), 
+                a.addColorStop(1, l)) : (a.addColorStop(0, de.transitiveHighlight), a.addColorStop(1, d)), 
+                ee.fillStyle = a, ee.beginPath(), ee.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
+                ee.fill(), t && (ee.globalAlpha = .95, ee.strokeStyle = g, ee.lineWidth = 1.5, ee.beginPath(), 
+                ee.arc(e.renderX, e.renderY, n + 4, 0, 2 * Math.PI), ee.stroke());
+            }, N = e => {
                 if (!e.ref.vulnerabilityCount || e.ref.vulnerabilityCount <= 0) return;
                 if ("none" === e.ref.vulnerabilitySeverity) return;
                 const t = e.renderRadius, n = "high" === e.ref.vulnerabilitySeverity ? v : f;
-                var r;
-                q.save(), q.translate(e.renderX, e.renderY), q.globalAlpha = (r = e.slug, C ? L.has(r) ? .78 : .11 : S ? X.has(r) ? .76 : .12 : .8), 
-                q.strokeStyle = n;
-                const a = t / e.radius, s = t / 3 * 1.2 / 12, i = 1.2 * s + 3 * (a - 1), o = Math.max(.5 * s, .15), c = Math.max(1 * s, .3), l = Math.max(3 * s, .8), d = Math.max(1 * s, .3), u = Math.max(.5 * s, .15), p = t + (2 + 6 * (a - 1)) + o / 2, h = p + o / 2 + i + c / 2, g = h + c / 2 + i + l / 2, m = g + l / 2 + i + d / 2, y = m + d / 2 + i + u / 2;
-                q.setLineDash([]), q.lineWidth = u, q.beginPath(), q.arc(0, 0, y, 0, 2 * Math.PI), 
-                q.stroke(), q.lineWidth = d, q.beginPath(), q.arc(0, 0, m, 0, 2 * Math.PI), q.stroke(), 
-                q.lineWidth = l, q.beginPath(), q.arc(0, 0, g, 0, 2 * Math.PI), q.stroke(), q.lineWidth = c, 
-                q.beginPath(), q.arc(0, 0, h, 0, 2 * Math.PI), q.stroke(), q.lineWidth = o, q.beginPath(), 
-                q.arc(0, 0, p, 0, 2 * Math.PI), q.stroke(), q.restore();
+                var a;
+                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, S ? I.has(a) ? .78 : .11 : L ? B.has(a) ? .76 : .12 : .8), 
+                ee.strokeStyle = n;
+                const r = t / e.radius, s = t / 3 * 1.2 / 12, i = 1.2 * s + 3 * (r - 1), o = Math.max(.5 * s, .15), c = Math.max(1 * s, .3), l = Math.max(3 * s, .8), d = Math.max(1 * s, .3), u = Math.max(.5 * s, .15), p = t + (2 + 6 * (r - 1)) + o / 2, h = p + o / 2 + i + c / 2, g = h + c / 2 + i + l / 2, m = g + l / 2 + i + d / 2, y = m + d / 2 + i + u / 2;
+                ee.setLineDash([]), ee.lineWidth = u, ee.beginPath(), ee.arc(0, 0, y, 0, 2 * Math.PI), 
+                ee.stroke(), ee.lineWidth = d, ee.beginPath(), ee.arc(0, 0, m, 0, 2 * Math.PI), 
+                ee.stroke(), ee.lineWidth = l, ee.beginPath(), ee.arc(0, 0, g, 0, 2 * Math.PI), 
+                ee.stroke(), ee.lineWidth = c, ee.beginPath(), ee.arc(0, 0, h, 0, 2 * Math.PI), 
+                ee.stroke(), ee.lineWidth = o, ee.beginPath(), ee.arc(0, 0, p, 0, 2 * Math.PI), 
+                ee.stroke(), ee.restore();
             };
-            for (const t of [ 0, 1, 2 ]) w.forEach(({node: e, priority: n}) => {
-                n === t && R(e);
-            }), w.forEach(({node: e, priority: n}) => {
-                n === t && H(e);
+            for (const n of [ 0, 1, 2 ]) w.forEach(({node: e, priority: t}) => {
+                t === n && D(e);
+            }), w.forEach(({node: e, priority: t}) => {
+                t === n && N(e);
             });
-            q.textBaseline = "middle", q.font = t, q.fillStyle = y, w.forEach(({node: e}) => {
+            ee.textBaseline = "middle", ee.font = n, ee.fillStyle = y, w.forEach(({node: e}) => {
                 (e => {
-                    const t = s(e);
-                    t && (q.globalAlpha = Ae(e.slug), q.fillText(t, e.renderX + e.renderRadius + 6, e.renderY));
+                    const t = i(e);
+                    t && (ee.globalAlpha = We(e.slug), ee.fillText(t, e.renderX + e.renderRadius + 6, e.renderY));
                 })(e);
-            }), q.globalAlpha = 1, Be();
+            }), ee.globalAlpha = 1, Fe();
         }
-        function Te() {
-            if (!j) return void (V = 0);
-            Xe();
+        function \$e() {
+            if (!\$) return void (_ = 0);
+            Re();
             const e = function() {
-                if (!E) return !1;
+                if (!C) return !1;
                 let e = !1;
-                const t = re?.matches;
-                return E.nodes.forEach(n => {
+                const t = le?.matches;
+                return C.nodes.forEach(n => {
                     if (t) return n.renderX = n.targetX, n.renderY = n.targetY, n.renderRadius = n.targetRadius, 
                     void (n.renderLabelChars = n.targetLabelChars);
-                    n.renderX += .15 * (n.targetX - n.renderX), n.renderY += .15 * (n.targetY - n.renderY), 
+                    const a = S ? .18 : .15;
+                    n.renderX += (n.targetX - n.renderX) * a, n.renderY += (n.targetY - n.renderY) * a, 
                     n.renderRadius += .18 * (n.targetRadius - n.renderRadius), n.renderLabelChars += .32 * (n.targetLabelChars - n.renderLabelChars), 
                     Math.abs(n.targetX - n.renderX) < .06 && Math.abs(n.targetY - n.renderY) < .06 && Math.abs(n.targetRadius - n.renderRadius) < .04 && Math.abs(n.targetLabelChars - n.renderLabelChars) < .12 || (e = !0);
                 }), e;
             }(), t = function(e) {
-                if (!_.active) return !1;
-                if (!pe()) return he(), !1;
-                const t = n(e - _.lastFrameTime || 16, 1, 32);
-                _.lastFrameTime = e, le(B + _.velocityX * t, A + _.velocityY * t);
-                const r = Math.exp(-.0042 * t);
-                return _.velocityX *= r, _.velocityY *= r, O = !0, !(Math.hypot(_.velocityX, _.velocityY) < .02 && (he(), 
+                if (!Q.active) return !1;
+                if (!be()) return we(), !1;
+                const t = a(e - Q.lastFrameTime || 16, 1, 32);
+                Q.lastFrameTime = e, ve(j + Q.velocityX * t, R + Q.velocityY * t);
+                const n = Math.exp(-.0042 * t);
+                return Q.velocityX *= n, Q.velocityY *= n, U = !0, !(Math.hypot(Q.velocityX, Q.velocityY) < .02 && (we(), 
                 1));
-            }(performance.now());
-            if (O || e || t) return Ne(), O = !1, void (V = j && (O || e || t) ? window.requestAnimationFrame(Te) : 0);
-            V = 0;
+            }(performance.now()), n = null !== W && null !== G && (le?.matches ? (ve(W, G), 
+            fe(), U = !0, !1) : (j += .12 * (W - j), R += .12 * (G - R), ve(j, R), Math.abs((W ?? j) - j) < .35 && Math.abs((G ?? R) - R) < .35 ? (ve(W, G), 
+            fe(), U = !0, !1) : (U = !0, !0)));
+            if (U || e || t || n) return Ge(), U = !1, void (_ = \$ && (U || e || t || n) ? window.requestAnimationFrame(\$e) : 0);
+            _ = 0;
         }
-        function Re() {
-            j && !V && O && (V = window.requestAnimationFrame(Te));
-        }
-        function He() {
-            O = !0, j && Re();
-        }
-        function je(e) {
-            const t = xe(e);
-            t && (he(), x = e, E = t, Ie(), De(), S = null, X = new Set, Y = new Set, we(!0), 
-            E && (he(), ye(), D = N, le(R, H)), O = !0, He());
-        }
-        function Oe(e) {
-            0 === e.button && (he(), W.down = !0, W.moved = !1, W.startX = e.clientX, W.startY = e.clientY, 
-            W.startPanX = B, W.startPanY = A, ge(e.clientX, e.clientY, e.timeStamp), we(), c.canvas.classList.add("is-panning"));
-        }
-        function Ve(e) {
-            if (!W.down) return void Ee(e.clientX, e.clientY);
-            const t = e.clientX - W.startX, n = e.clientY - W.startY;
-            (Math.abs(t) > 2 || Math.abs(n) > 2) && (W.moved = !0), le(W.startPanX + t, W.startPanY + n), 
-            me(e.clientX, e.clientY, e.timeStamp), He();
-        }
-        function \$e(e) {
-            if (!W.down) return;
-            c.canvas.classList.remove("is-panning");
-            const t = W.moved;
-            if (W.down = !1, W.moved = !1, t) return ve(), _.active ? void ke(!1) : void Ee(e.clientX, e.clientY);
-            const n = Ee(e.clientX, e.clientY);
-            if (!n) return Me(!1), Ie(), void De();
-            Le(n.slug), Pe(n.slug);
-        }
-        function Ge(e) {
-            if (!c.canvasHost.contains(e.target)) return;
-            e.preventDefault(), he();
-            const t = c.canvas.getBoundingClientRect(), n = e.clientX - t.left, r = e.clientY - t.top, a = e.ctrlKey || e.metaKey ? .015 * e.deltaY : .002 * e.deltaY, s = Math.exp(-a);
-            de(D * s, n, r);
-        }
-        function Fe(e) {
-            if (0 === e.touches.length) return;
-            e.preventDefault(), he(), we();
-            const t = c.canvas.getBoundingClientRect();
-            if (1 === e.touches.length) U.active = !0, W.moved = !1, U.startX1 = e.touches[0].clientX, 
-            U.startY1 = e.touches[0].clientY, U.startPanX = B, U.startPanY = A, ge(e.touches[0].clientX, e.touches[0].clientY, e.timeStamp), 
-            c.canvas.classList.add("is-panning"); else if (2 === e.touches.length) {
-                U.active = !0, W.moved = !1, U.startX1 = e.touches[0].clientX, U.startY1 = e.touches[0].clientY, 
-                U.startX2 = e.touches[1].clientX, U.startY2 = e.touches[1].clientY;
-                const n = U.startX2 - U.startX1, r = U.startY2 - U.startY1;
-                U.startDist = Math.sqrt(n * n + r * r), U.startZoom = D;
-                const a = (U.startX1 + U.startX2) / 2, s = (U.startY1 + U.startY2) / 2, i = a - t.left, o = s - t.top;
-                U.anchorX = i, U.anchorY = o;
-            }
-        }
-        function We(e) {
-            if (U.active) if (e.preventDefault(), 1 === e.touches.length) {
-                const t = e.touches[0].clientX - U.startX1, n = e.touches[0].clientY - U.startY1;
-                (Math.abs(t) > 2 || Math.abs(n) > 2) && (W.moved = !0), le(U.startPanX + t, U.startPanY + n), 
-                me(e.touches[0].clientX, e.touches[0].clientY, e.timeStamp), He();
-            } else if (2 === e.touches.length) {
-                he(), W.moved = !0;
-                const t = e.touches[0].clientX, n = e.touches[0].clientY, r = e.touches[1].clientX - t, a = e.touches[1].clientY - n, s = Math.sqrt(r * r + a * a);
-                if (U.startDist > 0) {
-                    const e = s / U.startDist;
-                    de(U.startZoom * e, U.anchorX ?? G / 2, U.anchorY ?? F / 2);
-                }
-            }
-        }
-        function Ue(e) {
-            if (!U.active) return;
-            e.preventDefault();
-            if ("touchcancel" === e.type) return he(), we(!0), U.active = !1, U.anchorX = null, 
-            U.anchorY = null, void (W.moved = !1);
-            if (0 === e.touches.length) {
-                if (we(!0), U.active = !1, U.anchorX = null, U.anchorY = null, W.moved || 1 !== e.changedTouches.length) W.moved && ve(); else {
-                    const t = be(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-                    t ? (Le(t.slug), Pe(t.slug)) : (Me(!1), Ie(), De());
-                }
-                W.moved = !1;
-            } else 1 === e.touches.length && (U.startX1 = e.touches[0].clientX, U.startY1 = e.touches[0].clientY, 
-            U.startPanX = B, U.startPanY = A, ge(e.touches[0].clientX, e.touches[0].clientY, e.timeStamp));
+        function Ue() {
+            \$ && !_ && U && (_ = window.requestAnimationFrame(\$e));
         }
         function _e() {
-            Ye(null), we();
+            U = !0, \$ && Ue();
         }
         function qe(e) {
-            if (!j) return;
-            const t = e.target;
-            c.popover.hidden || c.popover.contains(t) || c.canvasHost.contains(t) || De();
+            const t = Xe(e);
+            t && (we(), x = e, C = t, Te(), Oe(), L = null, B = new Set, A = new Set, Ye(!0), 
+            C && (we(), fe(), Le(), T = V, ve(O, F)), U = !0, _e());
         }
-        function ze(e) {
+        function ze(t) {
+            0 === t.button && (we(), fe(), J.down = !0, J.moved = !1, J.startX = t.clientX, 
+            J.startY = t.clientY, J.startPanX = j, J.startPanY = R, Ee(t.clientX, t.clientY, t.timeStamp), 
+            Ye(), e.canvas.classList.add("is-panning"));
+        }
+        function Ke(e) {
+            if (!J.down) return void Pe(e.clientX, e.clientY);
+            const t = e.clientX - J.startX, n = e.clientY - J.startY;
+            (Math.abs(t) > 2 || Math.abs(n) > 2) && (J.moved = !0), ve(J.startPanX + t, J.startPanY + n), 
+            Ce(e.clientX, e.clientY, e.timeStamp), _e();
+        }
+        function Je(t) {
+            if (!J.down) return;
+            e.canvas.classList.remove("is-panning");
+            const n = J.moved;
+            if (J.down = !1, J.moved = !1, n) return xe(), Q.active ? void Me(!1) : void Pe(t.clientX, t.clientY);
+            const a = Pe(t.clientX, t.clientY);
+            if (!a) return je(!1), Te(), void Oe();
+            Ne(a.slug), He(a.slug);
+        }
+        function Ze(t) {
+            if (!e.canvasHost.contains(t.target)) return;
+            t.preventDefault(), we();
+            const n = e.canvas.getBoundingClientRect(), a = t.clientX - n.left, r = t.clientY - n.top, s = t.ctrlKey || t.metaKey ? .015 * t.deltaY : .002 * t.deltaY, i = Math.exp(-s);
+            ye(T * i, a, r);
+        }
+        function Qe(t) {
+            if (0 === t.touches.length) return;
+            t.preventDefault(), we(), fe(), Ye();
+            const n = e.canvas.getBoundingClientRect();
+            if (1 === t.touches.length) Z.active = !0, J.moved = !1, Z.startX1 = t.touches[0].clientX, 
+            Z.startY1 = t.touches[0].clientY, Z.startPanX = j, Z.startPanY = R, Ee(t.touches[0].clientX, t.touches[0].clientY, t.timeStamp), 
+            e.canvas.classList.add("is-panning"); else if (2 === t.touches.length) {
+                Z.active = !0, J.moved = !1, Z.startX1 = t.touches[0].clientX, Z.startY1 = t.touches[0].clientY, 
+                Z.startX2 = t.touches[1].clientX, Z.startY2 = t.touches[1].clientY;
+                const e = Z.startX2 - Z.startX1, a = Z.startY2 - Z.startY1;
+                Z.startDist = Math.sqrt(e * e + a * a), Z.startZoom = T;
+                const r = (Z.startX1 + Z.startX2) / 2, s = (Z.startY1 + Z.startY2) / 2, i = r - n.left, o = s - n.top;
+                Z.anchorX = i, Z.anchorY = o;
+            }
+        }
+        function et(e) {
+            if (Z.active) if (e.preventDefault(), 1 === e.touches.length) {
+                const t = e.touches[0].clientX - Z.startX1, n = e.touches[0].clientY - Z.startY1;
+                (Math.abs(t) > 2 || Math.abs(n) > 2) && (J.moved = !0), ve(Z.startPanX + t, Z.startPanY + n), 
+                Ce(e.touches[0].clientX, e.touches[0].clientY, e.timeStamp), _e();
+            } else if (2 === e.touches.length) {
+                we(), J.moved = !0;
+                const t = e.touches[0].clientX, n = e.touches[0].clientY, a = e.touches[1].clientX - t, r = e.touches[1].clientY - n, s = Math.sqrt(a * a + r * r);
+                if (Z.startDist > 0) {
+                    const e = s / Z.startDist;
+                    ye(Z.startZoom * e, Z.anchorX ?? z / 2, Z.anchorY ?? K / 2);
+                }
+            }
+        }
+        function tt(e) {
+            if (!Z.active) return;
+            e.preventDefault();
+            if ("touchcancel" === e.type) return we(), Ye(!0), Z.active = !1, Z.anchorX = null, 
+            Z.anchorY = null, void (J.moved = !1);
+            if (0 === e.touches.length) {
+                if (Ye(!0), Z.active = !1, Z.anchorX = null, Z.anchorY = null, J.moved || 1 !== e.changedTouches.length) J.moved && xe(); else {
+                    const t = Ie(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+                    t ? (Ne(t.slug), He(t.slug)) : (je(!1), Te(), Oe());
+                }
+                J.moved = !1;
+            } else 1 === e.touches.length && (Z.startX1 = e.touches[0].clientX, Z.startY1 = e.touches[0].clientY, 
+            Z.startPanX = j, Z.startPanY = R, Ee(e.touches[0].clientX, e.touches[0].clientY, e.timeStamp));
+        }
+        function nt() {
+            Ve(null), Ye();
+        }
+        function at(t) {
+            if (!\$) return;
+            const n = t.target;
+            e.popover.hidden || e.popover.contains(n) || e.canvasHost.contains(n) || Oe();
+        }
+        function rt(e) {
             const t = e.target.closest("button[data-action]");
             if (!t) return;
             const n = t.dataset.action;
-            n && ("zoom-in" !== n ? "zoom-out" !== n ? "pan-left" !== n ? "pan-right" !== n ? "pan-up" !== n ? "pan-down" !== n ? "reset" === n && (he(), 
-            D = N, le(R, H), Ie(), De(), He()) : ue(0, 52) : ue(0, -52) : ue(52, 0) : ue(-52, 0) : de(D / 1.18, .5 * G, .5 * F) : de(1.18 * D, .5 * G, .5 * F));
+            n && ("zoom-in" !== n ? "zoom-out" !== n ? "pan-left" !== n ? "pan-right" !== n ? "pan-up" !== n ? "pan-down" !== n ? "reset" === n && (we(), 
+            T = V, ve(O, F), Te(), Oe(), _e()) : ke(0, 52) : ke(0, -52) : ke(52, 0) : ke(-52, 0) : ye(T / 1.18, .5 * z, .5 * K) : ye(1.18 * T, .5 * z, .5 * K));
         }
-        function Ke() {
-            P && c.onOpenList(P);
+        function st() {
+            N && e.onOpenList(N);
         }
-        function Je() {
-            je(c.workspaceSelect.value);
+        function it() {
+            qe(e.workspaceSelect.value);
         }
-        function Ze() {
-            j && (fe(), G <= 1 || F <= 1 || (ye(), D = n(D, T, e), le(B, A), He()));
+        function ot() {
+            \$ && (Se(), z <= 1 || K <= 1 || (Le(), T = a(T, H, t), ve(j, R), _e()));
         }
-        function Qe() {
-            Z || (c.workspaceSelect.addEventListener("change", Je), Z = !0), J || (c.controlsRoot.addEventListener("click", ze), 
-            c.popoverOpenButton.addEventListener("click", Ke), J = !0);
+        function ct() {
+            re || (e.workspaceSelect.addEventListener("change", it), re = !0), ae || (e.controlsRoot.addEventListener("click", rt), 
+            e.popoverOpenButton.addEventListener("click", st), ae = !0);
         }
         return {
             initGraphView: function() {
-                const e = y.workspaces.length ? y.workspaces : [ {
+                const t = l.workspaces.length ? l.workspaces : [ {
                     name: "root",
                     directDependencies: [],
                     directDevDependencies: []
-                } ], t = e.find(e => "root" === e.name), n = t ? [ t, ...e.filter(e => "root" !== e.name) ] : e;
-                c.workspaceSelect.textContent = "", n.forEach((e, t) => {
+                } ], n = t.find(e => "root" === e.name), a = n ? [ n, ...t.filter(e => "root" !== e.name) ] : t;
+                e.workspaceSelect.textContent = "", a.forEach((t, n) => {
                     const r = document.createElement("option");
-                    if (r.value = e.name, r.textContent = "root" === e.name ? "Workspace root" : e.name, 
-                    c.workspaceSelect.appendChild(r), "root" === e.name && n.length > 1 && 0 === t) {
-                        const e = document.createElement("option");
-                        e.disabled = !0, e.textContent = "──────────────", c.workspaceSelect.appendChild(e);
+                    if (r.value = t.name, r.textContent = "root" === t.name ? "Workspace root" : t.name, 
+                    e.workspaceSelect.appendChild(r), "root" === t.name && a.length > 1 && 0 === n) {
+                        const t = document.createElement("option");
+                        t.disabled = !0, t.textContent = "──────────────", e.workspaceSelect.appendChild(t);
                     }
-                }), c.workspaceWrap.classList.toggle("hidden", e.length <= 1), b.has("root") || 1 !== e.length || b.set("root", e[0]), 
-                x = n[0].name, c.workspaceSelect.value = x, se(), function() {
-                    if (Q && Q.disconnect(), Q = new MutationObserver(() => {
-                        se(), He();
-                    }), Q.observe(document.documentElement, {
+                }), e.workspaceWrap.classList.toggle("hidden", t.length <= 1), d.has("root") || 1 !== t.length || d.set("root", t[0]), 
+                x = a[0].name, e.workspaceSelect.value = x, ue(), function() {
+                    if (se && se.disconnect(), se = new MutationObserver(() => {
+                        ue(), _e();
+                    }), se.observe(document.documentElement, {
                         attributes: !0,
                         attributeFilter: [ "class", "data-theme" ]
-                    }), ee && (ee.disconnect(), ee = null), te && (window.removeEventListener("resize", te), 
-                    te = null), "undefined" != typeof ResizeObserver) return ee = new ResizeObserver(Ze), 
-                    void ee.observe(c.canvasHost);
-                    te = Ze, window.addEventListener("resize", te);
-                }(), Qe(), z ? (fe(), je(x)) : ie();
+                    }), ie && (ie.disconnect(), ie = null), oe && (window.removeEventListener("resize", oe), 
+                    oe = null), "undefined" != typeof ResizeObserver) return ie = new ResizeObserver(ot), 
+                    void ie.observe(e.canvasHost);
+                    oe = ot, window.addEventListener("resize", oe);
+                }(), ct(), te ? (Se(), qe(x)) : pe();
             },
-            buildWorkspaceGraph: xe,
-            computeAmplification: Ce,
-            layoutGraph: Se,
-            renderLoop: Re,
-            applyFocus: Le,
-            clearFocus: Ie,
-            showPopover: Pe,
-            hidePopover: De,
-            switchWorkspace: je,
-            setActive: function(t) {
-                if (j = t, j) return z ? (!K && z && (c.canvas.addEventListener("mousedown", Oe), 
-                window.addEventListener("mousemove", Ve), window.addEventListener("mouseup", \$e), 
-                c.canvas.addEventListener("wheel", Ge, {
+            buildWorkspaceGraph: Xe,
+            computeAmplification: De,
+            layoutGraph: Be,
+            renderLoop: Ue,
+            applyFocus: Ne,
+            clearFocus: Te,
+            showPopover: He,
+            hidePopover: Oe,
+            switchWorkspace: qe,
+            setActive: function(n) {
+                if (\$ = n, \$) return te ? (!ne && te && (e.canvas.addEventListener("mousedown", ze), 
+                window.addEventListener("mousemove", Ke), window.addEventListener("mouseup", Je), 
+                e.canvas.addEventListener("wheel", Ze, {
                     passive: !1
-                }), c.canvas.addEventListener("touchstart", Fe, {
+                }), e.canvas.addEventListener("touchstart", Qe, {
                     passive: !1
-                }), window.addEventListener("touchmove", We, {
+                }), window.addEventListener("touchmove", et, {
                     passive: !1
-                }), window.addEventListener("touchend", Ue, {
+                }), window.addEventListener("touchend", tt, {
                     passive: !1
-                }), window.addEventListener("touchcancel", Ue, {
+                }), window.addEventListener("touchcancel", tt, {
                     passive: !1
-                }), c.canvas.addEventListener("mouseleave", _e), document.addEventListener("mousedown", qe), 
-                K = !0), fe(), G > 1 && F > 1 && (ye(), D = n(D, T, e), le(B, A)), Re(), void He()) : void ie();
-                K && (c.canvas.removeEventListener("mousedown", Oe), window.removeEventListener("mousemove", Ve), 
-                window.removeEventListener("mouseup", \$e), c.canvas.removeEventListener("wheel", Ge), 
-                c.canvas.removeEventListener("touchstart", Fe), window.removeEventListener("touchmove", We), 
-                window.removeEventListener("touchend", Ue), window.removeEventListener("touchcancel", Ue), 
-                c.canvas.removeEventListener("mouseleave", _e), document.removeEventListener("mousedown", qe), 
-                we(!0), W.down = !1, W.moved = !1, U.active = !1, U.anchorX = null, U.anchorY = null, 
-                he(), K = !1), he(), V && (window.cancelAnimationFrame(V), V = 0);
+                }), e.canvas.addEventListener("mouseleave", nt), document.addEventListener("mousedown", at), 
+                ne = !0), Se(), z > 1 && K > 1 && (Le(), T = a(T, H, t), ve(j, R)), Ue(), void _e()) : void pe();
+                ne && (e.canvas.removeEventListener("mousedown", ze), window.removeEventListener("mousemove", Ke), 
+                window.removeEventListener("mouseup", Je), e.canvas.removeEventListener("wheel", Ze), 
+                e.canvas.removeEventListener("touchstart", Qe), window.removeEventListener("touchmove", et), 
+                window.removeEventListener("touchend", tt), window.removeEventListener("touchcancel", tt), 
+                e.canvas.removeEventListener("mouseleave", nt), document.removeEventListener("mousedown", at), 
+                Ye(!0), J.down = !1, J.moved = !1, Z.active = !1, Z.anchorX = null, Z.anchorY = null, 
+                we(), ne = !1), we(), _ && (window.cancelAnimationFrame(_), _ = 0);
             },
-            requestRender: He
+            requestRender: _e
         };
     }
-    const b = {
+    const E = {
         permissive: [ "MIT", "ISC", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "Unlicense", "0BSD", "CC0-1.0", "BSD", "Apache", "Apache 2.0", "Apache License 2.0", "MIT License", "ISC License" ],
         weakCopyleft: [ "LGPL-2.1", "LGPL-3.0", "LGPL-2.0", "LGPL", "MPL-2.0", "MPL-1.1", "MPL", "EPL-1.0", "EPL-2.0", "EPL" ],
         strongCopyleft: [ "GPL-2.0", "GPL-3.0", "GPL", "AGPL-3.0", "AGPL", "GPL-2.0-only", "GPL-3.0-only", "GPL-2.0-or-later", "GPL-3.0-or-later" ]
-    }, k = {
+    }, C = {
         "network-access": "Accesses the network during install",
         "dynamic-exec": "Uses dynamic execution",
         "child-process": "Spawns child processes",
@@ -1065,23 +1156,23 @@ exports.JS_CONTENT = `!function() {
         "reads-home": "Reads user home directory",
         "uses-ssh": "Uses SSH configuration/keys"
     };
-    function w(e) {
+    function x(e) {
         return e ? e.charAt(0).toUpperCase() + e.slice(1) : e;
     }
-    function E(e) {
-        const t = e.compliance.license, n = t.declared?.valid ? t.declared.spdxId : void 0, r = t.inferred?.spdxId;
+    function S(e) {
+        const t = e.compliance.license, n = t.declared?.valid ? t.declared.spdxId : void 0, a = t.inferred?.spdxId;
         return n ? {
             value: n,
             isInferred: !1
-        } : r ? {
-            value: r,
+        } : a ? {
+            value: a,
             isInferred: !0
         } : {
             value: "Unknown",
             isInferred: !1
         };
     }
-    function x(e) {
+    function L(e) {
         const t = e.security;
         if (t?.summary) return {
             summary: t.summary,
@@ -1113,24 +1204,24 @@ exports.JS_CONTENT = `!function() {
             advisories: t?.advisories
         };
     }
-    function C(e) {
+    function I(e) {
         return e?.highest || "none";
     }
-    function S(e) {
+    function M(e) {
         return e && e.risk || "green";
     }
-    const L = {
+    const Y = {
         permissive: "green",
         weakCopyleft: "amber",
         strongCopyleft: "red",
         unknown: "gray"
-    }, I = {
+    }, P = {
         none: 0,
         low: 1,
         moderate: 2,
         high: 3,
         critical: 4
-    }, M = [ {
+    }, X = [ {
         id: "type",
         label: "Type",
         sortKey: "type",
@@ -1152,61 +1243,67 @@ exports.JS_CONTENT = `!function() {
         label: "License",
         sortKey: "license",
         getValue: e => {
-            const t = E(e), n = t.isInferred ? \`\${t.value} (inferred)\` : t.value;
+            const t = S(e), n = t.isInferred ? \`\${t.value} (inferred)\` : t.value;
             return "mismatch" === e.compliance.license.status ? \`\${n} *\` : n;
         },
         getTone: e => {
             const t = function(e) {
                 if (!e) return "unknown";
                 const t = e.toUpperCase();
-                for (const [n, r] of Object.entries(b)) if (r.some(e => t.includes(e.toUpperCase()))) return n;
+                for (const [n, a] of Object.entries(E)) if (a.some(e => t.includes(e.toUpperCase()))) return n;
                 return "unknown";
-            }(E(e).value);
-            return L[t];
+            }(S(e).value);
+            return Y[t];
         },
         sortFn: (e, t) => {
-            const n = E(e).value, r = E(t).value;
-            return n.localeCompare(r);
+            const n = S(e).value, a = S(t).value;
+            return n.localeCompare(a);
         }
     }, {
         id: "vulns",
         label: "Vulnerabilities",
         sortKey: "severity",
-        getValue: e => w(C(x(e).summary)),
-        getTone: e => x(e).summary.risk,
-        sortFn: (e, t) => I[C(x(t).summary)] - I[C(x(e).summary)]
+        getValue: e => x(I(L(e).summary)),
+        getTone: e => L(e).summary.risk,
+        sortFn: (e, t) => P[I(L(t).summary)] - P[I(L(e).summary)]
     }, {
         id: "install",
         label: "Install",
         sortKey: "install",
         getValue: e => {
-            return (t = e.execution) ? w(t.risk || "low") : "Low";
+            return (t = e.execution) ? x(t.risk || "low") : "Low";
             var t;
         },
-        getTone: e => S(e.execution),
+        getTone: e => M(e.execution),
         sortFn: (e, t) => {
             const n = {
                 green: 0,
                 amber: 1,
                 red: 2
-            }, r = S(e.execution), a = S(t.execution);
-            return n[r] - n[a];
+            }, a = M(e.execution), r = M(t.execution);
+            return n[a] - n[r];
         }
-    } ], X = M.length;
-    function Y(e) {
-        const t = e.compliance.license, n = t.declared?.valid ? t.declared.spdxId : void 0, r = t.inferred?.spdxId;
+    } ], D = X.length;
+    function B(e) {
+        if (!e) return "unknown";
+        const t = e.toUpperCase();
+        for (const [n, a] of Object.entries(E)) if (a.some(e => t.includes(e.toUpperCase()))) return n;
+        return "unknown";
+    }
+    function A(e) {
+        const t = e.compliance.license, n = t.declared?.valid ? t.declared.spdxId : void 0, a = t.inferred?.spdxId;
         return n ? {
             value: n,
             isInferred: !1
-        } : r ? {
-            value: r,
+        } : a ? {
+            value: a,
             isInferred: !0
         } : {
             value: "Unknown",
             isInferred: !1
         };
     }
-    function P(e) {
+    function N(e) {
         switch (e) {
           case "declared-only":
             return "Declared";
@@ -1227,14 +1324,14 @@ exports.JS_CONTENT = `!function() {
             return "Unknown";
         }
     }
-    const D = {
+    const T = {
         none: 0,
         low: 1,
         moderate: 2,
         high: 3,
         critical: 4
     };
-    function B(e) {
+    function j(e) {
         const t = e.security;
         if (t?.summary) return {
             summary: t.summary,
@@ -1266,65 +1363,95 @@ exports.JS_CONTENT = `!function() {
             advisories: t?.advisories
         };
     }
-    function A(e) {
+    function R(e) {
         return e ? String(e).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : "";
     }
-    function N(e) {
-        return e ? e.charAt(0).toUpperCase() + e.slice(1) : e;
+    function V(e) {
+        return null != e && ("string" == typeof e ? e.trim().length > 0 : Array.isArray(e) ? e.length > 0 : "object" != typeof e || Object.keys(e).length > 0);
     }
-    function T(e) {
-        return e.split(/[\\s-_]+/).map(e => e ? N(e) : e).join(" ");
-    }
-    function R(e) {
-        return M.map(t => {
-            return n = t.label, r = t.getValue(e), '<div class="badge-card ' + t.getTone(e) + '"><span class="badge-label">' + A(n) + '</span><span class="badge-value">' + A(r) + "</span></div>";
-            var n, r;
-        }).join("");
-    }
-    function H(e, t) {
-        const n = M.map(n => function(e, t, n, r) {
-            const a = n === e, s = a ? r ? " ▲" : " ▼" : "", i = a ? r ? " sorted-asc" : " sorted-desc" : "";
-            return '<button type="button" class="column-header' + (a ? " sorted" : "") + i + '" data-sort="' + A(e) + '"><span class="column-header-label">' + A(t) + '</span><span class="sort-indicator">' + s + "</span></button>";
-        }(n.sortKey, n.label, e, t)).join("");
-        return '<div class="column-headers" style="--column-count: ' + X + '">' + n + "</div>";
-    }
-    function j(e, t, n) {
-        let r = '<div class="kv-item">';
-        return r += '<span class="kv-label">' + A(e) + "</span>", r += '<span class="kv-value">' + A(String(t)) + "</span>", 
-        n && (r += '<span class="kv-hint">' + A(n) + "</span>"), r += "</div>", r;
+    function H(e) {
+        return Array.isArray(e) ? e.map(e => H(e)).join(", ") : "boolean" == typeof e ? e ? "Yes" : "No" : "object" == typeof e && null !== e ? Object.entries(e).filter(([, e]) => V(e)).map(([e, t]) => R(e) + ": " + H(t)).join("<br>") : R(String(e));
     }
     function O(e, t) {
-        return '<span class="kv-value risk-value"><span class="risk-dot ' + t + '"></span>' + A(String(e)) + "</span>";
+        return V(t) ? '<div class="metadata-row"><div class="metadata-row-label">' + R(e) + '</div><div class="metadata-row-value">' + H(t) + "</div></div>" : "";
     }
-    function V(e, t, n) {
-        let r = '<div class="kv-item">';
-        return r += '<span class="kv-label">' + A(e) + "</span>", r += t, r += "</div>", 
-        r;
+    function F(e, t) {
+        const n = t.filter(Boolean);
+        return 0 === n.length ? "" : '<section class="metadata-section"><div class="metadata-section-title">' + R(e) + '</div><div class="metadata-grid">' + n.join("") + "</div></section>";
     }
-    function \$(e, t) {
-        if (!e || 0 === e.length) return '<span class="kv-value">None</span>';
-        const n = e.slice(0, t), r = e.length - t;
-        let a = '<div class="package-list">';
-        return n.forEach(e => {
-            a += '<span class="package-tag">' + A(e) + "</span>";
-        }), r > 0 && (a += '<span class="package-tag">+' + r + " more</span>"), a += "</div>", 
+    function W(e) {
+        const t = e.workspaces;
+        if (!t || !t.enabled) return F("Workspaces", [ O("Enabled", !1), O("Type", t?.type) ]);
+        const n = t.workspacePackages || [], a = n.length ? '<div class="metadata-list">' + n.map(e => '<div class="metadata-list-item"><div class="metadata-row-value">' + R(e.name) + '</div><div class="metadata-muted">' + R(e.relativePath) + " · runtime " + R(String(e.directExternal.runtime)) + " · dev " + R(String(e.directExternal.dev)) + "</div></div>").join("") + "</div>" : "";
+        return F("Workspaces", [ O("Enabled", t.enabled), O("Type", t.type), O("Package count", t.packageCount), a ? '<div class="metadata-row"><div class="metadata-row-label">Packages</div><div>' + a + "</div></div>" : "" ]);
+    }
+    function G(e) {
+        const t = e.supplyChain;
+        if (!t) return "";
+        const n = t.signatureAudit;
+        return F("Supply Chain", [ O("Signals", t.signals?.length), n ? O("Signature audit", {
+            attempted: n.attempted,
+            ok: n.ok,
+            status: n.status,
+            error: n.error
+        }) : "" ]);
+    }
+    function \$(e) {
+        return e ? e.charAt(0).toUpperCase() + e.slice(1) : e;
+    }
+    function U(e) {
+        return e.split(/[\\s-_]+/).map(e => e ? \$(e) : e).join(" ");
+    }
+    function _(e) {
+        return X.map(t => {
+            return n = t.label, a = t.getValue(e), '<div class="badge-card ' + t.getTone(e) + '"><span class="badge-label">' + R(n) + '</span><span class="badge-value">' + R(a) + "</span></div>";
+            var n, a;
+        }).join("");
+    }
+    function q(e, t) {
+        const n = X.map(n => function(e, t, n, a) {
+            const r = n === e, s = r ? a ? " ▲" : " ▼" : "", i = r ? a ? " sorted-asc" : " sorted-desc" : "";
+            return '<button type="button" class="column-header' + (r ? " sorted" : "") + i + '" data-sort="' + R(e) + '"><span class="column-header-label">' + R(t) + '</span><span class="sort-indicator">' + s + "</span></button>";
+        }(n.sortKey, n.label, e, t)).join("");
+        return '<div class="column-headers" style="--column-count: ' + D + '">' + n + "</div>";
+    }
+    function z(e, t, n) {
+        let a = '<div class="kv-item">';
+        return a += '<span class="kv-label">' + R(e) + "</span>", a += '<span class="kv-value">' + R(String(t)) + "</span>", 
+        n && (a += '<span class="kv-hint">' + R(n) + "</span>"), a += "</div>", a;
+    }
+    function K(e, t) {
+        return '<span class="kv-value risk-value"><span class="risk-dot ' + t + '"></span>' + R(String(e)) + "</span>";
+    }
+    function J(e, t, n) {
+        let a = '<div class="kv-item">';
+        return a += '<span class="kv-label">' + R(e) + "</span>", a += t, a += "</div>", 
         a;
     }
-    function G(e, t, n, r) {
+    function Z(e, t) {
         if (!e || 0 === e.length) return '<span class="kv-value">None</span>';
-        const a = e.slice(0, t), s = e.length - t;
+        const n = e.slice(0, t), a = e.length - t;
+        let r = '<div class="package-list">';
+        return n.forEach(e => {
+            r += '<span class="package-tag">' + R(e) + "</span>";
+        }), a > 0 && (r += '<span class="package-tag">+' + a + " more</span>"), r += "</div>", 
+        r;
+    }
+    function Q(e, t, n, a) {
+        if (!e || 0 === e.length) return '<span class="kv-value">None</span>';
+        const r = e.slice(0, t), s = e.length - t;
         let i = '<div class="package-list">';
-        return a.forEach(e => {
-            const t = K(e, n, r);
-            i += t ? '<a class="package-tag package-tag-link root-package-link" href="#' + A(_(t)) + '" data-dep-key="' + A(t) + '" aria-label="Jump to dependency ' + A(t) + '">' + A(e) + "</a>" : '<span class="package-tag">' + A(e) + "</span>";
+        return r.forEach(e => {
+            const t = ie(e, n, a);
+            i += t ? '<a class="package-tag package-tag-link root-package-link" href="#' + R(ae(t)) + '" data-dep-key="' + R(t) + '" aria-label="Jump to dependency ' + R(t) + '">' + R(e) + "</a>" : '<span class="package-tag">' + R(e) + "</span>";
         }), s > 0 && (i += '<span class="package-tag">+' + s + " more</span>"), i += "</div>", 
         i;
     }
-    function F(e, t) {
+    function ee(e, t) {
         return e + "@" + t;
     }
-    const W = new WeakMap;
-    function U(e) {
+    const te = new WeakMap;
+    function ne(e) {
         const t = e.lastIndexOf("@npm:");
         if (t > 0) return {
             name: e.slice(0, t),
@@ -1336,52 +1463,52 @@ exports.JS_CONTENT = `!function() {
             version: e.slice(n + 1)
         };
     }
-    function _(e) {
+    function ae(e) {
         return \`dep-\${e}\`;
     }
-    function q(e) {
-        const t = W.get(e);
+    function re(e) {
+        const t = te.get(e);
         if (t) return t;
         const n = new Map;
         return e.forEach(e => {
-            const t = U(e);
+            const t = ne(e);
             if (!t) return;
-            const r = n.get(t.name) || [];
-            r.push(e), n.set(t.name, r);
-        }), W.set(e, n), n;
+            const a = n.get(t.name) || [];
+            a.push(e), n.set(t.name, a);
+        }), te.set(e, n), n;
     }
-    function z(e, t, n) {
-        const r = ((n || q(t)).get(e) || []).filter(e => t.has(e));
-        return 1 === r.length ? r[0] : null;
+    function se(e, t, n) {
+        const a = ((n || re(t)).get(e) || []).filter(e => t.has(e));
+        return 1 === a.length ? a[0] : null;
     }
-    function K(e, t, n) {
+    function ie(e, t, n) {
         if (t.has(e)) return e;
-        const r = U(e);
-        if (!r) return z(e, t, n);
-        if (r.version.startsWith("npm:")) {
-            const e = r.version.slice(4), n = r.name + (e.startsWith("@") ? e : "@" + e);
+        const a = ne(e);
+        if (!a) return se(e, t, n);
+        if (a.version.startsWith("npm:")) {
+            const e = a.version.slice(4), n = a.name + (e.startsWith("@") ? e : "@" + e);
             if (t.has(n)) return n;
         }
-        return z(r.name, t, n);
+        return se(a.name, t, n);
     }
-    function J(e, t, n, r) {
+    function oe(e, t, n, a) {
         if (!e || 0 === e.length) return '<span class="kv-value">None</span>';
-        const a = e.slice(0, t), s = e.length - t;
+        const r = e.slice(0, t), s = e.length - t;
         let i = '<div class="package-list">';
-        return a.forEach(e => {
+        return r.forEach(e => {
             if ("string" == typeof e) {
-                const t = K(e, n, r);
-                return t ? void (i += '<a class="package-tag package-tag-link root-package-link" href="#' + A(_(t)) + '" data-dep-key="' + A(t) + '" aria-label="Jump to dependency ' + A(t) + '">' + A(e) + "</a>") : void (i += '<span class="package-tag">' + A(e) + "</span>");
+                const t = ie(e, n, a);
+                return t ? void (i += '<a class="package-tag package-tag-link root-package-link" href="#' + R(ae(t)) + '" data-dep-key="' + R(t) + '" aria-label="Jump to dependency ' + R(t) + '">' + R(e) + "</a>") : void (i += '<span class="package-tag">' + R(e) + "</span>");
             }
-            const t = F(e.name, e.version), a = e.name + "@" + e.version, s = K(t, n, r);
-            i += s ? '<a class="package-tag package-tag-link root-package-link" href="#' + A(_(s)) + '" data-dep-key="' + A(s) + '" aria-label="Jump to dependency ' + A(s) + '">' + A(a) + "</a>" : '<span class="package-tag">' + A(a) + "</span>";
+            const t = ee(e.name, e.version), r = e.name + "@" + e.version, s = ie(t, n, a);
+            i += s ? '<a class="package-tag package-tag-link root-package-link" href="#' + R(ae(s)) + '" data-dep-key="' + R(s) + '" aria-label="Jump to dependency ' + R(s) + '">' + R(r) + "</a>" : '<span class="package-tag">' + R(r) + "</span>";
         }), s > 0 && (i += '<span class="package-tag">+' + s + " more</span>"), i += "</div>", 
         i;
     }
-    function Z(e, t, n) {
-        const r = e.graph.subDeps;
-        if (!r) return "";
-        const a = [ {
+    function ce(e, t, n) {
+        const a = e.graph.subDeps;
+        if (!a) return "";
+        const r = [ {
             title: "Dependencies",
             key: "dep"
         }, {
@@ -1395,40 +1522,40 @@ exports.JS_CONTENT = `!function() {
             key: "dev"
         } ];
         let s = 0, i = 0;
-        for (const l of a) {
-            const e = r[l.key];
+        for (const l of r) {
+            const e = a[l.key];
             if (e) for (const t of Object.values(e)) s += 1, t[1] && (i += 1);
         }
         if (0 === s) return "";
-        const o = '<div class="declared-summary">Total: ' + s + " • Installed: " + i + " • Not installed: " + (s - i) + "</div>", c = a.map(e => {
-            const a = r[e.key];
-            if (!a || 0 === Object.keys(a).length) return "";
+        const o = '<div class="declared-summary">Total: ' + s + " • Installed: " + i + " • Not installed: " + (s - i) + "</div>", c = r.map(e => {
+            const r = a[e.key];
+            if (!r || 0 === Object.keys(r).length) return "";
             let s = 0, i = 0;
-            const o = Object.entries(a).sort(([e], [t]) => e.localeCompare(t)).map(([e, [r, a]]) => {
-                s += 1, a && (i += 1);
-                const o = '<div class="declared-name">' + A(e) + "</div>", c = '<div class="declared-range">' + A(r) + "</div>", l = a ? function(e, t, n) {
-                    const r = K(e, t, n);
-                    return r ? '<a class="status-pill installed root-package-link" href="#' + A(_(r)) + '" data-dep-key="' + A(r) + '" aria-label="Jump to dependency ' + A(r) + '">Installed</a>' : '<span class="status-pill installed">Installed</span>';
-                }(a, t, n) : '<span class="status-pill missing">Not installed</span>';
+            const o = Object.entries(r).sort(([e], [t]) => e.localeCompare(t)).map(([e, [a, r]]) => {
+                s += 1, r && (i += 1);
+                const o = '<div class="declared-name">' + R(e) + "</div>", c = '<div class="declared-range">' + R(a) + "</div>", l = r ? function(e, t, n) {
+                    const a = ie(e, t, n);
+                    return a ? '<a class="status-pill installed root-package-link" href="#' + R(ae(a)) + '" data-dep-key="' + R(a) + '" aria-label="Jump to dependency ' + R(a) + '">Installed</a>' : '<span class="status-pill installed">Installed</span>';
+                }(r, t, n) : '<span class="status-pill missing">Not installed</span>';
                 return '<div class="declared-row">' + o + c + l + "</div>";
             }), c = i + " of " + s + " installed";
-            return [ '<details class="declared-group">', '<summary class="declared-group-summary"><span class="expand-icon" aria-hidden="true"></span><span class="declared-group-title">' + A(e.title) + ' <span class="declared-count">(' + c + ")</span></span></summary>", '<div class="declared-table">' + o.join("") + "</div>", "</details>" ].join("");
+            return [ '<details class="declared-group">', '<summary class="declared-group-summary"><span class="expand-icon" aria-hidden="true"></span><span class="declared-group-title">' + R(e.title) + ' <span class="declared-count">(' + c + ")</span></span></summary>", '<div class="declared-table">' + o.join("") + "</div>", "</details>" ].join("");
         }).filter(Boolean);
-        return Q("Declared Dependencies", "Dependencies declared by this package", o + '<div class="declared-deps">' + c.join("") + "</div>");
+        return le("Declared Dependencies", "Dependencies declared by this package", o + '<div class="declared-deps">' + c.join("") + "</div>");
     }
-    function Q(e, t, n) {
-        let r = '<div class="section">';
-        return r += '<div class="section-header">', r += '<span class="section-title">' + A(e) + "</span>", 
-        t && (r += '<span class="section-desc">' + A(t) + "</span>"), r += "</div>", r += n, 
-        r += "</div>", r;
+    function le(e, t, n) {
+        let a = '<div class="section">';
+        return a += '<div class="section-header">', a += '<span class="section-title">' + R(e) + "</span>", 
+        t && (a += '<span class="section-desc">' + R(t) + "</span>"), a += "</div>", a += n, 
+        a += "</div>", a;
     }
-    function ee(e, t, n, r) {
-        let a = '<div class="subsection' + (r ? " " + r : "") + '">';
-        return a += '<div class="subsection-header">', a += '<span class="subsection-title">' + A(e) + "</span>", 
-        n && (a += '<span class="subsection-desc">' + A(n) + "</span>"), a += "</div>", 
-        a += t, a += "</div>", a;
+    function de(e, t, n, a) {
+        let r = '<div class="subsection' + (a ? " " + a : "") + '">';
+        return r += '<div class="subsection-header">', r += '<span class="subsection-title">' + R(e) + "</span>", 
+        n && (r += '<span class="subsection-desc">' + R(n) + "</span>"), r += "</div>", 
+        r += t, r += "</div>", r;
     }
-    function te(e) {
+    function ue(e) {
         if (!e) return;
         const t = e.trim();
         if (!t) return;
@@ -1446,47 +1573,47 @@ exports.JS_CONTENT = `!function() {
         }
         return /^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+\$/.test(t) ? \`https://github.com/\${n(t)}\` : void 0;
     }
-    function ne(e, t) {
-        const n = te(e);
+    function pe(e, t) {
+        const n = ue(e);
         if (!n) return;
-        let r;
+        let a;
         try {
-            r = new URL(n);
+            a = new URL(n);
         } catch {
             return;
         }
-        if ("github.com" !== r.hostname.toLowerCase()) return;
-        const a = r.pathname.split("/").filter(Boolean);
-        if (a.length < 2) return;
-        const s = a[0], i = a[1].replace(/\\.git\$/i, "");
+        if ("github.com" !== a.hostname.toLowerCase()) return;
+        const r = a.pathname.split("/").filter(Boolean);
+        if (r.length < 2) return;
+        const s = r[0], i = r[1].replace(/\\.git\$/i, "");
         return s && i ? \`https://github.com/\${s}/\${i}/blob/HEAD/\${t}\` : void 0;
     }
-    function re(e, t) {
-        return t ? A(e) + ' <a class="kv-inline-link" href="' + A(t) + '" target="_blank" rel="noopener noreferrer">GitHub<svg class="kv-inline-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg></a>' : A(e);
+    function he(e, t) {
+        return t ? R(e) + ' <a class="kv-inline-link" href="' + R(t) + '" target="_blank" rel="noopener noreferrer">GitHub<svg class="kv-inline-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg></a>' : R(e);
     }
-    function ae(e) {
-        const t = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"/></svg>', n = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>', r = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', a = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+    function ge(e) {
+        const t = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"/></svg>', n = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>', a = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', r = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
         if (!(e.npm || e.repository || e.homepage || e.issues)) return "";
         let s = '<div class="package-links">';
-        return e.npm && (s += '<a href="' + A(e.npm) + '" target="_blank" rel="noopener" class="package-link">' + t + "npm</a>"), 
-        e.repository && (s += '<a href="' + A(e.repository) + '" target="_blank" rel="noopener" class="package-link">' + n + "Repository</a>"), 
-        e.homepage && (s += '<a href="' + A(e.homepage) + '" target="_blank" rel="noopener" class="package-link">' + a + "Homepage</a>"), 
-        e.issues && (s += '<a href="' + A(e.issues) + '" target="_blank" rel="noopener" class="package-link">' + r + "Issues</a>"), 
+        return e.npm && (s += '<a href="' + R(e.npm) + '" target="_blank" rel="noopener" class="package-link">' + t + "npm</a>"), 
+        e.repository && (s += '<a href="' + R(e.repository) + '" target="_blank" rel="noopener" class="package-link">' + n + "Repository</a>"), 
+        e.homepage && (s += '<a href="' + R(e.homepage) + '" target="_blank" rel="noopener" class="package-link">' + r + "Homepage</a>"), 
+        e.issues && (s += '<a href="' + R(e.issues) + '" target="_blank" rel="noopener" class="package-link">' + a + "Issues</a>"), 
         s += "</div>", s;
     }
-    function se(e) {
+    function me(e) {
         const t = function(e, t) {
             const n = [ e.risk, t ];
             return n.includes("red") ? "red" : n.includes("amber") ? "amber" : "green";
-        }(B(e).summary, e.compliance.licenseRisk), n = F(e.package.name, e.package.version), r = _(n), a = R(e), s = [ '<summary class="dep-summary">', '<span class="expand-icon" aria-hidden="true"></span>', '<span class="dep-name">' + A(e.package.name) + '<span class="dep-version">@' + A(e.package.version) + "</span></span>", '<div class="dep-indicators" style="--column-count: ' + X + '">', a, "</div>", "</summary>" ].join("");
-        return [ '<details class="dep-card" data-risk="' + t + '" data-dep-key="' + A(n) + '" id="' + A(r) + '">', s, '<div class="dep-details" data-rendered="false"></div>', "</details>" ].join("");
+        }(j(e).summary, e.compliance.licenseRisk), n = ee(e.package.name, e.package.version), a = ae(n), r = _(e), s = [ '<summary class="dep-summary">', '<span class="expand-icon" aria-hidden="true"></span>', '<span class="dep-name">' + R(e.package.name) + '<span class="dep-version">@' + R(e.package.version) + "</span></span>", '<div class="dep-indicators" style="--column-count: ' + D + '">', r, "</div>", "</summary>" ].join("");
+        return [ '<details class="dep-card" data-risk="' + t + '" data-dep-key="' + R(n) + '" id="' + R(a) + '">', s, '<div class="dep-details" data-rendered="false"></div>', "</details>" ].join("");
     }
-    function ie(e, t, n) {
-        const r = B(e), a = r.summary, s = Y(e), i = s.isInferred ? \`\${s.value} (inferred)\` : s.value, o = function(e) {
-            const t = e.package?.links || {}, n = e.links || {}, r = te(t.repository || n.repository || n.repo);
+    function ve(e, t, n) {
+        const a = j(e), r = a.summary, s = A(e), i = s.isInferred ? \`\${s.value} (inferred)\` : s.value, o = function(e) {
+            const t = e.package?.links || {}, n = e.links || {}, a = ue(t.repository || n.repository || n.repo);
             return {
                 npm: t.npm || n.npm,
-                repository: r || t.repository || n.repository || n.repo,
+                repository: a || t.repository || n.repository || n.repo,
                 homepage: t.homepage || n.homepage,
                 issues: t.bugs || t.issues || n.bugs || n.issues
             };
@@ -1495,99 +1622,110 @@ exports.JS_CONTENT = `!function() {
         var d;
         e.package.description && l.unshift("Description: " + e.package.description), e.usage.origins.workspaces?.length && l.push("Used in " + e.usage.origins.workspaces.length + " workspaces"), 
         e.usage.importUsage && l.push("Imported in " + e.usage.importUsage.fileCount + " project files"), 
-        e.usage.introduction && l.push("Introduced by: " + T(e.usage.introduction)), l.length < 3 && l.push("Dependency depth: " + e.usage.depth);
+        e.usage.introduction && l.push("Introduced by: " + U(e.usage.introduction)), l.length < 3 && l.push("Dependency depth: " + e.usage.depth);
         var u, p;
-        const h = Q("Overview", "Summary and key context", '<div class="micro-summary">' + l.slice(0, 5).map(e => '<div class="micro-line">' + A(e) + "</div>").join("") + "</div>" + (e.usage.origins.workspaces?.length ? '<div class="micro-sublist"><div class="micro-subtitle">Workspaces</div>' + \$(e.usage.origins.workspaces, 8) + "</div>" : "") + ('<div class="section-block"><div class="block-title">Key context</div><div class="kv-grid kv-grid-tight">' + [ e.usage.runtimeImpact ? j("Runtime impact", (p = e.usage.runtimeImpact, 
-        p ? T(p) : "")) : "", j("Dependency depth", e.usage.depth), e.usage.direct ? "" : V("Introduced via root packages", J(e.usage.origins.topRootPackages, 8, t, n)), e.usage.direct ? "" : j("Direct roots", e.usage.origins.rootPackageCount), e.usage.direct ? "" : V("Direct parents", G(e.usage.origins.topParentPackages, 8, t, n)), e.usage.direct ? "" : j("Direct parents count", e.usage.origins.parentPackageCount ?? 0), j("TypeScript types", (u = e.usage.tsTypes, 
-        "bundled" === u ? "Bundled" : "definitelyTyped" === u ? "DefinitelyTyped" : "none" === u ? "None" : "Unknown")) ].filter(Boolean).join("") + "</div></div>") + function(e, t, n, r) {
+        const h = le("Overview", "Summary and key context", '<div class="micro-summary">' + l.slice(0, 5).map(e => '<div class="micro-line">' + R(e) + "</div>").join("") + "</div>" + (e.usage.origins.workspaces?.length ? '<div class="micro-sublist"><div class="micro-subtitle">Workspaces</div>' + Z(e.usage.origins.workspaces, 8) + "</div>" : "") + ('<div class="section-block"><div class="block-title">Key context</div><div class="kv-grid kv-grid-tight">' + [ e.usage.runtimeImpact ? z("Runtime impact", (p = e.usage.runtimeImpact, 
+        p ? U(p) : "")) : "", z("Dependency depth", e.usage.depth), e.usage.direct ? "" : J("Introduced via root packages", oe(e.usage.origins.topRootPackages, 8, t, n)), e.usage.direct ? "" : z("Direct roots", e.usage.origins.rootPackageCount), e.usage.direct ? "" : J("Direct parents", Q(e.usage.origins.topParentPackages, 8, t, n)), e.usage.direct ? "" : z("Direct parents count", e.usage.origins.parentPackageCount ?? 0), z("TypeScript types", (u = e.usage.tsTypes, 
+        "bundled" === u ? "Bundled" : "definitelyTyped" === u ? "DefinitelyTyped" : "none" === u ? "None" : "Unknown")) ].filter(Boolean).join("") + "</div></div>") + function(e, t, n, a) {
             if (!t || 0 === t.length) return "";
-            const a = t.slice(0, n), s = t.length - n;
+            const r = t.slice(0, n), s = t.length - n;
             let i = '<div class="detail-list">';
-            return i += '<div class="detail-title">' + A(e) + "</div>", i += '<ul class="detail-items ' + r + '">', 
-            a.forEach(e => {
-                i += '<li class="detail-item">' + A(e) + "</li>";
+            return i += '<div class="detail-title">' + R(e) + "</div>", i += '<ul class="detail-items ' + a + '">', 
+            r.forEach(e => {
+                i += '<li class="detail-item">' + R(e) + "</li>";
             }), s > 0 && (i += '<li class="detail-item muted">+' + s + " more</li>"), i += "</ul></div>", 
             i;
-        }("Top import locations", e.usage.importUsage?.topFiles, 5, "mono")), g = e.compliance.license, m = ne(o.repository, "package.json"), v = ne(o.repository, "LICENSE"), f = [ V("Primary license", O(i, e.compliance.licenseRisk)), j("Status", P(g.status)) ];
+        }("Top import locations", e.usage.importUsage?.topFiles, 5, "mono")), g = e.compliance.license, m = pe(o.repository, "package.json"), v = pe(o.repository, "LICENSE"), f = [ J("Primary license", K(i, e.compliance.licenseRisk)), z("Status", N(g.status)) ];
         if (g.declared) {
             const e = [ g.declared.valid ? "valid" : "invalid", g.declared.expression ? "expression" : void 0, g.declared.deprecated ? "deprecated" : void 0 ].filter(Boolean).join(", "), t = g.exception?.id ? \` WITH \${g.exception.id}\` : "";
-            f.push(V("Declared SPDX in package.json", '<span class="kv-value">' + re(\`\${g.declared.spdxId}\${t}\${e ? \` (\${e})\` : ""}\`, m) + "</span>"));
+            f.push(J("Declared SPDX in package.json", '<span class="kv-value">' + he(\`\${g.declared.spdxId}\${t}\${e ? \` (\${e})\` : ""}\`, m) + "</span>"));
         }
-        g.inferred && f.push(V("Inferred from LICENSE file", '<span class="kv-value">' + re(\`\${g.inferred.spdxId} (\${g.inferred.confidence})\`, v) + "</span>")), 
-        "mismatch" === g.status && f.push(j("Mismatch", "Declared SPDX and LICENSE text do not match")), 
-        "invalid-spdx" === g.status && f.push(j("Invalid SPDX", "Package.json license is not a valid SPDX identifier or expression"));
-        const y = ee("License", '<div class="kv-grid">' + f.join("") + "</div>"), b = a.critical + a.high + a.moderate + a.low, w = [ V("Known vulnerabilities", O(0 === b ? "None" : String(b), a.risk)), j("Highest severity", "none" === a.highest ? "None" : T(a.highest)) ], E = b > 0 ? '<div class="kv-grid kv-grid-tight">' + [ j("Critical", a.critical), j("High", a.high), j("Moderate", a.moderate), j("Low", a.low) ].join("") + "</div>" : "", x = function(e) {
+        g.inferred && f.push(J("Inferred from LICENSE file", '<span class="kv-value">' + he(\`\${g.inferred.spdxId} (\${g.inferred.confidence})\`, v) + "</span>")), 
+        "mismatch" === g.status && f.push(z("Mismatch", "Declared SPDX and LICENSE text do not match")), 
+        "invalid-spdx" === g.status && f.push(z("Invalid SPDX", "Package.json license is not a valid SPDX identifier or expression"));
+        const y = de("License", '<div class="kv-grid">' + f.join("") + "</div>"), k = r.critical + r.high + r.moderate + r.low, b = [ J("Known vulnerabilities", K(0 === k ? "None" : String(k), r.risk)), z("Highest severity", "none" === r.highest ? "None" : U(r.highest)) ], w = k > 0 ? '<div class="kv-grid kv-grid-tight">' + [ z("Critical", r.critical), z("High", r.high), z("Moderate", r.moderate), z("Low", r.low) ].join("") + "</div>" : "", E = function(e) {
             if (!e || 0 === e.length) return "";
             let t = '<table class="vuln-table"><thead><tr>';
             return t += "<th>Title</th><th>Severity</th><th>Affected range</th><th>Fix available</th><th>Reference</th>", 
             t += "</tr></thead><tbody>", e.forEach(e => {
-                const n = A(e.title), r = e.url ? '<a href="' + A(e.url) + '" target="_blank" rel="noopener">Link</a>' : "";
-                t += '<tr data-severity="' + A(e.severity) + '">', t += '<td data-label="Title">' + n + "</td>", 
-                t += '<td data-label="Severity">' + A(N(e.severity)) + "</td>", t += '<td data-label="Affected range">' + A(e.vulnerableRange) + "</td>", 
-                t += '<td data-label="Fix available">' + A(e.fixAvailable ? "Yes" : "No") + "</td>", 
-                t += '<td data-label="Reference">' + r + "</td>", t += "</tr>";
+                const n = R(e.title), a = e.url ? '<a href="' + R(e.url) + '" target="_blank" rel="noopener">Link</a>' : "";
+                t += '<tr data-severity="' + R(e.severity) + '">', t += '<td data-label="Title">' + n + "</td>", 
+                t += '<td data-label="Severity">' + R(\$(e.severity)) + "</td>", t += '<td data-label="Affected range">' + R(e.vulnerableRange) + "</td>", 
+                t += '<td data-label="Fix available">' + R(e.fixAvailable ? "Yes" : "No") + "</td>", 
+                t += '<td data-label="Reference">' + a + "</td>", t += "</tr>";
             }), t += "</tbody></table>", t;
-        }(r.advisories), C = Q("Risk & Compliance", "License, vulnerabilities, and install-time execution signals", y + ee("VULNERABILITIES", [ '<div class="section-note">Based on npm audit findings (known disclosed issues).</div>', '<div class="kv-grid">' + w.join("") + "</div>", E ? '<div class="subtle-divider"></div>' + E : "", x ? '<div class="subtle-divider"></div>' + x : "" ].join(""), "Known security issues from npm audit", "vuln-block") + (e.execution ? function(e) {
-            const t = [ V("Execution risk", O((n = e.risk, "red" === n ? "High" : "amber" === n ? "Medium" : "Low"), e.risk)) ];
+        }(a.advisories), x = le("Risk & Compliance", "License, vulnerabilities, and install-time execution signals", y + de("VULNERABILITIES", [ '<div class="section-note">Based on npm audit findings (known disclosed issues).</div>', '<div class="kv-grid">' + b.join("") + "</div>", w ? '<div class="subtle-divider"></div>' + w : "", E ? '<div class="subtle-divider"></div>' + E : "" ].join(""), "Known security issues from npm audit", "vuln-block") + (e.execution ? function(e) {
+            const t = [ J("Execution risk", K((n = e.risk, "red" === n ? "High" : "amber" === n ? "Medium" : "Low"), e.risk)) ];
             var n;
-            if (e.native && t.push(j("Native build tooling detected (native)", "Yes")), e.scripts?.hooks?.length && t.push(V("Lifecycle hooks", \$(e.scripts.hooks, 6))), 
-            "number" == typeof e.scripts?.complexity && t.push(j("Heuristic complexity", "Script complexity: " + e.scripts.complexity + " (complexity)")), 
+            if (e.native && t.push(z("Native build tooling detected (native)", "Yes")), e.scripts?.hooks?.length && t.push(J("Lifecycle hooks", Z(e.scripts.hooks, 6))), 
+            "number" == typeof e.scripts?.complexity && t.push(z("Heuristic complexity", "Script complexity: " + e.scripts.complexity + " (complexity)")), 
             e.scripts?.signals?.length) {
-                const n = e.scripts.signals.map(e => \`\${k[e]} (\${e})\`);
-                t.push(V("Install-time signals", \$(n, 6)));
+                const n = e.scripts.signals.map(e => \`\${C[e]} (\${e})\`);
+                t.push(J("Install-time signals", Z(n, 6)));
             }
-            return ee("Install-time execution behaviour", '<div class="section-note">Install-time behaviour signals detected. These describe code that runs automatically during install and may warrant review in security-sensitive environments.</div><div class="kv-grid">' + t.join("") + "</div>");
-        }(e.execution) : "")), S = [ j("Outdated status", (L = e.upgrade.outdatedStatus, 
-        L ? "unknown" === L ? "Unknown" : T(L) : "Not reported")) ];
+            return de("Install-time execution behaviour", '<div class="section-note">Install-time behaviour signals detected. These describe code that runs automatically during install and may warrant review in security-sensitive environments.</div><div class="kv-grid">' + t.join("") + "</div>");
+        }(e.execution) : "")), S = [ z("Outdated status", (L = e.upgrade.outdatedStatus, 
+        L ? "unknown" === L ? "Unknown" : U(L) : "Not reported")) ];
         var L;
-        e.upgrade.latestVersion && S.push(j("Latest version", e.upgrade.latestVersion));
-        const I = ee("Version", '<div class="section-note">Based on npm outdated findings.</div><div class="kv-grid">' + S.join("") + "</div>"), M = e.package.deprecated ? ee("Deprecated", '<div class="kv-grid">' + j("Deprecated", "Yes", "Declared by the package author.") + "</div>", void 0, "warning") : "", X = [ j("Node engine constraint", e.upgrade.nodeEngine || "Any") ];
-        void 0 !== e.upgrade.blocksNodeMajor && X.push(j("Blocks Node major upgrade", e.upgrade.blocksNodeMajor ? "Yes" : "No"));
-        const D = ee("Constraints", '<div class="kv-grid">' + X.join("") + "</div>"), R = ee("Blast radius", '<div class="kv-grid">' + [ j("Used by other packages (fanIn)", e.graph.fanIn), j("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), H = {
+        e.upgrade.latestVersion && S.push(z("Latest version", e.upgrade.latestVersion));
+        const I = de("Version", '<div class="section-note">Based on npm outdated findings.</div><div class="kv-grid">' + S.join("") + "</div>"), M = e.package.deprecated ? de("Deprecated", '<div class="kv-grid">' + z("Deprecated", "Yes", "Declared by the package author.") + "</div>", void 0, "warning") : "", Y = [ z("Node engine constraint", e.upgrade.nodeEngine || "Any") ];
+        void 0 !== e.upgrade.blocksNodeMajor && Y.push(z("Blocks Node major upgrade", e.upgrade.blocksNodeMajor ? "Yes" : "No"));
+        const P = de("Constraints", '<div class="kv-grid">' + Y.join("") + "</div>"), X = de("Blast radius", '<div class="kv-grid">' + [ z("Used by other packages (fanIn)", e.graph.fanIn), z("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), D = {
             nodeEngine: "Node engine constraint",
             peerDependency: "Peer dependency constraints",
             nativeBindings: "Native bindings/build tooling",
             installScripts: "Install lifecycle scripts",
             deprecated: "Deprecated by author"
-        }, F = Q("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + D + R + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + A(H[e] || e) + "</li>").join("") + "</ul></div>" : "")), W = Z(e, t, n);
-        return [ ae(o), h, C, F, W, '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary><div class="raw-data-pane"><pre>' + A(c) + '</pre><button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button></div></details>' ].join("");
+        }, B = le("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + R(D[e] || e) + "</li>").join("") + "</ul></div>" : "")), T = ce(e, t, n);
+        return [ ge(o), h, x, B, T, '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary><div class="raw-data-pane"><pre>' + R(c) + '</pre><button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button></div></details>' ].join("");
     }
-    async function oe() {
-        const e = await async function() {
+    async function fe() {
+        const t = await async function() {
             const e = document.getElementById("radar-data");
             return e && e.textContent && "{}" !== e.textContent.trim() ? JSON.parse(e.textContent) : (await fetch("./sample-data.json")).json();
         }();
-        void 0 === window.__DEPENDENCY_DATA__ && (window.__DEPENDENCY_DATA__ = e);
-        const t = document.getElementById("dependency-list"), n = document.getElementById("results-summary"), r = function(e) {
+        void 0 === window.__DEPENDENCY_DATA__ && (window.__DEPENDENCY_DATA__ = t);
+        const n = document.getElementById("dependency-list"), a = document.getElementById("results-summary"), r = function(e) {
             const t = "string" == typeof e && e.trim().length > 0 ? e.trim() : "unknown";
             return \`https://dependency-radar.com/next-steps?source=standalone-report&cli=\${encodeURIComponent(t)}\`;
-        }(e.dependencyRadarVersion), a = document.getElementById("project-path");
-        a && (a.textContent = e.project.projectDir);
-        const s = document.getElementById("cta-primary-link"), i = document.getElementById("cta-secondary-link");
-        s && (s.href = r), i && (i.href = r);
-        const o = document.getElementById("git-branch-item"), c = document.getElementById("git-branch");
-        e.git?.branch && e.git.branch && o && c && (c.textContent = e.git.branch, o.style.display = "");
-        const l = document.getElementById("node-item"), d = document.getElementById("node-version"), u = document.getElementById("node-disclaimer");
-        if (e.environment && l && d) {
-            const t = e.environment.runtimeVersion?.replace(/^v/, "") || "unknown", n = e.environment.minRequiredMajor;
-            d.textContent = t + (n && n > 0 ? \` (requires ≥\${n})\` : ""), l.style.display = "", 
-            n && n > 0 && u && (u.textContent = "Node requirement derived from dependency engine ranges.", 
-            u.style.display = "");
-        }
-        const p = document.getElementById("formatted-date");
-        if (p && e.generatedAt) try {
-            const t = new Date(e.generatedAt), n = new Intl.DateTimeFormat(void 0, {
+        }(t.dependencyRadarVersion), s = document.getElementById("project-path");
+        s && (s.textContent = t.project.name || t.project.projectDir, s.title = t.project.projectDir);
+        const i = document.getElementById("metadata-toggle"), o = document.getElementById("metadata-panel"), c = document.getElementById("cta-primary-link");
+        c && (c.href = r);
+        const l = document.getElementById("formatted-date");
+        let d = t.generatedAt || "";
+        if (l && t.generatedAt) try {
+            const e = new Date(t.generatedAt);
+            Number.isNaN(e.getTime()) ? (d = t.generatedAt, l.textContent = t.generatedAt) : (d = new Intl.DateTimeFormat(void 0, {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
-            }).format(t);
-            p.textContent = n;
+            }).format(e), l.textContent = d);
         } catch {
-            p.textContent = e.generatedAt;
+            d = t.generatedAt, l.textContent = t.generatedAt;
         }
-        const h = {
+        o && (o.innerHTML = function(e, t) {
+            const n = e.environment || {}, a = n.minRequiredMajor, r = a && a > 0 ? "Node requirement derived from dependency engine ranges." : "";
+            return [ F("Report", [ O("Dependency Radar", e.dependencyRadarVersion), O("Schema", e.schemaVersion), O("Generated", t || e.generatedAt), O("Generated raw", e.generatedAt) ]), F("Project", [ O("Name", e.project.name), O("Version", e.project.version), O("Path", e.project.projectDir), O("Description", e.project.description), O("License", e.project.license), O("Homepage", e.project.homepage), O("Repository", e.project.repository), O("Constraints", e.project.constraints), O("Dependency policy", e.project.dependencyPolicySummary) ]), F("Git", [ O("Branch", e.git?.branch) ]), F("Environment", [ O("Node", n.nodeVersion), O("Runtime", n.runtimeVersion), O("Minimum required Node major", n.minRequiredMajor), O("Target Node major", n.targetNodeMajor), O("Platform", n.platform), O("Architecture", n.arch), O("CI", n.ci), O("packageManager field", n.packageManagerField), O("Package manager", n.packageManager), O("Package manager version", n.packageManagerVersion), O("Tool versions", n.toolVersions), O("Node note", r) ]), W(e), F("Summary", [ O("Dependencies", e.summary?.dependencyCount), O("Direct", e.summary?.directCount), O("Transitive", e.summary?.transitiveCount), O("Findings", e.summary?.findingCount) ]), G(e) ].filter(Boolean).join("");
+        }(t, d), o.hidden = !1, o.inert = !0, o.setAttribute("aria-hidden", "true"));
+        const u = e => {
+            i && o && (o.classList.toggle("open", e), o.inert = !e, o.setAttribute("aria-hidden", String(!e)), 
+            i.classList.toggle("open", e), i.setAttribute("aria-expanded", String(e)));
+        };
+        i?.addEventListener("click", () => {
+            const e = !o?.classList.contains("open");
+            u(e);
+        }), document.addEventListener("click", e => {
+            if (!i || !o) return;
+            if (!o.classList.contains("open")) return;
+            const t = e.target;
+            i.contains(t) || o.contains(t) || u(!1);
+        }), document.addEventListener("keydown", e => {
+            "Escape" === e.key && u(!1);
+        });
+        const p = {
             search: document.getElementById("search"),
             direct: document.getElementById("direct-filter"),
             runtime: document.getElementById("runtime-filter"),
@@ -1606,7 +1744,17 @@ exports.JS_CONTENT = `!function() {
             licenseAll: document.getElementById("license-all"),
             licenseFriendly: document.getElementById("license-friendly"),
             filtersToggle: document.getElementById("filters-toggle"),
+            filterCountBadge: document.getElementById("filter-count-badge"),
             filterControls: document.getElementById("filter-controls"),
+            activeFiltersRow: document.getElementById("active-filters-row"),
+            activeFilterChips: document.getElementById("active-filter-chips"),
+            activeFilterClear: document.getElementById("active-filter-clear"),
+            clearAllFilters: document.getElementById("clear-all-filters"),
+            licensePermissiveLabel: document.getElementById("license-permissive-label"),
+            licenseWeakCopyleftLabel: document.getElementById("license-weak-copyleft-label"),
+            licenseStrongCopyleftLabel: document.getElementById("license-strong-copyleft-label"),
+            licenseUnknownLabel: document.getElementById("license-unknown-label"),
+            hasVulnsLabel: document.getElementById("has-vulns-label"),
             columnHeadersContainer: document.getElementById("column-headers-container"),
             packageHeader: document.getElementById("package-header"),
             viewGraphButton: document.getElementById("view-graph-btn"),
@@ -1627,197 +1775,305 @@ exports.JS_CONTENT = `!function() {
             graphOpenList: document.getElementById("graph-open-list"),
             reportFooter: document.querySelector(".report-footer")
         };
-        let g = "name", m = !0, v = null, f = !1;
+        let h = "name", g = !0, m = null, v = !1;
         document.documentElement.setAttribute("data-theme", "dark");
         "light" === localStorage.getItem("dependency-radar-theme") ? (document.documentElement.classList.add("light"), 
-        h.themeSwitch.classList.add("light"), document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
-        h.themeSwitch.classList.remove("light"), document.documentElement.setAttribute("data-theme", "dark")), 
-        h.themeSwitch.addEventListener("click", () => {
-            document.documentElement.classList.toggle("light"), h.themeSwitch.classList.toggle("light");
+        p.themeSwitch.classList.add("light"), p.themeSwitch.setAttribute("aria-pressed", "true"), 
+        document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
+        p.themeSwitch.classList.remove("light"), p.themeSwitch.setAttribute("aria-pressed", "false"), 
+        document.documentElement.setAttribute("data-theme", "dark")), p.themeSwitch.addEventListener("click", () => {
+            document.documentElement.classList.toggle("light"), p.themeSwitch.classList.toggle("light");
             const e = document.documentElement.classList.contains("light");
-            document.documentElement.setAttribute("data-theme", e ? "light" : "dark"), localStorage.setItem("dependency-radar-theme", e ? "light" : "dark"), 
-            v?.requestRender();
+            document.documentElement.setAttribute("data-theme", e ? "light" : "dark"), p.themeSwitch.setAttribute("aria-pressed", String(e)), 
+            localStorage.setItem("dependency-radar-theme", e ? "light" : "dark"), m?.requestRender();
         });
-        const k = window.matchMedia("(max-width: 768px)");
-        let w = k.matches;
-        const E = e => {
-            h.filterControls && h.filtersToggle && (h.filterControls.classList.toggle("open", e), 
-            h.filtersToggle.classList.toggle("open", e), h.filtersToggle.setAttribute("aria-expanded", String(e)));
-        }, x = () => {
-            if (k.matches) return E(!1), h.licensePanel.classList.add("open"), h.licenseToggle.classList.add("open"), 
-            void (w = !0);
-            w && (E(!1), h.licensePanel.classList.remove("open"), h.licenseToggle.classList.remove("open")), 
-            w = !1;
+        const f = window.matchMedia("(max-width: 768px)");
+        let y = f.matches;
+        const k = e => {
+            p.filterControls && p.filtersToggle && (p.filterControls.classList.toggle("open", e), 
+            p.filterControls.inert = !e, p.filterControls.setAttribute("aria-hidden", String(!e)), 
+            p.filtersToggle.classList.toggle("open", e), p.filtersToggle.setAttribute("aria-expanded", String(e)), 
+            e && u(!1));
+        }, b = () => {
+            if (f.matches) return k(!1), void (y = !0);
+            y && k(!1), y = !1;
         };
-        function C() {
-            if (h.columnHeadersContainer && (h.columnHeadersContainer.innerHTML = H(g, m)), 
-            h.packageHeader) {
-                const e = h.packageHeader.querySelector(".sort-indicator");
-                e && ("name" === g ? (e.textContent = m ? " ▲" : " ▼", h.packageHeader.classList.add("sorted")) : (e.textContent = "", 
-                h.packageHeader.classList.remove("sorted")));
+        function E() {
+            if (p.columnHeadersContainer && (p.columnHeadersContainer.innerHTML = q(h, g)), 
+            p.packageHeader) {
+                const e = p.packageHeader.querySelector(".sort-indicator");
+                e && ("name" === h ? (e.textContent = g ? " ▲" : " ▼", p.packageHeader.classList.add("sorted")) : (e.textContent = "", 
+                p.packageHeader.classList.remove("sorted")));
             }
         }
-        function S(e) {
+        function C(e) {
             const t = e.target.closest(".column-header");
             if (!t) return;
             const n = t.dataset.sort;
-            n && (g === n ? m = !m : (g = n, m = !0), h.sort && (h.sort.value = g, h.sortDirection.textContent = m ? "↑" : "↓"), 
-            C(), G());
+            n && (h === n ? g = !g : (h = n, g = !0), p.sort && (p.sort.value = h, p.sortDirection.textContent = g ? "↑" : "↓"), 
+            E(), Z());
         }
-        h.licenseToggle.addEventListener("click", () => {
-            k.matches || (h.licenseToggle.classList.toggle("open"), h.licensePanel.classList.toggle("open"));
-        }), h.filtersToggle && h.filterControls && h.filtersToggle.addEventListener("click", () => {
-            const e = !h.filterControls.classList.contains("open");
-            E(e);
-        }), window.addEventListener("resize", x), x(), h.sortDirection.addEventListener("click", () => {
-            m = !m, h.sortDirection.textContent = m ? "↑" : "↓", C(), G();
-        }), h.sort.addEventListener("change", () => {
-            g = h.sort.value, C(), G();
-        }), h.columnHeadersContainer && h.columnHeadersContainer.addEventListener("click", S), 
-        h.packageHeader && h.packageHeader.addEventListener("click", S), C(), h.licenseAll.addEventListener("click", () => {
-            h.licensePermissive.checked = !0, h.licenseWeakCopyleft.checked = !0, h.licenseStrongCopyleft.checked = !0, 
-            h.licenseUnknown.checked = !0, R.clear(), G();
-        }), h.licenseFriendly.addEventListener("click", () => {
-            h.licensePermissive.checked = !0, h.licenseWeakCopyleft.checked = !1, h.licenseStrongCopyleft.checked = !1, 
-            h.licenseUnknown.checked = !1, R.clear(), G();
+        p.filtersToggle && p.filterControls && p.filtersToggle.addEventListener("click", () => {
+            const e = !p.filterControls.classList.contains("open");
+            k(e);
+        }), document.addEventListener("click", e => {
+            if (!p.filterControls || !p.filtersToggle) return;
+            const t = e.target;
+            p.filterControls.contains(t) || p.filtersToggle.contains(t) || k(!1);
+        }), document.addEventListener("keydown", e => {
+            "Escape" === e.key && k(!1);
+        }), k(!1), window.addEventListener("resize", b), b(), p.sortDirection.addEventListener("click", () => {
+            g = !g, p.sortDirection.textContent = g ? "↑" : "↓", E(), Z();
+        }), p.sort.addEventListener("change", () => {
+            h = p.sort.value, E(), Z();
+        }), p.columnHeadersContainer && p.columnHeadersContainer.addEventListener("click", C), 
+        p.packageHeader && p.packageHeader.addEventListener("click", C), E(), p.licenseAll.addEventListener("click", () => {
+            p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !0, p.licenseStrongCopyleft.checked = !0, 
+            p.licenseUnknown.checked = !0, H.clear(), Z();
+        }), p.licenseFriendly.addEventListener("click", () => {
+            p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !1, p.licenseStrongCopyleft.checked = !1, 
+            p.licenseUnknown.checked = !1, H.clear(), Z();
         });
-        const L = Object.values(e.dependencies || {}), I = function(e) {
-            if (!e.workspaces.enabled) return [];
-            const t = new Set;
-            return (e.workspaces.workspacePackages || []).forEach(e => {
-                e.name && t.add(e.name);
-            }), Object.values(e.dependencies || {}).forEach(e => {
-                (e.usage.origins.workspaces || []).forEach(e => {
-                    e && t.add(e);
-                });
-            }), Array.from(t).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t));
-        }(e);
-        if (h.workspace && h.workspaceWrap && I.length > 1) {
-            h.workspace.textContent = "";
+        const x = Object.values(t.dependencies || {}), S = e => {
+            const t = e.usage.origins.workspaces || [];
+            return t.length > 0 ? t : [ "root" ];
+        }, L = Array.from(new Set([ ...e(t), ...x.flatMap(S) ])).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t)), I = (e, t) => e + " (" + t + ")", M = e => {
+            return T[(t = j(e).summary, t?.highest || "none")] > 0;
+            var t;
+        }, Y = e => x.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
+        if (p.workspace && p.workspaceWrap && L.length > 1) {
+            p.workspace.textContent = "";
             const e = document.createElement("option");
-            e.value = "all", e.textContent = "All workspaces", h.workspace.appendChild(e), I.forEach(e => {
+            e.value = "all", e.textContent = I("All workspaces", x.length), p.workspace.appendChild(e), 
+            L.forEach(e => {
                 const t = document.createElement("option");
-                t.value = e, t.textContent = "root" === e ? "Workspace root" : e, h.workspace.appendChild(t);
-            }), h.workspaceWrap.classList.remove("hidden");
+                t.value = e, t.textContent = I("root" === e ? "Workspace root" : e, Y(t => S(t).includes(e))), 
+                p.workspace.appendChild(t);
+            }), p.workspaceWrap.classList.remove("hidden");
         }
-        const X = new Map;
-        L.forEach(e => {
-            X.set(F(e.package.name, e.package.version), e);
+        !function() {
+            const e = x.length;
+            p.direct.options[0].textContent = I("All", e), p.direct.options[1].textContent = I("Direct", Y(e => e.usage.direct)), 
+            p.direct.options[2].textContent = I("Transitive", Y(e => !e.usage.direct));
+            const t = {
+                all: "All",
+                runtime: "Production",
+                dev: "Development",
+                optional: "Optional",
+                peer: "Peer"
+            };
+            Array.from(p.runtime.options).forEach(n => {
+                n.textContent = I(t[n.value] || n.textContent || n.value, "all" === n.value ? e : Y(e => e.usage.scope === n.value));
+            });
+            const n = {
+                permissive: 0,
+                weakCopyleft: 0,
+                strongCopyleft: 0,
+                unknown: 0
+            };
+            x.forEach(e => {
+                n[B(A(e).value)] += 1;
+            }), p.licensePermissiveLabel && (p.licensePermissiveLabel.textContent = I("Permissive", n.permissive)), 
+            p.licenseWeakCopyleftLabel && (p.licenseWeakCopyleftLabel.textContent = I("Weak Copyleft", n.weakCopyleft)), 
+            p.licenseStrongCopyleftLabel && (p.licenseStrongCopyleftLabel.textContent = I("Strong Copyleft", n.strongCopyleft)), 
+            p.licenseUnknownLabel && (p.licenseUnknownLabel.textContent = I("Other / Unknown", n.unknown)), 
+            p.hasVulnsLabel && (p.hasVulnsLabel.textContent = I("Has vulnerabilities", Y(M)));
+        }();
+        const P = new Map;
+        x.forEach(e => {
+            P.set(ee(e.package.name, e.package.version), e);
         });
-        const P = new Set(X.keys()), N = q(P), T = new Set, R = new Set, j = new Map, O = (() => {
+        const D = new Set(P.keys()), N = re(D), V = new Set, H = new Set, \$ = new Map, U = (() => {
             const e = document.getElementById("copy-announcer");
             if (e) return e;
             const t = document.createElement("div");
             return t.id = "copy-announcer", t.className = "sr-only", t.setAttribute("aria-live", "polite"), 
             document.body.appendChild(t), t;
         })();
-        function V(e) {
+        function _(e) {
             const t = e.dataset.depKey;
             if (!t) return;
             const n = e.querySelector(".dep-details");
             if (!n || "true" === n.dataset.rendered) return;
-            const r = X.get(t);
-            r && (n.setAttribute("aria-busy", "true"), n.innerHTML = [ '<div class="dep-loading" role="presentation">', '<div class="dep-loading-bar"></div>', "</div>" ].join(""), 
+            const a = P.get(t);
+            a && (n.setAttribute("aria-busy", "true"), n.innerHTML = [ '<div class="dep-loading" role="presentation">', '<div class="dep-loading-bar"></div>', "</div>" ].join(""), 
             requestAnimationFrame(() => {
-                n.innerHTML = ie(r, P, N), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
+                n.innerHTML = ve(a, D, N), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
             }));
         }
-        function \$() {
-            const e = (h.search.value || "").toLowerCase(), t = h.direct.value, n = h.runtime.value, r = h.workspace?.value || "all", a = h.hasVulns.checked, s = h.licensePermissive.checked, i = h.licenseWeakCopyleft.checked, o = h.licenseStrongCopyleft.checked, c = h.licenseUnknown.checked;
-            return L.filter(l => {
-                const d = F(l.package.name, l.package.version);
-                if (R.has(d)) return !0;
-                const u = Y(l), p = [ u.value, l.compliance.license.declared?.spdxId, l.compliance.license.inferred?.spdxId ].filter(Boolean).join(" ").toLowerCase();
-                if (e && !l.package.name.toLowerCase().includes(e) && !p.includes(e)) return !1;
-                if ("direct" === t && !l.usage.direct) return !1;
-                if ("transitive" === t && l.usage.direct) return !1;
-                if ("all" !== n && l.usage.scope !== n) return !1;
-                if ("all" !== r && !(l.usage.origins.workspaces || []).includes(r)) return !1;
-                if (a && 0 === D[(h = B(l).summary, h?.highest || "none")]) return !1;
-                var h;
-                const g = function(e) {
-                    if (!e) return "unknown";
-                    const t = e.toUpperCase();
-                    for (const [n, r] of Object.entries(b)) if (r.some(e => t.includes(e.toUpperCase()))) return n;
-                    return "unknown";
-                }(u.value);
-                return !("permissive" === g && !s) && (!("weakCopyleft" === g && !i) && (!("strongCopyleft" === g && !o) && !("unknown" === g && !c)));
-            });
+        function z(e) {
+            const t = e.selectedOptions[0];
+            return (t?.textContent || "").replace(/\\s+\\(\\d+\\)\$/, "");
         }
-        function G() {
-            const r = function(e) {
+        function K() {
+            p.search.value = "", p.direct.value = "all", p.runtime.value = "all", p.workspace && (p.workspace.value = "all"), 
+            p.hasVulns.checked = !1, p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !0, 
+            p.licenseStrongCopyleft.checked = !0, p.licenseUnknown.checked = !0;
+        }
+        function J() {
+            const e = [], t = p.search.value.trim();
+            t && e.push({
+                id: "search",
+                label: "Search: " + t,
+                remove: () => {
+                    p.search.value = "";
+                }
+            }), "all" !== p.direct.value && e.push({
+                id: "type",
+                label: "Type: " + z(p.direct),
+                remove: () => {
+                    p.direct.value = "all";
+                }
+            }), "all" !== p.runtime.value && e.push({
+                id: "scope",
+                label: "Scope: " + z(p.runtime),
+                remove: () => {
+                    p.runtime.value = "all";
+                }
+            }), p.workspace && "all" !== p.workspace.value && e.push({
+                id: "workspace",
+                label: "Workspace: " + z(p.workspace),
+                remove: () => {
+                    p.workspace.value = "all";
+                }
+            });
+            return [ {
+                id: "license-permissive",
+                checked: p.licensePermissive.checked,
+                label: "License: Permissive",
+                reset: () => {
+                    p.licensePermissive.checked = !0;
+                }
+            }, {
+                id: "license-weak-copyleft",
+                checked: p.licenseWeakCopyleft.checked,
+                label: "License: Weak Copyleft",
+                reset: () => {
+                    p.licenseWeakCopyleft.checked = !0;
+                }
+            }, {
+                id: "license-strong-copyleft",
+                checked: p.licenseStrongCopyleft.checked,
+                label: "License: Strong Copyleft",
+                reset: () => {
+                    p.licenseStrongCopyleft.checked = !0;
+                }
+            }, {
+                id: "license-unknown",
+                checked: p.licenseUnknown.checked,
+                label: "License: Other / Unknown",
+                reset: () => {
+                    p.licenseUnknown.checked = !0;
+                }
+            } ].forEach(t => {
+                t.checked || e.push({
+                    id: t.id,
+                    label: t.label,
+                    remove: t.reset
+                });
+            }), p.hasVulns.checked && e.push({
+                id: "has-vulns",
+                label: "Has vulnerabilities",
+                remove: () => {
+                    p.hasVulns.checked = !1;
+                }
+            }), e;
+        }
+        function Z() {
+            !function() {
+                const e = J(), t = e.length;
+                p.filtersToggle.classList.toggle("has-active-filters", t > 0), p.filterCountBadge && (p.filterCountBadge.hidden = 0 === t, 
+                p.filterCountBadge.textContent = String(t)), p.activeFiltersRow && p.activeFilterChips && (p.activeFiltersRow.hidden = 0 === t, 
+                p.activeFilterChips.innerHTML = e.map(e => '<span class="active-filter-chip">' + R(e.label) + '<button type="button" class="active-filter-remove" data-filter-chip="' + R(e.id) + '" aria-label="Remove ' + R(e.label) + '">×</button></span>').join(""));
+            }();
+            const e = function(e) {
                 const t = [ ...e ];
-                if ("name" === g) t.sort((e, t) => e.package.name.localeCompare(t.package.name)); else if ("depth" === g) t.sort((e, t) => e.usage.depth - t.usage.depth); else {
-                    const e = M.find(e => e.sortKey === g || e.id === g);
+                if ("name" === h) t.sort((e, t) => e.package.name.localeCompare(t.package.name)); else if ("depth" === h) t.sort((e, t) => e.usage.depth - t.usage.depth); else {
+                    const e = X.find(e => e.sortKey === h || e.id === h);
                     e?.sortFn ? t.sort(e.sortFn) : e && t.sort((t, n) => e.getValue(t).localeCompare(e.getValue(n)));
                 }
-                return m || t.reverse(), t;
-            }(\$()), a = e.summary?.dependencyCount || L.length;
-            n.innerHTML = "Showing <strong>" + r.length + "</strong> of <strong>" + a + "</strong> dependencies", 
-            "all" !== (h.workspace?.value || "all") && (n.innerHTML += " in <strong>" + A(h.workspace.value) + "</strong>"), 
-            0 !== r.length ? (t.innerHTML = r.map(se).join(""), j.clear(), t.querySelectorAll("details.dep-card").forEach(e => {
+                return g || t.reverse(), t;
+            }(function() {
+                const e = (p.search.value || "").toLowerCase(), t = p.direct.value, n = p.runtime.value, a = p.workspace?.value || "all", r = p.hasVulns.checked, s = p.licensePermissive.checked, i = p.licenseWeakCopyleft.checked, o = p.licenseStrongCopyleft.checked, c = p.licenseUnknown.checked;
+                return x.filter(l => {
+                    const d = ee(l.package.name, l.package.version);
+                    if (H.has(d)) return !0;
+                    const u = A(l), p = [ u.value, l.compliance.license.declared?.spdxId, l.compliance.license.inferred?.spdxId ].filter(Boolean).join(" ").toLowerCase();
+                    if (e && !l.package.name.toLowerCase().includes(e) && !p.includes(e)) return !1;
+                    if ("direct" === t && !l.usage.direct) return !1;
+                    if ("transitive" === t && l.usage.direct) return !1;
+                    if ("all" !== n && l.usage.scope !== n) return !1;
+                    if ("all" !== a && !S(l).includes(a)) return !1;
+                    if (r && !M(l)) return !1;
+                    const h = B(u.value);
+                    return !("permissive" === h && !s || "weakCopyleft" === h && !i || "strongCopyleft" === h && !o || "unknown" === h && !c);
+                });
+            }()), r = t.summary?.dependencyCount || x.length;
+            a.innerHTML = "Showing <strong>" + e.length + "</strong> of <strong>" + r + "</strong> dependencies", 
+            "all" !== (p.workspace?.value || "all") && (a.innerHTML += " in <strong>" + R(p.workspace.value) + "</strong>"), 
+            0 !== e.length ? (n.innerHTML = e.map(me).join(""), \$.clear(), n.querySelectorAll("details.dep-card").forEach(e => {
                 const t = e.dataset.depKey;
-                t && j.set(t, e);
-            }), T.forEach(e => {
-                const t = j.get(e);
-                t && (t.open || (t.open = !0), V(t));
-            })) : t.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No dependencies match your filters</div></div>';
+                t && \$.set(t, e);
+            }), V.forEach(e => {
+                const t = \$.get(e);
+                t && (t.open || (t.open = !0), _(t));
+            })) : n.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No dependencies match your filters</div></div>';
         }
-        function W(e) {
+        function Q(e) {
             const t = N.get(e) || [];
             return 1 === t.length ? t[0] : null;
         }
-        function z(e) {
-            if (X.has(e)) return e;
-            const t = U(e);
-            if (!t) return W(e);
+        function te(e) {
+            if (P.has(e)) return e;
+            const t = ne(e);
+            if (!t) return Q(e);
             if (t.version.startsWith("npm:")) {
                 const e = t.version.slice(4), n = t.name + (e.startsWith("@") ? e : "@" + e);
-                if (X.has(n)) return n;
+                if (P.has(n)) return n;
             }
-            return W(t.name);
+            return Q(t.name);
         }
-        function K(t) {
-            if (!h.listViewPanel || !h.graphViewPanel) return void console.warn("Dependency Radar: view panels are missing from the report DOM.");
-            const n = "list" === t;
-            n || Boolean(h.graphWorkspaceSelect && h.graphWorkspaceWrap && h.graphControls && h.graphCanvas && h.graphCanvasShell && h.graphPopover && h.graphPopoverName && h.graphPopoverVersion && h.graphPopoverLicense && h.graphPopoverVulns && h.graphPopoverAmplification && h.graphOpenList) ? (h.listViewPanel.classList.toggle("active", n), 
-            h.graphViewPanel.classList.toggle("active", !n), h.listViewPanel.setAttribute("aria-hidden", String(!n)), 
-            h.graphViewPanel.setAttribute("aria-hidden", String(n)), h.viewGraphButton && (h.viewGraphButton.style.display = n ? "" : "none"), 
-            h.graphBackButton && (h.graphBackButton.style.display = n ? "none" : ""), h.reportFooter?.classList.toggle("hidden", !n), 
-            document.body.classList.toggle("graph-mode", !n), n ? v?.setActive(!1) : (f || (v = y({
-                report: e,
-                knownDepKeys: P,
-                resolveDepKey: z,
-                workspaceSelect: h.graphWorkspaceSelect,
-                workspaceWrap: h.graphWorkspaceWrap,
-                controlsRoot: h.graphControls,
-                canvas: h.graphCanvas,
-                canvasHost: h.graphCanvasShell,
-                popover: h.graphPopover,
-                popoverName: h.graphPopoverName,
-                popoverVersion: h.graphPopoverVersion,
-                popoverLicense: h.graphPopoverLicense,
-                popoverVulns: h.graphPopoverVulns,
-                popoverAmplification: h.graphPopoverAmplification,
-                popoverOpenButton: h.graphOpenList,
+        function se(e) {
+            if (!p.listViewPanel || !p.graphViewPanel) return void console.warn("Dependency Radar: view panels are missing from the report DOM.");
+            const n = "list" === e;
+            n || Boolean(p.graphWorkspaceSelect && p.graphWorkspaceWrap && p.graphControls && p.graphCanvas && p.graphCanvasShell && p.graphPopover && p.graphPopoverName && p.graphPopoverVersion && p.graphPopoverLicense && p.graphPopoverVulns && p.graphPopoverAmplification && p.graphOpenList) ? (p.listViewPanel.classList.toggle("active", n), 
+            p.graphViewPanel.classList.toggle("active", !n), p.listViewPanel.setAttribute("aria-hidden", String(!n)), 
+            p.graphViewPanel.setAttribute("aria-hidden", String(n)), p.viewGraphButton && (p.viewGraphButton.style.display = n ? "" : "none"), 
+            p.graphBackButton && (p.graphBackButton.style.display = n ? "none" : ""), p.reportFooter?.classList.toggle("hidden", !n), 
+            document.body.classList.toggle("graph-mode", !n), n ? m?.setActive(!1) : (v || (m = w({
+                report: t,
+                knownDepKeys: D,
+                resolveDepKey: te,
+                workspaceSelect: p.graphWorkspaceSelect,
+                workspaceWrap: p.graphWorkspaceWrap,
+                controlsRoot: p.graphControls,
+                canvas: p.graphCanvas,
+                canvasHost: p.graphCanvasShell,
+                popover: p.graphPopover,
+                popoverName: p.graphPopoverName,
+                popoverVersion: p.graphPopoverVersion,
+                popoverLicense: p.graphPopoverLicense,
+                popoverVulns: p.graphPopoverVulns,
+                popoverAmplification: p.graphPopoverAmplification,
+                popoverOpenButton: p.graphOpenList,
                 onOpenList: e => {
                     !function(e) {
-                        K("list");
-                        let t = document.getElementById(_(e));
-                        !t && X.has(e) && (R.add(e), G(), t = document.getElementById(_(e)));
+                        se("list");
+                        let t = document.getElementById(ae(e));
+                        !t && P.has(e) && (H.add(e), Z(), t = document.getElementById(ae(e)));
                         if (!t) return;
                         if (t instanceof HTMLDetailsElement) {
                             const e = t.dataset.depKey;
-                            e && T.add(e), t.open || (t.open = !0), V(t);
+                            e && V.add(e), t.open || (t.open = !0), _(t);
                         }
-                        t.classList.add("dep-list-highlight"), J(t, !0), window.setTimeout(() => {
+                        t.classList.add("dep-list-highlight"), ie(t, !0), window.setTimeout(() => {
                             t?.classList.remove("dep-list-highlight");
                         }, 2e3);
                     }(e);
                 }
-            }), v.initGraphView(), f = !0), v?.setActive(!0), v?.requestRender())) : console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+            }), m.initGraphView(), v = !0), m?.setActive(!0), m?.requestRender())) : console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
         }
-        function J(e, t = !1) {
+        function ie(e, t = !1) {
             const n = () => {
                 const n = window.scrollY + e.getBoundingClientRect().top - function() {
                     const e = document.querySelector(".filter-bar");
@@ -1837,57 +2093,67 @@ exports.JS_CONTENT = `!function() {
                 n(), window.setTimeout(n, 60);
             });
         }
-        const Z = [ h.search, h.direct, h.runtime, h.sort, h.hasVulns, h.workspace, h.licensePermissive, h.licenseWeakCopyleft, h.licenseStrongCopyleft, h.licenseUnknown ], Q = () => {
-            R.clear(), G();
+        const oe = [ p.search, p.direct, p.runtime, p.sort, p.hasVulns, p.workspace, p.licensePermissive, p.licenseWeakCopyleft, p.licenseStrongCopyleft, p.licenseUnknown ], ce = () => {
+            H.clear(), Z();
         };
-        function ee(e) {
+        oe.forEach(e => {
+            e && (e.addEventListener("input", ce), e.addEventListener("change", ce));
+        }), p.activeFilterChips?.addEventListener("click", e => {
+            const t = e.target.closest("[data-filter-chip]");
+            if (!t) return;
+            const n = J().find(e => e.id === t.dataset.filterChip);
+            n && (n.remove(), ce());
+        });
+        const le = () => {
+            K(), ce();
+        };
+        function de(e) {
             const t = e.getAttribute("data-dep-key");
             if (!t) return;
-            const n = z(t);
+            const n = te(t);
             if (!n) return;
-            let r = j.get(n);
-            r || (R.add(n), G(), r = j.get(n)), r && (T.add(n), r.open || (r.open = !0), V(r), 
-            J(r, !0));
+            let a = \$.get(n);
+            a || (H.add(n), Z(), a = \$.get(n)), a && (V.add(n), a.open || (a.open = !0), _(a), 
+            ie(a, !0));
         }
-        Z.forEach(e => {
-            e && (e.addEventListener("input", Q), e.addEventListener("change", Q));
-        }), h.viewGraphButton?.addEventListener("click", () => {
-            K("graph");
-        }), h.graphBackButton?.addEventListener("click", () => {
-            K("list");
-        }), t.addEventListener("toggle", e => {
+        p.activeFilterClear?.addEventListener("click", le), p.clearAllFilters?.addEventListener("click", le), 
+        p.viewGraphButton?.addEventListener("click", () => {
+            se("graph");
+        }), p.graphBackButton?.addEventListener("click", () => {
+            se("list");
+        }), n.addEventListener("toggle", e => {
             const t = e.target;
             if (!(t instanceof HTMLDetailsElement)) return;
             if (!t.classList.contains("dep-card")) return;
             const n = t.dataset.depKey;
-            n && (t.open ? (T.add(n), V(t)) : T.delete(n));
-        }, !0), t.addEventListener("click", e => {
+            n && (t.open ? (V.add(n), _(t)) : V.delete(n));
+        }, !0), n.addEventListener("click", e => {
             const t = e.target, n = t.closest(".root-package-link");
-            if (n) return e.preventDefault(), void ee(n);
-            const r = t.closest(".copy-json-btn");
-            r && (e.preventDefault(), async function(e) {
-                const t = e.closest(".raw-data-toggle"), n = t?.querySelector("pre"), r = n?.textContent ?? "";
-                if (r) try {
-                    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(r); else {
+            if (n) return e.preventDefault(), void de(n);
+            const a = t.closest(".copy-json-btn");
+            a && (e.preventDefault(), async function(e) {
+                const t = e.closest(".raw-data-toggle"), n = t?.querySelector("pre"), a = n?.textContent ?? "";
+                if (a) try {
+                    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(a); else {
                         const e = document.createElement("textarea");
-                        e.value = r, e.setAttribute("readonly", "true"), e.style.position = "absolute", 
+                        e.value = a, e.setAttribute("readonly", "true"), e.style.position = "absolute", 
                         e.style.left = "-9999px", document.body.appendChild(e), e.select(), document.execCommand("copy"), 
                         document.body.removeChild(e);
                     }
                     const t = e.dataset.label || e.textContent || "Copy JSON";
-                    e.dataset.label = t, e.textContent = "Copied", e.classList.add("copied"), O.textContent = "Copied JSON to clipboard.", 
+                    e.dataset.label = t, e.textContent = "Copied", e.classList.add("copied"), U.textContent = "Copied JSON to clipboard.", 
                     window.setTimeout(() => {
                         e.textContent = t, e.classList.remove("copied");
                     }, 1500);
                 } catch {
-                    O.textContent = "Copy failed.";
+                    U.textContent = "Copy failed.";
                 }
-            }(r));
-        }), t.addEventListener("keydown", e => {
+            }(a));
+        }), n.addEventListener("keydown", e => {
             const t = e.target.closest(".root-package-link");
-            t && (" " !== e.key && "Spacebar" !== e.key || (e.preventDefault(), ee(t)));
-        }), C(), G(), K("list");
+            t && (" " !== e.key && "Spacebar" !== e.key || (e.preventDefault(), de(t)));
+        }), E(), Z(), se("list");
     }
-    "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", oe) : oe();
+    "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", fe) : fe();
 }();
 `;

@@ -273,7 +273,7 @@ ${safeCssContent}
           </div>
         </div>
 
-        <div class="filter-controls" id="filter-controls" role="dialog" aria-label="Dependency filters">
+        <div class="filter-controls" id="filter-controls" role="dialog" aria-label="Dependency filters" aria-hidden="true" inert>
           <div class="filter-controls-row">
             <div class="filter-panel-section">
               <div class="filter-panel-title">Dependency</div>

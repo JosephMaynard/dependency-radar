@@ -170,20 +170,49 @@ ${safeCssContent}
           <h1>Dependency Radar</h1>
           <div class="header-meta">
             <span class="meta-item"><span class="meta-label">Project</span> <strong id="project-path">${escapeHtml(data.project.projectDir)}</strong></span>
-            <span class="meta-item" id="git-branch-item" style="display: none;"><span class="meta-label">Branch</span> <strong id="git-branch"></strong></span>
-            <span class="meta-item" id="node-item" style="display: none;"><span class="meta-label">Node</span> <strong id="node-version"></strong></span>
             <span class="meta-item"><span class="meta-label">Generated</span> <strong id="formatted-date">${escapeHtml(formattedDate)}</strong></span>
-            <span class="header-disclaimer" id="node-disclaimer" style="display: none;"></span>
           </div>
         </div>
       </div>
       <div class="cta-section">
-        <a href="${escapeHtml(ctaUrl)}" class="cta-link" target="_blank" rel="noopener" id="cta-primary-link">
-          Enrich this scan
-          <span class="cta-arrow">→</span>
+        <a href="${escapeHtml(ctaUrl)}" class="cta-card" target="_blank" rel="noopener" id="cta-primary-link">
+          <span class="cta-icon" aria-hidden="true">
+            <svg
+              class="cta-icon-svg lucide lucide-radar-icon lucide-radar"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
+              <path d="M4 6h.01" />
+              <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" />
+              <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" />
+              <path d="M12 18h.01" />
+              <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
+              <circle cx="12" cy="12" r="2" />
+              <path d="m13.41 10.59 5.66-5.66" />
+            </svg>
+          </span>
+          <span class="cta-copy">
+            <span class="cta-title">Unlock deeper analysis</span>
+            <span class="cta-text">Deep analysis, risk modelling, and actionable insights.</span>
+          </span>
+          <span class="cta-action">
+            <span class="cta-button">Upgrade this scan <span class="cta-arrow">→</span></span>
+            <span class="cta-privacy">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="m9 12 2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Secure. Private. No code sent.
+            </span>
+          </span>
         </a>
-        <p class="cta-text">Beyond the standalone report</p>
-        <a href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener" class="cta-url" id="cta-secondary-link">dependency-radar.com</a>
       </div>
     </div>
   </header>
@@ -199,6 +228,27 @@ ${safeCssContent}
             </svg>
             <input type="search" id="search" placeholder="Search packages..." />
           </div>
+          <button
+            type="button"
+            class="filters-toggle"
+            id="filters-toggle"
+            aria-expanded="false"
+            aria-controls="filter-controls"
+          >
+            Filters
+            <span class="filter-count-badge" id="filter-count-badge" hidden></span>
+            <span class="chevron">▼</span>
+          </button>
+          <button
+            type="button"
+            class="filters-toggle metadata-toggle"
+            id="metadata-toggle"
+            aria-expanded="false"
+            aria-controls="metadata-panel"
+          >
+            Metadata
+            <span class="chevron">▼</span>
+          </button>
           <div class="view-switch" id="view-switch">
             <button
               type="button"
@@ -209,21 +259,24 @@ ${safeCssContent}
               Graph View
             </button>
           </div>
-          <button
-            type="button"
-            class="filters-toggle"
-            id="filters-toggle"
-            aria-expanded="false"
-          >
-            Filters
-            <span class="chevron">▼</span>
-          </button>
+          <div class="theme-toggle">
+            <span class="theme-toggle-label">Theme</span>
+            <button
+              type="button"
+              class="theme-switch"
+              id="theme-switch"
+              aria-label="Toggle dark/light mode"
+              aria-pressed="false"
+            ></button>
+          </div>
         </div>
 
-        <div class="filter-controls" id="filter-controls">
+        <div class="filter-controls" id="filter-controls" role="dialog" aria-label="Dependency filters" aria-hidden="true" inert>
           <div class="filter-controls-row">
+            <div class="filter-panel-section">
+              <div class="filter-panel-title">Dependency</div>
             <div class="filter-group">
-              <span class="filter-label">Type</span>
+              <label class="filter-label" for="direct-filter">Type</label>
               <select id="direct-filter">
                 <option value="all">All</option>
                 <option value="direct">Dependency</option>
@@ -232,7 +285,7 @@ ${safeCssContent}
             </div>
 
             <div class="filter-group">
-              <span class="filter-label">Scope</span>
+              <label class="filter-label" for="runtime-filter">Scope</label>
               <select id="runtime-filter">
                 <option value="all">All</option>
                 <option value="runtime">Runtime</option>
@@ -241,23 +294,59 @@ ${safeCssContent}
                 <option value="peer">Peer</option>
               </select>
             </div>
+            </div>
 
+            <div class="filter-panel-section filter-panel-context">
+              <div class="filter-panel-title">Context</div>
             <div class="filter-group workspace-filter-group hidden" id="workspace-filter-wrap">
               <label class="filter-label" for="workspace-filter">Workspace</label>
               <select id="workspace-filter">
                 <option value="all">All workspaces</option>
               </select>
             </div>
+            </div>
 
-            <button type="button" class="license-filter-toggle" id="license-toggle">
-              License Categories
-              <span class="chevron">▼</span>
-            </button>
+            <div class="filter-panel-section">
+              <div class="filter-panel-title">Risk</div>
+              <div class="license-filter-panel" id="license-panel">
+                <div class="license-filter-inner">
+                  <div class="license-filter-header">
+                    <span class="license-filter-title">License categories</span>
+                    <div class="license-quick-actions">
+                      <button type="button" class="quick-action-btn" id="license-all">Show All</button>
+                      <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
+                    </div>
+                  </div>
+                  <div class="license-groups">
+                    <label class="license-group-checkbox">
+                      <input type="checkbox" id="license-permissive" checked />
+                      <span class="license-dot permissive"></span>
+                      <span id="license-permissive-label">Permissive</span>
+                    </label>
+                    <label class="license-group-checkbox">
+                      <input type="checkbox" id="license-weak-copyleft" checked />
+                      <span class="license-dot weak-copyleft"></span>
+                      <span id="license-weak-copyleft-label">Weak Copyleft</span>
+                    </label>
+                    <label class="license-group-checkbox">
+                      <input type="checkbox" id="license-strong-copyleft" checked />
+                      <span class="license-dot strong-copyleft"></span>
+                      <span id="license-strong-copyleft-label">Strong Copyleft</span>
+                    </label>
+                    <label class="license-group-checkbox">
+                      <input type="checkbox" id="license-unknown" checked />
+                      <span class="license-dot unknown"></span>
+                      <span id="license-unknown-label">Other / Unknown</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
 
-            <label class="checkbox-filter">
-              <input type="checkbox" id="has-vulns" />
-              Has vulnerabilities
-            </label>
+              <label class="checkbox-filter">
+                <input type="checkbox" id="has-vulns" />
+                <span id="has-vulns-label">Has vulnerabilities</span>
+              </label>
+            </div>
 
             <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
             <div class="filter-group sort-wrapper mobile-only" id="mobile-sort">
@@ -274,48 +363,18 @@ ${safeCssContent}
               <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
             </div>
 
-            <div class="theme-toggle">
-              <span class="theme-toggle-label">Theme</span>
-              <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
+            <div class="filter-panel-actions">
+              <button type="button" class="quick-action-btn" id="clear-all-filters">Clear all filters</button>
             </div>
           </div>
         </div>
 
-        <!-- Collapsible License Filter Panel -->
-        <div class="license-filter-panel-row">
-          <div class="license-filter-panel" id="license-panel">
-            <div class="license-filter-inner">
-              <div class="license-filter-header">
-                <span class="license-filter-title">Filter by License Type</span>
-                <div class="license-quick-actions">
-                  <button type="button" class="quick-action-btn" id="license-all">Show All</button>
-                  <button type="button" class="quick-action-btn" id="license-friendly">Business-Friendly Only</button>
-                </div>
-              </div>
-              <div class="license-groups">
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-permissive" checked />
-                  <span class="license-dot permissive"></span>
-                  Permissive (MIT, BSD, Apache, ISC)
-                </label>
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-weak-copyleft" checked />
-                  <span class="license-dot weak-copyleft"></span>
-                  Weak Copyleft (LGPL, MPL, EPL)
-                </label>
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-strong-copyleft" checked />
-                  <span class="license-dot strong-copyleft"></span>
-                  Strong Copyleft (GPL, AGPL)
-                </label>
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-unknown" checked />
-                  <span class="license-dot unknown"></span>
-                  Other / Unknown
-                </label>
-              </div>
-            </div>
-          </div>
+        <div class="metadata-panel" id="metadata-panel" role="dialog" aria-label="Report metadata" hidden></div>
+
+        <div class="active-filters-row" id="active-filters-row" hidden>
+          <span class="active-filters-label">Active filters:</span>
+          <div class="active-filter-chips" id="active-filter-chips"></div>
+          <button type="button" class="active-filter-clear" id="active-filter-clear">Clear all</button>
         </div>
 
         <!-- Results summary and column headers row -->

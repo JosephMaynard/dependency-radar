@@ -1782,14 +1782,19 @@ async function init(): Promise<void> {
   if (dateEl && report.generatedAt) {
     try {
       const date = new Date(report.generatedAt);
-      formattedGeneratedAt = new Intl.DateTimeFormat(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date);
-      dateEl.textContent = formattedGeneratedAt;
+      if (Number.isNaN(date.getTime())) {
+        formattedGeneratedAt = report.generatedAt;
+        dateEl.textContent = report.generatedAt;
+      } else {
+        formattedGeneratedAt = new Intl.DateTimeFormat(undefined, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+        dateEl.textContent = formattedGeneratedAt;
+      }
     } catch {
       formattedGeneratedAt = report.generatedAt;
       dateEl.textContent = report.generatedAt;

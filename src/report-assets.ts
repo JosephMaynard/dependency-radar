@@ -344,7 +344,7 @@ export const JS_CONTENT = `!function() {
                 n.push(e.slug), w.set(t, n);
             });
         });
-        let C = null, x = "", S = null, L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, B = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, \$ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
+        let C = null, x = "", S = null, L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, B = new Set, A = new Set, N = null, T = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, \$ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
         const J = {
             down: !1,
             moved: !1,
@@ -420,17 +420,17 @@ export const JS_CONTENT = `!function() {
             t.appendChild(n), e.canvasHost.appendChild(t);
         }
         function he(e) {
-            return (e - j) / N;
+            return (e - j) / T;
         }
         function ge(e) {
-            return (e - R) / N;
+            return (e - R) / T;
         }
         function me(e, t) {
             if (!C) return {
                 x: e,
                 y: t
             };
-            const n = C.bounds.minX - 120, r = C.bounds.maxX + 120, s = C.bounds.minY - 90, i = C.bounds.maxY + 90, o = Math.min(.22 * z, 220), c = Math.min(.22 * K, 180), l = o - r * N, d = z - o - n * N, u = c - i * N, p = K - c - s * N;
+            const n = C.bounds.minX - 120, r = C.bounds.maxX + 120, s = C.bounds.minY - 90, i = C.bounds.maxY + 90, o = Math.min(.22 * z, 220), c = Math.min(.22 * K, 180), l = o - r * T, d = z - o - n * T, u = c - i * T, p = K - c - s * T;
             return {
                 x: l > d ? .5 * (l + d) : a(e, l, d),
                 y: u > p ? .5 * (u + p) : a(t, u, p)
@@ -446,7 +446,7 @@ export const JS_CONTENT = `!function() {
         function ye(e, n, r) {
             we(), fe();
             const s = a(e, H, t), i = he(n), o = ge(r);
-            N = s, ve(n - i * N, r - o * N), U = !0, _e();
+            T = s, ve(n - i * T, r - o * T), U = !0, _e();
         }
         function ke(e, t) {
             we(), fe(), ve(j + e, R + t), U = !0, _e();
@@ -705,13 +705,13 @@ export const JS_CONTENT = `!function() {
         }
         function Ae(e, n) {
             if (!C) return;
-            const r = a(Math.max(N, 1.35 * V), H, t);
-            N += (r - N) * (le?.matches ? 1 : .35), function(e, t) {
+            const r = a(Math.max(T, 1.35 * V), H, t);
+            T += (r - T) * (le?.matches ? 1 : .35), function(e, t) {
                 const n = me(e, t);
                 W = n.x, G = n.y;
-            }(.46 * z - e * N, .5 * K - n * N);
+            }(.46 * z - e * T, .5 * K - n * T);
         }
-        function Te(e) {
+        function Ne(e) {
             if (!C || !C.nodes.has(e)) return;
             we(), S = e;
             const t = y(C, e), n = k(C, e);
@@ -745,7 +745,7 @@ export const JS_CONTENT = `!function() {
             }), c.children.forEach(e => {
                 Y.add(e);
             });
-            const l = null === X || null === D, d = !l && Boolean(T) && I.has(T);
+            const l = null === X || null === D, d = !l && Boolean(N) && I.has(N);
             !l && d || (X = c.renderX, D = c.renderY), P = function(e, t, n, r) {
                 const s = new Map, i = b(e, t, "parents"), o = b(e, t, "children"), c = new Map;
                 return s.set(t, {
@@ -778,7 +778,7 @@ export const JS_CONTENT = `!function() {
             }(C, e, X ?? c.renderX, D ?? c.renderY), Ae(X ?? c.renderX, D ?? c.renderY), U = !0, 
             _e();
         }
-        function Ne() {
+        function Te() {
             S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, 
             fe(), U = !0, _e();
         }
@@ -826,19 +826,19 @@ export const JS_CONTENT = `!function() {
             const n = C.nodes.get(t);
             if (!n) return;
             const a = 0 === n.depth && C.directAll.has(n.slug);
-            T = t, e.popoverName.textContent = n.ref.name, e.popoverVersion.textContent = \`Version: \${n.ref.version}\`, 
+            N = t, e.popoverName.textContent = n.ref.name, e.popoverVersion.textContent = \`Version: \${n.ref.version}\`, 
             e.popoverLicense.textContent = \`License: \${n.ref.license || "Unknown"}\`, e.popoverVulns.textContent = \`Vulnerabilities: \${n.ref.vulnerabilityCount || 0}\`, 
             e.popoverAmplification.textContent = a ? \`Amplification: \${n.amplification}\` : \`Dependencies: \${n.children.size} • Dependents: \${n.parents.size}\`, 
             e.popover.hidden = !1, Fe();
         }
         function Oe() {
-            T = null, e.popover.hidden = !0;
+            N = null, e.popover.hidden = !0;
         }
         function Fe() {
-            if (!C || !T || e.popover.hidden) return;
-            const t = C.nodes.get(T);
+            if (!C || !N || e.popover.hidden) return;
+            const t = C.nodes.get(N);
             if (!t) return void Oe();
-            const n = t.renderX * N + j, r = t.renderY * N + R, s = e.canvasHost.getBoundingClientRect(), i = e.popover.getBoundingClientRect(), o = Math.max(8, s.width - i.width - 8), c = Math.max(8, s.height - i.height - 8), l = a(n + 14, 8, o), d = a(r + 14, 8, c);
+            const n = t.renderX * T + j, r = t.renderY * T + R, s = e.canvasHost.getBoundingClientRect(), i = e.popover.getBoundingClientRect(), o = Math.max(8, s.width - i.width - 8), c = Math.max(8, s.height - i.height - 8), l = a(n + 14, 8, o), d = a(r + 14, 8, c);
             e.popover.style.left = \`\${l}px\`, e.popover.style.top = \`\${d}px\`;
         }
         function We(e) {
@@ -848,7 +848,7 @@ export const JS_CONTENT = `!function() {
             if (!ee) return;
             if (ee.setTransform(q, 0, 0, q, 0, 0), ee.clearRect(0, 0, z, K), !C) return;
             const e = C, t = he(0) - 80, r = he(z) + 80, s = ge(0) - 80, o = ge(K) + 80;
-            ee.setTransform(q * N, 0, 0, q * N, q * j, q * R);
+            ee.setTransform(q * T, 0, 0, q * T, q * j, q * R);
             const c = de.runtime, l = de.dev, d = de.transitive, p = de.edge, g = de.highlight, m = de.muted, v = de.ringHigh, f = de.ringModerate, y = de.label, k = de.backgroundPrimary, b = new Set;
             e.nodes.forEach(e => {
                 const n = Math.max(e.radius, e.renderRadius);
@@ -897,12 +897,12 @@ export const JS_CONTENT = `!function() {
                 });
             }), X.sort((e, t) => t.span - e.span), ee.globalCompositeOperation = "source-over", 
             ee.strokeStyle = S || L ? m : p, ee.lineWidth = 1.05, ee.globalAlpha = function() {
-                if (S || L) return .04 * a((N - .35) / .9, .75, 1);
-                return .25 * a((N - .35) / .9, .2, 1);
+                if (S || L) return .04 * a((T - .35) / .9, .75, 1);
+                return .25 * a((T - .35) / .9, .2, 1);
             }(), ee.beginPath(), X.forEach(e => {
                 e.highlighted || u(ee, e, P, Boolean(S));
             }), ee.stroke(), ee.globalCompositeOperation = "lighter", ee.strokeStyle = g, ee.lineWidth = 1.2, 
-            ee.globalAlpha = .36 * a((N - .35) / .9, .2, 1), ee.beginPath(), X.forEach(e => {
+            ee.globalAlpha = .36 * a((T - .35) / .9, .2, 1), ee.beginPath(), X.forEach(e => {
                 e.highlighted && u(ee, e, P, Boolean(S));
             }), ee.stroke(), ee.globalCompositeOperation = "source-over";
             const D = e => {
@@ -915,7 +915,7 @@ export const JS_CONTENT = `!function() {
                 ee.fillStyle = a, ee.beginPath(), ee.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
                 ee.fill(), t && (ee.globalAlpha = .95, ee.strokeStyle = g, ee.lineWidth = 1.5, ee.beginPath(), 
                 ee.arc(e.renderX, e.renderY, n + 4, 0, 2 * Math.PI), ee.stroke());
-            }, T = e => {
+            }, N = e => {
                 if (!e.ref.vulnerabilityCount || e.ref.vulnerabilityCount <= 0) return;
                 if ("none" === e.ref.vulnerabilitySeverity) return;
                 const t = e.renderRadius, n = "high" === e.ref.vulnerabilitySeverity ? v : f;
@@ -933,7 +933,7 @@ export const JS_CONTENT = `!function() {
             for (const n of [ 0, 1, 2 ]) w.forEach(({node: e, priority: t}) => {
                 t === n && D(e);
             }), w.forEach(({node: e, priority: t}) => {
-                t === n && T(e);
+                t === n && N(e);
             });
             ee.textBaseline = "middle", ee.font = n, ee.fillStyle = y, w.forEach(({node: e}) => {
                 (e => {
@@ -979,8 +979,8 @@ export const JS_CONTENT = `!function() {
         }
         function qe(e) {
             const t = Xe(e);
-            t && (we(), x = e, C = t, Ne(), Oe(), L = null, B = new Set, A = new Set, Ye(!0), 
-            C && (we(), fe(), Le(), N = V, ve(O, F)), U = !0, _e());
+            t && (we(), x = e, C = t, Te(), Oe(), L = null, B = new Set, A = new Set, Ye(!0), 
+            C && (we(), fe(), Le(), T = V, ve(O, F)), U = !0, _e());
         }
         function ze(t) {
             0 === t.button && (we(), fe(), J.down = !0, J.moved = !1, J.startX = t.clientX, 
@@ -999,14 +999,14 @@ export const JS_CONTENT = `!function() {
             const n = J.moved;
             if (J.down = !1, J.moved = !1, n) return xe(), Q.active ? void Me(!1) : void Pe(t.clientX, t.clientY);
             const a = Pe(t.clientX, t.clientY);
-            if (!a) return je(!1), Ne(), void Oe();
-            Te(a.slug), He(a.slug);
+            if (!a) return je(!1), Te(), void Oe();
+            Ne(a.slug), He(a.slug);
         }
         function Ze(t) {
             if (!e.canvasHost.contains(t.target)) return;
             t.preventDefault(), we();
             const n = e.canvas.getBoundingClientRect(), a = t.clientX - n.left, r = t.clientY - n.top, s = t.ctrlKey || t.metaKey ? .015 * t.deltaY : .002 * t.deltaY, i = Math.exp(-s);
-            ye(N * i, a, r);
+            ye(T * i, a, r);
         }
         function Qe(t) {
             if (0 === t.touches.length) return;
@@ -1018,7 +1018,7 @@ export const JS_CONTENT = `!function() {
                 Z.active = !0, J.moved = !1, Z.startX1 = t.touches[0].clientX, Z.startY1 = t.touches[0].clientY, 
                 Z.startX2 = t.touches[1].clientX, Z.startY2 = t.touches[1].clientY;
                 const e = Z.startX2 - Z.startX1, a = Z.startY2 - Z.startY1;
-                Z.startDist = Math.sqrt(e * e + a * a), Z.startZoom = N;
+                Z.startDist = Math.sqrt(e * e + a * a), Z.startZoom = T;
                 const r = (Z.startX1 + Z.startX2) / 2, s = (Z.startY1 + Z.startY2) / 2, i = r - n.left, o = s - n.top;
                 Z.anchorX = i, Z.anchorY = o;
             }
@@ -1045,7 +1045,7 @@ export const JS_CONTENT = `!function() {
             if (0 === e.touches.length) {
                 if (Ye(!0), Z.active = !1, Z.anchorX = null, Z.anchorY = null, J.moved || 1 !== e.changedTouches.length) J.moved && xe(); else {
                     const t = Ie(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-                    t ? (Te(t.slug), He(t.slug)) : (je(!1), Ne(), Oe());
+                    t ? (Ne(t.slug), He(t.slug)) : (je(!1), Te(), Oe());
                 }
                 J.moved = !1;
             } else 1 === e.touches.length && (Z.startX1 = e.touches[0].clientX, Z.startY1 = e.touches[0].clientY, 
@@ -1064,16 +1064,16 @@ export const JS_CONTENT = `!function() {
             if (!t) return;
             const n = t.dataset.action;
             n && ("zoom-in" !== n ? "zoom-out" !== n ? "pan-left" !== n ? "pan-right" !== n ? "pan-up" !== n ? "pan-down" !== n ? "reset" === n && (we(), 
-            N = V, ve(O, F), Ne(), Oe(), _e()) : ke(0, 52) : ke(0, -52) : ke(52, 0) : ke(-52, 0) : ye(N / 1.18, .5 * z, .5 * K) : ye(1.18 * N, .5 * z, .5 * K));
+            T = V, ve(O, F), Te(), Oe(), _e()) : ke(0, 52) : ke(0, -52) : ke(52, 0) : ke(-52, 0) : ye(T / 1.18, .5 * z, .5 * K) : ye(1.18 * T, .5 * z, .5 * K));
         }
         function st() {
-            T && e.onOpenList(T);
+            N && e.onOpenList(N);
         }
         function it() {
             qe(e.workspaceSelect.value);
         }
         function ot() {
-            \$ && (Se(), z <= 1 || K <= 1 || (Le(), N = a(N, H, t), ve(j, R), _e()));
+            \$ && (Se(), z <= 1 || K <= 1 || (Le(), T = a(T, H, t), ve(j, R), _e()));
         }
         function ct() {
             re || (e.workspaceSelect.addEventListener("change", it), re = !0), ae || (e.controlsRoot.addEventListener("click", rt), 
@@ -1110,8 +1110,8 @@ export const JS_CONTENT = `!function() {
             computeAmplification: De,
             layoutGraph: Be,
             renderLoop: Ue,
-            applyFocus: Te,
-            clearFocus: Ne,
+            applyFocus: Ne,
+            clearFocus: Te,
             showPopover: He,
             hidePopover: Oe,
             switchWorkspace: qe,
@@ -1129,7 +1129,7 @@ export const JS_CONTENT = `!function() {
                 }), window.addEventListener("touchcancel", tt, {
                     passive: !1
                 }), e.canvas.addEventListener("mouseleave", nt), document.addEventListener("mousedown", at), 
-                ne = !0), Se(), z > 1 && K > 1 && (Le(), N = a(N, H, t), ve(j, R)), Ue(), void _e()) : void pe();
+                ne = !0), Se(), z > 1 && K > 1 && (Le(), T = a(T, H, t), ve(j, R)), Ue(), void _e()) : void pe();
                 ne && (e.canvas.removeEventListener("mousedown", ze), window.removeEventListener("mousemove", Ke), 
                 window.removeEventListener("mouseup", Je), e.canvas.removeEventListener("wheel", Ze), 
                 e.canvas.removeEventListener("touchstart", Qe), window.removeEventListener("touchmove", et), 
@@ -1302,7 +1302,7 @@ export const JS_CONTENT = `!function() {
             isInferred: !1
         };
     }
-    function T(e) {
+    function N(e) {
         switch (e) {
           case "declared-only":
             return "Declared";
@@ -1323,7 +1323,7 @@ export const JS_CONTENT = `!function() {
             return "Unknown";
         }
     }
-    const N = {
+    const T = {
         none: 0,
         low: 1,
         moderate: 2,
@@ -1634,7 +1634,7 @@ export const JS_CONTENT = `!function() {
                 i += '<li class="detail-item">' + R(e) + "</li>";
             }), s > 0 && (i += '<li class="detail-item muted">+' + s + " more</li>"), i += "</ul></div>", 
             i;
-        }("Top import locations", e.usage.importUsage?.topFiles, 5, "mono")), g = e.compliance.license, m = pe(o.repository, "package.json"), v = pe(o.repository, "LICENSE"), f = [ J("Primary license", K(i, e.compliance.licenseRisk)), z("Status", T(g.status)) ];
+        }("Top import locations", e.usage.importUsage?.topFiles, 5, "mono")), g = e.compliance.license, m = pe(o.repository, "package.json"), v = pe(o.repository, "LICENSE"), f = [ J("Primary license", K(i, e.compliance.licenseRisk)), z("Status", N(g.status)) ];
         if (g.declared) {
             const e = [ g.declared.valid ? "valid" : "invalid", g.declared.expression ? "expression" : void 0, g.declared.deprecated ? "deprecated" : void 0 ].filter(Boolean).join(", "), t = g.exception?.id ? \` WITH \${g.exception.id}\` : "";
             f.push(J("Declared SPDX in package.json", '<span class="kv-value">' + he(\`\${g.declared.spdxId}\${t}\${e ? \` (\${e})\` : ""}\`, m) + "</span>"));
@@ -1675,8 +1675,8 @@ export const JS_CONTENT = `!function() {
             nativeBindings: "Native bindings/build tooling",
             installScripts: "Install lifecycle scripts",
             deprecated: "Deprecated by author"
-        }, B = le("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + R(D[e] || e) + "</li>").join("") + "</ul></div>" : "")), N = ce(e, t, n);
-        return [ ge(o), h, x, B, N, '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary><div class="raw-data-pane"><pre>' + R(c) + '</pre><button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button></div></details>' ].join("");
+        }, B = le("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + R(D[e] || e) + "</li>").join("") + "</ul></div>" : "")), T = ce(e, t, n);
+        return [ ge(o), h, x, B, T, '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary><div class="raw-data-pane"><pre>' + R(c) + '</pre><button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button></div></details>' ].join("");
     }
     async function fe() {
         const t = await async function() {
@@ -1695,13 +1695,13 @@ export const JS_CONTENT = `!function() {
         let d = t.generatedAt || "";
         if (l && t.generatedAt) try {
             const e = new Date(t.generatedAt);
-            d = new Intl.DateTimeFormat(void 0, {
+            Number.isNaN(e.getTime()) ? (d = t.generatedAt, l.textContent = t.generatedAt) : (d = new Intl.DateTimeFormat(void 0, {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
-            }).format(e), l.textContent = d;
+            }).format(e), l.textContent = d);
         } catch {
             d = t.generatedAt, l.textContent = t.generatedAt;
         }
@@ -1837,7 +1837,7 @@ export const JS_CONTENT = `!function() {
             const t = e.usage.origins.workspaces || [];
             return t.length > 0 ? t : [ "root" ];
         }, L = Array.from(new Set([ ...e(t), ...x.flatMap(S) ])).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t)), I = (e, t) => e + " (" + t + ")", M = e => {
-            return N[(t = j(e).summary, t?.highest || "none")] > 0;
+            return T[(t = j(e).summary, t?.highest || "none")] > 0;
             var t;
         }, Y = e => x.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
         if (p.workspace && p.workspaceWrap && L.length > 1) {
@@ -1882,7 +1882,7 @@ export const JS_CONTENT = `!function() {
         x.forEach(e => {
             P.set(ee(e.package.name, e.package.version), e);
         });
-        const D = new Set(P.keys()), T = re(D), V = new Set, H = new Set, \$ = new Map, U = (() => {
+        const D = new Set(P.keys()), N = re(D), V = new Set, H = new Set, \$ = new Map, U = (() => {
             const e = document.getElementById("copy-announcer");
             if (e) return e;
             const t = document.createElement("div");
@@ -1897,7 +1897,7 @@ export const JS_CONTENT = `!function() {
             const a = P.get(t);
             a && (n.setAttribute("aria-busy", "true"), n.innerHTML = [ '<div class="dep-loading" role="presentation">', '<div class="dep-loading-bar"></div>', "</div>" ].join(""), 
             requestAnimationFrame(() => {
-                n.innerHTML = ve(a, D, T), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
+                n.innerHTML = ve(a, D, N), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
             }));
         }
         function z(e) {
@@ -2019,7 +2019,7 @@ export const JS_CONTENT = `!function() {
             })) : n.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No dependencies match your filters</div></div>';
         }
         function Q(e) {
-            const t = T.get(e) || [];
+            const t = N.get(e) || [];
             return 1 === t.length ? t[0] : null;
         }
         function te(e) {
