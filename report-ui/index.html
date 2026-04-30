@@ -148,13 +148,17 @@
           <div class="header-meta">
             <span class="meta-item"><span class="meta-label">Project</span>
               <strong id="project-path">/example/project</strong></span>
-            <span class="meta-item" id="git-branch-item" style="display: none"><span class="meta-label">Branch</span>
-              <strong id="git-branch"></strong></span>
-            <span class="meta-item" id="node-item" style="display: none"><span class="meta-label">Node</span>
-              <strong id="node-version"></strong></span>
             <span class="meta-item"><span class="meta-label">Generated</span>
               <strong id="formatted-date"></strong></span>
-            <span class="header-disclaimer" id="node-disclaimer" style="display: none"></span>
+            <div class="metadata-menu">
+              <button type="button" class="meta-item metadata-toggle" id="metadata-toggle" aria-expanded="false"
+                aria-controls="metadata-panel">
+                <span class="meta-label">Metadata</span>
+                <strong>Details</strong>
+                <span class="chevron" aria-hidden="true">▼</span>
+              </button>
+              <div class="metadata-panel" id="metadata-panel" role="dialog" aria-label="Report metadata" hidden></div>
+            </div>
           </div>
         </div>
       </div>

@@ -176,6 +176,32 @@ body {
   color: var(--text-secondary);
 }
 
+.metadata-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.metadata-toggle {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.metadata-toggle .chevron {
+  color: var(--text-muted);
+  font-size: 10px;
+  transition: transform var(--transition);
+}
+
+.metadata-toggle.open .chevron {
+  transform: rotate(180deg);
+}
+
+.metadata-toggle:hover,
+.metadata-toggle.open {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
 .meta-item strong {
   color: var(--text-primary);
   font-family: var(--font-mono);
@@ -197,6 +223,89 @@ body {
   color: var(--text-muted);
   margin-top: 6px;
   padding-left: 2px;
+}
+
+.metadata-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 140;
+  width: min(520px, calc(100vw - 48px));
+  max-height: min(70vh, 680px);
+  overflow: auto;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+}
+
+.metadata-panel[hidden] {
+  display: none;
+}
+
+.metadata-section {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.metadata-section:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.metadata-section-title {
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metadata-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.metadata-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.42fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.metadata-row-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+}
+
+.metadata-row-value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.metadata-list {
+  display: grid;
+  gap: 6px;
+}
+
+.metadata-list-item {
+  padding: 7px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.metadata-muted {
+  color: var(--text-muted);
 }
 
 /* CTA Section - Clean, professional, not tacky */
@@ -2254,6 +2363,19 @@ details[open] > summary .expand-icon {
   .meta-item {
     padding: 3px 8px;
     font-size: 11px;
+  }
+
+  .metadata-menu {
+    position: relative;
+  }
+
+  .metadata-panel {
+    position: fixed;
+    top: 88px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-height: 70vh;
   }
 
   .cta-section {

@@ -520,6 +520,51 @@ function drawRoutedEdge(
   drawSmoothedPolyline(context, points, 14);
 }
 
+function drawFocusedEdge(
+  context: CanvasRenderingContext2D,
+  from: GraphNode,
+  to: GraphNode,
+): void {
+  const sourceX = from.renderX;
+  const sourceY = from.renderY;
+  const targetX = to.renderX;
+  const targetY = to.renderY;
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+
+  context.moveTo(sourceX, sourceY);
+  if (Math.abs(dx) < 18) {
+    const side = sourceX + (sourceY <= targetY ? 26 : -26);
+    context.bezierCurveTo(side, sourceY, side, targetY, targetX, targetY);
+    return;
+  }
+
+  const curve = clamp(Math.abs(dx) * 0.44, 42, 150);
+  const direction = Math.sign(dx);
+  const verticalBias = clamp(Math.abs(dy) * 0.12, 0, 24);
+  context.bezierCurveTo(
+    sourceX + direction * curve,
+    sourceY + verticalBias * Math.sign(dy),
+    targetX - direction * curve,
+    targetY - verticalBias * Math.sign(dy),
+    targetX,
+    targetY,
+  );
+}
+
+function drawGraphEdge(
+  context: CanvasRenderingContext2D,
+  edge: { from: GraphNode; to: GraphNode; highlighted: boolean },
+  config: EdgeRoutingConfig,
+  focused: boolean,
+): void {
+  if (focused && edge.highlighted) {
+    drawFocusedEdge(context, edge.from, edge.to);
+    return;
+  }
+  drawRoutedEdge(context, edge.from, edge.to, config);
+}
+
 function getDepKey(name: string, version: string): string {
   return `${name}@${version}`;
 }
@@ -2198,7 +2243,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.beginPath();
     renderEdges.forEach((edge) => {
       if (edge.highlighted) return;
-      drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
+      drawGraphEdge(context, edge, edgeRoutingConfig, Boolean(focusSlug));
     });
     context.stroke();
 
@@ -2209,7 +2254,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     context.beginPath();
     renderEdges.forEach((edge) => {
       if (!edge.highlighted) return;
-      drawRoutedEdge(context, edge.from, edge.to, edgeRoutingConfig);
+      drawGraphEdge(context, edge, edgeRoutingConfig, Boolean(focusSlug));
     });
     context.stroke();
 

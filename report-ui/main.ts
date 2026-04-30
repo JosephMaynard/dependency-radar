@@ -425,6 +425,165 @@ function escapeHtml(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+function isPresentMetadataValue(value: unknown): boolean {
+  if (value === null || typeof value === "undefined") return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
+}
+
+function formatMetadataValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => formatMetadataValue(item)).join(", ");
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, nestedValue]) => isPresentMetadataValue(nestedValue))
+      .map(
+        ([key, nestedValue]) =>
+          escapeHtml(key) + ": " + formatMetadataValue(nestedValue),
+      )
+      .join("<br>");
+  }
+  return escapeHtml(String(value));
+}
+
+function renderMetadataRow(label: string, value: unknown): string {
+  if (!isPresentMetadataValue(value)) return "";
+  return (
+    '<div class="metadata-row"><div class="metadata-row-label">' +
+    escapeHtml(label) +
+    '</div><div class="metadata-row-value">' +
+    formatMetadataValue(value) +
+    "</div></div>"
+  );
+}
+
+function renderMetadataSection(title: string, rows: string[]): string {
+  const visibleRows = rows.filter(Boolean);
+  if (visibleRows.length === 0) return "";
+  return (
+    '<section class="metadata-section"><div class="metadata-section-title">' +
+    escapeHtml(title) +
+    '</div><div class="metadata-grid">' +
+    visibleRows.join("") +
+    "</div></section>"
+  );
+}
+
+function renderWorkspaceMetadata(report: AggregatedData): string {
+  const workspaces = report.workspaces;
+  if (!workspaces || !workspaces.enabled) {
+    return renderMetadataSection("Workspaces", [
+      renderMetadataRow("Enabled", false),
+      renderMetadataRow("Type", workspaces?.type),
+    ]);
+  }
+  const workspacePackages = workspaces.workspacePackages || [];
+  const packageList = workspacePackages.length
+    ? '<div class="metadata-list">' +
+      workspacePackages
+        .map(
+          (workspace) =>
+            '<div class="metadata-list-item"><div class="metadata-row-value">' +
+            escapeHtml(workspace.name) +
+            '</div><div class="metadata-muted">' +
+            escapeHtml(workspace.relativePath) +
+            " · runtime " +
+            escapeHtml(String(workspace.directExternal.runtime)) +
+            " · dev " +
+            escapeHtml(String(workspace.directExternal.dev)) +
+            "</div></div>",
+        )
+        .join("") +
+      "</div>"
+    : "";
+  return renderMetadataSection("Workspaces", [
+    renderMetadataRow("Enabled", workspaces.enabled),
+    renderMetadataRow("Type", workspaces.type),
+    renderMetadataRow("Package count", workspaces.packageCount),
+    packageList
+      ? '<div class="metadata-row"><div class="metadata-row-label">Packages</div><div>' +
+        packageList +
+        "</div></div>"
+      : "",
+  ]);
+}
+
+function renderSupplyChainMetadata(report: AggregatedData): string {
+  const supplyChain = report.supplyChain;
+  if (!supplyChain) return "";
+  const audit = supplyChain.signatureAudit;
+  return renderMetadataSection("Supply Chain", [
+    renderMetadataRow("Signals", supplyChain.signals?.length),
+    audit
+      ? renderMetadataRow("Signature audit", {
+          attempted: audit.attempted,
+          ok: audit.ok,
+          status: audit.status,
+          error: audit.error,
+        })
+      : "",
+  ]);
+}
+
+function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: string): string {
+  const env = report.environment || {};
+  const minRequiredMajor = env.minRequiredMajor;
+  const nodeRequirementNote =
+    minRequiredMajor && minRequiredMajor > 0
+      ? "Node requirement derived from dependency engine ranges."
+      : "";
+  return [
+    renderMetadataSection("Report", [
+      renderMetadataRow("Dependency Radar", report.dependencyRadarVersion),
+      renderMetadataRow("Schema", report.schemaVersion),
+      renderMetadataRow("Generated", formattedGeneratedAt || report.generatedAt),
+      renderMetadataRow("Generated raw", report.generatedAt),
+    ]),
+    renderMetadataSection("Project", [
+      renderMetadataRow("Name", report.project.name),
+      renderMetadataRow("Version", report.project.version),
+      renderMetadataRow("Path", report.project.projectDir),
+      renderMetadataRow("Description", report.project.description),
+      renderMetadataRow("License", report.project.license),
+      renderMetadataRow("Homepage", report.project.homepage),
+      renderMetadataRow("Repository", report.project.repository),
+      renderMetadataRow("Constraints", report.project.constraints),
+      renderMetadataRow("Dependency policy", report.project.dependencyPolicySummary),
+    ]),
+    renderMetadataSection("Git", [
+      renderMetadataRow("Branch", report.git?.branch),
+    ]),
+    renderMetadataSection("Environment", [
+      renderMetadataRow("Node", env.nodeVersion),
+      renderMetadataRow("Runtime", env.runtimeVersion),
+      renderMetadataRow("Minimum required Node major", env.minRequiredMajor),
+      renderMetadataRow("Target Node major", env.targetNodeMajor),
+      renderMetadataRow("Platform", env.platform),
+      renderMetadataRow("Architecture", env.arch),
+      renderMetadataRow("CI", env.ci),
+      renderMetadataRow("packageManager field", env.packageManagerField),
+      renderMetadataRow("Package manager", env.packageManager),
+      renderMetadataRow("Package manager version", env.packageManagerVersion),
+      renderMetadataRow("Tool versions", env.toolVersions),
+      renderMetadataRow("Node note", nodeRequirementNote),
+    ]),
+    renderWorkspaceMetadata(report),
+    renderMetadataSection("Summary", [
+      renderMetadataRow("Dependencies", report.summary?.dependencyCount),
+      renderMetadataRow("Direct", report.summary?.directCount),
+      renderMetadataRow("Transitive", report.summary?.transitiveCount),
+      renderMetadataRow("Findings", report.summary?.findingCount),
+    ]),
+    renderSupplyChainMetadata(report),
+  ]
+    .filter(Boolean)
+    .join("");
+}
+
 function getHighestRisk(
   summary: SecuritySummary,
   licenseRisk: "green" | "amber" | "red",
@@ -1599,9 +1758,18 @@ async function init(): Promise<void> {
   const summaryEl = document.getElementById("results-summary")!;
   const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
 
-  // Update header info with new chip-based layout
+  // Update header info with chip-based layout and detailed metadata dropdown
   const projectPathEl = document.getElementById("project-path");
-  if (projectPathEl) projectPathEl.textContent = report.project.projectDir;
+  if (projectPathEl) {
+    projectPathEl.textContent = report.project.name || report.project.projectDir;
+    projectPathEl.title = report.project.projectDir;
+  }
+  const metadataToggle = document.getElementById(
+    "metadata-toggle",
+  ) as HTMLButtonElement | null;
+  const metadataPanel = document.getElementById(
+    "metadata-panel",
+  ) as HTMLElement | null;
 
   const ctaPrimaryLink = document.getElementById(
     "cta-primary-link",
@@ -1612,52 +1780,46 @@ async function init(): Promise<void> {
   if (ctaPrimaryLink) ctaPrimaryLink.href = ctaUrl;
   if (ctaSecondaryLink) ctaSecondaryLink.href = ctaUrl;
 
-  // Git branch chip
-  const gitBranchItem = document.getElementById("git-branch-item");
-  const gitBranchEl = document.getElementById("git-branch");
-  if (report.git?.branch && report.git.branch && gitBranchItem && gitBranchEl) {
-    gitBranchEl.textContent = report.git.branch;
-    gitBranchItem.style.display = "";
-  }
-
-  // Node version chip
-  const nodeItem = document.getElementById("node-item");
-  const nodeVersionEl = document.getElementById("node-version");
-  const nodeDisclaimer = document.getElementById("node-disclaimer");
-  if (report.environment && nodeItem && nodeVersionEl) {
-    const runtimeVersion =
-      report.environment.runtimeVersion?.replace(/^v/, "") || "unknown";
-    const minRequiredMajor = report.environment.minRequiredMajor;
-    nodeVersionEl.textContent =
-      runtimeVersion +
-      (minRequiredMajor && minRequiredMajor > 0
-        ? ` (requires ≥${minRequiredMajor})`
-        : "");
-    nodeItem.style.display = "";
-    if (minRequiredMajor && minRequiredMajor > 0 && nodeDisclaimer) {
-      nodeDisclaimer.textContent =
-        "Node requirement derived from dependency engine ranges.";
-      nodeDisclaimer.style.display = "";
-    }
-  }
-
   // Format timestamp
   const dateEl = document.getElementById("formatted-date");
+  let formattedGeneratedAt = report.generatedAt || "";
   if (dateEl && report.generatedAt) {
     try {
       const date = new Date(report.generatedAt);
-      const formatted = new Intl.DateTimeFormat(undefined, {
+      formattedGeneratedAt = new Intl.DateTimeFormat(undefined, {
         day: "numeric",
         month: "short",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
       }).format(date);
-      dateEl.textContent = formatted;
+      dateEl.textContent = formattedGeneratedAt;
     } catch {
+      formattedGeneratedAt = report.generatedAt;
       dateEl.textContent = report.generatedAt;
     }
   }
+  if (metadataPanel) {
+    metadataPanel.innerHTML = renderReportMetadata(report, formattedGeneratedAt);
+  }
+  const setMetadataOpen = (isOpen: boolean): void => {
+    if (!metadataToggle || !metadataPanel) return;
+    metadataPanel.hidden = !isOpen;
+    metadataToggle.classList.toggle("open", isOpen);
+    metadataToggle.setAttribute("aria-expanded", String(isOpen));
+  };
+  metadataToggle?.addEventListener("click", () => {
+    setMetadataOpen(Boolean(metadataPanel?.hidden));
+  });
+  document.addEventListener("click", (event) => {
+    if (!metadataToggle || !metadataPanel || metadataPanel.hidden) return;
+    const target = event.target as Node;
+    if (metadataToggle.contains(target) || metadataPanel.contains(target)) return;
+    setMetadataOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setMetadataOpen(false);
+  });
 
   // Controls
   const controls = {
