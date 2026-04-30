@@ -16,6 +16,13 @@ function escapeForTemplateLiteral(str: string): string {
     .replace(/\$/g, '\\$');  // Escape dollar signs (for ${})
 }
 
+function sanitizeMinifiedJs(str: string): string {
+  // Terser can emit compact ternaries like `a>b?.5:c`, which are valid but look
+  // like optional chaining to simple scanners. Keep minified output while making
+  // the token boundary explicit.
+  return str.replace(/\?\.(\d)/g, '? .$1');
+}
+
 function main(): void {
   // Check if dist exists
   if (!fs.existsSync(REPORT_UI_DIST)) {
@@ -38,6 +45,8 @@ function main(): void {
   let jsContent = '';
   if (fs.existsSync(jsPath)) {
     jsContent = fs.readFileSync(jsPath, 'utf8');
+    jsContent = sanitizeMinifiedJs(jsContent);
+    fs.writeFileSync(jsPath, jsContent, 'utf8');
     console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
   } else {
     console.warn('Warning: report.iife.js not found, JS will be empty');

@@ -38,12 +38,12 @@ async function renderReport(data, outputPath) {
     await promises_1.default.writeFile(outputPath, html, 'utf8');
 }
 /**
- * Generate a full HTML document for the dependency radar report from the provided aggregated data.
+ * Generate a complete standalone HTML document for the Dependency Radar report using the provided aggregated data.
  *
- * The produced document embeds sanitized CSS and JavaScript assets, includes a JSON-serialized copy of `data` with `<` characters escaped, computes a CTA URL from `data.dependencyRadarVersion`, and formats `data.generatedAt` into a human-friendly timestamp when parsable. Values interpolated into the HTML (for example project path, formatted date, and CTA URL) are HTML-escaped.
+ * The returned document embeds sanitized inline CSS and JS, includes the JSON-serialized `data` (with `<` escaped), computes a CTA URL from `data.dependencyRadarVersion`, and formats `data.generatedAt` into a human-friendly timestamp when parsable. Interpolated values (for example `project.projectDir`, the formatted date, and the CTA URL) are HTML-escaped for safe embedding.
  *
- * @param data - Aggregated data used to populate the report (project metadata, generatedAt timestamp, dependencyRadarVersion, and dependency list)
- * @returns The full HTML document for the dependency radar report
+ * @param data - AggregatedData used to populate the report; must include at least `project.projectDir`, `generatedAt`, and `dependencyRadarVersion`
+ * @returns The full HTML document as a string
  */
 function buildHtml(data) {
     const json = JSON.stringify(data).replace(/</g, '\\u003c');

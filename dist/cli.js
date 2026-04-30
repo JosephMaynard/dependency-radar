@@ -978,12 +978,16 @@ function parseArgs(argv) {
         else if (!arg.startsWith("-") && opts.command === "compare" && !opts.comparePath) {
             opts.comparePath = arg;
         }
-        else if (arg === "--project" && args[0])
-            opts.project = args.shift();
+        else if (!arg.startsWith("-")) {
+            console.error(`Unexpected argument: "${arg}".`);
+            process.exit(1);
+        }
+        else if (arg === "--project")
+            opts.project = takeOptionValue(args, arg);
         else if (arg === "--quiet")
             opts.quiet = true;
-        else if (arg === "--out" && args[0]) {
-            opts.out = args.shift();
+        else if (arg === "--out") {
+            opts.out = takeOptionValue(args, arg);
             opts.outProvided = true;
         }
         else if (arg === "--keep-temp")
@@ -996,8 +1000,8 @@ function parseArgs(argv) {
             opts.json = true;
             opts.format = "json";
         }
-        else if (arg === "--format" && args[0]) {
-            const format = args.shift();
+        else if (arg === "--format") {
+            const format = takeOptionValue(args, arg);
             if (!isReportFormat(format)) {
                 console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
                 process.exit(1);
@@ -1005,16 +1009,16 @@ function parseArgs(argv) {
             opts.format = format;
             opts.json = format === "json";
         }
-        else if (arg === "--sbom" && args[0]) {
-            const format = args.shift();
+        else if (arg === "--sbom") {
+            const format = takeOptionValue(args, arg);
             if (format !== "cyclonedx" && format !== "spdx") {
                 console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
                 process.exit(1);
             }
             opts.format = format;
         }
-        else if (arg === "--target-node" && args[0]) {
-            const value = Number.parseInt(args.shift(), 10);
+        else if (arg === "--target-node") {
+            const value = Number.parseInt(takeOptionValue(args, arg), 10);
             if (!Number.isFinite(value) || value <= 0) {
                 console.error("--target-node must be a positive Node.js major version.");
                 process.exit(1);
@@ -1052,8 +1056,20 @@ function parseArgs(argv) {
             printHelp();
             process.exit(0);
         }
+        else {
+            console.error(`Unknown option: "${arg}".`);
+            process.exit(1);
+        }
     }
     return opts;
+}
+function takeOptionValue(args, option) {
+    const value = args[0];
+    if (!value || value.startsWith("-")) {
+        console.error(`Missing value for ${option}.`);
+        process.exit(1);
+    }
+    return args.shift();
 }
 function isReportFormat(value) {
     return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";

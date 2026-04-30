@@ -15,6 +15,8 @@ import type {
   Severity,
 } from "./types";
 
+type SupplyChainSignal = NonNullable<AggregatedData["supplyChain"]>["signals"][number];
+
 // In development, load sample data; in production, data is embedded
 async function loadReportData(): Promise<AggregatedData> {
   const dataEl = document.getElementById("radar-data");
@@ -948,6 +950,41 @@ function resolveDepLinkTarget(
   return resolveDepKeyByNameFromSet(parsed.name, linkableKeys, keysByName);
 }
 
+function buildSupplyChainSignalIndex(
+  report: AggregatedData,
+  linkableKeys: Set<string>,
+  keysByName: DepKeysByNameIndex,
+): Map<string, SupplyChainSignal[]> {
+  const index = new Map<string, SupplyChainSignal[]>();
+  const add = (depKey: string, signal: SupplyChainSignal): void => {
+    const signals = index.get(depKey) || [];
+    signals.push(signal);
+    index.set(depKey, signals);
+  };
+
+  for (const signal of report.supplyChain?.signals || []) {
+    const candidates = [
+      signal.packageId,
+      signal.packageName && signal.packageVersion
+        ? getDepKey(signal.packageName, signal.packageVersion)
+        : undefined,
+    ].filter(Boolean) as string[];
+    let matched = false;
+    for (const candidate of candidates) {
+      const depKey = resolveDepLinkTarget(candidate, linkableKeys, keysByName);
+      if (!depKey) continue;
+      add(depKey, signal);
+      matched = true;
+    }
+    if (!matched && signal.packageName) {
+      const depKey = resolveDepKeyByNameFromSet(signal.packageName, linkableKeys, keysByName);
+      if (depKey) add(depKey, signal);
+    }
+  }
+
+  return index;
+}
+
 function renderRootPackageList(
   packages: Array<{ name: string; version: string } | string> | undefined,
   maxShow: number,
@@ -1240,6 +1277,41 @@ function renderExecutionSection(
   );
 }
 
+function supplyChainSignalLabel(type: string): string {
+  const labels: Record<string, string> = {
+    "git-dependency": "Git dependency source",
+    "file-dependency": "Local dependency source",
+    "non-registry-tarball": "Non-registry tarball",
+    "missing-integrity": "Missing lockfile integrity",
+    "unexpected-registry-host": "Unexpected registry host",
+  };
+  return labels[type] || titleCaseValue(type);
+}
+
+function renderSupplyChainSourceSection(
+  signals: SupplyChainSignal[] | undefined,
+): string {
+  if (!signals || signals.length === 0) return "";
+  const rows = signals
+    .map((signal) =>
+      renderKvItem(
+        supplyChainSignalLabel(signal.type),
+        signal.source,
+        signal.detail,
+      ),
+    )
+    .join("");
+  return renderSubsection(
+    "Supply chain source",
+    '<div class="section-note">Shown only when lockfile source metadata is unusual or incomplete.</div>' +
+      '<div class="kv-grid">' +
+      rows +
+      "</div>",
+    "Lockfile source signals",
+    "warning",
+  );
+}
+
 type LinkSet = {
   npm?: string;
   repository?: string;
@@ -1475,6 +1547,7 @@ function renderDepDetails(
   dep: DependencyRecord,
   linkableKeys: Set<string>,
   keysByName?: DepKeysByNameIndex,
+  supplyChainSignals?: SupplyChainSignal[],
 ): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
@@ -1701,11 +1774,12 @@ function renderDepDetails(
   const executionBlock = dep.execution
     ? renderExecutionSection(dep.execution)
     : "";
+  const supplyChainBlock = renderSupplyChainSourceSection(supplyChainSignals);
 
   const riskSection = renderSection(
     "Risk & Compliance",
-    "License, vulnerabilities, and install-time execution signals",
-    licenseBlock + vulnBlock + executionBlock,
+    "License, vulnerabilities, install-time execution, and unusual source signals",
+    licenseBlock + vulnBlock + executionBlock + supplyChainBlock,
   );
 
   const currencyItems = [
@@ -2330,6 +2404,11 @@ async function init(): Promise<void> {
   });
   const knownDepKeys = new Set(depByKey.keys());
   const depKeysByName = getDepKeysByNameIndex(knownDepKeys);
+  const supplyChainSignalsByKey = buildSupplyChainSignalIndex(
+    report,
+    knownDepKeys,
+    depKeysByName,
+  );
   const openDepKeys = new Set<string>();
   const forcedVisibleDepKeys = new Set<string>();
   const depElementsByKey = new Map<string, HTMLDetailsElement>();
@@ -2359,6 +2438,7 @@ async function init(): Promise<void> {
         dep,
         knownDepKeys,
         depKeysByName,
+        supplyChainSignalsByKey.get(depKey),
       );
       detailsBody.dataset.rendered = "true";
       detailsBody.removeAttribute("aria-busy");
