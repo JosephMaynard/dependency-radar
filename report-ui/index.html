@@ -1,13 +1,15 @@
 <!doctype html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dependency Radar - Development</title>
-  <link rel="stylesheet" href="./style.css" />
-  <!-- BEGIN: Copied to src/report.ts (favicon link block) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dependency Radar - Development</title>
+    <link rel="stylesheet" href="./style.css" />
+    <!-- BEGIN: Copied to src/report.ts (favicon link block) -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml;utf8,
         <svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' version='1.1' viewBox='0 0 1024 1024'>
           <defs>
             <style>
@@ -45,352 +47,662 @@
           <circle class='st2' cx='733.7' cy='640' r='56' transform='translate(-237.7 706.3) rotate(-45)'/>
           <ellipse class='st1' cx='290.3' cy='640' rx='96' ry='96' transform='translate(-367.5 392.7) rotate(-45)'/>
           <circle class='st0' cx='290.3' cy='640' r='56'/>
-        </svg>" />
-  <!-- END: Copied to src/report.ts (favicon link block) -->
-</head>
+        </svg>"
+    />
+    <!-- END: Copied to src/report.ts (favicon link block) -->
+  </head>
 
-<body>
-  <!-- BEGIN: Copied to src/report.ts (top header block) -->
-  <!-- Top Header (Scrollable) -->
-  <header class="top-header">
-    <div class="header-row">
-      <div class="header-content">
-        <svg class="logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
-          viewBox="0 0 1024 1024">
-          <defs>
-            <style>
-              .st0,
-              .st1 {
-                fill: #ff8000;
-              }
+  <body>
+    <!-- BEGIN: Copied to src/report.ts (top header block) -->
+    <!-- Top Header (Scrollable) -->
+    <header class="top-header">
+      <div class="header-row">
+        <div class="header-content">
+          <svg
+            class="logo"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            version="1.1"
+            viewBox="0 0 1024 1024"
+          >
+            <defs>
+              <style>
+                .st0,
+                .st1 {
+                  fill: #ff8000;
+                }
 
-              .st2,
-              .st3 {
-                fill: #40ff40;
-              }
+                .st2,
+                .st3 {
+                  fill: #40ff40;
+                }
 
-              .st3,
-              .st4,
-              .st1 {
-                opacity: 0.4;
-              }
+                .st3,
+                .st4,
+                .st1 {
+                  opacity: 0.4;
+                }
 
-              .st5 {
-                fill: url(#linear-gradient);
-              }
+                .st5 {
+                  fill: url(#linear-gradient);
+                }
 
-              .st4,
-              .st6 {
-                fill: red;
-              }
+                .st4,
+                .st6 {
+                  fill: red;
+                }
 
-              .st7 {
-                stroke-width: 16px;
-              }
+                .st7 {
+                  stroke-width: 16px;
+                }
 
-              .st7,
-              .st8 {
-                fill: #171772;
-              }
+                .st7,
+                .st8 {
+                  fill: #171772;
+                }
 
-              .st7,
-              .st8,
-              .st9 {
-                stroke: #55fffa;
-                stroke-miterlimit: 10;
-              }
+                .st7,
+                .st8,
+                .st9 {
+                  stroke: #55fffa;
+                  stroke-miterlimit: 10;
+                }
 
-              .st8 {
-                stroke-width: 10px;
-              }
+                .st8 {
+                  stroke-width: 10px;
+                }
 
-              .st10 {
-                fill: #14145e;
-              }
+                .st10 {
+                  fill: #14145e;
+                }
 
-              .st9 {
-                fill: none;
-                opacity: 0.3;
-                stroke-width: 6px;
-              }
+                .st9 {
+                  fill: none;
+                  opacity: 0.3;
+                  stroke-width: 6px;
+                }
 
-              .st11 {
-                fill: #55fffa;
-              }
-            </style>
-            <linearGradient id="linear-gradient" x1="239.3" y1="298.2" x2="815.3" y2="298.2"
-              gradientTransform="translate(150 -115.1) rotate(15)" gradientUnits="userSpaceOnUse">
-              <stop offset=".4" stop-color="#55fffa" stop-opacity="0" />
-              <stop offset="1" stop-color="#55fffa" stop-opacity=".5" />
-            </linearGradient>
-          </defs>
-          <circle class="st10" cx="512" cy="512" r="512" />
-          <circle class="st7" cx="512" cy="512" r="430" />
-          <circle class="st8" cx="512" cy="512" r="256" />
-          <circle class="st9" cx="512" cy="512" r="160" />
-          <circle class="st9" cx="512" cy="512" r="379.5" />
-          <circle class="st9" cx="512" cy="512" r="339" />
-          <circle class="st9" cx="512" cy="512" r="210" />
-          <rect class="st11" x="690.2" y="193.1" width="15.8" height="427.6"
-            transform="translate(701.4 -401.1) rotate(60)" />
-          <circle class="st11" cx="512" cy="514.4" r="64" />
-          <path class="st5"
-            d="M517.2,513.4l365.8-213.9c-54.6-95.4-145.8-169.8-260.3-200.5-100.1-26.8-201.5-15.8-288.8,24.3l183.4,390Z" />
-          <circle class="st4" cx="512" cy="256" r="96" />
-          <circle class="st6" cx="512" cy="256" r="56" />
-          <circle class="st3" cx="733.7" cy="640" r="96" transform="translate(-237.7 706.3) rotate(-45)" />
-          <circle class="st2" cx="733.7" cy="640" r="56" transform="translate(-237.7 706.3) rotate(-45)" />
-          <ellipse class="st1" cx="290.3" cy="640" rx="96" ry="96" transform="translate(-367.5 392.7) rotate(-45)" />
-          <circle class="st0" cx="290.3" cy="640" r="56" />
-        </svg>
-        <div class="header-text">
-          <h1>Dependency Radar</h1>
-          <div class="header-meta">
-            <span class="meta-item"><span class="meta-label">Project</span>
-              <strong id="project-path">/example/project</strong></span>
-            <span class="meta-item" id="git-branch-item" style="display: none"><span class="meta-label">Branch</span>
-              <strong id="git-branch"></strong></span>
-            <span class="meta-item" id="node-item" style="display: none"><span class="meta-label">Node</span>
-              <strong id="node-version"></strong></span>
-            <span class="meta-item"><span class="meta-label">Generated</span>
-              <strong id="formatted-date"></strong></span>
-            <span class="header-disclaimer" id="node-disclaimer" style="display: none"></span>
+                .st11 {
+                  fill: #55fffa;
+                }
+              </style>
+              <linearGradient
+                id="linear-gradient"
+                x1="239.3"
+                y1="298.2"
+                x2="815.3"
+                y2="298.2"
+                gradientTransform="translate(150 -115.1) rotate(15)"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset=".4" stop-color="#55fffa" stop-opacity="0" />
+                <stop offset="1" stop-color="#55fffa" stop-opacity=".5" />
+              </linearGradient>
+            </defs>
+            <circle class="st10" cx="512" cy="512" r="512" />
+            <circle class="st7" cx="512" cy="512" r="430" />
+            <circle class="st8" cx="512" cy="512" r="256" />
+            <circle class="st9" cx="512" cy="512" r="160" />
+            <circle class="st9" cx="512" cy="512" r="379.5" />
+            <circle class="st9" cx="512" cy="512" r="339" />
+            <circle class="st9" cx="512" cy="512" r="210" />
+            <rect
+              class="st11"
+              x="690.2"
+              y="193.1"
+              width="15.8"
+              height="427.6"
+              transform="translate(701.4 -401.1) rotate(60)"
+            />
+            <circle class="st11" cx="512" cy="514.4" r="64" />
+            <path
+              class="st5"
+              d="M517.2,513.4l365.8-213.9c-54.6-95.4-145.8-169.8-260.3-200.5-100.1-26.8-201.5-15.8-288.8,24.3l183.4,390Z"
+            />
+            <circle class="st4" cx="512" cy="256" r="96" />
+            <circle class="st6" cx="512" cy="256" r="56" />
+            <circle
+              class="st3"
+              cx="733.7"
+              cy="640"
+              r="96"
+              transform="translate(-237.7 706.3) rotate(-45)"
+            />
+            <circle
+              class="st2"
+              cx="733.7"
+              cy="640"
+              r="56"
+              transform="translate(-237.7 706.3) rotate(-45)"
+            />
+            <ellipse
+              class="st1"
+              cx="290.3"
+              cy="640"
+              rx="96"
+              ry="96"
+              transform="translate(-367.5 392.7) rotate(-45)"
+            />
+            <circle class="st0" cx="290.3" cy="640" r="56" />
+          </svg>
+          <div class="header-text">
+            <h1>Dependency Radar</h1>
+            <div class="header-meta">
+              <span class="meta-item"
+                ><span class="meta-label">Project</span>
+                <strong id="project-path">/example/project</strong></span
+              >
+              <span class="meta-item"
+                ><span class="meta-label">Generated</span>
+                <strong id="formatted-date"></strong
+              ></span>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="cta-section">
-        <a href="https://dependency-radar.com/next-steps?source=standalone-report&cli=unknown" class="cta-link"
-          target="_blank" rel="noopener" id="cta-primary-link">
-          Enrich this scan
-          <span class="cta-arrow">→</span>
-        </a>
-        <p class="cta-text">Beyond the standalone report</p>
-        <a href="https://dependency-radar.com/next-steps?source=standalone-report&cli=unknown" target="_blank"
-          rel="noopener" class="cta-url" id="cta-secondary-link">dependency-radar.com</a>
-      </div>
-    </div>
-  </header>
-  <!-- END: Copied to src/report.ts (top header block) -->
-
-  <!-- BEGIN: Copied to src/report.ts (filter bar + license panel + column headers block) -->
-  <!-- Sticky Filter Bar -->
-  <div class="filter-bar">
-    <div class="filter-bar-inner">
-      <div class="filter-row">
-        <div class="filter-top-row">
-          <div class="search-wrapper">
-            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input type="search" id="search" placeholder="Search packages..." />
-          </div>
-          <div class="view-switch" id="view-switch">
-            <button type="button" class="view-switch-btn" id="view-graph-btn" data-view="graph">
-              Graph View
-            </button>
-          </div>
-          <button type="button" class="filters-toggle" id="filters-toggle" aria-expanded="false">
-            Filters
-            <span class="chevron">▼</span>
-          </button>
+        <div class="cta-section">
+          <a
+            href="https://dependency-radar.com/next-steps?source=standalone-report&cli=unknown"
+            class="cta-card"
+            target="_blank"
+            rel="noopener"
+            id="cta-primary-link"
+          >
+            <span class="cta-icon" aria-hidden="true">
+              <svg
+                class="cta-icon-svg lucide lucide-radar-icon lucide-radar"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
+                <path d="M4 6h.01" />
+                <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" />
+                <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" />
+                <path d="M12 18h.01" />
+                <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
+                <circle cx="12" cy="12" r="2" />
+                <path d="m13.41 10.59 5.66-5.66" />
+              </svg>
+            </span>
+            <span class="cta-copy">
+              <span class="cta-title">Unlock deeper analysis</span>
+              <span class="cta-text"
+                >Deep analysis, risk modelling, and actionable insights.</span
+              >
+            </span>
+            <span class="cta-action">
+              <span class="cta-button"
+                >Upgrade this scan <span class="cta-arrow">→</span></span
+              >
+              <span class="cta-privacy">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="m9 12 2 2 4-5"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Secure. Private. No code sent.
+              </span>
+            </span>
+          </a>
         </div>
+      </div>
+    </header>
+    <!-- END: Copied to src/report.ts (top header block) -->
 
-        <div class="filter-controls" id="filter-controls">
-          <div class="filter-controls-row">
-            <div class="filter-group">
-              <span class="filter-label">Type</span>
-              <select id="direct-filter">
-                <option value="all">All</option>
-                <option value="direct">Dependency</option>
-                <option value="transitive">Sub-Dependency</option>
-              </select>
+    <!-- BEGIN: Copied to src/report.ts (filter bar + license panel + column headers block) -->
+    <!-- Sticky Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-bar-inner">
+        <div class="filter-row">
+          <div class="filter-top-row">
+            <div class="search-wrapper">
+              <svg
+                class="search-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="search"
+                id="search"
+                placeholder="Search packages..."
+                aria-label="Search packages"
+              />
             </div>
-
-            <div class="filter-group">
-              <span class="filter-label">Scope</span>
-              <select id="runtime-filter">
-                <option value="all">All</option>
-                <option value="runtime">Runtime</option>
-                <option value="dev">Dev</option>
-                <option value="optional">Optional</option>
-                <option value="peer">Peer</option>
-              </select>
-            </div>
-
-            <button type="button" class="license-filter-toggle" id="license-toggle">
-              License Categories
+            <button
+              type="button"
+              class="filters-toggle"
+              id="filters-toggle"
+              aria-expanded="false"
+              aria-controls="filter-controls"
+            >
+              Filters
+              <span
+                class="filter-count-badge"
+                id="filter-count-badge"
+                hidden
+              ></span>
               <span class="chevron">▼</span>
             </button>
-
-            <label class="checkbox-filter">
-              <input type="checkbox" id="has-vulns" />
-              Has vulnerabilities
-            </label>
-
-            <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
-            <div class="filter-group sort-wrapper mobile-only" id="mobile-sort">
-              <span class="filter-label">SORT</span>
-              <select id="sort-by">
-                <option value="name">Name</option>
-                <option value="type">Type</option>
-                <option value="scope">Scope</option>
-                <option value="license">License</option>
-                <option value="severity">Severity</option>
-                <option value="install">Install</option>
-                <option value="depth">Depth</option>
-              </select>
-              <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">
-                ↑
+            <button
+              type="button"
+              class="filters-toggle metadata-toggle"
+              id="metadata-toggle"
+              aria-expanded="false"
+              aria-controls="metadata-panel"
+            >
+              Metadata
+              <span class="chevron">▼</span>
+            </button>
+            <div class="view-switch" id="view-switch">
+              <button
+                type="button"
+                class="view-switch-btn"
+                id="view-graph-btn"
+                data-view="graph"
+              >
+                Graph View
               </button>
             </div>
-
             <div class="theme-toggle">
               <span class="theme-toggle-label">Theme</span>
-              <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
+              <button
+                type="button"
+                class="theme-switch"
+                id="theme-switch"
+                aria-label="Toggle dark/light mode"
+                aria-pressed="false"
+              ></button>
             </div>
           </div>
-        </div>
 
-        <!-- Collapsible License Filter Panel -->
-        <div class="license-filter-panel-row">
-          <div class="license-filter-panel" id="license-panel">
-            <div class="license-filter-inner">
-              <div class="license-filter-header">
-                <span class="license-filter-title">Filter by License Type</span>
-                <div class="license-quick-actions">
-                  <button type="button" class="quick-action-btn" id="license-all">
-                    Show All
-                  </button>
-                  <button type="button" class="quick-action-btn" id="license-friendly">
-                    Business-Friendly Only
-                  </button>
+          <div
+            class="filter-controls"
+            id="filter-controls"
+            role="dialog"
+            aria-label="Dependency filters"
+            aria-hidden="true"
+            inert
+          >
+            <div class="filter-controls-row">
+              <div class="filter-panel-section">
+                <div class="filter-panel-title">Dependency</div>
+                <div class="filter-group">
+                  <label class="filter-label" for="direct-filter">Type</label>
+                  <select id="direct-filter">
+                    <option value="all">All</option>
+                    <option value="direct">Dependency</option>
+                    <option value="transitive">Sub-Dependency</option>
+                  </select>
+                </div>
+
+                <div class="filter-group">
+                  <label class="filter-label" for="runtime-filter">Scope</label>
+                  <select id="runtime-filter">
+                    <option value="all">All</option>
+                    <option value="runtime">Runtime</option>
+                    <option value="dev">Dev</option>
+                    <option value="optional">Optional</option>
+                    <option value="peer">Peer</option>
+                  </select>
                 </div>
               </div>
-              <div class="license-groups">
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-permissive" checked />
-                  <span class="license-dot permissive"></span>
-                  Permissive (MIT, BSD, Apache, ISC)
+
+              <div class="filter-panel-section filter-panel-context">
+                <div class="filter-panel-title">Context</div>
+                <div
+                  class="filter-group workspace-filter-group hidden"
+                  id="workspace-filter-wrap"
+                >
+                  <label class="filter-label" for="workspace-filter"
+                    >Workspace</label
+                  >
+                  <select id="workspace-filter">
+                    <option value="all">All workspaces</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="filter-panel-section">
+                <div class="filter-panel-title">Risk</div>
+                <div class="license-filter-panel" id="license-panel">
+                  <div class="license-filter-inner">
+                    <div class="license-filter-header">
+                      <span class="license-filter-title"
+                        >License categories</span
+                      >
+                      <div class="license-quick-actions">
+                        <button
+                          type="button"
+                          class="quick-action-btn"
+                          id="license-all"
+                        >
+                          Show All
+                        </button>
+                        <button
+                          type="button"
+                          class="quick-action-btn"
+                          id="license-friendly"
+                        >
+                          Business-Friendly Only
+                        </button>
+                      </div>
+                    </div>
+                    <div class="license-groups">
+                      <label class="license-group-checkbox">
+                        <input
+                          type="checkbox"
+                          id="license-permissive"
+                          checked
+                        />
+                        <span class="license-dot permissive"></span>
+                        <span id="license-permissive-label">Permissive</span>
+                      </label>
+                      <label class="license-group-checkbox">
+                        <input
+                          type="checkbox"
+                          id="license-weak-copyleft"
+                          checked
+                        />
+                        <span class="license-dot weak-copyleft"></span>
+                        <span id="license-weak-copyleft-label"
+                          >Weak Copyleft</span
+                        >
+                      </label>
+                      <label class="license-group-checkbox">
+                        <input
+                          type="checkbox"
+                          id="license-strong-copyleft"
+                          checked
+                        />
+                        <span class="license-dot strong-copyleft"></span>
+                        <span id="license-strong-copyleft-label"
+                          >Strong Copyleft</span
+                        >
+                      </label>
+                      <label class="license-group-checkbox">
+                        <input type="checkbox" id="license-unknown" checked />
+                        <span class="license-dot unknown"></span>
+                        <span id="license-unknown-label">Other / Unknown</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <label class="checkbox-filter">
+                  <input type="checkbox" id="has-vulns" />
+                  <span id="has-vulns-label">Has vulnerabilities</span>
                 </label>
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-weak-copyleft" checked />
-                  <span class="license-dot weak-copyleft"></span>
-                  Weak Copyleft (LGPL, MPL, EPL)
-                </label>
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-strong-copyleft" checked />
-                  <span class="license-dot strong-copyleft"></span>
-                  Strong Copyleft (GPL, AGPL)
-                </label>
-                <label class="license-group-checkbox">
-                  <input type="checkbox" id="license-unknown" checked />
-                  <span class="license-dot unknown"></span>
-                  Other / Unknown
-                </label>
+              </div>
+
+              <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
+              <div
+                class="filter-group sort-wrapper mobile-only"
+                id="mobile-sort"
+              >
+                <span class="filter-label">SORT</span>
+                <select id="sort-by">
+                  <option value="name">Name</option>
+                  <option value="type">Type</option>
+                  <option value="scope">Scope</option>
+                  <option value="license">License</option>
+                  <option value="severity">Severity</option>
+                  <option value="install">Install</option>
+                  <option value="depth">Depth</option>
+                </select>
+                <button
+                  type="button"
+                  class="sort-direction-btn"
+                  id="sort-direction"
+                  title="Toggle sort direction"
+                >
+                  ↑
+                </button>
+              </div>
+
+              <div class="filter-panel-actions">
+                <button
+                  type="button"
+                  class="quick-action-btn"
+                  id="clear-all-filters"
+                >
+                  Clear all filters
+                </button>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Results summary and column headers row -->
-        <div class="column-headers-section" id="column-headers-section">
-          <div class="package-header-wrapper">
-            <div class="results-summary" id="results-summary"></div>
-            <button type="button" class="column-header package-header column-header-no-border" data-sort="name"
-              id="package-header">
-              PACKAGE
-              <span class="sort-indicator"></span>
+          <div
+            class="metadata-panel"
+            id="metadata-panel"
+            role="dialog"
+            aria-label="Report metadata"
+            hidden
+          ></div>
+
+          <div class="active-filters-row" id="active-filters-row" hidden>
+            <span class="active-filters-label">Active filters:</span>
+            <div class="active-filter-chips" id="active-filter-chips"></div>
+            <button
+              type="button"
+              class="active-filter-clear"
+              id="active-filter-clear"
+            >
+              Clear all
             </button>
           </div>
-          <!-- Column headers are dynamically generated by JavaScript from COLUMN_CONFIG -->
-          <div id="column-headers-container"></div>
+
+          <!-- Results summary and column headers row -->
+          <div class="column-headers-section" id="column-headers-section">
+            <div class="package-header-wrapper">
+              <div class="results-summary" id="results-summary"></div>
+              <button
+                type="button"
+                class="column-header package-header column-header-no-border"
+                data-sort="name"
+                id="package-header"
+              >
+                PACKAGE
+                <span class="sort-indicator"></span>
+              </button>
+            </div>
+            <!-- Column headers are dynamically generated by JavaScript from COLUMN_CONFIG -->
+            <div id="column-headers-container"></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  <!-- END: Copied to src/report.ts (filter bar + license panel + column headers block) -->
+    <!-- END: Copied to src/report.ts (filter bar + license panel + column headers block) -->
 
-  <!-- BEGIN: Copied to src/report.ts (main content block) -->
-  <!-- Main Content -->
-  <main class="main-content">
-    <section class="view-panel active" id="list-view" data-view="list" aria-hidden="false">
-      <div id="dependency-list" class="dependency-grid"></div>
-    </section>
-    <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
-      <div class="graph-canvas-shell" id="graph-canvas-shell">
-        <canvas id="graph-canvas"></canvas>
-        <div class="graph-overlay-top">
-          <button type="button" class="graph-back-btn" id="graph-back-btn">Back to List View</button>
-          <div class="graph-key" aria-label="Graph key">
-            <span class="graph-workspace-label">Key</span>
-            <div class="graph-key-items">
-              <span class="graph-key-item">
-                <span class="graph-key-dot dependency" aria-hidden="true"></span>
-                <span>Dependency</span>
-              </span>
-              <span class="graph-key-item">
-                <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
-                <span>Dev-Dependency</span>
-              </span>
-              <span class="graph-key-item">
-                <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
-                <span>Sub-Dependency</span>
-              </span>
+    <!-- BEGIN: Copied to src/report.ts (main content block) -->
+    <!-- Main Content -->
+    <main class="main-content">
+      <section
+        class="view-panel active"
+        id="list-view"
+        data-view="list"
+        aria-hidden="false"
+      >
+        <div id="dependency-list" class="dependency-grid"></div>
+      </section>
+      <section
+        class="view-panel"
+        id="graph-view"
+        data-view="graph"
+        aria-hidden="true"
+      >
+        <div class="graph-canvas-shell" id="graph-canvas-shell">
+          <canvas id="graph-canvas"></canvas>
+          <div class="graph-overlay-top">
+            <button type="button" class="graph-back-btn" id="graph-back-btn">
+              Back to List View
+            </button>
+            <div class="graph-key" aria-label="Graph key">
+              <span class="graph-workspace-label">Key</span>
+              <div class="graph-key-items">
+                <span class="graph-key-item">
+                  <span
+                    class="graph-key-dot dependency"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Dependency</span>
+                </span>
+                <span class="graph-key-item">
+                  <span
+                    class="graph-key-dot dev-dependency"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Dev-Dependency</span>
+                </span>
+                <span class="graph-key-item">
+                  <span
+                    class="graph-key-dot sub-dependency"
+                    aria-hidden="true"
+                  ></span>
+                  <span>Sub-Dependency</span>
+                </span>
+              </div>
+            </div>
+            <div class="graph-workspace-wrap" id="graph-workspace-wrap">
+              <label class="graph-workspace-label" for="graph-workspace"
+                >Workspace</label
+              >
+              <select
+                id="graph-workspace"
+                class="graph-workspace-select"
+              ></select>
             </div>
           </div>
-          <div class="graph-workspace-wrap" id="graph-workspace-wrap">
-            <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
-            <select id="graph-workspace" class="graph-workspace-select"></select>
+          <div
+            class="graph-controls graph-overlay graph-overlay-right"
+            id="graph-controls"
+          >
+            <div class="dpad">
+              <button
+                type="button"
+                class="graph-control-btn up"
+                data-action="pan-down"
+                aria-label="Pan Up"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="graph-control-btn left"
+                data-action="pan-right"
+                aria-label="Pan Left"
+              >
+                ◀
+              </button>
+              <div class="center-spacer" aria-hidden="true"></div>
+              <button
+                type="button"
+                class="graph-control-btn right"
+                data-action="pan-left"
+                aria-label="Pan Right"
+              >
+                ▶
+              </button>
+              <button
+                type="button"
+                class="graph-control-btn down"
+                data-action="pan-up"
+                aria-label="Pan Down"
+              >
+                ▼
+              </button>
+            </div>
+            <div class="zoom-controls">
+              <button
+                type="button"
+                class="graph-control-btn"
+                data-action="zoom-in"
+                aria-label="Zoom In"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                class="graph-control-btn"
+                data-action="zoom-out"
+                aria-label="Zoom Out"
+              >
+                −
+              </button>
+            </div>
+            <button
+              type="button"
+              class="graph-control-btn reset-btn"
+              data-action="reset"
+            >
+              reset
+            </button>
+          </div>
+          <div class="graph-popover" id="graph-popover" hidden>
+            <div class="graph-popover-name" id="graph-popover-name"></div>
+            <div class="graph-popover-meta" id="graph-popover-version"></div>
+            <div class="graph-popover-meta" id="graph-popover-license"></div>
+            <div class="graph-popover-meta" id="graph-popover-vulns"></div>
+            <div
+              class="graph-popover-meta"
+              id="graph-popover-amplification"
+            ></div>
+            <button
+              type="button"
+              class="graph-popover-action"
+              id="graph-open-list"
+            >
+              Open in List
+            </button>
           </div>
         </div>
-        <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
-          <div class="dpad">
-            <button type="button" class="graph-control-btn up" data-action="pan-down" aria-label="Pan Up">▲</button>
-            <button type="button" class="graph-control-btn left" data-action="pan-right"
-              aria-label="Pan Left">◀</button>
-            <div class="center-spacer" aria-hidden="true"></div>
-            <button type="button" class="graph-control-btn right" data-action="pan-left"
-              aria-label="Pan Right">▶</button>
-            <button type="button" class="graph-control-btn down" data-action="pan-up" aria-label="Pan Down">▼</button>
-          </div>
-          <div class="zoom-controls">
-            <button type="button" class="graph-control-btn" data-action="zoom-in" aria-label="Zoom In">+</button>
-            <button type="button" class="graph-control-btn" data-action="zoom-out" aria-label="Zoom Out">−</button>
-          </div>
-          <button type="button" class="graph-control-btn reset-btn" data-action="reset">reset</button>
-        </div>
-        <div class="graph-popover" id="graph-popover" hidden>
-          <div class="graph-popover-name" id="graph-popover-name"></div>
-          <div class="graph-popover-meta" id="graph-popover-version"></div>
-          <div class="graph-popover-meta" id="graph-popover-license"></div>
-          <div class="graph-popover-meta" id="graph-popover-vulns"></div>
-          <div class="graph-popover-meta" id="graph-popover-amplification"></div>
-          <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
-        </div>
-      </div>
-    </section>
-  </main>
-  <!-- END: Copied to src/report.ts (main content block) -->
+      </section>
+    </main>
+    <!-- END: Copied to src/report.ts (main content block) -->
 
-  <!-- BEGIN: Copied to src/report.ts (footer block) -->
-  <footer class="report-footer">
-    <p><strong>About this report</strong></p>
-    <p>
-      Dependency Radar does not perform malware scanning or security auditing.
-      It surfaces factual signals from dependency metadata, known
-      vulnerabilities (npm audit), dependency graphs, and install-time
-      behaviour to support informed review.
-    </p>
-  </footer>
-  <!-- END: Copied to src/report.ts (footer block) -->
+    <!-- BEGIN: Copied to src/report.ts (footer block) -->
+    <footer class="report-footer">
+      <p><strong>About this report</strong></p>
+      <p>
+        Dependency Radar does not perform malware scanning or security auditing.
+        It surfaces factual signals from dependency metadata, known
+        vulnerabilities (npm audit), dependency graphs, and install-time
+        behaviour to support informed review.
+      </p>
+    </footer>
+    <!-- END: Copied to src/report.ts (footer block) -->
 
-  <!-- Data placeholder - in development, loaded from sample-data.json -->
-  <script type="application/json" id="radar-data">
+    <!-- Data placeholder - in development, loaded from sample-data.json -->
+    <script type="application/json" id="radar-data">
       {}
     </script>
-  <script type="module" src="./main.ts"></script>
-</body>
-
+    <script type="module" src="./main.ts"></script>
+  </body>
 </html>

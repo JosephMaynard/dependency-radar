@@ -416,6 +416,12 @@ function yesNo(flag: boolean | undefined): string {
   return flag ? "Yes" : "No";
 }
 
+/**
+ * Escapes special HTML characters in a string for safe insertion into HTML.
+ *
+ * @param str - The input string to escape. If `null` or `undefined`, it is treated as an empty string.
+ * @returns The input with `&`, `<`, `>`, and `"` replaced by their corresponding HTML entities, or an empty string for `null`/`undefined`.
+ */
 function escapeHtml(str: string | null | undefined): string {
   if (!str) return "";
   return String(str)
@@ -425,6 +431,225 @@ function escapeHtml(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Determines whether a metadata value is present and non-empty.
+ *
+ * Considers `null` and `undefined` absent; strings are present only if non-empty after trimming;
+ * arrays are present only if they contain at least one item; plain objects are present only if they have at least one own enumerable key; all other values are considered present.
+ *
+ * @param value - The metadata value to test
+ * @returns `true` if the value is present according to the rules above, `false` otherwise.
+ */
+function isPresentMetadataValue(value: unknown): boolean {
+  if (value === null || typeof value === "undefined") return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return true;
+}
+
+/**
+ * Format arbitrary metadata into an HTML-safe string suitable for embedding in metadata panels.
+ *
+ * Arrays are flattened and joined with ", ". Booleans are rendered as "Yes" or "No".
+ * Plain objects are rendered as HTML-safe `key: value` lines separated by `<br>`.
+ *
+ * @param value - The metadata value to format (string, number, boolean, array, or object)
+ * @returns An HTML-escaped string representation of `value`, using `, ` for array items and `<br>` between object entries
+ */
+function formatMetadataValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => formatMetadataValue(item)).join(", ");
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, nestedValue]) => isPresentMetadataValue(nestedValue))
+      .map(
+        ([key, nestedValue]) =>
+          escapeHtml(key) + ": " + formatMetadataValue(nestedValue),
+      )
+      .join("<br>");
+  }
+  return escapeHtml(String(value));
+}
+
+/**
+ * Produces an HTML fragment for a metadata row with a label and formatted value.
+ *
+ * @param label - The visible label for the row
+ * @param value - The metadata value to format and render; may be any type
+ * @returns The HTML string for the labeled metadata row, or an empty string if `value` is not present
+ */
+function renderMetadataRow(label: string, value: unknown): string {
+  if (!isPresentMetadataValue(value)) return "";
+  return (
+    '<div class="metadata-row"><div class="metadata-row-label">' +
+    escapeHtml(label) +
+    '</div><div class="metadata-row-value">' +
+    formatMetadataValue(value) +
+    "</div></div>"
+  );
+}
+
+/**
+ * Renders an HTML metadata section containing a title and a grid of rows when any rows are present.
+ *
+ * @param title - The visible section title (HTML-escaped before insertion)
+ * @param rows - An array of HTML string rows; falsy entries are ignored
+ * @returns The section's HTML string, or an empty string if no rows remain after filtering
+ */
+function renderMetadataSection(title: string, rows: string[]): string {
+  const visibleRows = rows.filter(Boolean);
+  if (visibleRows.length === 0) return "";
+  return (
+    '<section class="metadata-section"><div class="metadata-section-title">' +
+    escapeHtml(title) +
+    '</div><div class="metadata-grid">' +
+    visibleRows.join("") +
+    "</div></section>"
+  );
+}
+
+/**
+ * Render the "Workspaces" metadata section as an HTML string.
+ *
+ * Produces a section that indicates whether workspaces are enabled and the workspace type. When workspaces are enabled, the section also includes package count and, if present, a list of workspace packages showing each package's name, relative path, and runtime/dev direct-external flags.
+ *
+ * @param report - Aggregated report object containing a `workspaces` field used to build the section
+ * @returns HTML string for the "Workspaces" metadata section
+ */
+function renderWorkspaceMetadata(report: AggregatedData): string {
+  const workspaces = report.workspaces;
+  if (!workspaces || !workspaces.enabled) {
+    return renderMetadataSection("Workspaces", [
+      renderMetadataRow("Enabled", false),
+      renderMetadataRow("Type", workspaces?.type),
+    ]);
+  }
+  const workspacePackages = workspaces.workspacePackages || [];
+  const packageList = workspacePackages.length
+    ? '<div class="metadata-list">' +
+      workspacePackages
+        .map(
+          (workspace) =>
+            '<div class="metadata-list-item"><div class="metadata-row-value">' +
+            escapeHtml(workspace.name) +
+            '</div><div class="metadata-muted">' +
+            escapeHtml(workspace.relativePath) +
+            " · runtime " +
+            escapeHtml(String(workspace.directExternal.runtime)) +
+            " · dev " +
+            escapeHtml(String(workspace.directExternal.dev)) +
+            "</div></div>",
+        )
+        .join("") +
+      "</div>"
+    : "";
+  return renderMetadataSection("Workspaces", [
+    renderMetadataRow("Enabled", workspaces.enabled),
+    renderMetadataRow("Type", workspaces.type),
+    renderMetadataRow("Package count", workspaces.packageCount),
+    packageList
+      ? '<div class="metadata-row"><div class="metadata-row-label">Packages</div><div>' +
+        packageList +
+        "</div></div>"
+      : "",
+  ]);
+}
+
+/**
+ * Renders the "Supply Chain" metadata section from an aggregated report.
+ *
+ * @param report - The aggregated dependency report to extract supply chain information from
+ * @returns The HTML string for the Supply Chain metadata section, or an empty string if no supply chain data is present
+ */
+function renderSupplyChainMetadata(report: AggregatedData): string {
+  const supplyChain = report.supplyChain;
+  if (!supplyChain) return "";
+  const audit = supplyChain.signatureAudit;
+  return renderMetadataSection("Supply Chain", [
+    renderMetadataRow("Signals", supplyChain.signals?.length),
+    audit
+      ? renderMetadataRow("Signature audit", {
+          attempted: audit.attempted,
+          ok: audit.ok,
+          status: audit.status,
+          error: audit.error,
+        })
+      : "",
+  ]);
+}
+
+/**
+ * Renders the report metadata panel as an HTML string composed of multiple metadata sections.
+ *
+ * @param report - Aggregated report data containing project, environment, git, summary, workspace, and supply-chain information
+ * @param formattedGeneratedAt - Preformatted generation timestamp to prefer over the raw `report.generatedAt` value
+ * @returns HTML string containing the assembled metadata sections; sections with no visible rows are omitted
+ */
+function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: string): string {
+  const env = report.environment || {};
+  const minRequiredMajor = env.minRequiredMajor;
+  const nodeRequirementNote =
+    minRequiredMajor && minRequiredMajor > 0
+      ? "Node requirement derived from dependency engine ranges."
+      : "";
+  return [
+    renderMetadataSection("Report", [
+      renderMetadataRow("Dependency Radar", report.dependencyRadarVersion),
+      renderMetadataRow("Schema", report.schemaVersion),
+      renderMetadataRow("Generated", formattedGeneratedAt || report.generatedAt),
+      renderMetadataRow("Generated raw", report.generatedAt),
+    ]),
+    renderMetadataSection("Project", [
+      renderMetadataRow("Name", report.project.name),
+      renderMetadataRow("Version", report.project.version),
+      renderMetadataRow("Path", report.project.projectDir),
+      renderMetadataRow("Description", report.project.description),
+      renderMetadataRow("License", report.project.license),
+      renderMetadataRow("Homepage", report.project.homepage),
+      renderMetadataRow("Repository", report.project.repository),
+      renderMetadataRow("Constraints", report.project.constraints),
+      renderMetadataRow("Dependency policy", report.project.dependencyPolicySummary),
+    ]),
+    renderMetadataSection("Git", [
+      renderMetadataRow("Branch", report.git?.branch),
+    ]),
+    renderMetadataSection("Environment", [
+      renderMetadataRow("Node", env.nodeVersion),
+      renderMetadataRow("Runtime", env.runtimeVersion),
+      renderMetadataRow("Minimum required Node major", env.minRequiredMajor),
+      renderMetadataRow("Target Node major", env.targetNodeMajor),
+      renderMetadataRow("Platform", env.platform),
+      renderMetadataRow("Architecture", env.arch),
+      renderMetadataRow("CI", env.ci),
+      renderMetadataRow("packageManager field", env.packageManagerField),
+      renderMetadataRow("Package manager", env.packageManager),
+      renderMetadataRow("Package manager version", env.packageManagerVersion),
+      renderMetadataRow("Tool versions", env.toolVersions),
+      renderMetadataRow("Node note", nodeRequirementNote),
+    ]),
+    renderWorkspaceMetadata(report),
+    renderMetadataSection("Summary", [
+      renderMetadataRow("Dependencies", report.summary?.dependencyCount),
+      renderMetadataRow("Direct", report.summary?.directCount),
+      renderMetadataRow("Transitive", report.summary?.transitiveCount),
+      renderMetadataRow("Findings", report.summary?.findingCount),
+    ]),
+    renderSupplyChainMetadata(report),
+  ]
+    .filter(Boolean)
+    .join("");
+}
+
+/**
+ * Determine the combined risk from a vulnerability summary and a license-derived risk.
+ *
+ * @param summary - Security summary object whose `risk` field represents the vulnerability-derived risk (`"green" | "amber" | "red"`).
+ * @param licenseRisk - License-derived risk value (`"green" | "amber" | "red"`).
+ * @returns `red` if either input is `red`, `amber` if no `red` and either input is `amber`, `green` otherwise.
+ */
 function getHighestRisk(
   summary: SecuritySummary,
   licenseRisk: "green" | "amber" | "red",
@@ -1589,7 +1814,11 @@ function renderDepDetails(
   ].join("");
 }
 
-// Main application
+/**
+ * Initializes the dependency radar UI: loads report data, populates metadata, and wires all controls and event handlers.
+ *
+ * Performs high-level startup tasks including loading and caching the report, rendering the metadata panel and column headers, constructing workspace and dependency indices, configuring theme, responsive filters, sorting and filter controls, preparing graph/list view switching, setting up lazy-detail rendering and copy-to-clipboard handlers, and performing the initial list render.
+ */
 async function init(): Promise<void> {
   const report = await loadReportData();
   if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
@@ -1599,65 +1828,76 @@ async function init(): Promise<void> {
   const summaryEl = document.getElementById("results-summary")!;
   const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
 
-  // Update header info with new chip-based layout
+  // Update header info with chip-based layout and detailed metadata dropdown
   const projectPathEl = document.getElementById("project-path");
-  if (projectPathEl) projectPathEl.textContent = report.project.projectDir;
+  if (projectPathEl) {
+    projectPathEl.textContent = report.project.name || report.project.projectDir;
+    projectPathEl.title = report.project.projectDir;
+  }
+  const metadataToggle = document.getElementById(
+    "metadata-toggle",
+  ) as HTMLButtonElement | null;
+  const metadataPanel = document.getElementById(
+    "metadata-panel",
+  ) as HTMLElement | null;
 
   const ctaPrimaryLink = document.getElementById(
     "cta-primary-link",
   ) as HTMLAnchorElement | null;
-  const ctaSecondaryLink = document.getElementById(
-    "cta-secondary-link",
-  ) as HTMLAnchorElement | null;
   if (ctaPrimaryLink) ctaPrimaryLink.href = ctaUrl;
-  if (ctaSecondaryLink) ctaSecondaryLink.href = ctaUrl;
-
-  // Git branch chip
-  const gitBranchItem = document.getElementById("git-branch-item");
-  const gitBranchEl = document.getElementById("git-branch");
-  if (report.git?.branch && report.git.branch && gitBranchItem && gitBranchEl) {
-    gitBranchEl.textContent = report.git.branch;
-    gitBranchItem.style.display = "";
-  }
-
-  // Node version chip
-  const nodeItem = document.getElementById("node-item");
-  const nodeVersionEl = document.getElementById("node-version");
-  const nodeDisclaimer = document.getElementById("node-disclaimer");
-  if (report.environment && nodeItem && nodeVersionEl) {
-    const runtimeVersion =
-      report.environment.runtimeVersion?.replace(/^v/, "") || "unknown";
-    const minRequiredMajor = report.environment.minRequiredMajor;
-    nodeVersionEl.textContent =
-      runtimeVersion +
-      (minRequiredMajor && minRequiredMajor > 0
-        ? ` (requires ≥${minRequiredMajor})`
-        : "");
-    nodeItem.style.display = "";
-    if (minRequiredMajor && minRequiredMajor > 0 && nodeDisclaimer) {
-      nodeDisclaimer.textContent =
-        "Node requirement derived from dependency engine ranges.";
-      nodeDisclaimer.style.display = "";
-    }
-  }
 
   // Format timestamp
   const dateEl = document.getElementById("formatted-date");
+  let formattedGeneratedAt = report.generatedAt || "";
   if (dateEl && report.generatedAt) {
     try {
       const date = new Date(report.generatedAt);
-      const formatted = new Intl.DateTimeFormat(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date);
-      dateEl.textContent = formatted;
+      if (Number.isNaN(date.getTime())) {
+        formattedGeneratedAt = report.generatedAt;
+        dateEl.textContent = report.generatedAt;
+      } else {
+        formattedGeneratedAt = new Intl.DateTimeFormat(undefined, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+        dateEl.textContent = formattedGeneratedAt;
+      }
     } catch {
+      formattedGeneratedAt = report.generatedAt;
       dateEl.textContent = report.generatedAt;
     }
   }
+  if (metadataPanel) {
+    metadataPanel.innerHTML = renderReportMetadata(report, formattedGeneratedAt);
+    metadataPanel.hidden = false;
+    metadataPanel.inert = true;
+    metadataPanel.setAttribute("aria-hidden", "true");
+  }
+  const setMetadataOpen = (isOpen: boolean): void => {
+    if (!metadataToggle || !metadataPanel) return;
+    metadataPanel.classList.toggle("open", isOpen);
+    metadataPanel.inert = !isOpen;
+    metadataPanel.setAttribute("aria-hidden", String(!isOpen));
+    metadataToggle.classList.toggle("open", isOpen);
+    metadataToggle.setAttribute("aria-expanded", String(isOpen));
+  };
+  metadataToggle?.addEventListener("click", () => {
+    const isOpen = !metadataPanel?.classList.contains("open");
+    setMetadataOpen(isOpen);
+  });
+  document.addEventListener("click", (event) => {
+    if (!metadataToggle || !metadataPanel) return;
+    if (!metadataPanel.classList.contains("open")) return;
+    const target = event.target as Node;
+    if (metadataToggle.contains(target) || metadataPanel.contains(target)) return;
+    setMetadataOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setMetadataOpen(false);
+  });
 
   // Controls
   const controls = {
@@ -1671,10 +1911,10 @@ async function init(): Promise<void> {
       "sort-direction",
     ) as HTMLButtonElement,
     hasVulns: document.getElementById("has-vulns") as HTMLInputElement,
-    themeSwitch: document.getElementById("theme-switch") as HTMLElement,
+    themeSwitch: document.getElementById("theme-switch") as HTMLButtonElement,
     licenseToggle: document.getElementById(
       "license-toggle",
-    ) as HTMLButtonElement,
+    ) as HTMLButtonElement | null,
     licensePanel: document.getElementById("license-panel") as HTMLElement,
     licensePermissive: document.getElementById(
       "license-permissive",
@@ -1696,7 +1936,37 @@ async function init(): Promise<void> {
     filtersToggle: document.getElementById(
       "filters-toggle",
     ) as HTMLButtonElement,
+    filterCountBadge: document.getElementById(
+      "filter-count-badge",
+    ) as HTMLElement | null,
     filterControls: document.getElementById("filter-controls") as HTMLElement,
+    activeFiltersRow: document.getElementById(
+      "active-filters-row",
+    ) as HTMLElement | null,
+    activeFilterChips: document.getElementById(
+      "active-filter-chips",
+    ) as HTMLElement | null,
+    activeFilterClear: document.getElementById(
+      "active-filter-clear",
+    ) as HTMLButtonElement | null,
+    clearAllFilters: document.getElementById(
+      "clear-all-filters",
+    ) as HTMLButtonElement | null,
+    licensePermissiveLabel: document.getElementById(
+      "license-permissive-label",
+    ) as HTMLElement | null,
+    licenseWeakCopyleftLabel: document.getElementById(
+      "license-weak-copyleft-label",
+    ) as HTMLElement | null,
+    licenseStrongCopyleftLabel: document.getElementById(
+      "license-strong-copyleft-label",
+    ) as HTMLElement | null,
+    licenseUnknownLabel: document.getElementById(
+      "license-unknown-label",
+    ) as HTMLElement | null,
+    hasVulnsLabel: document.getElementById(
+      "has-vulns-label",
+    ) as HTMLElement | null,
     columnHeadersContainer: document.getElementById(
       "column-headers-container",
     ) as HTMLElement,
@@ -1764,10 +2034,12 @@ async function init(): Promise<void> {
   if (savedTheme === "light") {
     document.documentElement.classList.add("light");
     controls.themeSwitch.classList.add("light");
+    controls.themeSwitch.setAttribute("aria-pressed", "true");
     document.documentElement.setAttribute("data-theme", "light");
   } else {
     document.documentElement.classList.remove("light");
     controls.themeSwitch.classList.remove("light");
+    controls.themeSwitch.setAttribute("aria-pressed", "false");
     document.documentElement.setAttribute("data-theme", "dark");
   }
 
@@ -1779,6 +2051,7 @@ async function init(): Promise<void> {
       "data-theme",
       isLight ? "light" : "dark",
     );
+    controls.themeSwitch.setAttribute("aria-pressed", String(isLight));
     localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
     graphView?.requestRender();
   });
@@ -1788,44 +2061,48 @@ async function init(): Promise<void> {
   const setFiltersOpen = (isOpen: boolean): void => {
     if (!controls.filterControls || !controls.filtersToggle) return;
     controls.filterControls.classList.toggle("open", isOpen);
+    controls.filterControls.inert = !isOpen;
+    controls.filterControls.setAttribute("aria-hidden", String(!isOpen));
     controls.filtersToggle.classList.toggle("open", isOpen);
     controls.filtersToggle.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) setMetadataOpen(false);
   };
 
   const syncResponsiveFilterState = (): void => {
     const isMobile = mobileFilterQuery.matches;
     if (isMobile) {
-      // Mobile defaults to collapsed controls and always-open license section.
       setFiltersOpen(false);
-      controls.licensePanel.classList.add("open");
-      controls.licenseToggle.classList.add("open");
       lastViewportWasMobile = true;
       return;
     }
     if (lastViewportWasMobile) {
-      // Reset classes when moving back to desktop from mobile.
       setFiltersOpen(false);
-      controls.licensePanel.classList.remove("open");
-      controls.licenseToggle.classList.remove("open");
     }
     lastViewportWasMobile = false;
   };
 
-  // License panel toggle
-  controls.licenseToggle.addEventListener("click", () => {
-    if (mobileFilterQuery.matches) return;
-    controls.licenseToggle.classList.toggle("open");
-    controls.licensePanel.classList.toggle("open");
-  });
-
-  // Mobile filters toggle
+  // Filters popover toggle
   if (controls.filtersToggle && controls.filterControls) {
     controls.filtersToggle.addEventListener("click", () => {
       const isOpen = !controls.filterControls.classList.contains("open");
       setFiltersOpen(isOpen);
     });
   }
+  document.addEventListener("click", (event) => {
+    if (!controls.filterControls || !controls.filtersToggle) return;
+    const target = event.target as Node;
+    if (
+      !controls.filterControls.contains(target) &&
+      !controls.filtersToggle.contains(target)
+    ) {
+      setFiltersOpen(false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setFiltersOpen(false);
+  });
 
+  setFiltersOpen(false);
   window.addEventListener("resize", syncResponsiveFilterState);
   syncResponsiveFilterState();
 
@@ -1931,21 +2208,122 @@ async function init(): Promise<void> {
   });
 
   const allDependencies = Object.values(report.dependencies || {});
-  const workspaceNames = buildWorkspaceFilterOptions(report);
+  const getDependencyWorkspaces = (dep: DependencyRecord): string[] => {
+    const workspaces = dep.usage.origins.workspaces || [];
+    return workspaces.length > 0 ? workspaces : ["root"];
+  };
+  const workspaceNames = Array.from(
+    new Set([
+      ...buildWorkspaceFilterOptions(report),
+      ...allDependencies.flatMap(getDependencyWorkspaces),
+    ]),
+  ).sort((a, b) => {
+    if (a === "root") return -1;
+    if (b === "root") return 1;
+    return a.localeCompare(b);
+  });
+  const formatCount = (label: string, count: number): string =>
+    label + " (" + count + ")";
+  const hasVulnerabilities = (dep: DependencyRecord): boolean =>
+    severityOrder[highestSeverity(normalizeSecurity(dep).summary)] > 0;
+  const countBy = (
+    predicate: (dep: DependencyRecord) => boolean,
+  ): number => allDependencies.reduce((count, dep) => count + (predicate(dep) ? 1 : 0), 0);
+  /**
+   * Update visible filter option labels with current dependency counts.
+   *
+   * Recomputes counts from the global `allDependencies` dataset and writes them into the UI filter controls.
+   * Specifically updates:
+   * - the total/"All", "Direct", and "Transitive" counts;
+   * - runtime scope option labels (Production/Development/Optional/Peer);
+   * - license category labels (Permissive, Weak Copyleft, Strong Copyleft, Other / Unknown);
+   * - the "Has vulnerabilities" count.
+   *
+   * This function mutates DOM elements found on the `controls` object by setting their `textContent`.
+   */
+  function updateFilterOptionCounts(): void {
+    const total = allDependencies.length;
+    controls.direct.options[0].textContent = formatCount("All", total);
+    controls.direct.options[1].textContent = formatCount(
+      "Direct",
+      countBy((dep) => dep.usage.direct),
+    );
+    controls.direct.options[2].textContent = formatCount(
+      "Transitive",
+      countBy((dep) => !dep.usage.direct),
+    );
+
+    const scopeLabels: Record<string, string> = {
+      all: "All",
+      runtime: "Production",
+      dev: "Development",
+      optional: "Optional",
+      peer: "Peer",
+    };
+    Array.from(controls.runtime.options).forEach((option) => {
+      option.textContent = formatCount(
+        scopeLabels[option.value] || option.textContent || option.value,
+        option.value === "all"
+          ? total
+          : countBy((dep) => dep.usage.scope === option.value),
+      );
+    });
+
+    const licenseCounts = {
+      permissive: 0,
+      weakCopyleft: 0,
+      strongCopyleft: 0,
+      unknown: 0,
+    };
+    allDependencies.forEach((dep) => {
+      licenseCounts[getLicenseCategory(resolvePrimaryLicense(dep).value)] += 1;
+    });
+    if (controls.licensePermissiveLabel)
+      controls.licensePermissiveLabel.textContent = formatCount(
+        "Permissive",
+        licenseCounts.permissive,
+      );
+    if (controls.licenseWeakCopyleftLabel)
+      controls.licenseWeakCopyleftLabel.textContent = formatCount(
+        "Weak Copyleft",
+        licenseCounts.weakCopyleft,
+      );
+    if (controls.licenseStrongCopyleftLabel)
+      controls.licenseStrongCopyleftLabel.textContent = formatCount(
+        "Strong Copyleft",
+        licenseCounts.strongCopyleft,
+      );
+    if (controls.licenseUnknownLabel)
+      controls.licenseUnknownLabel.textContent = formatCount(
+        "Other / Unknown",
+        licenseCounts.unknown,
+      );
+    if (controls.hasVulnsLabel)
+      controls.hasVulnsLabel.textContent = formatCount(
+        "Has vulnerabilities",
+        countBy(hasVulnerabilities),
+      );
+  }
   if (controls.workspace && controls.workspaceWrap && workspaceNames.length > 1) {
     controls.workspace.textContent = "";
     const allOption = document.createElement("option");
     allOption.value = "all";
-    allOption.textContent = "All workspaces";
+    allOption.textContent = formatCount("All workspaces", allDependencies.length);
     controls.workspace.appendChild(allOption);
     workspaceNames.forEach((workspaceName) => {
       const option = document.createElement("option");
       option.value = workspaceName;
-      option.textContent = workspaceName === "root" ? "Workspace root" : workspaceName;
+      option.textContent = formatCount(
+        workspaceName === "root" ? "Workspace root" : workspaceName,
+        countBy((dep) =>
+          getDependencyWorkspaces(dep).includes(workspaceName),
+        ),
+      );
       controls.workspace.appendChild(option);
     });
     controls.workspaceWrap.classList.remove("hidden");
   }
+  updateFilterOptionCounts();
   const depByKey = new Map<string, DependencyRecord>();
   allDependencies.forEach((dep) => {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
@@ -2021,6 +2399,15 @@ async function init(): Promise<void> {
     }
   }
 
+  /**
+   * Produce the list of dependencies that satisfy the current UI filter and search settings.
+   *
+   * Filters applied include search term (package name and license fields), direct vs transitive,
+   * runtime scope, workspace membership, presence of vulnerabilities, and enabled license categories.
+   * Dependencies present in `forcedVisibleDepKeys` bypass filtering and are always included.
+   *
+   * @returns An array of DependencyRecord objects that match the active filters and search term.
+   */
   function applyFilters(): DependencyRecord[] {
     const term = (controls.search.value || "").toLowerCase();
     const directFilter = controls.direct.value;
@@ -2059,12 +2446,12 @@ async function init(): Promise<void> {
         return false;
       if (
         workspaceFilter !== "all" &&
-        !(dep.usage.origins.workspaces || []).includes(workspaceFilter)
+        !getDependencyWorkspaces(dep).includes(workspaceFilter)
       )
         return false;
       if (
         hasVulns &&
-        severityOrder[highestSeverity(normalizeSecurity(dep).summary)] === 0
+        !hasVulnerabilities(dep)
       )
         return false;
 
@@ -2079,6 +2466,190 @@ async function init(): Promise<void> {
     });
   }
 
+  type ActiveFilterChip = {
+    id: string;
+    label: string;
+    remove: () => void;
+  };
+
+  /**
+   * Get the display label of a select's currently chosen option, omitting a trailing parenthesized count.
+   *
+   * @param select - The HTMLSelectElement to read the selected option from
+   * @returns The selected option's text with a trailing ` (n)` count removed, or an empty string if no option is selected
+   */
+  function selectedOptionLabel(select: HTMLSelectElement): string {
+    const option = select.selectedOptions[0];
+    return (option?.textContent || "").replace(/\s+\(\d+\)$/, "");
+  }
+
+  /**
+   * Restore all non-search filter controls to their initial (unrestricted) state.
+   *
+   * Sets the direct and runtime scope selectors to "all", resets the workspace selector to "all" if present,
+   * clears the "has vulnerabilities" checkbox, and enables all license-category checkboxes.
+   */
+  function resetNonSearchFilters(): void {
+    controls.direct.value = "all";
+    controls.runtime.value = "all";
+    if (controls.workspace) controls.workspace.value = "all";
+    controls.hasVulns.checked = false;
+    controls.licensePermissive.checked = true;
+    controls.licenseWeakCopyleft.checked = true;
+    controls.licenseStrongCopyleft.checked = true;
+    controls.licenseUnknown.checked = true;
+  }
+
+  /**
+   * Clear all active filters in the UI.
+   *
+   * Resets the search input to an empty string and restores non-search filter controls
+   * (direct/runtime/workspace/hasVulns and license checkboxes) to their default enabled state.
+   */
+  function resetAllFilters(): void {
+    controls.search.value = "";
+    resetNonSearchFilters();
+  }
+
+  /**
+   * Build an array of active filter chip models reflecting the current UI filter state.
+   *
+   * The returned chips represent non-default filters: a search term, non-"all" type/scope/workspace selections,
+   * disabled license category checkboxes, and the "has vulnerabilities" toggle. Each chip includes an `id`, a
+   * human-readable `label`, and a `remove` callback that restores the corresponding control to its default value.
+   *
+   * @returns An array of `ActiveFilterChip` objects; each chip has `id`, `label`, and a `remove` function that resets the related control to its default state.
+   */
+  function getActiveFilterChips(): ActiveFilterChip[] {
+    const chips: ActiveFilterChip[] = [];
+    const searchValue = controls.search.value.trim();
+    if (searchValue) {
+      chips.push({
+        id: "search",
+        label: "Search: " + searchValue,
+        remove: () => {
+          controls.search.value = "";
+        },
+      });
+    }
+    if (controls.direct.value !== "all") {
+      chips.push({
+        id: "type",
+        label: "Type: " + selectedOptionLabel(controls.direct),
+        remove: () => {
+          controls.direct.value = "all";
+        },
+      });
+    }
+    if (controls.runtime.value !== "all") {
+      chips.push({
+        id: "scope",
+        label: "Scope: " + selectedOptionLabel(controls.runtime),
+        remove: () => {
+          controls.runtime.value = "all";
+        },
+      });
+    }
+    if (controls.workspace && controls.workspace.value !== "all") {
+      chips.push({
+        id: "workspace",
+        label: "Workspace: " + selectedOptionLabel(controls.workspace),
+        remove: () => {
+          controls.workspace.value = "all";
+        },
+      });
+    }
+    const licenseFilters = [
+      {
+        id: "license-permissive",
+        checked: controls.licensePermissive.checked,
+        label: "License: Permissive",
+        reset: () => {
+          controls.licensePermissive.checked = true;
+        },
+      },
+      {
+        id: "license-weak-copyleft",
+        checked: controls.licenseWeakCopyleft.checked,
+        label: "License: Weak Copyleft",
+        reset: () => {
+          controls.licenseWeakCopyleft.checked = true;
+        },
+      },
+      {
+        id: "license-strong-copyleft",
+        checked: controls.licenseStrongCopyleft.checked,
+        label: "License: Strong Copyleft",
+        reset: () => {
+          controls.licenseStrongCopyleft.checked = true;
+        },
+      },
+      {
+        id: "license-unknown",
+        checked: controls.licenseUnknown.checked,
+        label: "License: Other / Unknown",
+        reset: () => {
+          controls.licenseUnknown.checked = true;
+        },
+      },
+    ];
+    licenseFilters.forEach((filter) => {
+      if (filter.checked) return;
+      chips.push({
+        id: filter.id,
+        label: filter.label,
+        remove: filter.reset,
+      });
+    });
+    if (controls.hasVulns.checked) {
+      chips.push({
+        id: "has-vulns",
+        label: "Has vulnerabilities",
+        remove: () => {
+          controls.hasVulns.checked = false;
+        },
+      });
+    }
+    return chips;
+  }
+
+  /**
+   * Synchronizes the filter UI to reflect the current set of active filters.
+   *
+   * Updates the filters toggle state, the numeric filter-count badge, the visibility
+   * of the active-filters row, and the rendered list of active filter chips.
+   */
+  function syncActiveFilterUi(): void {
+    const chips = getActiveFilterChips();
+    const activeCount = chips.length;
+    controls.filtersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (controls.filterCountBadge) {
+      controls.filterCountBadge.hidden = activeCount === 0;
+      controls.filterCountBadge.textContent = String(activeCount);
+    }
+    if (controls.activeFiltersRow && controls.activeFilterChips) {
+      controls.activeFiltersRow.hidden = activeCount === 0;
+      controls.activeFilterChips.innerHTML = chips
+        .map(
+          (chip) =>
+            '<span class="active-filter-chip">' +
+            escapeHtml(chip.label) +
+            '<button type="button" class="active-filter-remove" data-filter-chip="' +
+            escapeHtml(chip.id) +
+            '" aria-label="Remove ' +
+            escapeHtml(chip.label) +
+            '">×</button></span>',
+        )
+        .join("");
+    }
+  }
+
+  /**
+   * Sorts a list of dependency records according to the active sort column and sort direction.
+   *
+   * @param deps - The array of dependency records to sort.
+   * @returns A new array containing `deps` sorted by the current `sortColumn` and `sortAscending` settings.
+   */
   function sortDeps(deps: DependencyRecord[]): DependencyRecord[] {
     const sorted = [...deps];
 
@@ -2106,7 +2677,13 @@ async function init(): Promise<void> {
     return sorted;
   }
 
+  /**
+   * Updates the visible dependency list and summary to reflect current filters and sort state.
+   *
+   * Applies the active filters and sorting, updates the results summary text (including optional workspace context), renders either an empty-state message or the dependency cards into the list container, rebuilds the internal mapping of dependency DOM elements, and opens and lazily renders any dependency cards that are tracked as open.
+   */
   function renderList(): void {
+    syncActiveFilterUi();
     const filtered = applyFilters();
     const deps = sortDeps(filtered);
 
@@ -2323,6 +2900,26 @@ async function init(): Promise<void> {
     ctrl.addEventListener("input", handleFilterControlChange);
     ctrl.addEventListener("change", handleFilterControlChange);
   });
+
+  controls.activeFilterChips?.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "[data-filter-chip]",
+    );
+    if (!button) return;
+    const chip = getActiveFilterChips().find(
+      (item) => item.id === button.dataset.filterChip,
+    );
+    if (!chip) return;
+    chip.remove();
+    handleFilterControlChange();
+  });
+
+  const clearFilters = (): void => {
+    resetAllFilters();
+    handleFilterControlChange();
+  };
+  controls.activeFilterClear?.addEventListener("click", clearFilters);
+  controls.clearAllFilters?.addEventListener("click", clearFilters);
 
   controls.viewGraphButton?.addEventListener("click", () => {
     setActiveView("graph");

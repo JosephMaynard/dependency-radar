@@ -170,6 +170,18 @@ export interface AggregatedData {
     runtimeVersion: string;
     minRequiredMajor: number;
     targetNodeMajor?: number;
+    platform?: string;
+    arch?: string;
+    ci?: boolean;
+    packageManagerField?: string;
+    packageManager?: 'npm' | 'pnpm' | 'yarn' | 'bun';
+    packageManagerVersion?: string;
+    toolVersions?: {
+      npm?: string;
+      pnpm?: string;
+      yarn?: string;
+      bun?: string;
+    };
   };
   workspaces: {
     enabled: boolean;
