@@ -177,12 +177,29 @@ ${safeCssContent}
         </div>
       </div>
       <div class="cta-section">
-        <a href="${escapeHtml(ctaUrl)}" class="cta-link" target="_blank" rel="noopener" id="cta-primary-link">
-          Enrich this scan
-          <span class="cta-arrow">→</span>
+        <a href="${escapeHtml(ctaUrl)}" class="cta-card" target="_blank" rel="noopener" id="cta-primary-link">
+          <span class="cta-icon" aria-hidden="true">
+            <svg class="cta-icon-svg" width="54" height="54" viewBox="0 0 64 64" fill="none" role="img">
+              <path d="M16 24h32l-16 22L16 24Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M16 24l8-10h16l8 10M24 14l8 10 8-10M24 24l8 22 8-22" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M48 11v10M43 16h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="cta-copy">
+            <span class="cta-title">Upgrade report</span>
+            <span class="cta-text">Deep analysis, risk modelling, and actionable insights.</span>
+          </span>
+          <span class="cta-action">
+            <span class="cta-button">Upgrade this scan <span class="cta-arrow">→</span></span>
+            <span class="cta-privacy">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="m9 12 2 2 4-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Secure. Private. No code sent.
+            </span>
+          </span>
         </a>
-        <p class="cta-text">Beyond the standalone report</p>
-        <a href="${escapeHtml(ctaUrl)}" target="_blank" rel="noopener" class="cta-url" id="cta-secondary-link">dependency-radar.com</a>
       </div>
     </div>
   </header>

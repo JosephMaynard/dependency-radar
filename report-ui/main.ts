@@ -1774,11 +1774,7 @@ async function init(): Promise<void> {
   const ctaPrimaryLink = document.getElementById(
     "cta-primary-link",
   ) as HTMLAnchorElement | null;
-  const ctaSecondaryLink = document.getElementById(
-    "cta-secondary-link",
-  ) as HTMLAnchorElement | null;
   if (ctaPrimaryLink) ctaPrimaryLink.href = ctaUrl;
-  if (ctaSecondaryLink) ctaSecondaryLink.href = ctaUrl;
 
   // Format timestamp
   const dateEl = document.getElementById("formatted-date");

@@ -318,7 +318,7 @@
                 n.push(e.slug), w.set(t, n);
             });
         });
-        let C = null, x = "", L = null, S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, D = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, $ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
+        let C = null, x = "", L = null, S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, B = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, $ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
         const J = {
             down: !1,
             moved: !1,
@@ -591,9 +591,9 @@
                     maxY: 1
                 }
             };
-            return Be(v), De(v), v;
+            return De(v), Be(v), v;
         }
-        function Be(e) {
+        function De(e) {
             e.nodes.forEach(e => {
                 e.amplification = 0;
             }), e.nodes.forEach(t => {
@@ -614,7 +614,7 @@
                 t.amplification = n.size;
             });
         }
-        function De(e) {
+        function Be(e) {
             const t = new Map;
             e.layers.forEach((n, a) => {
                 0 === a ? n.sort((t, n) => {
@@ -719,8 +719,8 @@
             }), c.children.forEach(e => {
                 Y.add(e);
             });
-            const l = null === X || null === B, d = !l && Boolean(T) && I.has(T);
-            !l && d || (X = c.renderX, B = c.renderY), P = function(e, t, a, r) {
+            const l = null === X || null === D, d = !l && Boolean(T) && I.has(T);
+            !l && d || (X = c.renderX, D = c.renderY), P = function(e, t, a, r) {
                 const s = new Map, i = k(e, t, "parents"), o = k(e, t, "children"), c = new Map;
                 return s.set(t, {
                     x: a,
@@ -749,15 +749,15 @@
                         });
                     });
                 }), s;
-            }(C, e, X ?? c.renderX, B ?? c.renderY), Ae(X ?? c.renderX, B ?? c.renderY), U = !0, 
+            }(C, e, X ?? c.renderX, D ?? c.renderY), Ae(X ?? c.renderX, D ?? c.renderY), U = !0, 
             _e();
         }
         function Ne() {
-            L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, 
+            L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, 
             fe(), U = !0, _e();
         }
         function je(e = !0) {
-            S = null, D = new Set, A = new Set, e && (U = !0, _e());
+            S = null, B = new Set, A = new Set, e && (U = !0, _e());
         }
         function Re() {
             if (!C) return;
@@ -766,9 +766,9 @@
                 t.targetRadius = function(e) {
                     const t = L === e.slug, n = I.has(e.slug);
                     let a = e.radius;
-                    t ? a *= 1.85 : L && n ? a *= 1.22 : L && !n ? a *= .84 : S && D.has(e.slug) ? a *= 1.1 : S && (a *= .9);
+                    t ? a *= 1.85 : L && n ? a *= 1.22 : L && !n ? a *= .84 : S && B.has(e.slug) ? a *= 1.1 : S && (a *= .9);
                     return a;
-                }(t), t.targetLabelChars = a(t.labelGraphemes, Boolean(L) && I.has(t.slug) || !L && Boolean(S) && D.has(t.slug));
+                }(t), t.targetLabelChars = a(t.labelGraphemes, Boolean(L) && I.has(t.slug) || !L && Boolean(S) && B.has(t.slug));
                 const n = P.get(t.slug);
                 if (e && n) return t.targetX = n.x, void (t.targetY = n.y);
                 if (!e || !Y.has(t.slug)) return t.targetX = t.baseX, void (t.targetY = t.baseY);
@@ -778,21 +778,21 @@
         }
         function Ve(e) {
             if (L) return;
-            if (S = e, D = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
+            if (S = e, B = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
             void _e();
             const t = f(C, e), n = y(C, e);
-            D = new Set([ e ]), t.forEach(e => {
-                D.add(e);
+            B = new Set([ e ]), t.forEach(e => {
+                B.add(e);
             }), n.forEach(e => {
-                D.add(e);
+                B.add(e);
             });
             const a = C.nodes.get(e);
             a && (a.parents.forEach(e => {
-                D.add(e);
+                B.add(e);
             }), a.children.forEach(e => {
-                D.add(e);
+                B.add(e);
             })), C.edges.forEach(e => {
-                D.has(e.from) && D.has(e.to) && A.add(p(e.from, e.to));
+                B.has(e.from) && B.has(e.to) && A.add(p(e.from, e.to));
             }), U = !0, _e();
         }
         function He(e) {
@@ -816,7 +816,7 @@
             c.popover.style.left = `${l}px`, c.popover.style.top = `${d}px`;
         }
         function We(e) {
-            return L ? I.has(e) ? 1 : .14 : S ? D.has(e) ? 1 : .16 : .95;
+            return L ? I.has(e) ? 1 : .14 : S ? B.has(e) ? 1 : .16 : .95;
         }
         function Ge() {
             if (!ee) return;
@@ -833,7 +833,7 @@
             e.nodes.forEach(e => {
                 if (!b.has(e.slug)) return;
                 let t = 0;
-                L === e.slug ? t = 2 : (I.has(e.slug) || D.has(e.slug)) && (t = 1), w.push({
+                L === e.slug ? t = 2 : (I.has(e.slug) || B.has(e.slug)) && (t = 1), w.push({
                     node: e,
                     priority: t,
                     order: E++
@@ -879,7 +879,7 @@
             ee.globalAlpha = .36 * n((N - .35) / .9, .2, 1), ee.beginPath(), X.forEach(e => {
                 e.highlighted && d(ee, e, P, Boolean(L));
             }), ee.stroke(), ee.globalCompositeOperation = "source-over";
-            const B = e => {
+            const D = e => {
                 const t = L === e.slug, n = e.renderRadius;
                 ee.globalAlpha = 1, ee.fillStyle = k, ee.beginPath(), ee.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
                 ee.fill(), ee.globalAlpha = We(e.slug);
@@ -894,7 +894,7 @@
                 if ("none" === e.ref.vulnerabilitySeverity) return;
                 const t = e.renderRadius, n = "high" === e.ref.vulnerabilitySeverity ? v : f;
                 var a;
-                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, L ? I.has(a) ? .78 : .11 : S ? D.has(a) ? .76 : .12 : .8), 
+                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, L ? I.has(a) ? .78 : .11 : S ? B.has(a) ? .76 : .12 : .8), 
                 ee.strokeStyle = n;
                 const r = t / e.radius, s = t / 3 * 1.2 / 12, i = 1.2 * s + 3 * (r - 1), o = Math.max(.5 * s, .15), c = Math.max(1 * s, .3), l = Math.max(3 * s, .8), d = Math.max(1 * s, .3), u = Math.max(.5 * s, .15), p = t + (2 + 6 * (r - 1)) + o / 2, h = p + o / 2 + i + c / 2, g = h + c / 2 + i + l / 2, m = g + l / 2 + i + d / 2, y = m + d / 2 + i + u / 2;
                 ee.setLineDash([]), ee.lineWidth = u, ee.beginPath(), ee.arc(0, 0, y, 0, 2 * Math.PI), 
@@ -905,7 +905,7 @@
                 ee.stroke(), ee.restore();
             };
             for (const t of [ 0, 1, 2 ]) w.forEach(({node: e, priority: n}) => {
-                n === t && B(e);
+                n === t && D(e);
             }), w.forEach(({node: e, priority: n}) => {
                 n === t && T(e);
             });
@@ -953,7 +953,7 @@
         }
         function qe(e) {
             const t = Xe(e);
-            t && (we(), x = e, C = t, Ne(), Oe(), S = null, D = new Set, A = new Set, Ye(!0), 
+            t && (we(), x = e, C = t, Ne(), Oe(), S = null, B = new Set, A = new Set, Ye(!0), 
             C && (we(), fe(), Se(), N = V, ve(O, F)), U = !0, _e());
         }
         function ze(e) {
@@ -1081,8 +1081,8 @@
                 }(), ct(), te ? (Le(), qe(x)) : pe();
             },
             buildWorkspaceGraph: Xe,
-            computeAmplification: Be,
-            layoutGraph: De,
+            computeAmplification: De,
+            layoutGraph: Be,
             renderLoop: Ue,
             applyFocus: Te,
             clearFocus: Ne,
@@ -1257,13 +1257,13 @@
             return n[a] - n[r];
         }
     } ], X = P.length;
-    function B(e) {
+    function D(e) {
         if (!e) return "unknown";
         const t = e.toUpperCase();
         for (const [n, a] of Object.entries(w)) if (a.some(e => t.includes(e.toUpperCase()))) return n;
         return "unknown";
     }
-    function D(e) {
+    function B(e) {
         const t = e.compliance.license, n = t.declared?.valid ? t.declared.spdxId : void 0, a = t.inferred?.spdxId;
         return n ? {
             value: n,
@@ -1582,7 +1582,7 @@
         return [ '<details class="dep-card" data-risk="' + t + '" data-dep-key="' + j(n) + '" id="' + j(a) + '">', s, '<div class="dep-details" data-rendered="false"></div>', "</details>" ].join("");
     }
     function me(e, t, n) {
-        const a = N(e), r = a.summary, s = D(e), i = s.isInferred ? `${s.value} (inferred)` : s.value, o = function(e) {
+        const a = N(e), r = a.summary, s = B(e), i = s.isInferred ? `${s.value} (inferred)` : s.value, o = function(e) {
             const t = e.package?.links || {}, n = e.links || {}, a = de(t.repository || n.repository || n.repo);
             return {
                 npm: t.npm || n.npm,
@@ -1643,13 +1643,13 @@
         e.upgrade.latestVersion && L.push(q("Latest version", e.upgrade.latestVersion));
         const I = le("Version", '<div class="section-note">Based on npm outdated findings.</div><div class="kv-grid">' + L.join("") + "</div>"), M = e.package.deprecated ? le("Deprecated", '<div class="kv-grid">' + q("Deprecated", "Yes", "Declared by the package author.") + "</div>", void 0, "warning") : "", Y = [ q("Node engine constraint", e.upgrade.nodeEngine || "Any") ];
         void 0 !== e.upgrade.blocksNodeMajor && Y.push(q("Blocks Node major upgrade", e.upgrade.blocksNodeMajor ? "Yes" : "No"));
-        const P = le("Constraints", '<div class="kv-grid">' + Y.join("") + "</div>"), X = le("Blast radius", '<div class="kv-grid">' + [ q("Used by other packages (fanIn)", e.graph.fanIn), q("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), B = {
+        const P = le("Constraints", '<div class="kv-grid">' + Y.join("") + "</div>"), X = le("Blast radius", '<div class="kv-grid">' + [ q("Used by other packages (fanIn)", e.graph.fanIn), q("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), D = {
             nodeEngine: "Node engine constraint",
             peerDependency: "Peer dependency constraints",
             nativeBindings: "Native bindings/build tooling",
             installScripts: "Install lifecycle scripts",
             deprecated: "Deprecated by author"
-        }, T = ce("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + j(B[e] || e) + "</li>").join("") + "</ul></div>" : "")), R = oe(e, t, n);
+        }, T = ce("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + j(D[e] || e) + "</li>").join("") + "</ul></div>" : "")), R = oe(e, t, n);
         return [ he(o), h, x, T, R, '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary><div class="raw-data-pane"><pre>' + j(c) + '</pre><button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button></div></details>' ].join("");
     }
     async function ve() {
@@ -1663,41 +1663,41 @@
             return `https://dependency-radar.com/next-steps?source=standalone-report&cli=${encodeURIComponent(t)}`;
         }(e.dependencyRadarVersion), r = document.getElementById("project-path");
         r && (r.textContent = e.project.name || e.project.projectDir, r.title = e.project.projectDir);
-        const s = document.getElementById("metadata-toggle"), i = document.getElementById("metadata-panel"), o = document.getElementById("cta-primary-link"), c = document.getElementById("cta-secondary-link");
-        o && (o.href = a), c && (c.href = a);
-        const l = document.getElementById("formatted-date");
-        let d = e.generatedAt || "";
-        if (l && e.generatedAt) try {
+        const s = document.getElementById("metadata-toggle"), i = document.getElementById("metadata-panel"), o = document.getElementById("cta-primary-link");
+        o && (o.href = a);
+        const c = document.getElementById("formatted-date");
+        let l = e.generatedAt || "";
+        if (c && e.generatedAt) try {
             const t = new Date(e.generatedAt);
-            d = new Intl.DateTimeFormat(void 0, {
+            l = new Intl.DateTimeFormat(void 0, {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
-            }).format(t), l.textContent = d;
+            }).format(t), c.textContent = l;
         } catch {
-            d = e.generatedAt, l.textContent = e.generatedAt;
+            l = e.generatedAt, c.textContent = e.generatedAt;
         }
         i && (i.innerHTML = function(e, t) {
             const n = e.environment || {}, a = n.minRequiredMajor, r = a && a > 0 ? "Node requirement derived from dependency engine ranges." : "";
             return [ O("Report", [ H("Dependency Radar", e.dependencyRadarVersion), H("Schema", e.schemaVersion), H("Generated", t || e.generatedAt), H("Generated raw", e.generatedAt) ]), O("Project", [ H("Name", e.project.name), H("Version", e.project.version), H("Path", e.project.projectDir), H("Description", e.project.description), H("License", e.project.license), H("Homepage", e.project.homepage), H("Repository", e.project.repository), H("Constraints", e.project.constraints), H("Dependency policy", e.project.dependencyPolicySummary) ]), O("Git", [ H("Branch", e.git?.branch) ]), O("Environment", [ H("Node", n.nodeVersion), H("Runtime", n.runtimeVersion), H("Minimum required Node major", n.minRequiredMajor), H("Target Node major", n.targetNodeMajor), H("Platform", n.platform), H("Architecture", n.arch), H("CI", n.ci), H("packageManager field", n.packageManagerField), H("Package manager", n.packageManager), H("Package manager version", n.packageManagerVersion), H("Tool versions", n.toolVersions), H("Node note", r) ]), F(e), O("Summary", [ H("Dependencies", e.summary?.dependencyCount), H("Direct", e.summary?.directCount), H("Transitive", e.summary?.transitiveCount), H("Findings", e.summary?.findingCount) ]), W(e) ].filter(Boolean).join("");
-        }(e, d), i.hidden = !1);
-        const u = e => {
+        }(e, l), i.hidden = !1);
+        const d = e => {
             s && i && (i.classList.toggle("open", e), s.classList.toggle("open", e), s.setAttribute("aria-expanded", String(e)));
         };
         s?.addEventListener("click", () => {
             const e = !i?.classList.contains("open");
-            u(e);
+            d(e);
         }), document.addEventListener("click", e => {
             if (!s || !i) return;
             if (!i.classList.contains("open")) return;
             const t = e.target;
-            s.contains(t) || i.contains(t) || u(!1);
+            s.contains(t) || i.contains(t) || d(!1);
         }), document.addEventListener("keydown", e => {
-            "Escape" === e.key && u(!1);
+            "Escape" === e.key && d(!1);
         });
-        const p = {
+        const u = {
             search: document.getElementById("search"),
             direct: document.getElementById("direct-filter"),
             runtime: document.getElementById("runtime-filter"),
@@ -1747,64 +1747,64 @@
             graphOpenList: document.getElementById("graph-open-list"),
             reportFooter: document.querySelector(".report-footer")
         };
-        let h = "name", g = !0, m = null, v = !1;
+        let p = "name", h = !0, g = null, m = !1;
         document.documentElement.setAttribute("data-theme", "dark");
         "light" === localStorage.getItem("dependency-radar-theme") ? (document.documentElement.classList.add("light"), 
-        p.themeSwitch.classList.add("light"), document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
-        p.themeSwitch.classList.remove("light"), document.documentElement.setAttribute("data-theme", "dark")), 
-        p.themeSwitch.addEventListener("click", () => {
-            document.documentElement.classList.toggle("light"), p.themeSwitch.classList.toggle("light");
+        u.themeSwitch.classList.add("light"), document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
+        u.themeSwitch.classList.remove("light"), document.documentElement.setAttribute("data-theme", "dark")), 
+        u.themeSwitch.addEventListener("click", () => {
+            document.documentElement.classList.toggle("light"), u.themeSwitch.classList.toggle("light");
             const e = document.documentElement.classList.contains("light");
             document.documentElement.setAttribute("data-theme", e ? "light" : "dark"), localStorage.setItem("dependency-radar-theme", e ? "light" : "dark"), 
-            m?.requestRender();
+            g?.requestRender();
         });
-        const f = window.matchMedia("(max-width: 768px)");
-        let y = f.matches;
-        const k = e => {
-            p.filterControls && p.filtersToggle && (p.filterControls.classList.toggle("open", e), 
-            p.filtersToggle.classList.toggle("open", e), p.filtersToggle.setAttribute("aria-expanded", String(e)), 
-            e && u(!1));
-        }, w = () => {
-            if (f.matches) return k(!1), void (y = !0);
-            y && k(!1), y = !1;
+        const v = window.matchMedia("(max-width: 768px)");
+        let f = v.matches;
+        const y = e => {
+            u.filterControls && u.filtersToggle && (u.filterControls.classList.toggle("open", e), 
+            u.filtersToggle.classList.toggle("open", e), u.filtersToggle.setAttribute("aria-expanded", String(e)), 
+            e && d(!1));
+        }, k = () => {
+            if (v.matches) return y(!1), void (f = !0);
+            f && y(!1), f = !1;
         };
-        function E() {
-            if (p.columnHeadersContainer && (p.columnHeadersContainer.innerHTML = _(h, g)), 
-            p.packageHeader) {
-                const e = p.packageHeader.querySelector(".sort-indicator");
-                e && ("name" === h ? (e.textContent = g ? " ▲" : " ▼", p.packageHeader.classList.add("sorted")) : (e.textContent = "", 
-                p.packageHeader.classList.remove("sorted")));
+        function w() {
+            if (u.columnHeadersContainer && (u.columnHeadersContainer.innerHTML = _(p, h)), 
+            u.packageHeader) {
+                const e = u.packageHeader.querySelector(".sort-indicator");
+                e && ("name" === p ? (e.textContent = h ? " ▲" : " ▼", u.packageHeader.classList.add("sorted")) : (e.textContent = "", 
+                u.packageHeader.classList.remove("sorted")));
             }
         }
-        function C(e) {
+        function E(e) {
             const t = e.target.closest(".column-header");
             if (!t) return;
             const n = t.dataset.sort;
-            n && (h === n ? g = !g : (h = n, g = !0), p.sort && (p.sort.value = h, p.sortDirection.textContent = g ? "↑" : "↓"), 
-            E(), K());
+            n && (p === n ? h = !h : (p = n, h = !0), u.sort && (u.sort.value = p, u.sortDirection.textContent = h ? "↑" : "↓"), 
+            w(), z());
         }
-        p.filtersToggle && p.filterControls && p.filtersToggle.addEventListener("click", () => {
-            const e = !p.filterControls.classList.contains("open");
-            k(e);
+        u.filtersToggle && u.filterControls && u.filtersToggle.addEventListener("click", () => {
+            const e = !u.filterControls.classList.contains("open");
+            y(e);
         }), document.addEventListener("click", e => {
-            if (!p.filterControls || !p.filtersToggle) return;
+            if (!u.filterControls || !u.filtersToggle) return;
             const t = e.target;
-            p.filterControls.contains(t) || p.filtersToggle.contains(t) || k(!1);
+            u.filterControls.contains(t) || u.filtersToggle.contains(t) || y(!1);
         }), document.addEventListener("keydown", e => {
-            "Escape" === e.key && k(!1);
-        }), window.addEventListener("resize", w), w(), p.sortDirection.addEventListener("click", () => {
-            g = !g, p.sortDirection.textContent = g ? "↑" : "↓", E(), K();
-        }), p.sort.addEventListener("change", () => {
-            h = p.sort.value, E(), K();
-        }), p.columnHeadersContainer && p.columnHeadersContainer.addEventListener("click", C), 
-        p.packageHeader && p.packageHeader.addEventListener("click", C), E(), p.licenseAll.addEventListener("click", () => {
-            p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !0, p.licenseStrongCopyleft.checked = !0, 
-            p.licenseUnknown.checked = !0, V.clear(), K();
-        }), p.licenseFriendly.addEventListener("click", () => {
-            p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !1, p.licenseStrongCopyleft.checked = !1, 
-            p.licenseUnknown.checked = !1, V.clear(), K();
+            "Escape" === e.key && y(!1);
+        }), window.addEventListener("resize", k), k(), u.sortDirection.addEventListener("click", () => {
+            h = !h, u.sortDirection.textContent = h ? "↑" : "↓", w(), z();
+        }), u.sort.addEventListener("change", () => {
+            p = u.sort.value, w(), z();
+        }), u.columnHeadersContainer && u.columnHeadersContainer.addEventListener("click", E), 
+        u.packageHeader && u.packageHeader.addEventListener("click", E), w(), u.licenseAll.addEventListener("click", () => {
+            u.licensePermissive.checked = !0, u.licenseWeakCopyleft.checked = !0, u.licenseStrongCopyleft.checked = !0, 
+            u.licenseUnknown.checked = !0, R.clear(), z();
+        }), u.licenseFriendly.addEventListener("click", () => {
+            u.licensePermissive.checked = !0, u.licenseWeakCopyleft.checked = !1, u.licenseStrongCopyleft.checked = !1, 
+            u.licenseUnknown.checked = !1, R.clear(), z();
         });
-        const x = Object.values(e.dependencies || {}), L = function(e) {
+        const C = Object.values(e.dependencies || {}), x = function(e) {
             if (!e.workspaces.enabled) return [];
             const t = new Set;
             return (e.workspaces.workspacePackages || []).forEach(e => {
@@ -1814,24 +1814,24 @@
                     e && t.add(e);
                 });
             }), Array.from(t).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t));
-        }(e), S = (e, t) => e + " (" + t + ")", I = e => {
+        }(e), L = (e, t) => e + " (" + t + ")", S = e => {
             return T[(t = N(e).summary, t?.highest || "none")] > 0;
             var t;
-        }, M = e => x.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
-        if (p.workspace && p.workspaceWrap && L.length > 1) {
-            p.workspace.textContent = "";
+        }, I = e => C.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
+        if (u.workspace && u.workspaceWrap && x.length > 1) {
+            u.workspace.textContent = "";
             const e = document.createElement("option");
-            e.value = "all", e.textContent = S("All workspaces", x.length), p.workspace.appendChild(e), 
-            L.forEach(e => {
+            e.value = "all", e.textContent = L("All workspaces", C.length), u.workspace.appendChild(e), 
+            x.forEach(e => {
                 const t = document.createElement("option");
-                t.value = e, t.textContent = S("root" === e ? "Workspace root" : e, M(t => (t.usage.origins.workspaces || []).includes(e))), 
-                p.workspace.appendChild(t);
-            }), p.workspaceWrap.classList.remove("hidden");
+                t.value = e, t.textContent = L("root" === e ? "Workspace root" : e, I(t => (t.usage.origins.workspaces || []).includes(e))), 
+                u.workspace.appendChild(t);
+            }), u.workspaceWrap.classList.remove("hidden");
         }
         !function() {
-            const e = x.length;
-            p.direct.options[0].textContent = S("All", e), p.direct.options[1].textContent = S("Direct", M(e => e.usage.direct)), 
-            p.direct.options[2].textContent = S("Transitive", M(e => !e.usage.direct));
+            const e = C.length;
+            u.direct.options[0].textContent = L("All", e), u.direct.options[1].textContent = L("Direct", I(e => e.usage.direct)), 
+            u.direct.options[2].textContent = L("Transitive", I(e => !e.usage.direct));
             const t = {
                 all: "All",
                 runtime: "Production",
@@ -1839,8 +1839,8 @@
                 optional: "Optional",
                 peer: "Peer"
             };
-            Array.from(p.runtime.options).forEach(n => {
-                n.textContent = S(t[n.value] || n.textContent || n.value, "all" === n.value ? e : M(e => e.usage.scope === n.value));
+            Array.from(u.runtime.options).forEach(n => {
+                n.textContent = L(t[n.value] || n.textContent || n.value, "all" === n.value ? e : I(e => e.usage.scope === n.value));
             });
             const n = {
                 permissive: 0,
@@ -1848,88 +1848,88 @@
                 strongCopyleft: 0,
                 unknown: 0
             };
-            x.forEach(e => {
-                n[B(D(e).value)] += 1;
-            }), p.licensePermissiveLabel && (p.licensePermissiveLabel.textContent = S("Permissive", n.permissive)), 
-            p.licenseWeakCopyleftLabel && (p.licenseWeakCopyleftLabel.textContent = S("Weak Copyleft", n.weakCopyleft)), 
-            p.licenseStrongCopyleftLabel && (p.licenseStrongCopyleftLabel.textContent = S("Strong Copyleft", n.strongCopyleft)), 
-            p.licenseUnknownLabel && (p.licenseUnknownLabel.textContent = S("Other / Unknown", n.unknown)), 
-            p.hasVulnsLabel && (p.hasVulnsLabel.textContent = S("Has vulnerabilities", M(I)));
+            C.forEach(e => {
+                n[D(B(e).value)] += 1;
+            }), u.licensePermissiveLabel && (u.licensePermissiveLabel.textContent = L("Permissive", n.permissive)), 
+            u.licenseWeakCopyleftLabel && (u.licenseWeakCopyleftLabel.textContent = L("Weak Copyleft", n.weakCopyleft)), 
+            u.licenseStrongCopyleftLabel && (u.licenseStrongCopyleftLabel.textContent = L("Strong Copyleft", n.strongCopyleft)), 
+            u.licenseUnknownLabel && (u.licenseUnknownLabel.textContent = L("Other / Unknown", n.unknown)), 
+            u.hasVulnsLabel && (u.hasVulnsLabel.textContent = L("Has vulnerabilities", I(S)));
         }();
-        const Y = new Map;
-        x.forEach(e => {
-            Y.set(Q(e.package.name, e.package.version), e);
+        const M = new Map;
+        C.forEach(e => {
+            M.set(Q(e.package.name, e.package.version), e);
         });
-        const X = new Set(Y.keys()), A = ae(X), R = new Set, V = new Set, G = new Map, $ = (() => {
+        const Y = new Set(M.keys()), X = ae(Y), A = new Set, R = new Set, V = new Map, G = (() => {
             const e = document.getElementById("copy-announcer");
             if (e) return e;
             const t = document.createElement("div");
             return t.id = "copy-announcer", t.className = "sr-only", t.setAttribute("aria-live", "polite"), 
             document.body.appendChild(t), t;
         })();
-        function U(e) {
+        function $(e) {
             const t = e.dataset.depKey;
             if (!t) return;
             const n = e.querySelector(".dep-details");
             if (!n || "true" === n.dataset.rendered) return;
-            const a = Y.get(t);
+            const a = M.get(t);
             a && (n.setAttribute("aria-busy", "true"), n.innerHTML = [ '<div class="dep-loading" role="presentation">', '<div class="dep-loading-bar"></div>', "</div>" ].join(""), 
             requestAnimationFrame(() => {
-                n.innerHTML = me(a, X, A), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
+                n.innerHTML = me(a, Y, X), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
             }));
         }
-        function q(e) {
+        function U(e) {
             const t = e.selectedOptions[0];
             return (t?.textContent || "").replace(/\s+\(\d+\)$/, "");
         }
-        function z() {
+        function q() {
             const e = [];
-            "all" !== p.direct.value && e.push({
+            "all" !== u.direct.value && e.push({
                 id: "type",
-                label: "Type: " + q(p.direct),
+                label: "Type: " + U(u.direct),
                 remove: () => {
-                    p.direct.value = "all";
+                    u.direct.value = "all";
                 }
-            }), "all" !== p.runtime.value && e.push({
+            }), "all" !== u.runtime.value && e.push({
                 id: "scope",
-                label: "Scope: " + q(p.runtime),
+                label: "Scope: " + U(u.runtime),
                 remove: () => {
-                    p.runtime.value = "all";
+                    u.runtime.value = "all";
                 }
-            }), p.workspace && "all" !== p.workspace.value && e.push({
+            }), u.workspace && "all" !== u.workspace.value && e.push({
                 id: "workspace",
-                label: "Workspace: " + q(p.workspace),
+                label: "Workspace: " + U(u.workspace),
                 remove: () => {
-                    p.workspace.value = "all";
+                    u.workspace.value = "all";
                 }
             });
             return [ {
                 id: "license-permissive",
-                checked: p.licensePermissive.checked,
+                checked: u.licensePermissive.checked,
                 label: "License: Permissive",
                 reset: () => {
-                    p.licensePermissive.checked = !0;
+                    u.licensePermissive.checked = !0;
                 }
             }, {
                 id: "license-weak-copyleft",
-                checked: p.licenseWeakCopyleft.checked,
+                checked: u.licenseWeakCopyleft.checked,
                 label: "License: Weak Copyleft",
                 reset: () => {
-                    p.licenseWeakCopyleft.checked = !0;
+                    u.licenseWeakCopyleft.checked = !0;
                 }
             }, {
                 id: "license-strong-copyleft",
-                checked: p.licenseStrongCopyleft.checked,
+                checked: u.licenseStrongCopyleft.checked,
                 label: "License: Strong Copyleft",
                 reset: () => {
-                    p.licenseStrongCopyleft.checked = !0;
+                    u.licenseStrongCopyleft.checked = !0;
                 }
             }, {
                 id: "license-unknown",
-                checked: p.licenseUnknown.checked,
+                checked: u.licenseUnknown.checked,
                 label: "License: Other / Unknown",
                 reset: () => {
-                    p.licenseUnknown.checked = !0;
+                    u.licenseUnknown.checked = !0;
                 }
             } ].forEach(t => {
                 t.checked || e.push({
@@ -1937,109 +1937,109 @@
                     label: t.label,
                     remove: t.reset
                 });
-            }), p.hasVulns.checked && e.push({
+            }), u.hasVulns.checked && e.push({
                 id: "has-vulns",
                 label: "Has vulnerabilities",
                 remove: () => {
-                    p.hasVulns.checked = !1;
+                    u.hasVulns.checked = !1;
                 }
             }), e;
         }
-        function K() {
+        function z() {
             !function() {
-                const e = z(), t = e.length;
-                p.filtersToggle.classList.toggle("has-active-filters", t > 0), p.filterCountBadge && (p.filterCountBadge.hidden = 0 === t, 
-                p.filterCountBadge.textContent = String(t)), p.activeFiltersRow && p.activeFilterChips && (p.activeFiltersRow.hidden = 0 === t, 
-                p.activeFilterChips.innerHTML = e.map(e => '<span class="active-filter-chip">' + j(e.label) + '<button type="button" class="active-filter-remove" data-filter-chip="' + j(e.id) + '" aria-label="Remove ' + j(e.label) + '">×</button></span>').join(""));
+                const e = q(), t = e.length;
+                u.filtersToggle.classList.toggle("has-active-filters", t > 0), u.filterCountBadge && (u.filterCountBadge.hidden = 0 === t, 
+                u.filterCountBadge.textContent = String(t)), u.activeFiltersRow && u.activeFilterChips && (u.activeFiltersRow.hidden = 0 === t, 
+                u.activeFilterChips.innerHTML = e.map(e => '<span class="active-filter-chip">' + j(e.label) + '<button type="button" class="active-filter-remove" data-filter-chip="' + j(e.id) + '" aria-label="Remove ' + j(e.label) + '">×</button></span>').join(""));
             }();
             const a = function(e) {
                 const t = [ ...e ];
-                if ("name" === h) t.sort((e, t) => e.package.name.localeCompare(t.package.name)); else if ("depth" === h) t.sort((e, t) => e.usage.depth - t.usage.depth); else {
-                    const e = P.find(e => e.sortKey === h || e.id === h);
+                if ("name" === p) t.sort((e, t) => e.package.name.localeCompare(t.package.name)); else if ("depth" === p) t.sort((e, t) => e.usage.depth - t.usage.depth); else {
+                    const e = P.find(e => e.sortKey === p || e.id === p);
                     e?.sortFn ? t.sort(e.sortFn) : e && t.sort((t, n) => e.getValue(t).localeCompare(e.getValue(n)));
                 }
-                return g || t.reverse(), t;
+                return h || t.reverse(), t;
             }(function() {
-                const e = (p.search.value || "").toLowerCase(), t = p.direct.value, n = p.runtime.value, a = p.workspace?.value || "all", r = p.hasVulns.checked, s = p.licensePermissive.checked, i = p.licenseWeakCopyleft.checked, o = p.licenseStrongCopyleft.checked, c = p.licenseUnknown.checked;
-                return x.filter(l => {
+                const e = (u.search.value || "").toLowerCase(), t = u.direct.value, n = u.runtime.value, a = u.workspace?.value || "all", r = u.hasVulns.checked, s = u.licensePermissive.checked, i = u.licenseWeakCopyleft.checked, o = u.licenseStrongCopyleft.checked, c = u.licenseUnknown.checked;
+                return C.filter(l => {
                     const d = Q(l.package.name, l.package.version);
-                    if (V.has(d)) return !0;
-                    const u = D(l), p = [ u.value, l.compliance.license.declared?.spdxId, l.compliance.license.inferred?.spdxId ].filter(Boolean).join(" ").toLowerCase();
+                    if (R.has(d)) return !0;
+                    const u = B(l), p = [ u.value, l.compliance.license.declared?.spdxId, l.compliance.license.inferred?.spdxId ].filter(Boolean).join(" ").toLowerCase();
                     if (e && !l.package.name.toLowerCase().includes(e) && !p.includes(e)) return !1;
                     if ("direct" === t && !l.usage.direct) return !1;
                     if ("transitive" === t && l.usage.direct) return !1;
                     if ("all" !== n && l.usage.scope !== n) return !1;
                     if ("all" !== a && !(l.usage.origins.workspaces || []).includes(a)) return !1;
-                    if (r && !I(l)) return !1;
-                    const h = B(u.value);
+                    if (r && !S(l)) return !1;
+                    const h = D(u.value);
                     return !("permissive" === h && !s || "weakCopyleft" === h && !i || "strongCopyleft" === h && !o || "unknown" === h && !c);
                 });
-            }()), r = e.summary?.dependencyCount || x.length;
+            }()), r = e.summary?.dependencyCount || C.length;
             n.innerHTML = "Showing <strong>" + a.length + "</strong> of <strong>" + r + "</strong> dependencies", 
-            "all" !== (p.workspace?.value || "all") && (n.innerHTML += " in <strong>" + j(p.workspace.value) + "</strong>"), 
-            0 !== a.length ? (t.innerHTML = a.map(ge).join(""), G.clear(), t.querySelectorAll("details.dep-card").forEach(e => {
+            "all" !== (u.workspace?.value || "all") && (n.innerHTML += " in <strong>" + j(u.workspace.value) + "</strong>"), 
+            0 !== a.length ? (t.innerHTML = a.map(ge).join(""), V.clear(), t.querySelectorAll("details.dep-card").forEach(e => {
                 const t = e.dataset.depKey;
-                t && G.set(t, e);
-            }), R.forEach(e => {
-                const t = G.get(e);
-                t && (t.open || (t.open = !0), U(t));
+                t && V.set(t, e);
+            }), A.forEach(e => {
+                const t = V.get(e);
+                t && (t.open || (t.open = !0), $(t));
             })) : t.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No dependencies match your filters</div></div>';
         }
-        function J(e) {
-            const t = A.get(e) || [];
+        function K(e) {
+            const t = X.get(e) || [];
             return 1 === t.length ? t[0] : null;
         }
-        function Z(e) {
-            if (Y.has(e)) return e;
+        function J(e) {
+            if (M.has(e)) return e;
             const t = te(e);
-            if (!t) return J(e);
+            if (!t) return K(e);
             if (t.version.startsWith("npm:")) {
                 const e = t.version.slice(4), n = t.name + (e.startsWith("@") ? e : "@" + e);
-                if (Y.has(n)) return n;
+                if (M.has(n)) return n;
             }
-            return J(t.name);
+            return K(t.name);
         }
-        function ee(t) {
-            if (!p.listViewPanel || !p.graphViewPanel) return void console.warn("Dependency Radar: view panels are missing from the report DOM.");
+        function Z(t) {
+            if (!u.listViewPanel || !u.graphViewPanel) return void console.warn("Dependency Radar: view panels are missing from the report DOM.");
             const n = "list" === t;
-            n || Boolean(p.graphWorkspaceSelect && p.graphWorkspaceWrap && p.graphControls && p.graphCanvas && p.graphCanvasShell && p.graphPopover && p.graphPopoverName && p.graphPopoverVersion && p.graphPopoverLicense && p.graphPopoverVulns && p.graphPopoverAmplification && p.graphOpenList) ? (p.listViewPanel.classList.toggle("active", n), 
-            p.graphViewPanel.classList.toggle("active", !n), p.listViewPanel.setAttribute("aria-hidden", String(!n)), 
-            p.graphViewPanel.setAttribute("aria-hidden", String(n)), p.viewGraphButton && (p.viewGraphButton.style.display = n ? "" : "none"), 
-            p.graphBackButton && (p.graphBackButton.style.display = n ? "none" : ""), p.reportFooter?.classList.toggle("hidden", !n), 
-            document.body.classList.toggle("graph-mode", !n), n ? m?.setActive(!1) : (v || (m = b({
+            n || Boolean(u.graphWorkspaceSelect && u.graphWorkspaceWrap && u.graphControls && u.graphCanvas && u.graphCanvasShell && u.graphPopover && u.graphPopoverName && u.graphPopoverVersion && u.graphPopoverLicense && u.graphPopoverVulns && u.graphPopoverAmplification && u.graphOpenList) ? (u.listViewPanel.classList.toggle("active", n), 
+            u.graphViewPanel.classList.toggle("active", !n), u.listViewPanel.setAttribute("aria-hidden", String(!n)), 
+            u.graphViewPanel.setAttribute("aria-hidden", String(n)), u.viewGraphButton && (u.viewGraphButton.style.display = n ? "" : "none"), 
+            u.graphBackButton && (u.graphBackButton.style.display = n ? "none" : ""), u.reportFooter?.classList.toggle("hidden", !n), 
+            document.body.classList.toggle("graph-mode", !n), n ? g?.setActive(!1) : (m || (g = b({
                 report: e,
-                knownDepKeys: X,
-                resolveDepKey: Z,
-                workspaceSelect: p.graphWorkspaceSelect,
-                workspaceWrap: p.graphWorkspaceWrap,
-                controlsRoot: p.graphControls,
-                canvas: p.graphCanvas,
-                canvasHost: p.graphCanvasShell,
-                popover: p.graphPopover,
-                popoverName: p.graphPopoverName,
-                popoverVersion: p.graphPopoverVersion,
-                popoverLicense: p.graphPopoverLicense,
-                popoverVulns: p.graphPopoverVulns,
-                popoverAmplification: p.graphPopoverAmplification,
-                popoverOpenButton: p.graphOpenList,
+                knownDepKeys: Y,
+                resolveDepKey: J,
+                workspaceSelect: u.graphWorkspaceSelect,
+                workspaceWrap: u.graphWorkspaceWrap,
+                controlsRoot: u.graphControls,
+                canvas: u.graphCanvas,
+                canvasHost: u.graphCanvasShell,
+                popover: u.graphPopover,
+                popoverName: u.graphPopoverName,
+                popoverVersion: u.graphPopoverVersion,
+                popoverLicense: u.graphPopoverLicense,
+                popoverVulns: u.graphPopoverVulns,
+                popoverAmplification: u.graphPopoverAmplification,
+                popoverOpenButton: u.graphOpenList,
                 onOpenList: e => {
                     !function(e) {
-                        ee("list");
+                        Z("list");
                         let t = document.getElementById(ne(e));
-                        !t && Y.has(e) && (V.add(e), K(), t = document.getElementById(ne(e)));
+                        !t && M.has(e) && (R.add(e), z(), t = document.getElementById(ne(e)));
                         if (!t) return;
                         if (t instanceof HTMLDetailsElement) {
                             const e = t.dataset.depKey;
-                            e && R.add(e), t.open || (t.open = !0), U(t);
+                            e && A.add(e), t.open || (t.open = !0), $(t);
                         }
-                        t.classList.add("dep-list-highlight"), re(t, !0), window.setTimeout(() => {
+                        t.classList.add("dep-list-highlight"), ee(t, !0), window.setTimeout(() => {
                             t?.classList.remove("dep-list-highlight");
                         }, 2e3);
                     }(e);
                 }
-            }), m.initGraphView(), v = !0), m?.setActive(!0), m?.requestRender())) : console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+            }), g.initGraphView(), m = !0), g?.setActive(!0), g?.requestRender())) : console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
         }
-        function re(e, t = !1) {
+        function ee(e, t = !1) {
             const n = () => {
                 const n = window.scrollY + e.getBoundingClientRect().top - function() {
                     const e = document.querySelector(".filter-bar");
@@ -2059,45 +2059,45 @@
                 n(), window.setTimeout(n, 60);
             });
         }
-        const se = [ p.search, p.direct, p.runtime, p.sort, p.hasVulns, p.workspace, p.licensePermissive, p.licenseWeakCopyleft, p.licenseStrongCopyleft, p.licenseUnknown ], ie = () => {
-            V.clear(), K();
+        const re = [ u.search, u.direct, u.runtime, u.sort, u.hasVulns, u.workspace, u.licensePermissive, u.licenseWeakCopyleft, u.licenseStrongCopyleft, u.licenseUnknown ], se = () => {
+            R.clear(), z();
         };
-        se.forEach(e => {
-            e && (e.addEventListener("input", ie), e.addEventListener("change", ie));
-        }), p.activeFilterChips?.addEventListener("click", e => {
+        re.forEach(e => {
+            e && (e.addEventListener("input", se), e.addEventListener("change", se));
+        }), u.activeFilterChips?.addEventListener("click", e => {
             const t = e.target.closest("[data-filter-chip]");
             if (!t) return;
-            const n = z().find(e => e.id === t.dataset.filterChip);
-            n && (n.remove(), ie());
+            const n = q().find(e => e.id === t.dataset.filterChip);
+            n && (n.remove(), se());
         });
-        const oe = () => {
-            p.direct.value = "all", p.runtime.value = "all", p.workspace && (p.workspace.value = "all"), 
-            p.hasVulns.checked = !1, p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !0, 
-            p.licenseStrongCopyleft.checked = !0, p.licenseUnknown.checked = !0, ie();
+        const ie = () => {
+            u.direct.value = "all", u.runtime.value = "all", u.workspace && (u.workspace.value = "all"), 
+            u.hasVulns.checked = !1, u.licensePermissive.checked = !0, u.licenseWeakCopyleft.checked = !0, 
+            u.licenseStrongCopyleft.checked = !0, u.licenseUnknown.checked = !0, se();
         };
-        function ce(e) {
+        function oe(e) {
             const t = e.getAttribute("data-dep-key");
             if (!t) return;
-            const n = Z(t);
+            const n = J(t);
             if (!n) return;
-            let a = G.get(n);
-            a || (V.add(n), K(), a = G.get(n)), a && (R.add(n), a.open || (a.open = !0), U(a), 
-            re(a, !0));
+            let a = V.get(n);
+            a || (R.add(n), z(), a = V.get(n)), a && (A.add(n), a.open || (a.open = !0), $(a), 
+            ee(a, !0));
         }
-        p.activeFilterClear?.addEventListener("click", oe), p.clearAllFilters?.addEventListener("click", oe), 
-        p.viewGraphButton?.addEventListener("click", () => {
-            ee("graph");
-        }), p.graphBackButton?.addEventListener("click", () => {
-            ee("list");
+        u.activeFilterClear?.addEventListener("click", ie), u.clearAllFilters?.addEventListener("click", ie), 
+        u.viewGraphButton?.addEventListener("click", () => {
+            Z("graph");
+        }), u.graphBackButton?.addEventListener("click", () => {
+            Z("list");
         }), t.addEventListener("toggle", e => {
             const t = e.target;
             if (!(t instanceof HTMLDetailsElement)) return;
             if (!t.classList.contains("dep-card")) return;
             const n = t.dataset.depKey;
-            n && (t.open ? (R.add(n), U(t)) : R.delete(n));
+            n && (t.open ? (A.add(n), $(t)) : A.delete(n));
         }, !0), t.addEventListener("click", e => {
             const t = e.target, n = t.closest(".root-package-link");
-            if (n) return e.preventDefault(), void ce(n);
+            if (n) return e.preventDefault(), void oe(n);
             const a = t.closest(".copy-json-btn");
             a && (e.preventDefault(), async function(e) {
                 const t = e.closest(".raw-data-toggle"), n = t?.querySelector("pre"), a = n?.textContent ?? "";
@@ -2109,18 +2109,18 @@
                         document.body.removeChild(e);
                     }
                     const t = e.dataset.label || e.textContent || "Copy JSON";
-                    e.dataset.label = t, e.textContent = "Copied", e.classList.add("copied"), $.textContent = "Copied JSON to clipboard.", 
+                    e.dataset.label = t, e.textContent = "Copied", e.classList.add("copied"), G.textContent = "Copied JSON to clipboard.", 
                     window.setTimeout(() => {
                         e.textContent = t, e.classList.remove("copied");
                     }, 1500);
                 } catch {
-                    $.textContent = "Copy failed.";
+                    G.textContent = "Copy failed.";
                 }
             }(a));
         }), t.addEventListener("keydown", e => {
             const t = e.target.closest(".root-package-link");
-            t && (" " !== e.key && "Spacebar" !== e.key || (e.preventDefault(), ce(t)));
-        }), E(), K(), ee("list");
+            t && (" " !== e.key && "Spacebar" !== e.key || (e.preventDefault(), oe(t)));
+        }), w(), z(), Z("list");
     }
     "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", ve) : ve();
 }();

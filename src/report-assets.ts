@@ -6,7 +6,7 @@
  * CSS content for the dependency radar HTML report
  * Built from report-ui/style.css
  */
-export const CSS_CONTENT = `*,*:before,*:after{box-sizing:border-box}:root{--bg-primary: #0c1222;--bg-secondary: #151d2e;--bg-card: rgba(21, 29, 46, .95);--bg-card-hover: rgba(30, 41, 59, .95);--text-primary: #e8edf5;--text-secondary: #8b99b0;--text-muted: #5c6b82;--border-color: rgba(99, 120, 150, .2);--border-color-strong: rgba(99, 120, 150, .35);--accent: #06b6d4;--accent-hover: #22d3ee;--accent-subtle: rgba(6, 182, 212, .15);--title-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);--green: #10b981;--green-bg: rgba(16, 185, 129, .15);--amber: #f59e0b;--amber-bg: rgba(245, 158, 11, .15);--red: #ef4444;--red-bg: rgba(239, 68, 68, .15);--gray: #64748b;--gray-bg: rgba(100, 116, 139, .15);--license-permissive: #10b981;--license-weak-copyleft: #f59e0b;--license-strong-copyleft: #ef4444;--license-unknown: #64748b;--font-stack: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;--font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", monospace;--transition: .2s ease;--radius: 8px;--radius-lg: 12px;--graph-direct-runtime: var(--green);--graph-direct-dev: var(--amber);--graph-transitive: var(--accent);--graph-edge: var(--border-color-strong);--graph-highlight: var(--accent-hover);--graph-muted: var(--text-muted);--graph-vuln-high: var(--red);--graph-vuln-medium: var(--amber)}:root.light{--bg-primary: #f5f7fa;--bg-secondary: #e8ecf2;--bg-card: rgba(255, 255, 255, .98);--bg-card-hover: rgba(248, 250, 252, 1);--text-primary: #0f172a;--text-secondary: #475569;--text-muted: #64748b;--border-color: rgba(100, 116, 139, .18);--border-color-strong: rgba(100, 116, 139, .3);--accent: #0891b2;--accent-hover: #06b6d4;--accent-subtle: rgba(8, 145, 178, .1);--title-gradient: linear-gradient(135deg, #0891b2 0%, #059669 100%);--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}[data-theme=light]{--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}html{scroll-behavior:smooth}@media(prefers-reduced-motion:reduce){html,*,*:before,*:after{scroll-behavior:auto;animation-duration:0s!important;animation-iteration-count:1!important;transition:none!important;transform:none!important}}body{font-family:var(--font-stack);background:var(--bg-primary);color:var(--text-primary);margin:0;padding:0;line-height:1.5;transition:background var(--transition),color var(--transition)}.top-header{padding:28px 24px 20px;max-width:1400px;margin:0 auto}.header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}.header-content{display:flex;align-items:flex-start;gap:18px}.logo,.logo-wrapper{display:block;width:6rem;height:6rem;flex-shrink:0}.logo svg{width:100%;height:100%}.header-text h1{margin:0;font-size:26px;font-weight:700;background:var(--title-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.02em}.header-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:12px}.meta-item{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary)}.metadata-toggle{font-family:inherit}.meta-item strong{color:var(--text-primary);font-family:var(--font-mono);font-size:11px;font-weight:500}.meta-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.3px}.header-disclaimer{display:block;width:100%;font-size:10px;color:var(--text-muted);margin-top:6px;padding-left:2px}.metadata-panel{position:absolute;top:calc(100% - 4px);left:min(660px,calc(100% - 520px));z-index:120;width:min(520px,calc(100vw - 48px));max-height:min(70vh,680px);overflow:auto;padding:14px;background:var(--bg-card);border:1px solid var(--border-color-strong);border-radius:var(--radius-lg);box-shadow:0 18px 42px #00000059;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity var(--transition),transform var(--transition)}.metadata-panel.open{opacity:1;transform:translateY(0);pointer-events:auto}.metadata-section{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border-color)}.metadata-section:last-child{padding-bottom:0;margin-bottom:0;border-bottom:none}.metadata-section-title{margin-bottom:8px;color:var(--text-primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.metadata-grid{display:grid;gap:8px}.metadata-row{display:grid;grid-template-columns:minmax(110px,.42fr) minmax(0,1fr);gap:10px;align-items:start}.metadata-row-label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.35px}.metadata-row-value{color:var(--text-primary);font-family:var(--font-mono);font-size:12px;line-height:1.4;overflow-wrap:anywhere}.metadata-list{display:grid;gap:6px}.metadata-list-item{padding:7px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:6px}.metadata-muted{color:var(--text-muted)}.cta-section{flex-shrink:0;text-align:right;max-width:280px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px}.cta-link{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--accent);color:#fff;text-decoration:none;border-radius:var(--radius);font-size:13px;font-weight:600;transition:all var(--transition);box-shadow:0 2px 8px #06b6d440;margin-bottom:2px}.cta-link:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 4px 12px #06b6d459}.cta-text{display:block;font-size:11px;color:var(--text-muted);margin:0;text-decoration:none;padding:2px 6px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-secondary)}.cta-url,.cta-url:visited{display:block;font-size:11px;color:var(--text-muted);margin:0;text-decoration:none}.cta-url:hover{text-decoration:underline}.cta-arrow{font-size:14px;transition:transform var(--transition)}.cta-link:hover .cta-arrow{transform:translate(2px)}.filter-bar{position:sticky;top:0;z-index:100;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:12px 24px 4px;transition:background var(--transition),border-color var(--transition)}.filter-bar-inner{max-width:1360px;margin:0 auto}.filter-row{position:relative;display:grid;grid-template-columns:1fr;align-items:center;gap:8px}.filter-top-row{display:flex;align-items:center;gap:10px;min-width:0}.filter-top-row .search-wrapper{flex:1 1 420px;min-width:240px;max-width:520px}.view-switch{display:inline-flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary)}.view-switch-btn{border:none;background:transparent;color:var(--text-secondary);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;transition:color var(--transition),background var(--transition);white-space:nowrap}.view-switch-btn:hover{color:var(--text-primary)}.view-switch-btn.active{color:var(--text-primary);background:var(--accent-subtle)}.filter-controls{position:absolute;top:calc(100% - 4px);left:min(530px,calc(100% - 440px));z-index:120;width:min(440px,calc(100vw - 48px));min-width:0;padding:14px;border:1px solid var(--border-color-strong);border-radius:var(--radius-lg);background:var(--bg-card);box-shadow:0 18px 42px #00000059;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity var(--transition),transform var(--transition)}.filter-controls-row{display:grid;gap:14px}.filters-toggle{display:inline-flex;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);font-size:13px;cursor:pointer;align-items:center;gap:6px;transition:all var(--transition);white-space:nowrap}.filters-toggle:hover{border-color:var(--accent);color:var(--accent)}.filters-toggle.open,.filters-toggle.has-active-filters{border-color:var(--accent);color:var(--text-primary);background:var(--accent-subtle)}.filter-count-badge{display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;line-height:1}.filter-count-badge[hidden]{display:none}.filters-toggle .chevron{transition:transform var(--transition)}.filters-toggle.open .chevron{transform:rotate(180deg)}.filter-controls.open{opacity:1;transform:translateY(0);pointer-events:auto}.filter-row>.column-headers-section{grid-column:1 / -1;width:100%}.mobile-only,.sort-wrapper.mobile-only{display:none}.filter-group{display:grid;gap:6px}.workspace-filter-group.hidden{display:none}.filter-panel-section{display:grid;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border-color)}.filter-panel-section:last-of-type{padding-bottom:0;border-bottom:none}.filter-panel-context:has(.workspace-filter-group.hidden){display:none}.filter-panel-title{font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.filter-label{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.search-wrapper{position:relative;flex:1;min-width:180px;max-width:280px}.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none}input[type=search]{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:14px;transition:border-color var(--transition),background var(--transition)}input[type=search]:focus{outline:none;border-color:var(--accent)}input[type=search]::placeholder{color:var(--text-muted)}select{padding:8px 28px 8px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color var(--transition),background var(--transition)}.filter-controls select{width:100%}select:focus{outline:none;border-color:var(--accent)}.sort-wrapper{display:flex;align-items:center;gap:4px}.sort-wrapper select{margin-left:auto}.sort-direction-btn{padding:8px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;transition:all var(--transition)}.sort-direction-btn:hover{border-color:var(--accent);color:var(--accent)}.checkbox-filter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.checkbox-filter input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.theme-toggle{margin-left:auto;display:flex;align-items:center;gap:8px}.theme-toggle-label{font-size:12px;color:var(--text-muted)}.theme-switch{position:relative;width:44px;height:24px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:12px;cursor:pointer;transition:background var(--transition),border-color var(--transition)}.theme-switch:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--text-secondary);border-radius:50%;transition:transform var(--transition),background var(--transition)}.theme-switch.light:after{transform:translate(20px);background:var(--accent)}.license-filter-toggle{display:none;padding:6px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all var(--transition)}.license-filter-toggle:hover{border-color:var(--accent);color:var(--accent)}.license-filter-toggle .chevron{transition:transform var(--transition)}.license-filter-toggle.open .chevron{transform:rotate(180deg)}.license-filter-panel-row{display:none}.license-filter-panel{background:transparent}.license-filter-inner{max-width:100%;margin:0;padding:0}.license-filter-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.license-filter-title{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.license-quick-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.quick-action-btn{padding:4px 10px;font-size:11px;border:1px solid var(--border-color);border-radius:4px;background:transparent;color:var(--text-secondary);cursor:pointer;transition:all var(--transition)}.quick-action-btn:hover{border-color:var(--accent);color:var(--accent)}.license-groups{display:grid;gap:8px}.license-group-checkbox{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.filter-panel-actions{display:flex;justify-content:flex-end}.active-filters-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:2px 0 6px}.active-filters-row[hidden]{display:none}.active-filters-label{color:var(--text-muted);font-size:12px}.active-filter-chips{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.active-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;line-height:1.2}.active-filter-remove{border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:0}.active-filter-remove:hover{color:var(--accent)}.active-filter-clear{border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;padding:4px 6px}.active-filter-clear:hover{text-decoration:underline}.license-group-checkbox input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.license-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.license-dot.permissive{background:var(--license-permissive)}.license-dot.weak-copyleft{background:var(--license-weak-copyleft)}.license-dot.strong-copyleft{background:var(--license-strong-copyleft)}.license-dot.unknown{background:var(--license-unknown)}.tool-errors{max-width:1400px;margin:16px auto;padding:12px 16px;background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);color:var(--red)}.tool-errors:empty{display:none}.tool-errors strong{display:block;margin-bottom:8px}.main-content{max-width:1400px;margin:0 auto;padding:8px 24px 48px}.view-panel{display:none}.view-panel.active{display:block}.graph-mode .filter-bar,.graph-mode .top-header,.graph-mode .results-summary,.graph-mode .report-footer{display:none}.graph-mode .main-content{max-width:none;padding:24px}.graph-workspace-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;-webkit-user-select:none;user-select:none}.graph-workspace-select{min-width:200px;max-width:240px}select.graph-workspace-select{background-color:#ffffff0d;border:1px solid rgba(100,116,139,.25);color:var(--text-primary);transition:all var(--transition)}select.graph-workspace-select:hover{background-color:#ffffff1a;border-color:#64748b66}select.graph-workspace-select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-subtle)}[data-theme=light] select.graph-workspace-select{background-color:#00000008;border-color:#64748b33}[data-theme=light] select.graph-workspace-select:hover{background-color:#0000000f}.graph-canvas-shell{--graph-toolbar-height: 50px;position:relative;width:100%;height:74vh;min-height:420px;max-height:980px;border:1px solid var(--border-color);border-radius:var(--radius-lg);background:radial-gradient(circle at 15% 20%,var(--accent-subtle),transparent 35%),radial-gradient(circle at 80% 80%,var(--accent-subtle),transparent 42%),var(--bg-card);overflow:hidden}.graph-mode .graph-canvas-shell{height:calc(100dvh - 48px);min-height:520px;max-height:none}.graph-overlay{position:absolute;z-index:8;pointer-events:auto;display:flex;align-items:center;gap:8px;padding:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d}.graph-key:before,.graph-workspace-wrap:before{content:"";display:block;width:1px;height:20px;position:absolute;top:50%;left:0;transform:translateY(-50%);background-color:var(--text-secondary)}.graph-key{padding-left:24px;display:flex;flex-direction:row;align-items:center;gap:12px;max-width:100%;position:relative}.graph-key-items{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}.graph-key-item{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:12px;line-height:1.1;white-space:nowrap}.graph-key-dot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px #ffffff1f}.graph-key-dot.dependency{background:var(--graph-direct-runtime)}.graph-key-dot.dev-dependency{background:var(--graph-direct-dev)}.graph-key-dot.sub-dependency{background:var(--graph-transitive)}[data-theme=light] .graph-overlay{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-overlay.hidden,.graph-workspace-wrap.hidden{display:none}.graph-workspace-wrap{display:flex;padding-left:24px;flex-direction:row;align-items:center;gap:12px;position:relative}[data-theme=light] .graph-overlay-top{background:#ffffffb3;border-color:#64748b26}.graph-overlay-top{align-items:center;position:absolute;top:0;left:0;right:0;display:flex;flex-wrap:wrap;column-gap:24px;row-gap:8px;background:#0f172ab3;border-bottom:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0 12px;min-height:50px}.graph-back-btn{gap:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d;top:12px;left:12px;color:var(--text-primary);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;transition:transform var(--transition),background var(--transition),border-color var(--transition),color var(--transition),box-shadow var(--transition);-webkit-user-select:none;user-select:none}.graph-back-btn:hover{background:#ffffff1a;border-color:#64748b66;color:var(--text-primary);transform:translateY(-1px);box-shadow:0 4px 12px #0003}[data-theme=light] .graph-back-btn:hover{background:#0000000d;box-shadow:0 4px 12px #00000014}[data-theme=light] .graph-back-btn{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-controls{flex-direction:column;align-items:center;gap:8px;padding:8px;top:calc(var(--graph-toolbar-height, 50px) + 12px);right:12px}.zoom-controls{display:grid;grid-template-columns:repeat(2,52px);gap:6px}.zoom-controls>.graph-control-btn{font-size:18px;width:100%}.dpad{display:grid;grid-template-columns:34px 34px 34px;grid-template-rows:34px 34px 34px;grid-template-areas:". up ." "left . right" ". down .";gap:2px}.dpad .up{grid-area:up}.dpad .left{grid-area:left}.dpad .right{grid-area:right}.dpad .down{grid-area:down}.center-spacer{grid-column:2;grid-row:2;width:32px;height:32px;border:none;background:transparent}.graph-control-btn{border:1px solid rgba(100,116,139,.25);background:#ffffff0d;color:var(--text-primary);font-size:12px;width:34px;height:30px;border-radius:6px;cursor:pointer;line-height:1;transition:transform var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition),color var(--transition)}.graph-control-btn:hover{background:#ffffff1f;border-color:#64748b66;transform:translateY(-1px);box-shadow:0 3px 10px #0003}[data-theme=light] .graph-control-btn{background:#00000008;border-color:#64748b26}[data-theme=light] .graph-control-btn:hover{background:#00000014;border-color:#64748b4d;box-shadow:0 3px 10px #00000014}.reset-btn{width:112px;text-transform:lowercase;letter-spacing:.2px}.graph-popover{position:absolute;z-index:9;min-width:220px;max-width:min(320px,calc(100% - 24px));padding:12px 14px;border:1px solid var(--border-color-strong);background:#0f172ad9;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:12px;box-shadow:0 12px 40px #0006,inset 0 1px #ffffff1a;pointer-events:auto}[data-theme=light] .graph-popover{background:#ffffffd9;box-shadow:0 12px 40px #0000001f,inset 0 1px #fff9}.graph-popover[hidden]{display:none}.graph-popover-name{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:600;margin-bottom:4px}.graph-popover-meta{font-size:12px;color:var(--text-secondary);margin-bottom:3px}.graph-popover-action{margin-top:8px;width:100%;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;padding:7px 8px;cursor:pointer}.graph-popover-action:hover{border-color:var(--accent);color:var(--accent)}#graph-canvas{width:100%;height:100%;display:block;cursor:grab}#graph-canvas.is-clickable{cursor:pointer}#graph-canvas.is-panning{cursor:grabbing}.dep-list-highlight{animation:dep-list-highlight 2s ease-out}@keyframes dep-list-highlight{0%{box-shadow:0 0 0 0 var(--accent-subtle);border-color:var(--accent)}to{box-shadow:0 0 0 18px transparent;border-color:var(--border-color)}}.report-footer{max-width:1400px;margin:0 auto;padding:0 24px 40px;color:var(--text-secondary);font-size:12px}.report-footer p{margin:8px 0 0}.report-footer.hidden{display:none}.column-headers-section{max-width:1376px;margin:0 auto;display:flex;align-items:center;padding:12px 0 8px 14px}.package-header-wrapper{display:flex;flex-direction:row;justify-content:space-between;gap:2px;flex:1;min-width:0;padding-right:1rem}.results-summary{font-size:12px;color:var(--text-secondary);white-space:nowrap}.results-summary strong{color:var(--text-primary)}.package-header{align-self:flex-start;padding:4px 8px 4px 0}#column-headers-container{margin-left:auto;flex-shrink:0;width:60%}.column-headers{display:grid;grid-template-columns:repeat(5,1fr);width:100%}.column-header{display:flex;align-items:center;gap:4px;border:none;background:transparent;font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;cursor:pointer;padding:4px 8px 4px 10px;border-left:1px solid var(--border-color);transition:color var(--transition);white-space:nowrap;line-height:1.1;overflow:hidden}.column-header-no-border{border-left:none}.column-header:hover{color:var(--text-primary)}.column-header.sorted{color:var(--accent)}.column-header-label{flex-shrink:1;overflow:hidden;text-overflow:ellipsis}.sort-indicator{font-size:9px;opacity:.8}.column-header:not(.sorted) .sort-indicator{visibility:hidden}.dependency-grid{display:flex;flex-direction:column;gap:8px}.dep-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);overflow:hidden;transition:border-color var(--transition)}.dep-card:hover{border-color:var(--border-color-strong)}.dep-card[data-risk=red]{border-left:3px solid var(--red)}.dep-card[data-risk=amber]{border-left:3px solid var(--amber)}.dep-card[data-risk=green]{border-left:3px solid var(--green)}.dep-summary{display:flex;align-items:center;gap:10px;padding:0 0 0 12px;cursor:pointer;list-style:none;transition:background var(--transition)}.dep-summary:hover{background:var(--bg-card-hover)}.dep-summary::-webkit-details-marker{display:none}.expand-icon{width:16px;height:16px;flex-shrink:0;display:inline-block;color:var(--text-muted);transition:transform var(--transition);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain}details[open]>summary .expand-icon{transform:rotate(90deg)}.dep-name{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-primary);padding:8px 0}.dep-version{font-weight:400;color:var(--text-secondary)}.dep-indicators{display:grid;grid-template-columns:repeat(5,1fr);margin-left:auto;flex-shrink:0;width:60%}.badge-card{display:flex;flex-direction:column;justify-content:center;min-height:38px;padding:4px 8px 4px 10px;background:var(--bg-primary);border-left:1px solid var(--border-color);position:relative;overflow:hidden}.badge-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gray)}.badge-card.green:before{background:var(--green)}.badge-card.amber:before{background:var(--amber)}.badge-card.red:before{background:var(--red)}.badge-card.gray:before{background:var(--gray)}.badge-label{font-size:8px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;line-height:1.1;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;margin:-1px;overflow:hidden;padding:0;position:absolute}.badge-value{font-size:11px;font-weight:500;color:var(--text-primary);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dep-details{padding:0 16px 16px;border-top:1px solid var(--border-color);animation:slideDown .2s ease-out}@keyframes slideDown{0%{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}.package-links{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;margin-bottom:4px;border-bottom:1px solid var(--border-color)}.package-link{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-hover);border:1px solid var(--border-color);border-radius:var(--radius-md);color:var(--text-primary);text-decoration:none;font-size:13px;font-weight:500;transition:all var(--transition)}.package-link:hover{background:var(--accent);border-color:var(--accent);color:#fff}.package-link svg{width:14px;height:14px;flex-shrink:0}.section,.section:first-child{margin-top:16px}.section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-color)}.section-title{font-size:13px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.section-desc{font-size:11px;color:var(--text-muted)}.kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.kv-grid-tight{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.kv-item{display:flex;flex-direction:column;gap:2px}.kv-label{font-size:12px;font-weight:500;color:var(--text-muted)}.kv-value{font-size:14px;color:var(--text-primary);overflow-wrap:anywhere;word-break:break-word}.kv-inline-link{color:var(--accent);text-decoration:none;font-size:12px;margin-left:6px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;text-underline-offset:2px}.kv-inline-link:hover{text-decoration:underline}.kv-inline-link-icon{width:11px;height:11px;flex-shrink:0}.kv-inline-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}.risk-value{display:inline-flex;align-items:center;gap:6px}.risk-dot{width:8px;height:8px;border-radius:999px;background:var(--gray);flex-shrink:0}.risk-dot.green{background:var(--green)}.risk-dot.amber{background:var(--amber)}.risk-dot.red{background:var(--red)}.kv-hint{font-size:11px;color:var(--text-muted);font-style:italic}.micro-summary{display:grid;gap:6px;padding:6px 0 2px}.micro-line{font-size:13px;color:var(--text-primary)}.micro-sublist{margin-top:8px}.micro-subtitle{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}.section-block{margin-top:12px}.block-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.section-note{font-size:12px;color:var(--text-secondary);margin:6px 0 12px}.subsection{padding:12px 0;border-top:1px solid var(--border-color)}.subsection:first-child{border-top:none;padding-top:0}.subsection-header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.subsection-title{font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.4px}.subsection-desc{font-size:11px;color:var(--text-muted)}.subsection.warning .subsection-title{color:var(--red)}.detail-list{margin-top:12px}.detail-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.detail-items{list-style:none;padding:0;margin:0;display:grid;gap:6px}.detail-items.mono .detail-item{font-family:var(--font-mono)}.detail-item{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere;word-break:break-word}.detail-item.muted{color:var(--text-muted)}.declared-deps{display:grid;gap:8px}.declared-summary{font-size:12px;color:var(--text-secondary);margin:4px 0 8px}.declared-group{border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);padding:8px 10px}.declared-group-summary{font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}.declared-group-summary::-webkit-details-marker{display:none}.declared-count{font-size:11px;color:var(--text-muted);font-weight:500}.declared-group-title{display:inline-flex;align-items:baseline;gap:6px}.declared-table{display:grid;gap:6px;margin-top:8px}.declared-row{display:grid;grid-template-columns:minmax(160px,1.3fr) minmax(120px,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary)}.declared-name{font-size:12px;font-family:var(--font-mono);color:var(--text-primary);display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.declared-range{font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);overflow-wrap:anywhere}.status-pill{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid transparent}.status-pill.installed{color:var(--green);border-color:var(--green);background:var(--green-bg)}.status-pill.missing{color:var(--text-muted);border-color:var(--border-color-strong);background:var(--gray-bg)}.bullet-list{margin:6px 0 0;padding-left:18px;color:var(--text-secondary)}.bullet-list li{margin-bottom:6px}.subtle-divider{height:1px;background:var(--border-color);margin:12px 0}.package-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.package-tag{padding:2px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)}.package-list-toggle{font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 4px}.package-list-toggle:hover{text-decoration:underline}.vuln-table{width:100%;border-collapse:collapse;font-size:13px}.vuln-table th,.vuln-table td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-color);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}.vuln-table th{font-weight:500;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.vuln-table tr[data-severity=critical],.vuln-table tr[data-severity=high]{background:var(--red-bg)}.vuln-table tr[data-severity=moderate]{background:var(--amber-bg)}.vuln-table a{color:var(--accent);text-decoration:none}.vuln-table a:hover{text-decoration:underline}.no-vulns{font-size:13px;color:var(--text-secondary);padding:8px 0}.raw-data-toggle{margin-top:16px}.raw-data-toggle summary{font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:8px;list-style:none}.raw-data-toggle summary::-webkit-details-marker{display:none}.raw-data-pane{margin-top:8px;position:relative;display:flex;flex-direction:column;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius);max-height:300px;overflow:auto}.raw-data-pane pre{margin:0;padding:12px 12px 44px;background:transparent;border:none;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:pre;overflow:visible}.copy-json-btn{position:sticky;bottom:8px;align-self:flex-end;margin:0 8px 8px;padding:6px 10px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:11px;cursor:pointer;transition:all var(--transition)}.raw-data-toggle:not([open]) .copy-json-btn{display:none}.copy-json-btn:hover{border-color:var(--accent);color:var(--accent)}.copy-json-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.copy-json-btn.copied{border-color:var(--green);color:var(--green)}.dep-loading{padding:2rem 0}.dep-loading-bar{position:relative;height:.25rem;background:var(--border-color);overflow:hidden;border-radius:999px}.dep-loading-bar:after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;background:var(--accent);animation:dep-loading 1.2s ease-in-out infinite}@keyframes dep-loading{0%{transform:translate(0)}to{transform:translate(250%)}}.package-tag-link{text-decoration:none;color:var(--text-secondary);transition:all var(--transition)}.package-tag-link:hover{border-color:var(--accent);color:var(--accent)}.package-tag-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}.empty-state-icon{font-size:48px;margin-bottom:12px}.empty-state-text{font-size:16px}@media(max-width:1180px)and (min-width:769px){.filter-top-row{max-width:none}.graph-overlay-top{padding:8px 12px}}@media(max-width:768px){.top-header{padding:20px 16px}.header-row{flex-direction:column;align-items:flex-start;gap:16px}.header-content{gap:12px}.logo,.logo-wrapper{width:48px;height:48px}.header-text h1{font-size:22px}.header-meta{gap:6px}.meta-item{padding:3px 8px;font-size:11px}.cta-section{width:100%;max-width:none;text-align:left}.cta-benefits{display:none}.filter-bar{padding:10px 16px}.filter-row{display:block}.filter-top-row{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;flex-wrap:wrap}.search-wrapper{max-width:none;flex:1 1 100%}.filter-top-row .search-wrapper{flex-basis:100%;min-width:0}.view-switch{order:3}.view-switch-btn{padding:6px 10px}.filters-toggle{order:2;flex-shrink:0}.filter-controls,.metadata-panel{position:static;width:100%;max-height:0;opacity:0;overflow:hidden;transform:translateY(-8px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out;margin-top:0;padding:0 12px;box-shadow:none}.filter-controls.open,.metadata-panel.open{max-height:900px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:12px}.filter-controls-row{display:grid;gap:10px}.filter-group{display:grid}.filter-group select{max-width:none}.mobile-only,.sort-wrapper.mobile-only{display:flex!important}.theme-toggle{order:4;margin-left:auto}.license-filter-toggle,#column-headers-container,.column-headers,.package-header{display:none}.column-headers-section{max-height:0;opacity:0;overflow:hidden;transform:translateY(-6px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out,padding .25s ease-out;margin-top:0;padding:0 16px}.filter-controls.open+.license-filter-panel-row+.column-headers-section{max-height:120px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:8px 16px}.package-header-wrapper{flex-direction:row}.main-content{padding:12px 16px 32px}.graph-workspace-select{min-width:170px}.graph-overlay{padding:6px}.graph-canvas-shell{height:62vh;min-height:340px}.graph-key{padding:6px 8px;gap:8px}.graph-key-items{gap:8px}.graph-key-item{font-size:11px}.graph-back-btn{left:8px;top:8px}.graph-mode .main-content{padding:8px}.graph-mode .graph-canvas-shell{height:calc(100dvh - 16px);min-height:420px}.graph-controls{top:calc(var(--graph-toolbar-height, 50px) + 8px)}.report-footer{padding:0 16px 32px}.vuln-table thead{display:none}.vuln-table tr{display:block;border-bottom:1px solid var(--border-color)}.vuln-table td{display:flex;justify-content:space-between;gap:12px;padding:6px 8px}.vuln-table td:before{content:attr(data-label);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);min-width:120px}.dep-summary{flex-wrap:wrap;padding:8px 12px}.dep-name{font-size:13px}.dep-indicators{display:flex;flex-wrap:wrap;min-width:auto;width:100%;margin-left:0;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);gap:4px}.badge-card{flex:1 1 calc(50% - 4px);min-width:0}.badge-value{font-size:10px}.badge-label{clip:none;clip-path:none;height:auto;width:auto;margin:0;overflow:auto;padding:0;position:relative;font-size:7px}.declared-row{grid-template-columns:1fr;gap:6px}.graph-overlay-top{padding:8px 12px}}@media(max-width:480px){.header-text h1{font-size:20px}.meta-item{font-size:10px;padding:2px 6px}.cta-link{width:100%;justify-content:center;padding:12px 16px}.badge-card{flex:1 1 100%}}
+export const CSS_CONTENT = `*,*:before,*:after{box-sizing:border-box}:root{--bg-primary: #0c1222;--bg-secondary: #151d2e;--bg-card: rgba(21, 29, 46, .95);--bg-card-hover: rgba(30, 41, 59, .95);--text-primary: #e8edf5;--text-secondary: #8b99b0;--text-muted: #5c6b82;--border-color: rgba(99, 120, 150, .2);--border-color-strong: rgba(99, 120, 150, .35);--accent: #06b6d4;--accent-hover: #22d3ee;--accent-subtle: rgba(6, 182, 212, .15);--title-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);--green: #10b981;--green-bg: rgba(16, 185, 129, .15);--amber: #f59e0b;--amber-bg: rgba(245, 158, 11, .15);--red: #ef4444;--red-bg: rgba(239, 68, 68, .15);--gray: #64748b;--gray-bg: rgba(100, 116, 139, .15);--license-permissive: #10b981;--license-weak-copyleft: #f59e0b;--license-strong-copyleft: #ef4444;--license-unknown: #64748b;--font-stack: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", sans-serif;--font-mono: ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", monospace;--transition: .2s ease;--radius: 8px;--radius-lg: 12px;--graph-direct-runtime: var(--green);--graph-direct-dev: var(--amber);--graph-transitive: var(--accent);--graph-edge: var(--border-color-strong);--graph-highlight: var(--accent-hover);--graph-muted: var(--text-muted);--graph-vuln-high: var(--red);--graph-vuln-medium: var(--amber)}:root.light{--bg-primary: #f5f7fa;--bg-secondary: #e8ecf2;--bg-card: rgba(255, 255, 255, .98);--bg-card-hover: rgba(248, 250, 252, 1);--text-primary: #0f172a;--text-secondary: #475569;--text-muted: #64748b;--border-color: rgba(100, 116, 139, .18);--border-color-strong: rgba(100, 116, 139, .3);--accent: #0891b2;--accent-hover: #06b6d4;--accent-subtle: rgba(8, 145, 178, .1);--title-gradient: linear-gradient(135deg, #0891b2 0%, #059669 100%);--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}[data-theme=light]{--graph-highlight: var(--accent);--graph-muted: var(--text-secondary)}html{scroll-behavior:smooth}@media(prefers-reduced-motion:reduce){html,*,*:before,*:after{scroll-behavior:auto;animation-duration:0s!important;animation-iteration-count:1!important;transition:none!important;transform:none!important}}body{font-family:var(--font-stack);background:var(--bg-primary);color:var(--text-primary);margin:0;padding:0;line-height:1.5;transition:background var(--transition),color var(--transition)}.top-header{padding:28px 24px 20px;max-width:1400px;margin:0 auto}.header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}.header-content{display:flex;align-items:flex-start;gap:18px}.logo,.logo-wrapper{display:block;width:6rem;height:6rem;flex-shrink:0}.logo svg{width:100%;height:100%}.header-text h1{margin:0;font-size:26px;font-weight:700;background:var(--title-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.02em}.header-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:12px}.meta-item{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary)}.metadata-toggle{font-family:inherit}.meta-item strong{color:var(--text-primary);font-family:var(--font-mono);font-size:11px;font-weight:500}.meta-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.3px}.header-disclaimer{display:block;width:100%;font-size:10px;color:var(--text-muted);margin-top:6px;padding-left:2px}.metadata-panel{position:absolute;top:calc(100% - 4px);left:min(660px,calc(100% - 520px));z-index:120;width:min(520px,calc(100vw - 48px));max-height:min(70vh,680px);overflow:auto;padding:14px;background:var(--bg-card);border:1px solid var(--border-color-strong);border-radius:var(--radius-lg);box-shadow:0 18px 42px #00000059;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity var(--transition),transform var(--transition)}.metadata-panel.open{opacity:1;transform:translateY(0);pointer-events:auto}.metadata-section{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border-color)}.metadata-section:last-child{padding-bottom:0;margin-bottom:0;border-bottom:none}.metadata-section-title{margin-bottom:8px;color:var(--text-primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.metadata-grid{display:grid;gap:8px}.metadata-row{display:grid;grid-template-columns:minmax(110px,.42fr) minmax(0,1fr);gap:10px;align-items:start}.metadata-row-label{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.35px}.metadata-row-value{color:var(--text-primary);font-family:var(--font-mono);font-size:12px;line-height:1.4;overflow-wrap:anywhere}.metadata-list{display:grid;gap:6px}.metadata-list-item{padding:7px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:6px}.metadata-muted{color:var(--text-muted)}.cta-section{flex:0 1 660px;min-width:360px;display:flex;justify-content:flex-end}.cta-card{width:min(100%,640px);min-height:124px;display:grid;grid-template-columns:auto minmax(190px,1fr) minmax(220px,.9fr);align-items:center;gap:22px;padding:18px 22px;color:var(--text-primary);text-decoration:none;border:1px solid rgba(6,182,212,.36);border-radius:18px;background:radial-gradient(circle at 72% 24%,rgba(6,182,212,.16),transparent 32%),linear-gradient(135deg,#06b6d414,#151d2eb8 42%,#151d2ef0);box-shadow:0 16px 42px #00000042,inset 0 1px #ffffff0f,0 0 22px #06b6d41a;transition:border-color var(--transition),box-shadow var(--transition),transform var(--transition)}.cta-card:hover{border-color:#22d3eeb8;transform:translateY(-1px);box-shadow:0 18px 48px #0000004d,inset 0 1px #ffffff14,0 0 28px #06b6d433}.cta-card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.cta-icon{width:78px;height:78px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-hover);border:1px solid var(--border-color-strong);border-radius:999px;background:#0c122275;box-shadow:inset 0 0 20px #06b6d41a}.cta-copy,.cta-action{display:grid;gap:8px}.cta-title{color:var(--text-primary);font-size:22px;font-weight:800;line-height:1.1}.cta-text{color:var(--text-secondary);font-size:16px;line-height:1.45}.cta-button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:48px;padding:12px 18px;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:800;box-shadow:0 8px 24px #06b6d43d}.cta-privacy{display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--text-secondary);font-size:13px;font-weight:600}.cta-arrow{font-size:24px;line-height:1;transition:transform var(--transition)}.cta-card:hover .cta-arrow{transform:translate(2px)}.filter-bar{position:sticky;top:0;z-index:100;background:var(--bg-secondary);border-bottom:1px solid var(--border-color);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:12px 24px 4px;transition:background var(--transition),border-color var(--transition)}.filter-bar-inner{max-width:1360px;margin:0 auto}.filter-row{position:relative;display:grid;grid-template-columns:1fr;align-items:center;gap:8px}.filter-top-row{display:flex;align-items:center;gap:10px;min-width:0}.filter-top-row .search-wrapper{flex:1 1 420px;min-width:240px;max-width:520px}.view-switch{display:inline-flex;align-items:center;gap:4px;padding:2px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary)}.view-switch-btn{border:none;background:transparent;color:var(--text-secondary);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;transition:color var(--transition),background var(--transition);white-space:nowrap}.view-switch-btn:hover{color:var(--text-primary)}.view-switch-btn.active{color:var(--text-primary);background:var(--accent-subtle)}.filter-controls{position:absolute;top:calc(100% - 4px);left:min(530px,calc(100% - 440px));z-index:120;width:min(440px,calc(100vw - 48px));min-width:0;padding:14px;border:1px solid var(--border-color-strong);border-radius:var(--radius-lg);background:var(--bg-card);box-shadow:0 18px 42px #00000059;opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity var(--transition),transform var(--transition)}.filter-controls-row{display:grid;gap:14px}.filters-toggle{display:inline-flex;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);font-size:13px;cursor:pointer;align-items:center;gap:6px;transition:all var(--transition);white-space:nowrap}.filters-toggle:hover{border-color:var(--accent);color:var(--accent)}.filters-toggle.open,.filters-toggle.has-active-filters{border-color:var(--accent);color:var(--text-primary);background:var(--accent-subtle)}.filter-count-badge{display:inline-flex;min-width:18px;height:18px;align-items:center;justify-content:center;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;line-height:1}.filter-count-badge[hidden]{display:none}.filters-toggle .chevron{transition:transform var(--transition)}.filters-toggle.open .chevron{transform:rotate(180deg)}.filter-controls.open{opacity:1;transform:translateY(0);pointer-events:auto}.filter-row>.column-headers-section{grid-column:1 / -1;width:100%}.mobile-only,.sort-wrapper.mobile-only{display:none}.filter-group{display:grid;gap:6px}.workspace-filter-group.hidden{display:none}.filter-panel-section{display:grid;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--border-color)}.filter-panel-section:last-of-type{padding-bottom:0;border-bottom:none}.filter-panel-context:has(.workspace-filter-group.hidden){display:none}.filter-panel-title{font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.filter-label{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.search-wrapper{position:relative;flex:1;min-width:180px;max-width:280px}.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none}input[type=search]{width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:14px;transition:border-color var(--transition),background var(--transition)}input[type=search]:focus{outline:none;border-color:var(--accent)}input[type=search]::placeholder{color:var(--text-muted)}select{padding:8px 28px 8px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;transition:border-color var(--transition),background var(--transition)}.filter-controls select{width:100%}select:focus{outline:none;border-color:var(--accent)}.sort-wrapper{display:flex;align-items:center;gap:4px}.sort-wrapper select{margin-left:auto}.sort-direction-btn{padding:8px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;transition:all var(--transition)}.sort-direction-btn:hover{border-color:var(--accent);color:var(--accent)}.checkbox-filter{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.checkbox-filter input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.theme-toggle{margin-left:auto;display:flex;align-items:center;gap:8px}.theme-toggle-label{font-size:12px;color:var(--text-muted)}.theme-switch{position:relative;width:44px;height:24px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:12px;cursor:pointer;transition:background var(--transition),border-color var(--transition)}.theme-switch:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--text-secondary);border-radius:50%;transition:transform var(--transition),background var(--transition)}.theme-switch.light:after{transform:translate(20px);background:var(--accent)}.license-filter-toggle{display:none;padding:6px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all var(--transition)}.license-filter-toggle:hover{border-color:var(--accent);color:var(--accent)}.license-filter-toggle .chevron{transition:transform var(--transition)}.license-filter-toggle.open .chevron{transform:rotate(180deg)}.license-filter-panel-row{display:none}.license-filter-panel{background:transparent}.license-filter-inner{max-width:100%;margin:0;padding:0}.license-filter-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.license-filter-title{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}.license-quick-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.quick-action-btn{padding:4px 10px;font-size:11px;border:1px solid var(--border-color);border-radius:4px;background:transparent;color:var(--text-secondary);cursor:pointer;transition:all var(--transition)}.quick-action-btn:hover{border-color:var(--accent);color:var(--accent)}.license-groups{display:grid;gap:8px}.license-group-checkbox{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);cursor:pointer}.filter-panel-actions{display:flex;justify-content:flex-end}.active-filters-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:2px 0 6px}.active-filters-row[hidden]{display:none}.active-filters-label{color:var(--text-muted);font-size:12px}.active-filter-chips{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.active-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--border-color);border-radius:999px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;line-height:1.2}.active-filter-remove{border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:0}.active-filter-remove:hover{color:var(--accent)}.active-filter-clear{border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:12px;padding:4px 6px}.active-filter-clear:hover{text-decoration:underline}.license-group-checkbox input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}.license-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}.license-dot.permissive{background:var(--license-permissive)}.license-dot.weak-copyleft{background:var(--license-weak-copyleft)}.license-dot.strong-copyleft{background:var(--license-strong-copyleft)}.license-dot.unknown{background:var(--license-unknown)}.tool-errors{max-width:1400px;margin:16px auto;padding:12px 16px;background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);color:var(--red)}.tool-errors:empty{display:none}.tool-errors strong{display:block;margin-bottom:8px}.main-content{max-width:1400px;margin:0 auto;padding:8px 24px 48px}.view-panel{display:none}.view-panel.active{display:block}.graph-mode .filter-bar,.graph-mode .top-header,.graph-mode .results-summary,.graph-mode .report-footer{display:none}.graph-mode .main-content{max-width:none;padding:24px}.graph-workspace-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;-webkit-user-select:none;user-select:none}.graph-workspace-select{min-width:200px;max-width:240px}select.graph-workspace-select{background-color:#ffffff0d;border:1px solid rgba(100,116,139,.25);color:var(--text-primary);transition:all var(--transition)}select.graph-workspace-select:hover{background-color:#ffffff1a;border-color:#64748b66}select.graph-workspace-select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-subtle)}[data-theme=light] select.graph-workspace-select{background-color:#00000008;border-color:#64748b33}[data-theme=light] select.graph-workspace-select:hover{background-color:#0000000f}.graph-canvas-shell{--graph-toolbar-height: 50px;position:relative;width:100%;height:74vh;min-height:420px;max-height:980px;border:1px solid var(--border-color);border-radius:var(--radius-lg);background:radial-gradient(circle at 15% 20%,var(--accent-subtle),transparent 35%),radial-gradient(circle at 80% 80%,var(--accent-subtle),transparent 42%),var(--bg-card);overflow:hidden}.graph-mode .graph-canvas-shell{height:calc(100dvh - 48px);min-height:520px;max-height:none}.graph-overlay{position:absolute;z-index:8;pointer-events:auto;display:flex;align-items:center;gap:8px;padding:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);border-radius:12px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d}.graph-key:before,.graph-workspace-wrap:before{content:"";display:block;width:1px;height:20px;position:absolute;top:50%;left:0;transform:translateY(-50%);background-color:var(--text-secondary)}.graph-key{padding-left:24px;display:flex;flex-direction:row;align-items:center;gap:12px;max-width:100%;position:relative}.graph-key-items{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}.graph-key-item{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:12px;line-height:1.1;white-space:nowrap}.graph-key-dot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px #ffffff1f}.graph-key-dot.dependency{background:var(--graph-direct-runtime)}.graph-key-dot.dev-dependency{background:var(--graph-direct-dev)}.graph-key-dot.sub-dependency{background:var(--graph-transitive)}[data-theme=light] .graph-overlay{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-overlay.hidden,.graph-workspace-wrap.hidden{display:none}.graph-workspace-wrap{display:flex;padding-left:24px;flex-direction:row;align-items:center;gap:12px;position:relative}[data-theme=light] .graph-overlay-top{background:#ffffffb3;border-color:#64748b26}.graph-overlay-top{align-items:center;position:absolute;top:0;left:0;right:0;display:flex;flex-wrap:wrap;column-gap:24px;row-gap:8px;background:#0f172ab3;border-bottom:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:0 12px;min-height:50px}.graph-back-btn{gap:8px;background:#0f172ab3;border:1px solid rgba(100,116,139,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 4px 24px #0003,inset 0 1px #ffffff0d;top:12px;left:12px;color:var(--text-primary);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;transition:transform var(--transition),background var(--transition),border-color var(--transition),color var(--transition),box-shadow var(--transition);-webkit-user-select:none;user-select:none}.graph-back-btn:hover{background:#ffffff1a;border-color:#64748b66;color:var(--text-primary);transform:translateY(-1px);box-shadow:0 4px 12px #0003}[data-theme=light] .graph-back-btn:hover{background:#0000000d;box-shadow:0 4px 12px #00000014}[data-theme=light] .graph-back-btn{background:#ffffffb3;border-color:#64748b26;box-shadow:0 4px 24px #0000000f,inset 0 1px #ffffff80}.graph-controls{flex-direction:column;align-items:center;gap:8px;padding:8px;top:calc(var(--graph-toolbar-height, 50px) + 12px);right:12px}.zoom-controls{display:grid;grid-template-columns:repeat(2,52px);gap:6px}.zoom-controls>.graph-control-btn{font-size:18px;width:100%}.dpad{display:grid;grid-template-columns:34px 34px 34px;grid-template-rows:34px 34px 34px;grid-template-areas:". up ." "left . right" ". down .";gap:2px}.dpad .up{grid-area:up}.dpad .left{grid-area:left}.dpad .right{grid-area:right}.dpad .down{grid-area:down}.center-spacer{grid-column:2;grid-row:2;width:32px;height:32px;border:none;background:transparent}.graph-control-btn{border:1px solid rgba(100,116,139,.25);background:#ffffff0d;color:var(--text-primary);font-size:12px;width:34px;height:30px;border-radius:6px;cursor:pointer;line-height:1;transition:transform var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition),color var(--transition)}.graph-control-btn:hover{background:#ffffff1f;border-color:#64748b66;transform:translateY(-1px);box-shadow:0 3px 10px #0003}[data-theme=light] .graph-control-btn{background:#00000008;border-color:#64748b26}[data-theme=light] .graph-control-btn:hover{background:#00000014;border-color:#64748b4d;box-shadow:0 3px 10px #00000014}.reset-btn{width:112px;text-transform:lowercase;letter-spacing:.2px}.graph-popover{position:absolute;z-index:9;min-width:220px;max-width:min(320px,calc(100% - 24px));padding:12px 14px;border:1px solid var(--border-color-strong);background:#0f172ad9;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:12px;box-shadow:0 12px 40px #0006,inset 0 1px #ffffff1a;pointer-events:auto}[data-theme=light] .graph-popover{background:#ffffffd9;box-shadow:0 12px 40px #0000001f,inset 0 1px #fff9}.graph-popover[hidden]{display:none}.graph-popover-name{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:600;margin-bottom:4px}.graph-popover-meta{font-size:12px;color:var(--text-secondary);margin-bottom:3px}.graph-popover-action{margin-top:8px;width:100%;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary);color:var(--text-primary);font-size:12px;padding:7px 8px;cursor:pointer}.graph-popover-action:hover{border-color:var(--accent);color:var(--accent)}#graph-canvas{width:100%;height:100%;display:block;cursor:grab}#graph-canvas.is-clickable{cursor:pointer}#graph-canvas.is-panning{cursor:grabbing}.dep-list-highlight{animation:dep-list-highlight 2s ease-out}@keyframes dep-list-highlight{0%{box-shadow:0 0 0 0 var(--accent-subtle);border-color:var(--accent)}to{box-shadow:0 0 0 18px transparent;border-color:var(--border-color)}}.report-footer{max-width:1400px;margin:0 auto;padding:0 24px 40px;color:var(--text-secondary);font-size:12px}.report-footer p{margin:8px 0 0}.report-footer.hidden{display:none}.column-headers-section{max-width:1376px;margin:0 auto;display:flex;align-items:center;padding:12px 0 8px 14px}.package-header-wrapper{display:flex;flex-direction:row;justify-content:space-between;gap:2px;flex:1;min-width:0;padding-right:1rem}.results-summary{font-size:12px;color:var(--text-secondary);white-space:nowrap}.results-summary strong{color:var(--text-primary)}.package-header{align-self:flex-start;padding:4px 8px 4px 0}#column-headers-container{margin-left:auto;flex-shrink:0;width:60%}.column-headers{display:grid;grid-template-columns:repeat(5,1fr);width:100%}.column-header{display:flex;align-items:center;gap:4px;border:none;background:transparent;font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;cursor:pointer;padding:4px 8px 4px 10px;border-left:1px solid var(--border-color);transition:color var(--transition);white-space:nowrap;line-height:1.1;overflow:hidden}.column-header-no-border{border-left:none}.column-header:hover{color:var(--text-primary)}.column-header.sorted{color:var(--accent)}.column-header-label{flex-shrink:1;overflow:hidden;text-overflow:ellipsis}.sort-indicator{font-size:9px;opacity:.8}.column-header:not(.sorted) .sort-indicator{visibility:hidden}.dependency-grid{display:flex;flex-direction:column;gap:8px}.dep-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);overflow:hidden;transition:border-color var(--transition)}.dep-card:hover{border-color:var(--border-color-strong)}.dep-card[data-risk=red]{border-left:3px solid var(--red)}.dep-card[data-risk=amber]{border-left:3px solid var(--amber)}.dep-card[data-risk=green]{border-left:3px solid var(--green)}.dep-summary{display:flex;align-items:center;gap:10px;padding:0 0 0 12px;cursor:pointer;list-style:none;transition:background var(--transition)}.dep-summary:hover{background:var(--bg-card-hover)}.dep-summary::-webkit-details-marker{display:none}.expand-icon{width:16px;height:16px;flex-shrink:0;display:inline-block;color:var(--text-muted);transition:transform var(--transition);background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center / contain}details[open]>summary .expand-icon{transform:rotate(90deg)}.dep-name{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text-primary);padding:8px 0}.dep-version{font-weight:400;color:var(--text-secondary)}.dep-indicators{display:grid;grid-template-columns:repeat(5,1fr);margin-left:auto;flex-shrink:0;width:60%}.badge-card{display:flex;flex-direction:column;justify-content:center;min-height:38px;padding:4px 8px 4px 10px;background:var(--bg-primary);border-left:1px solid var(--border-color);position:relative;overflow:hidden}.badge-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gray)}.badge-card.green:before{background:var(--green)}.badge-card.amber:before{background:var(--amber)}.badge-card.red:before{background:var(--red)}.badge-card.gray:before{background:var(--gray)}.badge-label{font-size:8px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;line-height:1.1;clip:rect(1px,1px,1px,1px);clip-path:inset(50%);height:1px;width:1px;margin:-1px;overflow:hidden;padding:0;position:absolute}.badge-value{font-size:11px;font-weight:500;color:var(--text-primary);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dep-details{padding:0 16px 16px;border-top:1px solid var(--border-color);animation:slideDown .2s ease-out}@keyframes slideDown{0%{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}.package-links{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0;margin-bottom:4px;border-bottom:1px solid var(--border-color)}.package-link{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-hover);border:1px solid var(--border-color);border-radius:var(--radius-md);color:var(--text-primary);text-decoration:none;font-size:13px;font-weight:500;transition:all var(--transition)}.package-link:hover{background:var(--accent);border-color:var(--accent);color:#fff}.package-link svg{width:14px;height:14px;flex-shrink:0}.section,.section:first-child{margin-top:16px}.section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-color)}.section-title{font-size:13px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.5px}.section-desc{font-size:11px;color:var(--text-muted)}.kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.kv-grid-tight{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.kv-item{display:flex;flex-direction:column;gap:2px}.kv-label{font-size:12px;font-weight:500;color:var(--text-muted)}.kv-value{font-size:14px;color:var(--text-primary);overflow-wrap:anywhere;word-break:break-word}.kv-inline-link{color:var(--accent);text-decoration:none;font-size:12px;margin-left:6px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;text-underline-offset:2px}.kv-inline-link:hover{text-decoration:underline}.kv-inline-link-icon{width:11px;height:11px;flex-shrink:0}.kv-inline-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}.risk-value{display:inline-flex;align-items:center;gap:6px}.risk-dot{width:8px;height:8px;border-radius:999px;background:var(--gray);flex-shrink:0}.risk-dot.green{background:var(--green)}.risk-dot.amber{background:var(--amber)}.risk-dot.red{background:var(--red)}.kv-hint{font-size:11px;color:var(--text-muted);font-style:italic}.micro-summary{display:grid;gap:6px;padding:6px 0 2px}.micro-line{font-size:13px;color:var(--text-primary)}.micro-sublist{margin-top:8px}.micro-subtitle{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}.section-block{margin-top:12px}.block-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.section-note{font-size:12px;color:var(--text-secondary);margin:6px 0 12px}.subsection{padding:12px 0;border-top:1px solid var(--border-color)}.subsection:first-child{border-top:none;padding-top:0}.subsection-header{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}.subsection-title{font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.4px}.subsection-desc{font-size:11px;color:var(--text-muted)}.subsection.warning .subsection-title{color:var(--red)}.detail-list{margin-top:12px}.detail-title{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.detail-items{list-style:none;padding:0;margin:0;display:grid;gap:6px}.detail-items.mono .detail-item{font-family:var(--font-mono)}.detail-item{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere;word-break:break-word}.detail-item.muted{color:var(--text-muted)}.declared-deps{display:grid;gap:8px}.declared-summary{font-size:12px;color:var(--text-secondary);margin:4px 0 8px}.declared-group{border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);padding:8px 10px}.declared-group-summary{font-size:12px;font-weight:600;color:var(--text-primary);cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}.declared-group-summary::-webkit-details-marker{display:none}.declared-count{font-size:11px;color:var(--text-muted);font-weight:500}.declared-group-title{display:inline-flex;align-items:baseline;gap:6px}.declared-table{display:grid;gap:6px;margin-top:8px}.declared-row{display:grid;grid-template-columns:minmax(160px,1.3fr) minmax(120px,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-primary)}.declared-name{font-size:12px;font-family:var(--font-mono);color:var(--text-primary);display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.declared-range{font-size:12px;color:var(--text-secondary);font-family:var(--font-mono);overflow-wrap:anywhere}.status-pill{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid transparent}.status-pill.installed{color:var(--green);border-color:var(--green);background:var(--green-bg)}.status-pill.missing{color:var(--text-muted);border-color:var(--border-color-strong);background:var(--gray-bg)}.bullet-list{margin:6px 0 0;padding-left:18px;color:var(--text-secondary)}.bullet-list li{margin-bottom:6px}.subtle-divider{height:1px;background:var(--border-color);margin:12px 0}.package-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.package-tag{padding:2px 8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)}.package-list-toggle{font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 4px}.package-list-toggle:hover{text-decoration:underline}.vuln-table{width:100%;border-collapse:collapse;font-size:13px}.vuln-table th,.vuln-table td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-color);vertical-align:top;overflow-wrap:anywhere;word-break:break-word}.vuln-table th{font-weight:500;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}.vuln-table tr[data-severity=critical],.vuln-table tr[data-severity=high]{background:var(--red-bg)}.vuln-table tr[data-severity=moderate]{background:var(--amber-bg)}.vuln-table a{color:var(--accent);text-decoration:none}.vuln-table a:hover{text-decoration:underline}.no-vulns{font-size:13px;color:var(--text-secondary);padding:8px 0}.raw-data-toggle{margin-top:16px}.raw-data-toggle summary{font-size:12px;color:var(--text-muted);cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:8px;list-style:none}.raw-data-toggle summary::-webkit-details-marker{display:none}.raw-data-pane{margin-top:8px;position:relative;display:flex;flex-direction:column;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius);max-height:300px;overflow:auto}.raw-data-pane pre{margin:0;padding:12px 12px 44px;background:transparent;border:none;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);white-space:pre;overflow:visible}.copy-json-btn{position:sticky;bottom:8px;align-self:flex-end;margin:0 8px 8px;padding:6px 10px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-card);color:var(--text-primary);font-size:11px;cursor:pointer;transition:all var(--transition)}.raw-data-toggle:not([open]) .copy-json-btn{display:none}.copy-json-btn:hover{border-color:var(--accent);color:var(--accent)}.copy-json-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.copy-json-btn.copied{border-color:var(--green);color:var(--green)}.dep-loading{padding:2rem 0}.dep-loading-bar{position:relative;height:.25rem;background:var(--border-color);overflow:hidden;border-radius:999px}.dep-loading-bar:after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;background:var(--accent);animation:dep-loading 1.2s ease-in-out infinite}@keyframes dep-loading{0%{transform:translate(0)}to{transform:translate(250%)}}.package-tag-link{text-decoration:none;color:var(--text-secondary);transition:all var(--transition)}.package-tag-link:hover{border-color:var(--accent);color:var(--accent)}.package-tag-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}.empty-state-icon{font-size:48px;margin-bottom:12px}.empty-state-text{font-size:16px}@media(max-width:1180px)and (min-width:769px){.header-row{flex-direction:column}.cta-section{flex:none;width:100%;min-width:0;max-width:none}.cta-card{width:100%;max-width:none}.filter-top-row{max-width:none}.graph-overlay-top{padding:8px 12px}}@media(max-width:768px){.top-header{padding:20px 16px}.header-row{flex-direction:column;align-items:flex-start;gap:16px}.header-content{gap:12px}.logo,.logo-wrapper{width:48px;height:48px}.header-text h1{font-size:22px}.header-meta{gap:6px}.meta-item{padding:3px 8px;font-size:11px}.cta-section{flex:none;width:100%;min-width:0;max-width:none;text-align:left}.cta-card{width:100%;min-height:0;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:14px;border-radius:14px}.cta-icon{width:56px;height:56px}.cta-icon svg{width:38px;height:38px}.cta-title{font-size:18px}.cta-text{font-size:13px}.cta-action{grid-column:1 / -1;grid-template-columns:minmax(0,1fr)}.cta-button{min-height:42px;font-size:14px}.cta-privacy{justify-content:flex-start;font-size:12px}.filter-bar{padding:10px 16px}.filter-row{display:block}.filter-top-row{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;flex-wrap:wrap}.search-wrapper{max-width:none;flex:1 1 100%}.filter-top-row .search-wrapper{flex-basis:100%;min-width:0}.view-switch{order:3}.view-switch-btn{padding:6px 10px}.filters-toggle{order:2;flex-shrink:0}.filter-controls,.metadata-panel{position:static;width:100%;max-height:0;opacity:0;overflow:hidden;transform:translateY(-8px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out;margin-top:0;padding:0 12px;box-shadow:none}.filter-controls.open,.metadata-panel.open{max-height:900px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:12px}.filter-controls-row{display:grid;gap:10px}.filter-group{display:grid}.filter-group select{max-width:none}.mobile-only,.sort-wrapper.mobile-only{display:flex!important}.theme-toggle{order:4;margin-left:auto}.license-filter-toggle,#column-headers-container,.column-headers,.package-header{display:none}.column-headers-section{max-height:0;opacity:0;overflow:hidden;transform:translateY(-6px);pointer-events:none;transition:max-height .3s ease-out,opacity .25s ease-out,transform .25s ease-out,margin-top .25s ease-out,padding .25s ease-out;margin-top:0;padding:0 16px}.filter-controls.open+.license-filter-panel-row+.column-headers-section{max-height:120px;opacity:1;transform:translateY(0);pointer-events:auto;margin-top:8px;padding:8px 16px}.package-header-wrapper{flex-direction:row}.main-content{padding:12px 16px 32px}.graph-workspace-select{min-width:170px}.graph-overlay{padding:6px}.graph-canvas-shell{height:62vh;min-height:340px}.graph-key{padding:6px 8px;gap:8px}.graph-key-items{gap:8px}.graph-key-item{font-size:11px}.graph-back-btn{left:8px;top:8px}.graph-mode .main-content{padding:8px}.graph-mode .graph-canvas-shell{height:calc(100dvh - 16px);min-height:420px}.graph-controls{top:calc(var(--graph-toolbar-height, 50px) + 8px)}.report-footer{padding:0 16px 32px}.vuln-table thead{display:none}.vuln-table tr{display:block;border-bottom:1px solid var(--border-color)}.vuln-table td{display:flex;justify-content:space-between;gap:12px;padding:6px 8px}.vuln-table td:before{content:attr(data-label);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-muted);min-width:120px}.dep-summary{flex-wrap:wrap;padding:8px 12px}.dep-name{font-size:13px}.dep-indicators{display:flex;flex-wrap:wrap;min-width:auto;width:100%;margin-left:0;margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);gap:4px}.badge-card{flex:1 1 calc(50% - 4px);min-width:0}.badge-value{font-size:10px}.badge-label{clip:none;clip-path:none;height:auto;width:auto;margin:0;overflow:auto;padding:0;position:relative;font-size:7px}.declared-row{grid-template-columns:1fr;gap:6px}.graph-overlay-top{padding:8px 12px}}@media(max-width:480px){.header-text h1{font-size:20px}.meta-item{font-size:10px;padding:2px 6px}.cta-card{grid-template-columns:1fr;text-align:left}.cta-icon{display:none}.cta-action{grid-column:auto}.badge-card{flex:1 1 100%}}
 `;
 
 /**
@@ -333,7 +333,7 @@ export const JS_CONTENT = `!function() {
                 n.push(e.slug), w.set(t, n);
             });
         });
-        let C = null, x = "", L = null, S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, D = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, \$ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
+        let C = null, x = "", L = null, S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, B = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, \$ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
         const J = {
             down: !1,
             moved: !1,
@@ -606,9 +606,9 @@ export const JS_CONTENT = `!function() {
                     maxY: 1
                 }
             };
-            return Be(v), De(v), v;
+            return De(v), Be(v), v;
         }
-        function Be(e) {
+        function De(e) {
             e.nodes.forEach(e => {
                 e.amplification = 0;
             }), e.nodes.forEach(t => {
@@ -629,7 +629,7 @@ export const JS_CONTENT = `!function() {
                 t.amplification = n.size;
             });
         }
-        function De(e) {
+        function Be(e) {
             const t = new Map;
             e.layers.forEach((n, a) => {
                 0 === a ? n.sort((t, n) => {
@@ -734,8 +734,8 @@ export const JS_CONTENT = `!function() {
             }), c.children.forEach(e => {
                 Y.add(e);
             });
-            const l = null === X || null === B, d = !l && Boolean(T) && I.has(T);
-            !l && d || (X = c.renderX, B = c.renderY), P = function(e, t, a, r) {
+            const l = null === X || null === D, d = !l && Boolean(T) && I.has(T);
+            !l && d || (X = c.renderX, D = c.renderY), P = function(e, t, a, r) {
                 const s = new Map, i = k(e, t, "parents"), o = k(e, t, "children"), c = new Map;
                 return s.set(t, {
                     x: a,
@@ -764,15 +764,15 @@ export const JS_CONTENT = `!function() {
                         });
                     });
                 }), s;
-            }(C, e, X ?? c.renderX, B ?? c.renderY), Ae(X ?? c.renderX, B ?? c.renderY), U = !0, 
+            }(C, e, X ?? c.renderX, D ?? c.renderY), Ae(X ?? c.renderX, D ?? c.renderY), U = !0, 
             _e();
         }
         function Ne() {
-            L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, 
+            L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, D = null, 
             fe(), U = !0, _e();
         }
         function je(e = !0) {
-            S = null, D = new Set, A = new Set, e && (U = !0, _e());
+            S = null, B = new Set, A = new Set, e && (U = !0, _e());
         }
         function Re() {
             if (!C) return;
@@ -781,9 +781,9 @@ export const JS_CONTENT = `!function() {
                 t.targetRadius = function(e) {
                     const t = L === e.slug, n = I.has(e.slug);
                     let a = e.radius;
-                    t ? a *= 1.85 : L && n ? a *= 1.22 : L && !n ? a *= .84 : S && D.has(e.slug) ? a *= 1.1 : S && (a *= .9);
+                    t ? a *= 1.85 : L && n ? a *= 1.22 : L && !n ? a *= .84 : S && B.has(e.slug) ? a *= 1.1 : S && (a *= .9);
                     return a;
-                }(t), t.targetLabelChars = a(t.labelGraphemes, Boolean(L) && I.has(t.slug) || !L && Boolean(S) && D.has(t.slug));
+                }(t), t.targetLabelChars = a(t.labelGraphemes, Boolean(L) && I.has(t.slug) || !L && Boolean(S) && B.has(t.slug));
                 const n = P.get(t.slug);
                 if (e && n) return t.targetX = n.x, void (t.targetY = n.y);
                 if (!e || !Y.has(t.slug)) return t.targetX = t.baseX, void (t.targetY = t.baseY);
@@ -793,21 +793,21 @@ export const JS_CONTENT = `!function() {
         }
         function Ve(e) {
             if (L) return;
-            if (S = e, D = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
+            if (S = e, B = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
             void _e();
             const t = f(C, e), n = y(C, e);
-            D = new Set([ e ]), t.forEach(e => {
-                D.add(e);
+            B = new Set([ e ]), t.forEach(e => {
+                B.add(e);
             }), n.forEach(e => {
-                D.add(e);
+                B.add(e);
             });
             const a = C.nodes.get(e);
             a && (a.parents.forEach(e => {
-                D.add(e);
+                B.add(e);
             }), a.children.forEach(e => {
-                D.add(e);
+                B.add(e);
             })), C.edges.forEach(e => {
-                D.has(e.from) && D.has(e.to) && A.add(p(e.from, e.to));
+                B.has(e.from) && B.has(e.to) && A.add(p(e.from, e.to));
             }), U = !0, _e();
         }
         function He(e) {
@@ -831,7 +831,7 @@ export const JS_CONTENT = `!function() {
             c.popover.style.left = \`\${l}px\`, c.popover.style.top = \`\${d}px\`;
         }
         function We(e) {
-            return L ? I.has(e) ? 1 : .14 : S ? D.has(e) ? 1 : .16 : .95;
+            return L ? I.has(e) ? 1 : .14 : S ? B.has(e) ? 1 : .16 : .95;
         }
         function Ge() {
             if (!ee) return;
@@ -848,7 +848,7 @@ export const JS_CONTENT = `!function() {
             e.nodes.forEach(e => {
                 if (!b.has(e.slug)) return;
                 let t = 0;
-                L === e.slug ? t = 2 : (I.has(e.slug) || D.has(e.slug)) && (t = 1), w.push({
+                L === e.slug ? t = 2 : (I.has(e.slug) || B.has(e.slug)) && (t = 1), w.push({
                     node: e,
                     priority: t,
                     order: E++
@@ -894,7 +894,7 @@ export const JS_CONTENT = `!function() {
             ee.globalAlpha = .36 * n((N - .35) / .9, .2, 1), ee.beginPath(), X.forEach(e => {
                 e.highlighted && d(ee, e, P, Boolean(L));
             }), ee.stroke(), ee.globalCompositeOperation = "source-over";
-            const B = e => {
+            const D = e => {
                 const t = L === e.slug, n = e.renderRadius;
                 ee.globalAlpha = 1, ee.fillStyle = k, ee.beginPath(), ee.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
                 ee.fill(), ee.globalAlpha = We(e.slug);
@@ -909,7 +909,7 @@ export const JS_CONTENT = `!function() {
                 if ("none" === e.ref.vulnerabilitySeverity) return;
                 const t = e.renderRadius, n = "high" === e.ref.vulnerabilitySeverity ? v : f;
                 var a;
-                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, L ? I.has(a) ? .78 : .11 : S ? D.has(a) ? .76 : .12 : .8), 
+                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, L ? I.has(a) ? .78 : .11 : S ? B.has(a) ? .76 : .12 : .8), 
                 ee.strokeStyle = n;
                 const r = t / e.radius, s = t / 3 * 1.2 / 12, i = 1.2 * s + 3 * (r - 1), o = Math.max(.5 * s, .15), c = Math.max(1 * s, .3), l = Math.max(3 * s, .8), d = Math.max(1 * s, .3), u = Math.max(.5 * s, .15), p = t + (2 + 6 * (r - 1)) + o / 2, h = p + o / 2 + i + c / 2, g = h + c / 2 + i + l / 2, m = g + l / 2 + i + d / 2, y = m + d / 2 + i + u / 2;
                 ee.setLineDash([]), ee.lineWidth = u, ee.beginPath(), ee.arc(0, 0, y, 0, 2 * Math.PI), 
@@ -920,7 +920,7 @@ export const JS_CONTENT = `!function() {
                 ee.stroke(), ee.restore();
             };
             for (const t of [ 0, 1, 2 ]) w.forEach(({node: e, priority: n}) => {
-                n === t && B(e);
+                n === t && D(e);
             }), w.forEach(({node: e, priority: n}) => {
                 n === t && T(e);
             });
@@ -968,7 +968,7 @@ export const JS_CONTENT = `!function() {
         }
         function qe(e) {
             const t = Xe(e);
-            t && (we(), x = e, C = t, Ne(), Oe(), S = null, D = new Set, A = new Set, Ye(!0), 
+            t && (we(), x = e, C = t, Ne(), Oe(), S = null, B = new Set, A = new Set, Ye(!0), 
             C && (we(), fe(), Se(), N = V, ve(O, F)), U = !0, _e());
         }
         function ze(e) {
@@ -1096,8 +1096,8 @@ export const JS_CONTENT = `!function() {
                 }(), ct(), te ? (Le(), qe(x)) : pe();
             },
             buildWorkspaceGraph: Xe,
-            computeAmplification: Be,
-            layoutGraph: De,
+            computeAmplification: De,
+            layoutGraph: Be,
             renderLoop: Ue,
             applyFocus: Te,
             clearFocus: Ne,
@@ -1272,13 +1272,13 @@ export const JS_CONTENT = `!function() {
             return n[a] - n[r];
         }
     } ], X = P.length;
-    function B(e) {
+    function D(e) {
         if (!e) return "unknown";
         const t = e.toUpperCase();
         for (const [n, a] of Object.entries(w)) if (a.some(e => t.includes(e.toUpperCase()))) return n;
         return "unknown";
     }
-    function D(e) {
+    function B(e) {
         const t = e.compliance.license, n = t.declared?.valid ? t.declared.spdxId : void 0, a = t.inferred?.spdxId;
         return n ? {
             value: n,
@@ -1597,7 +1597,7 @@ export const JS_CONTENT = `!function() {
         return [ '<details class="dep-card" data-risk="' + t + '" data-dep-key="' + j(n) + '" id="' + j(a) + '">', s, '<div class="dep-details" data-rendered="false"></div>', "</details>" ].join("");
     }
     function me(e, t, n) {
-        const a = N(e), r = a.summary, s = D(e), i = s.isInferred ? \`\${s.value} (inferred)\` : s.value, o = function(e) {
+        const a = N(e), r = a.summary, s = B(e), i = s.isInferred ? \`\${s.value} (inferred)\` : s.value, o = function(e) {
             const t = e.package?.links || {}, n = e.links || {}, a = de(t.repository || n.repository || n.repo);
             return {
                 npm: t.npm || n.npm,
@@ -1658,13 +1658,13 @@ export const JS_CONTENT = `!function() {
         e.upgrade.latestVersion && L.push(q("Latest version", e.upgrade.latestVersion));
         const I = le("Version", '<div class="section-note">Based on npm outdated findings.</div><div class="kv-grid">' + L.join("") + "</div>"), M = e.package.deprecated ? le("Deprecated", '<div class="kv-grid">' + q("Deprecated", "Yes", "Declared by the package author.") + "</div>", void 0, "warning") : "", Y = [ q("Node engine constraint", e.upgrade.nodeEngine || "Any") ];
         void 0 !== e.upgrade.blocksNodeMajor && Y.push(q("Blocks Node major upgrade", e.upgrade.blocksNodeMajor ? "Yes" : "No"));
-        const P = le("Constraints", '<div class="kv-grid">' + Y.join("") + "</div>"), X = le("Blast radius", '<div class="kv-grid">' + [ q("Used by other packages (fanIn)", e.graph.fanIn), q("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), B = {
+        const P = le("Constraints", '<div class="kv-grid">' + Y.join("") + "</div>"), X = le("Blast radius", '<div class="kv-grid">' + [ q("Used by other packages (fanIn)", e.graph.fanIn), q("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), D = {
             nodeEngine: "Node engine constraint",
             peerDependency: "Peer dependency constraints",
             nativeBindings: "Native bindings/build tooling",
             installScripts: "Install lifecycle scripts",
             deprecated: "Deprecated by author"
-        }, T = ce("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + j(B[e] || e) + "</li>").join("") + "</ul></div>" : "")), R = oe(e, t, n);
+        }, T = ce("Upgrade & Change Impact", "Currency, constraints, and blast radius", I + M + P + X + (e.upgrade.blockers?.length ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' + e.upgrade.blockers.map(e => "<li>" + j(D[e] || e) + "</li>").join("") + "</ul></div>" : "")), R = oe(e, t, n);
         return [ he(o), h, x, T, R, '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary><div class="raw-data-pane"><pre>' + j(c) + '</pre><button type="button" class="copy-json-btn" aria-label="Copy raw JSON">Copy JSON</button></div></details>' ].join("");
     }
     async function ve() {
@@ -1678,41 +1678,41 @@ export const JS_CONTENT = `!function() {
             return \`https://dependency-radar.com/next-steps?source=standalone-report&cli=\${encodeURIComponent(t)}\`;
         }(e.dependencyRadarVersion), r = document.getElementById("project-path");
         r && (r.textContent = e.project.name || e.project.projectDir, r.title = e.project.projectDir);
-        const s = document.getElementById("metadata-toggle"), i = document.getElementById("metadata-panel"), o = document.getElementById("cta-primary-link"), c = document.getElementById("cta-secondary-link");
-        o && (o.href = a), c && (c.href = a);
-        const l = document.getElementById("formatted-date");
-        let d = e.generatedAt || "";
-        if (l && e.generatedAt) try {
+        const s = document.getElementById("metadata-toggle"), i = document.getElementById("metadata-panel"), o = document.getElementById("cta-primary-link");
+        o && (o.href = a);
+        const c = document.getElementById("formatted-date");
+        let l = e.generatedAt || "";
+        if (c && e.generatedAt) try {
             const t = new Date(e.generatedAt);
-            d = new Intl.DateTimeFormat(void 0, {
+            l = new Intl.DateTimeFormat(void 0, {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
-            }).format(t), l.textContent = d;
+            }).format(t), c.textContent = l;
         } catch {
-            d = e.generatedAt, l.textContent = e.generatedAt;
+            l = e.generatedAt, c.textContent = e.generatedAt;
         }
         i && (i.innerHTML = function(e, t) {
             const n = e.environment || {}, a = n.minRequiredMajor, r = a && a > 0 ? "Node requirement derived from dependency engine ranges." : "";
             return [ O("Report", [ H("Dependency Radar", e.dependencyRadarVersion), H("Schema", e.schemaVersion), H("Generated", t || e.generatedAt), H("Generated raw", e.generatedAt) ]), O("Project", [ H("Name", e.project.name), H("Version", e.project.version), H("Path", e.project.projectDir), H("Description", e.project.description), H("License", e.project.license), H("Homepage", e.project.homepage), H("Repository", e.project.repository), H("Constraints", e.project.constraints), H("Dependency policy", e.project.dependencyPolicySummary) ]), O("Git", [ H("Branch", e.git?.branch) ]), O("Environment", [ H("Node", n.nodeVersion), H("Runtime", n.runtimeVersion), H("Minimum required Node major", n.minRequiredMajor), H("Target Node major", n.targetNodeMajor), H("Platform", n.platform), H("Architecture", n.arch), H("CI", n.ci), H("packageManager field", n.packageManagerField), H("Package manager", n.packageManager), H("Package manager version", n.packageManagerVersion), H("Tool versions", n.toolVersions), H("Node note", r) ]), F(e), O("Summary", [ H("Dependencies", e.summary?.dependencyCount), H("Direct", e.summary?.directCount), H("Transitive", e.summary?.transitiveCount), H("Findings", e.summary?.findingCount) ]), W(e) ].filter(Boolean).join("");
-        }(e, d), i.hidden = !1);
-        const u = e => {
+        }(e, l), i.hidden = !1);
+        const d = e => {
             s && i && (i.classList.toggle("open", e), s.classList.toggle("open", e), s.setAttribute("aria-expanded", String(e)));
         };
         s?.addEventListener("click", () => {
             const e = !i?.classList.contains("open");
-            u(e);
+            d(e);
         }), document.addEventListener("click", e => {
             if (!s || !i) return;
             if (!i.classList.contains("open")) return;
             const t = e.target;
-            s.contains(t) || i.contains(t) || u(!1);
+            s.contains(t) || i.contains(t) || d(!1);
         }), document.addEventListener("keydown", e => {
-            "Escape" === e.key && u(!1);
+            "Escape" === e.key && d(!1);
         });
-        const p = {
+        const u = {
             search: document.getElementById("search"),
             direct: document.getElementById("direct-filter"),
             runtime: document.getElementById("runtime-filter"),
@@ -1762,64 +1762,64 @@ export const JS_CONTENT = `!function() {
             graphOpenList: document.getElementById("graph-open-list"),
             reportFooter: document.querySelector(".report-footer")
         };
-        let h = "name", g = !0, m = null, v = !1;
+        let p = "name", h = !0, g = null, m = !1;
         document.documentElement.setAttribute("data-theme", "dark");
         "light" === localStorage.getItem("dependency-radar-theme") ? (document.documentElement.classList.add("light"), 
-        p.themeSwitch.classList.add("light"), document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
-        p.themeSwitch.classList.remove("light"), document.documentElement.setAttribute("data-theme", "dark")), 
-        p.themeSwitch.addEventListener("click", () => {
-            document.documentElement.classList.toggle("light"), p.themeSwitch.classList.toggle("light");
+        u.themeSwitch.classList.add("light"), document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
+        u.themeSwitch.classList.remove("light"), document.documentElement.setAttribute("data-theme", "dark")), 
+        u.themeSwitch.addEventListener("click", () => {
+            document.documentElement.classList.toggle("light"), u.themeSwitch.classList.toggle("light");
             const e = document.documentElement.classList.contains("light");
             document.documentElement.setAttribute("data-theme", e ? "light" : "dark"), localStorage.setItem("dependency-radar-theme", e ? "light" : "dark"), 
-            m?.requestRender();
+            g?.requestRender();
         });
-        const f = window.matchMedia("(max-width: 768px)");
-        let y = f.matches;
-        const k = e => {
-            p.filterControls && p.filtersToggle && (p.filterControls.classList.toggle("open", e), 
-            p.filtersToggle.classList.toggle("open", e), p.filtersToggle.setAttribute("aria-expanded", String(e)), 
-            e && u(!1));
-        }, w = () => {
-            if (f.matches) return k(!1), void (y = !0);
-            y && k(!1), y = !1;
+        const v = window.matchMedia("(max-width: 768px)");
+        let f = v.matches;
+        const y = e => {
+            u.filterControls && u.filtersToggle && (u.filterControls.classList.toggle("open", e), 
+            u.filtersToggle.classList.toggle("open", e), u.filtersToggle.setAttribute("aria-expanded", String(e)), 
+            e && d(!1));
+        }, k = () => {
+            if (v.matches) return y(!1), void (f = !0);
+            f && y(!1), f = !1;
         };
-        function E() {
-            if (p.columnHeadersContainer && (p.columnHeadersContainer.innerHTML = _(h, g)), 
-            p.packageHeader) {
-                const e = p.packageHeader.querySelector(".sort-indicator");
-                e && ("name" === h ? (e.textContent = g ? " ▲" : " ▼", p.packageHeader.classList.add("sorted")) : (e.textContent = "", 
-                p.packageHeader.classList.remove("sorted")));
+        function w() {
+            if (u.columnHeadersContainer && (u.columnHeadersContainer.innerHTML = _(p, h)), 
+            u.packageHeader) {
+                const e = u.packageHeader.querySelector(".sort-indicator");
+                e && ("name" === p ? (e.textContent = h ? " ▲" : " ▼", u.packageHeader.classList.add("sorted")) : (e.textContent = "", 
+                u.packageHeader.classList.remove("sorted")));
             }
         }
-        function C(e) {
+        function E(e) {
             const t = e.target.closest(".column-header");
             if (!t) return;
             const n = t.dataset.sort;
-            n && (h === n ? g = !g : (h = n, g = !0), p.sort && (p.sort.value = h, p.sortDirection.textContent = g ? "↑" : "↓"), 
-            E(), K());
+            n && (p === n ? h = !h : (p = n, h = !0), u.sort && (u.sort.value = p, u.sortDirection.textContent = h ? "↑" : "↓"), 
+            w(), z());
         }
-        p.filtersToggle && p.filterControls && p.filtersToggle.addEventListener("click", () => {
-            const e = !p.filterControls.classList.contains("open");
-            k(e);
+        u.filtersToggle && u.filterControls && u.filtersToggle.addEventListener("click", () => {
+            const e = !u.filterControls.classList.contains("open");
+            y(e);
         }), document.addEventListener("click", e => {
-            if (!p.filterControls || !p.filtersToggle) return;
+            if (!u.filterControls || !u.filtersToggle) return;
             const t = e.target;
-            p.filterControls.contains(t) || p.filtersToggle.contains(t) || k(!1);
+            u.filterControls.contains(t) || u.filtersToggle.contains(t) || y(!1);
         }), document.addEventListener("keydown", e => {
-            "Escape" === e.key && k(!1);
-        }), window.addEventListener("resize", w), w(), p.sortDirection.addEventListener("click", () => {
-            g = !g, p.sortDirection.textContent = g ? "↑" : "↓", E(), K();
-        }), p.sort.addEventListener("change", () => {
-            h = p.sort.value, E(), K();
-        }), p.columnHeadersContainer && p.columnHeadersContainer.addEventListener("click", C), 
-        p.packageHeader && p.packageHeader.addEventListener("click", C), E(), p.licenseAll.addEventListener("click", () => {
-            p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !0, p.licenseStrongCopyleft.checked = !0, 
-            p.licenseUnknown.checked = !0, V.clear(), K();
-        }), p.licenseFriendly.addEventListener("click", () => {
-            p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !1, p.licenseStrongCopyleft.checked = !1, 
-            p.licenseUnknown.checked = !1, V.clear(), K();
+            "Escape" === e.key && y(!1);
+        }), window.addEventListener("resize", k), k(), u.sortDirection.addEventListener("click", () => {
+            h = !h, u.sortDirection.textContent = h ? "↑" : "↓", w(), z();
+        }), u.sort.addEventListener("change", () => {
+            p = u.sort.value, w(), z();
+        }), u.columnHeadersContainer && u.columnHeadersContainer.addEventListener("click", E), 
+        u.packageHeader && u.packageHeader.addEventListener("click", E), w(), u.licenseAll.addEventListener("click", () => {
+            u.licensePermissive.checked = !0, u.licenseWeakCopyleft.checked = !0, u.licenseStrongCopyleft.checked = !0, 
+            u.licenseUnknown.checked = !0, R.clear(), z();
+        }), u.licenseFriendly.addEventListener("click", () => {
+            u.licensePermissive.checked = !0, u.licenseWeakCopyleft.checked = !1, u.licenseStrongCopyleft.checked = !1, 
+            u.licenseUnknown.checked = !1, R.clear(), z();
         });
-        const x = Object.values(e.dependencies || {}), L = function(e) {
+        const C = Object.values(e.dependencies || {}), x = function(e) {
             if (!e.workspaces.enabled) return [];
             const t = new Set;
             return (e.workspaces.workspacePackages || []).forEach(e => {
@@ -1829,24 +1829,24 @@ export const JS_CONTENT = `!function() {
                     e && t.add(e);
                 });
             }), Array.from(t).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t));
-        }(e), S = (e, t) => e + " (" + t + ")", I = e => {
+        }(e), L = (e, t) => e + " (" + t + ")", S = e => {
             return T[(t = N(e).summary, t?.highest || "none")] > 0;
             var t;
-        }, M = e => x.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
-        if (p.workspace && p.workspaceWrap && L.length > 1) {
-            p.workspace.textContent = "";
+        }, I = e => C.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
+        if (u.workspace && u.workspaceWrap && x.length > 1) {
+            u.workspace.textContent = "";
             const e = document.createElement("option");
-            e.value = "all", e.textContent = S("All workspaces", x.length), p.workspace.appendChild(e), 
-            L.forEach(e => {
+            e.value = "all", e.textContent = L("All workspaces", C.length), u.workspace.appendChild(e), 
+            x.forEach(e => {
                 const t = document.createElement("option");
-                t.value = e, t.textContent = S("root" === e ? "Workspace root" : e, M(t => (t.usage.origins.workspaces || []).includes(e))), 
-                p.workspace.appendChild(t);
-            }), p.workspaceWrap.classList.remove("hidden");
+                t.value = e, t.textContent = L("root" === e ? "Workspace root" : e, I(t => (t.usage.origins.workspaces || []).includes(e))), 
+                u.workspace.appendChild(t);
+            }), u.workspaceWrap.classList.remove("hidden");
         }
         !function() {
-            const e = x.length;
-            p.direct.options[0].textContent = S("All", e), p.direct.options[1].textContent = S("Direct", M(e => e.usage.direct)), 
-            p.direct.options[2].textContent = S("Transitive", M(e => !e.usage.direct));
+            const e = C.length;
+            u.direct.options[0].textContent = L("All", e), u.direct.options[1].textContent = L("Direct", I(e => e.usage.direct)), 
+            u.direct.options[2].textContent = L("Transitive", I(e => !e.usage.direct));
             const t = {
                 all: "All",
                 runtime: "Production",
@@ -1854,8 +1854,8 @@ export const JS_CONTENT = `!function() {
                 optional: "Optional",
                 peer: "Peer"
             };
-            Array.from(p.runtime.options).forEach(n => {
-                n.textContent = S(t[n.value] || n.textContent || n.value, "all" === n.value ? e : M(e => e.usage.scope === n.value));
+            Array.from(u.runtime.options).forEach(n => {
+                n.textContent = L(t[n.value] || n.textContent || n.value, "all" === n.value ? e : I(e => e.usage.scope === n.value));
             });
             const n = {
                 permissive: 0,
@@ -1863,88 +1863,88 @@ export const JS_CONTENT = `!function() {
                 strongCopyleft: 0,
                 unknown: 0
             };
-            x.forEach(e => {
-                n[B(D(e).value)] += 1;
-            }), p.licensePermissiveLabel && (p.licensePermissiveLabel.textContent = S("Permissive", n.permissive)), 
-            p.licenseWeakCopyleftLabel && (p.licenseWeakCopyleftLabel.textContent = S("Weak Copyleft", n.weakCopyleft)), 
-            p.licenseStrongCopyleftLabel && (p.licenseStrongCopyleftLabel.textContent = S("Strong Copyleft", n.strongCopyleft)), 
-            p.licenseUnknownLabel && (p.licenseUnknownLabel.textContent = S("Other / Unknown", n.unknown)), 
-            p.hasVulnsLabel && (p.hasVulnsLabel.textContent = S("Has vulnerabilities", M(I)));
+            C.forEach(e => {
+                n[D(B(e).value)] += 1;
+            }), u.licensePermissiveLabel && (u.licensePermissiveLabel.textContent = L("Permissive", n.permissive)), 
+            u.licenseWeakCopyleftLabel && (u.licenseWeakCopyleftLabel.textContent = L("Weak Copyleft", n.weakCopyleft)), 
+            u.licenseStrongCopyleftLabel && (u.licenseStrongCopyleftLabel.textContent = L("Strong Copyleft", n.strongCopyleft)), 
+            u.licenseUnknownLabel && (u.licenseUnknownLabel.textContent = L("Other / Unknown", n.unknown)), 
+            u.hasVulnsLabel && (u.hasVulnsLabel.textContent = L("Has vulnerabilities", I(S)));
         }();
-        const Y = new Map;
-        x.forEach(e => {
-            Y.set(Q(e.package.name, e.package.version), e);
+        const M = new Map;
+        C.forEach(e => {
+            M.set(Q(e.package.name, e.package.version), e);
         });
-        const X = new Set(Y.keys()), A = ae(X), R = new Set, V = new Set, G = new Map, \$ = (() => {
+        const Y = new Set(M.keys()), X = ae(Y), A = new Set, R = new Set, V = new Map, G = (() => {
             const e = document.getElementById("copy-announcer");
             if (e) return e;
             const t = document.createElement("div");
             return t.id = "copy-announcer", t.className = "sr-only", t.setAttribute("aria-live", "polite"), 
             document.body.appendChild(t), t;
         })();
-        function U(e) {
+        function \$(e) {
             const t = e.dataset.depKey;
             if (!t) return;
             const n = e.querySelector(".dep-details");
             if (!n || "true" === n.dataset.rendered) return;
-            const a = Y.get(t);
+            const a = M.get(t);
             a && (n.setAttribute("aria-busy", "true"), n.innerHTML = [ '<div class="dep-loading" role="presentation">', '<div class="dep-loading-bar"></div>', "</div>" ].join(""), 
             requestAnimationFrame(() => {
-                n.innerHTML = me(a, X, A), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
+                n.innerHTML = me(a, Y, X), n.dataset.rendered = "true", n.removeAttribute("aria-busy");
             }));
         }
-        function q(e) {
+        function U(e) {
             const t = e.selectedOptions[0];
             return (t?.textContent || "").replace(/\\s+\\(\\d+\\)\$/, "");
         }
-        function z() {
+        function q() {
             const e = [];
-            "all" !== p.direct.value && e.push({
+            "all" !== u.direct.value && e.push({
                 id: "type",
-                label: "Type: " + q(p.direct),
+                label: "Type: " + U(u.direct),
                 remove: () => {
-                    p.direct.value = "all";
+                    u.direct.value = "all";
                 }
-            }), "all" !== p.runtime.value && e.push({
+            }), "all" !== u.runtime.value && e.push({
                 id: "scope",
-                label: "Scope: " + q(p.runtime),
+                label: "Scope: " + U(u.runtime),
                 remove: () => {
-                    p.runtime.value = "all";
+                    u.runtime.value = "all";
                 }
-            }), p.workspace && "all" !== p.workspace.value && e.push({
+            }), u.workspace && "all" !== u.workspace.value && e.push({
                 id: "workspace",
-                label: "Workspace: " + q(p.workspace),
+                label: "Workspace: " + U(u.workspace),
                 remove: () => {
-                    p.workspace.value = "all";
+                    u.workspace.value = "all";
                 }
             });
             return [ {
                 id: "license-permissive",
-                checked: p.licensePermissive.checked,
+                checked: u.licensePermissive.checked,
                 label: "License: Permissive",
                 reset: () => {
-                    p.licensePermissive.checked = !0;
+                    u.licensePermissive.checked = !0;
                 }
             }, {
                 id: "license-weak-copyleft",
-                checked: p.licenseWeakCopyleft.checked,
+                checked: u.licenseWeakCopyleft.checked,
                 label: "License: Weak Copyleft",
                 reset: () => {
-                    p.licenseWeakCopyleft.checked = !0;
+                    u.licenseWeakCopyleft.checked = !0;
                 }
             }, {
                 id: "license-strong-copyleft",
-                checked: p.licenseStrongCopyleft.checked,
+                checked: u.licenseStrongCopyleft.checked,
                 label: "License: Strong Copyleft",
                 reset: () => {
-                    p.licenseStrongCopyleft.checked = !0;
+                    u.licenseStrongCopyleft.checked = !0;
                 }
             }, {
                 id: "license-unknown",
-                checked: p.licenseUnknown.checked,
+                checked: u.licenseUnknown.checked,
                 label: "License: Other / Unknown",
                 reset: () => {
-                    p.licenseUnknown.checked = !0;
+                    u.licenseUnknown.checked = !0;
                 }
             } ].forEach(t => {
                 t.checked || e.push({
@@ -1952,109 +1952,109 @@ export const JS_CONTENT = `!function() {
                     label: t.label,
                     remove: t.reset
                 });
-            }), p.hasVulns.checked && e.push({
+            }), u.hasVulns.checked && e.push({
                 id: "has-vulns",
                 label: "Has vulnerabilities",
                 remove: () => {
-                    p.hasVulns.checked = !1;
+                    u.hasVulns.checked = !1;
                 }
             }), e;
         }
-        function K() {
+        function z() {
             !function() {
-                const e = z(), t = e.length;
-                p.filtersToggle.classList.toggle("has-active-filters", t > 0), p.filterCountBadge && (p.filterCountBadge.hidden = 0 === t, 
-                p.filterCountBadge.textContent = String(t)), p.activeFiltersRow && p.activeFilterChips && (p.activeFiltersRow.hidden = 0 === t, 
-                p.activeFilterChips.innerHTML = e.map(e => '<span class="active-filter-chip">' + j(e.label) + '<button type="button" class="active-filter-remove" data-filter-chip="' + j(e.id) + '" aria-label="Remove ' + j(e.label) + '">×</button></span>').join(""));
+                const e = q(), t = e.length;
+                u.filtersToggle.classList.toggle("has-active-filters", t > 0), u.filterCountBadge && (u.filterCountBadge.hidden = 0 === t, 
+                u.filterCountBadge.textContent = String(t)), u.activeFiltersRow && u.activeFilterChips && (u.activeFiltersRow.hidden = 0 === t, 
+                u.activeFilterChips.innerHTML = e.map(e => '<span class="active-filter-chip">' + j(e.label) + '<button type="button" class="active-filter-remove" data-filter-chip="' + j(e.id) + '" aria-label="Remove ' + j(e.label) + '">×</button></span>').join(""));
             }();
             const a = function(e) {
                 const t = [ ...e ];
-                if ("name" === h) t.sort((e, t) => e.package.name.localeCompare(t.package.name)); else if ("depth" === h) t.sort((e, t) => e.usage.depth - t.usage.depth); else {
-                    const e = P.find(e => e.sortKey === h || e.id === h);
+                if ("name" === p) t.sort((e, t) => e.package.name.localeCompare(t.package.name)); else if ("depth" === p) t.sort((e, t) => e.usage.depth - t.usage.depth); else {
+                    const e = P.find(e => e.sortKey === p || e.id === p);
                     e?.sortFn ? t.sort(e.sortFn) : e && t.sort((t, n) => e.getValue(t).localeCompare(e.getValue(n)));
                 }
-                return g || t.reverse(), t;
+                return h || t.reverse(), t;
             }(function() {
-                const e = (p.search.value || "").toLowerCase(), t = p.direct.value, n = p.runtime.value, a = p.workspace?.value || "all", r = p.hasVulns.checked, s = p.licensePermissive.checked, i = p.licenseWeakCopyleft.checked, o = p.licenseStrongCopyleft.checked, c = p.licenseUnknown.checked;
-                return x.filter(l => {
+                const e = (u.search.value || "").toLowerCase(), t = u.direct.value, n = u.runtime.value, a = u.workspace?.value || "all", r = u.hasVulns.checked, s = u.licensePermissive.checked, i = u.licenseWeakCopyleft.checked, o = u.licenseStrongCopyleft.checked, c = u.licenseUnknown.checked;
+                return C.filter(l => {
                     const d = Q(l.package.name, l.package.version);
-                    if (V.has(d)) return !0;
-                    const u = D(l), p = [ u.value, l.compliance.license.declared?.spdxId, l.compliance.license.inferred?.spdxId ].filter(Boolean).join(" ").toLowerCase();
+                    if (R.has(d)) return !0;
+                    const u = B(l), p = [ u.value, l.compliance.license.declared?.spdxId, l.compliance.license.inferred?.spdxId ].filter(Boolean).join(" ").toLowerCase();
                     if (e && !l.package.name.toLowerCase().includes(e) && !p.includes(e)) return !1;
                     if ("direct" === t && !l.usage.direct) return !1;
                     if ("transitive" === t && l.usage.direct) return !1;
                     if ("all" !== n && l.usage.scope !== n) return !1;
                     if ("all" !== a && !(l.usage.origins.workspaces || []).includes(a)) return !1;
-                    if (r && !I(l)) return !1;
-                    const h = B(u.value);
+                    if (r && !S(l)) return !1;
+                    const h = D(u.value);
                     return !("permissive" === h && !s || "weakCopyleft" === h && !i || "strongCopyleft" === h && !o || "unknown" === h && !c);
                 });
-            }()), r = e.summary?.dependencyCount || x.length;
+            }()), r = e.summary?.dependencyCount || C.length;
             n.innerHTML = "Showing <strong>" + a.length + "</strong> of <strong>" + r + "</strong> dependencies", 
-            "all" !== (p.workspace?.value || "all") && (n.innerHTML += " in <strong>" + j(p.workspace.value) + "</strong>"), 
-            0 !== a.length ? (t.innerHTML = a.map(ge).join(""), G.clear(), t.querySelectorAll("details.dep-card").forEach(e => {
+            "all" !== (u.workspace?.value || "all") && (n.innerHTML += " in <strong>" + j(u.workspace.value) + "</strong>"), 
+            0 !== a.length ? (t.innerHTML = a.map(ge).join(""), V.clear(), t.querySelectorAll("details.dep-card").forEach(e => {
                 const t = e.dataset.depKey;
-                t && G.set(t, e);
-            }), R.forEach(e => {
-                const t = G.get(e);
-                t && (t.open || (t.open = !0), U(t));
+                t && V.set(t, e);
+            }), A.forEach(e => {
+                const t = V.get(e);
+                t && (t.open || (t.open = !0), \$(t));
             })) : t.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No dependencies match your filters</div></div>';
         }
-        function J(e) {
-            const t = A.get(e) || [];
+        function K(e) {
+            const t = X.get(e) || [];
             return 1 === t.length ? t[0] : null;
         }
-        function Z(e) {
-            if (Y.has(e)) return e;
+        function J(e) {
+            if (M.has(e)) return e;
             const t = te(e);
-            if (!t) return J(e);
+            if (!t) return K(e);
             if (t.version.startsWith("npm:")) {
                 const e = t.version.slice(4), n = t.name + (e.startsWith("@") ? e : "@" + e);
-                if (Y.has(n)) return n;
+                if (M.has(n)) return n;
             }
-            return J(t.name);
+            return K(t.name);
         }
-        function ee(t) {
-            if (!p.listViewPanel || !p.graphViewPanel) return void console.warn("Dependency Radar: view panels are missing from the report DOM.");
+        function Z(t) {
+            if (!u.listViewPanel || !u.graphViewPanel) return void console.warn("Dependency Radar: view panels are missing from the report DOM.");
             const n = "list" === t;
-            n || Boolean(p.graphWorkspaceSelect && p.graphWorkspaceWrap && p.graphControls && p.graphCanvas && p.graphCanvasShell && p.graphPopover && p.graphPopoverName && p.graphPopoverVersion && p.graphPopoverLicense && p.graphPopoverVulns && p.graphPopoverAmplification && p.graphOpenList) ? (p.listViewPanel.classList.toggle("active", n), 
-            p.graphViewPanel.classList.toggle("active", !n), p.listViewPanel.setAttribute("aria-hidden", String(!n)), 
-            p.graphViewPanel.setAttribute("aria-hidden", String(n)), p.viewGraphButton && (p.viewGraphButton.style.display = n ? "" : "none"), 
-            p.graphBackButton && (p.graphBackButton.style.display = n ? "none" : ""), p.reportFooter?.classList.toggle("hidden", !n), 
-            document.body.classList.toggle("graph-mode", !n), n ? m?.setActive(!1) : (v || (m = b({
+            n || Boolean(u.graphWorkspaceSelect && u.graphWorkspaceWrap && u.graphControls && u.graphCanvas && u.graphCanvasShell && u.graphPopover && u.graphPopoverName && u.graphPopoverVersion && u.graphPopoverLicense && u.graphPopoverVulns && u.graphPopoverAmplification && u.graphOpenList) ? (u.listViewPanel.classList.toggle("active", n), 
+            u.graphViewPanel.classList.toggle("active", !n), u.listViewPanel.setAttribute("aria-hidden", String(!n)), 
+            u.graphViewPanel.setAttribute("aria-hidden", String(n)), u.viewGraphButton && (u.viewGraphButton.style.display = n ? "" : "none"), 
+            u.graphBackButton && (u.graphBackButton.style.display = n ? "none" : ""), u.reportFooter?.classList.toggle("hidden", !n), 
+            document.body.classList.toggle("graph-mode", !n), n ? g?.setActive(!1) : (m || (g = b({
                 report: e,
-                knownDepKeys: X,
-                resolveDepKey: Z,
-                workspaceSelect: p.graphWorkspaceSelect,
-                workspaceWrap: p.graphWorkspaceWrap,
-                controlsRoot: p.graphControls,
-                canvas: p.graphCanvas,
-                canvasHost: p.graphCanvasShell,
-                popover: p.graphPopover,
-                popoverName: p.graphPopoverName,
-                popoverVersion: p.graphPopoverVersion,
-                popoverLicense: p.graphPopoverLicense,
-                popoverVulns: p.graphPopoverVulns,
-                popoverAmplification: p.graphPopoverAmplification,
-                popoverOpenButton: p.graphOpenList,
+                knownDepKeys: Y,
+                resolveDepKey: J,
+                workspaceSelect: u.graphWorkspaceSelect,
+                workspaceWrap: u.graphWorkspaceWrap,
+                controlsRoot: u.graphControls,
+                canvas: u.graphCanvas,
+                canvasHost: u.graphCanvasShell,
+                popover: u.graphPopover,
+                popoverName: u.graphPopoverName,
+                popoverVersion: u.graphPopoverVersion,
+                popoverLicense: u.graphPopoverLicense,
+                popoverVulns: u.graphPopoverVulns,
+                popoverAmplification: u.graphPopoverAmplification,
+                popoverOpenButton: u.graphOpenList,
                 onOpenList: e => {
                     !function(e) {
-                        ee("list");
+                        Z("list");
                         let t = document.getElementById(ne(e));
-                        !t && Y.has(e) && (V.add(e), K(), t = document.getElementById(ne(e)));
+                        !t && M.has(e) && (R.add(e), z(), t = document.getElementById(ne(e)));
                         if (!t) return;
                         if (t instanceof HTMLDetailsElement) {
                             const e = t.dataset.depKey;
-                            e && R.add(e), t.open || (t.open = !0), U(t);
+                            e && A.add(e), t.open || (t.open = !0), \$(t);
                         }
-                        t.classList.add("dep-list-highlight"), re(t, !0), window.setTimeout(() => {
+                        t.classList.add("dep-list-highlight"), ee(t, !0), window.setTimeout(() => {
                             t?.classList.remove("dep-list-highlight");
                         }, 2e3);
                     }(e);
                 }
-            }), m.initGraphView(), v = !0), m?.setActive(!0), m?.requestRender())) : console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
+            }), g.initGraphView(), m = !0), g?.setActive(!0), g?.requestRender())) : console.warn("Dependency Radar: graph view DOM nodes are missing; graph view disabled.");
         }
-        function re(e, t = !1) {
+        function ee(e, t = !1) {
             const n = () => {
                 const n = window.scrollY + e.getBoundingClientRect().top - function() {
                     const e = document.querySelector(".filter-bar");
@@ -2074,45 +2074,45 @@ export const JS_CONTENT = `!function() {
                 n(), window.setTimeout(n, 60);
             });
         }
-        const se = [ p.search, p.direct, p.runtime, p.sort, p.hasVulns, p.workspace, p.licensePermissive, p.licenseWeakCopyleft, p.licenseStrongCopyleft, p.licenseUnknown ], ie = () => {
-            V.clear(), K();
+        const re = [ u.search, u.direct, u.runtime, u.sort, u.hasVulns, u.workspace, u.licensePermissive, u.licenseWeakCopyleft, u.licenseStrongCopyleft, u.licenseUnknown ], se = () => {
+            R.clear(), z();
         };
-        se.forEach(e => {
-            e && (e.addEventListener("input", ie), e.addEventListener("change", ie));
-        }), p.activeFilterChips?.addEventListener("click", e => {
+        re.forEach(e => {
+            e && (e.addEventListener("input", se), e.addEventListener("change", se));
+        }), u.activeFilterChips?.addEventListener("click", e => {
             const t = e.target.closest("[data-filter-chip]");
             if (!t) return;
-            const n = z().find(e => e.id === t.dataset.filterChip);
-            n && (n.remove(), ie());
+            const n = q().find(e => e.id === t.dataset.filterChip);
+            n && (n.remove(), se());
         });
-        const oe = () => {
-            p.direct.value = "all", p.runtime.value = "all", p.workspace && (p.workspace.value = "all"), 
-            p.hasVulns.checked = !1, p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !0, 
-            p.licenseStrongCopyleft.checked = !0, p.licenseUnknown.checked = !0, ie();
+        const ie = () => {
+            u.direct.value = "all", u.runtime.value = "all", u.workspace && (u.workspace.value = "all"), 
+            u.hasVulns.checked = !1, u.licensePermissive.checked = !0, u.licenseWeakCopyleft.checked = !0, 
+            u.licenseStrongCopyleft.checked = !0, u.licenseUnknown.checked = !0, se();
         };
-        function ce(e) {
+        function oe(e) {
             const t = e.getAttribute("data-dep-key");
             if (!t) return;
-            const n = Z(t);
+            const n = J(t);
             if (!n) return;
-            let a = G.get(n);
-            a || (V.add(n), K(), a = G.get(n)), a && (R.add(n), a.open || (a.open = !0), U(a), 
-            re(a, !0));
+            let a = V.get(n);
+            a || (R.add(n), z(), a = V.get(n)), a && (A.add(n), a.open || (a.open = !0), \$(a), 
+            ee(a, !0));
         }
-        p.activeFilterClear?.addEventListener("click", oe), p.clearAllFilters?.addEventListener("click", oe), 
-        p.viewGraphButton?.addEventListener("click", () => {
-            ee("graph");
-        }), p.graphBackButton?.addEventListener("click", () => {
-            ee("list");
+        u.activeFilterClear?.addEventListener("click", ie), u.clearAllFilters?.addEventListener("click", ie), 
+        u.viewGraphButton?.addEventListener("click", () => {
+            Z("graph");
+        }), u.graphBackButton?.addEventListener("click", () => {
+            Z("list");
         }), t.addEventListener("toggle", e => {
             const t = e.target;
             if (!(t instanceof HTMLDetailsElement)) return;
             if (!t.classList.contains("dep-card")) return;
             const n = t.dataset.depKey;
-            n && (t.open ? (R.add(n), U(t)) : R.delete(n));
+            n && (t.open ? (A.add(n), \$(t)) : A.delete(n));
         }, !0), t.addEventListener("click", e => {
             const t = e.target, n = t.closest(".root-package-link");
-            if (n) return e.preventDefault(), void ce(n);
+            if (n) return e.preventDefault(), void oe(n);
             const a = t.closest(".copy-json-btn");
             a && (e.preventDefault(), async function(e) {
                 const t = e.closest(".raw-data-toggle"), n = t?.querySelector("pre"), a = n?.textContent ?? "";
@@ -2124,18 +2124,18 @@ export const JS_CONTENT = `!function() {
                         document.body.removeChild(e);
                     }
                     const t = e.dataset.label || e.textContent || "Copy JSON";
-                    e.dataset.label = t, e.textContent = "Copied", e.classList.add("copied"), \$.textContent = "Copied JSON to clipboard.", 
+                    e.dataset.label = t, e.textContent = "Copied", e.classList.add("copied"), G.textContent = "Copied JSON to clipboard.", 
                     window.setTimeout(() => {
                         e.textContent = t, e.classList.remove("copied");
                     }, 1500);
                 } catch {
-                    \$.textContent = "Copy failed.";
+                    G.textContent = "Copy failed.";
                 }
             }(a));
         }), t.addEventListener("keydown", e => {
             const t = e.target.closest(".root-package-link");
-            t && (" " !== e.key && "Spacebar" !== e.key || (e.preventDefault(), ce(t)));
-        }), E(), K(), ee("list");
+            t && (" " !== e.key && "Spacebar" !== e.key || (e.preventDefault(), oe(t)));
+        }), w(), z(), Z("list");
     }
     "loading" === document.readyState ? document.addEventListener("DOMContentLoaded", ve) : ve();
 }();
