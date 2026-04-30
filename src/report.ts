@@ -179,14 +179,30 @@ ${safeCssContent}
       <div class="cta-section">
         <a href="${escapeHtml(ctaUrl)}" class="cta-card" target="_blank" rel="noopener" id="cta-primary-link">
           <span class="cta-icon" aria-hidden="true">
-            <svg class="cta-icon-svg" width="54" height="54" viewBox="0 0 64 64" fill="none" role="img">
-              <path d="M16 24h32l-16 22L16 24Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-              <path d="M16 24l8-10h16l8 10M24 14l8 10 8-10M24 24l8 22 8-22" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-              <path d="M48 11v10M43 16h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <svg
+              class="cta-icon-svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-radar-icon lucide-radar"
+            >
+              <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
+              <path d="M4 6h.01" />
+              <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" />
+              <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" />
+              <path d="M12 18h.01" />
+              <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
+              <circle cx="12" cy="12" r="2" />
+              <path d="m13.41 10.59 5.66-5.66" />
             </svg>
           </span>
           <span class="cta-copy">
-            <span class="cta-title">Upgrade report</span>
+            <span class="cta-title">Unlock deeper analysis</span>
             <span class="cta-text">Deep analysis, risk modelling, and actionable insights.</span>
           </span>
           <span class="cta-action">
