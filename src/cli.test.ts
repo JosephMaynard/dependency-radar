@@ -45,6 +45,24 @@ afterEach(async () => {
 });
 
 describe('cli summary output', () => {
+  it('fails fast for unknown options without scanning', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const result = runCli(['scan', '--definitely-not-real'], repoRoot);
+
+    expect(result.status).toBe(1);
+    expect(stripAnsi(result.stderr)).toContain('Unknown option: "--definitely-not-real".');
+    expect(stripAnsi(result.stdout)).not.toContain('Summary:');
+  });
+
+  it('fails fast when an option value is missing', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const result = runCli(['scan', '--project'], repoRoot);
+
+    expect(result.status).toBe(1);
+    expect(stripAnsi(result.stderr)).toContain('Missing value for --project.');
+    expect(stripAnsi(result.stdout)).not.toContain('Summary:');
+  });
+
   it(
     'keeps the default scan command working without explicitly passing scan',
     { timeout: 30000 },
