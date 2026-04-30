@@ -780,7 +780,6 @@ select:focus {
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
-  display: flex;
   align-items: center;
   gap: 6px;
   transition: all var(--transition);

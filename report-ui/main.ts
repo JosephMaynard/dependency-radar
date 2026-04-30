@@ -2123,7 +2123,20 @@ async function init(): Promise<void> {
   });
 
   const allDependencies = Object.values(report.dependencies || {});
-  const workspaceNames = buildWorkspaceFilterOptions(report);
+  const getDependencyWorkspaces = (dep: DependencyRecord): string[] => {
+    const workspaces = dep.usage.origins.workspaces || [];
+    return workspaces.length > 0 ? workspaces : ["root"];
+  };
+  const workspaceNames = Array.from(
+    new Set([
+      ...buildWorkspaceFilterOptions(report),
+      ...allDependencies.flatMap(getDependencyWorkspaces),
+    ]),
+  ).sort((a, b) => {
+    if (a === "root") return -1;
+    if (b === "root") return 1;
+    return a.localeCompare(b);
+  });
   const formatCount = (label: string, count: number): string =>
     label + " (" + count + ")";
   const hasVulnerabilities = (dep: DependencyRecord): boolean =>
@@ -2206,7 +2219,7 @@ async function init(): Promise<void> {
       option.textContent = formatCount(
         workspaceName === "root" ? "Workspace root" : workspaceName,
         countBy((dep) =>
-          (dep.usage.origins.workspaces || []).includes(workspaceName),
+          getDependencyWorkspaces(dep).includes(workspaceName),
         ),
       );
       controls.workspace.appendChild(option);
@@ -2327,7 +2340,7 @@ async function init(): Promise<void> {
         return false;
       if (
         workspaceFilter !== "all" &&
-        !(dep.usage.origins.workspaces || []).includes(workspaceFilter)
+        !getDependencyWorkspaces(dep).includes(workspaceFilter)
       )
         return false;
       if (
@@ -2369,8 +2382,23 @@ async function init(): Promise<void> {
     controls.licenseUnknown.checked = true;
   }
 
+  function resetAllFilters(): void {
+    controls.search.value = "";
+    resetNonSearchFilters();
+  }
+
   function getActiveFilterChips(): ActiveFilterChip[] {
     const chips: ActiveFilterChip[] = [];
+    const searchValue = controls.search.value.trim();
+    if (searchValue) {
+      chips.push({
+        id: "search",
+        label: "Search: " + searchValue,
+        remove: () => {
+          controls.search.value = "";
+        },
+      });
+    }
     if (controls.direct.value !== "all") {
       chips.push({
         id: "type",
@@ -2737,7 +2765,7 @@ async function init(): Promise<void> {
   });
 
   const clearFilters = (): void => {
-    resetNonSearchFilters();
+    resetAllFilters();
     handleFilterControlChange();
   };
   controls.activeFilterClear?.addEventListener("click", clearFilters);
