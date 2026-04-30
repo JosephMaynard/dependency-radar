@@ -180,7 +180,7 @@ ${safeCssContent}
         <a href="${escapeHtml(ctaUrl)}" class="cta-card" target="_blank" rel="noopener" id="cta-primary-link">
           <span class="cta-icon" aria-hidden="true">
             <svg
-              class="cta-icon-svg"
+              class="cta-icon-svg lucide lucide-radar-icon lucide-radar"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -189,7 +189,6 @@ ${safeCssContent}
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              class="lucide lucide-radar-icon lucide-radar"
             >
               <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
               <path d="M4 6h.01" />
@@ -264,7 +263,13 @@ ${safeCssContent}
           </div>
           <div class="theme-toggle">
             <span class="theme-toggle-label">Theme</span>
-            <div class="theme-switch" id="theme-switch" title="Toggle dark/light mode"></div>
+            <button
+              type="button"
+              class="theme-switch"
+              id="theme-switch"
+              aria-label="Toggle dark/light mode"
+              aria-pressed="false"
+            ></button>
           </div>
         </div>
 

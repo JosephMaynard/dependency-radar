@@ -1798,10 +1798,14 @@ async function init(): Promise<void> {
   if (metadataPanel) {
     metadataPanel.innerHTML = renderReportMetadata(report, formattedGeneratedAt);
     metadataPanel.hidden = false;
+    metadataPanel.inert = true;
+    metadataPanel.setAttribute("aria-hidden", "true");
   }
   const setMetadataOpen = (isOpen: boolean): void => {
     if (!metadataToggle || !metadataPanel) return;
     metadataPanel.classList.toggle("open", isOpen);
+    metadataPanel.inert = !isOpen;
+    metadataPanel.setAttribute("aria-hidden", String(!isOpen));
     metadataToggle.classList.toggle("open", isOpen);
     metadataToggle.setAttribute("aria-expanded", String(isOpen));
   };
@@ -1832,7 +1836,7 @@ async function init(): Promise<void> {
       "sort-direction",
     ) as HTMLButtonElement,
     hasVulns: document.getElementById("has-vulns") as HTMLInputElement,
-    themeSwitch: document.getElementById("theme-switch") as HTMLElement,
+    themeSwitch: document.getElementById("theme-switch") as HTMLButtonElement,
     licenseToggle: document.getElementById(
       "license-toggle",
     ) as HTMLButtonElement | null,
@@ -1955,10 +1959,12 @@ async function init(): Promise<void> {
   if (savedTheme === "light") {
     document.documentElement.classList.add("light");
     controls.themeSwitch.classList.add("light");
+    controls.themeSwitch.setAttribute("aria-pressed", "true");
     document.documentElement.setAttribute("data-theme", "light");
   } else {
     document.documentElement.classList.remove("light");
     controls.themeSwitch.classList.remove("light");
+    controls.themeSwitch.setAttribute("aria-pressed", "false");
     document.documentElement.setAttribute("data-theme", "dark");
   }
 
@@ -1970,6 +1976,7 @@ async function init(): Promise<void> {
       "data-theme",
       isLight ? "light" : "dark",
     );
+    controls.themeSwitch.setAttribute("aria-pressed", String(isLight));
     localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
     graphView?.requestRender();
   });
@@ -1979,6 +1986,8 @@ async function init(): Promise<void> {
   const setFiltersOpen = (isOpen: boolean): void => {
     if (!controls.filterControls || !controls.filtersToggle) return;
     controls.filterControls.classList.toggle("open", isOpen);
+    controls.filterControls.inert = !isOpen;
+    controls.filterControls.setAttribute("aria-hidden", String(!isOpen));
     controls.filtersToggle.classList.toggle("open", isOpen);
     controls.filtersToggle.setAttribute("aria-expanded", String(isOpen));
     if (isOpen) setMetadataOpen(false);
@@ -2018,6 +2027,7 @@ async function init(): Promise<void> {
     if (event.key === "Escape") setFiltersOpen(false);
   });
 
+  setFiltersOpen(false);
   window.addEventListener("resize", syncResponsiveFilterState);
   syncResponsiveFilterState();
 

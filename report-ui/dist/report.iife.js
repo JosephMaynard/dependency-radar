@@ -1693,9 +1693,10 @@
         o && (o.innerHTML = function(e, t) {
             const n = e.environment || {}, a = n.minRequiredMajor, r = a && a > 0 ? "Node requirement derived from dependency engine ranges." : "";
             return [ F("Report", [ O("Dependency Radar", e.dependencyRadarVersion), O("Schema", e.schemaVersion), O("Generated", t || e.generatedAt), O("Generated raw", e.generatedAt) ]), F("Project", [ O("Name", e.project.name), O("Version", e.project.version), O("Path", e.project.projectDir), O("Description", e.project.description), O("License", e.project.license), O("Homepage", e.project.homepage), O("Repository", e.project.repository), O("Constraints", e.project.constraints), O("Dependency policy", e.project.dependencyPolicySummary) ]), F("Git", [ O("Branch", e.git?.branch) ]), F("Environment", [ O("Node", n.nodeVersion), O("Runtime", n.runtimeVersion), O("Minimum required Node major", n.minRequiredMajor), O("Target Node major", n.targetNodeMajor), O("Platform", n.platform), O("Architecture", n.arch), O("CI", n.ci), O("packageManager field", n.packageManagerField), O("Package manager", n.packageManager), O("Package manager version", n.packageManagerVersion), O("Tool versions", n.toolVersions), O("Node note", r) ]), W(e), F("Summary", [ O("Dependencies", e.summary?.dependencyCount), O("Direct", e.summary?.directCount), O("Transitive", e.summary?.transitiveCount), O("Findings", e.summary?.findingCount) ]), G(e) ].filter(Boolean).join("");
-        }(t, d), o.hidden = !1);
+        }(t, d), o.hidden = !1, o.inert = !0, o.setAttribute("aria-hidden", "true"));
         const u = e => {
-            i && o && (o.classList.toggle("open", e), i.classList.toggle("open", e), i.setAttribute("aria-expanded", String(e)));
+            i && o && (o.classList.toggle("open", e), o.inert = !e, o.setAttribute("aria-hidden", String(!e)), 
+            i.classList.toggle("open", e), i.setAttribute("aria-expanded", String(e)));
         };
         i?.addEventListener("click", () => {
             const e = !o?.classList.contains("open");
@@ -1761,18 +1762,20 @@
         let h = "name", g = !0, m = null, v = !1;
         document.documentElement.setAttribute("data-theme", "dark");
         "light" === localStorage.getItem("dependency-radar-theme") ? (document.documentElement.classList.add("light"), 
-        p.themeSwitch.classList.add("light"), document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
-        p.themeSwitch.classList.remove("light"), document.documentElement.setAttribute("data-theme", "dark")), 
-        p.themeSwitch.addEventListener("click", () => {
+        p.themeSwitch.classList.add("light"), p.themeSwitch.setAttribute("aria-pressed", "true"), 
+        document.documentElement.setAttribute("data-theme", "light")) : (document.documentElement.classList.remove("light"), 
+        p.themeSwitch.classList.remove("light"), p.themeSwitch.setAttribute("aria-pressed", "false"), 
+        document.documentElement.setAttribute("data-theme", "dark")), p.themeSwitch.addEventListener("click", () => {
             document.documentElement.classList.toggle("light"), p.themeSwitch.classList.toggle("light");
             const e = document.documentElement.classList.contains("light");
-            document.documentElement.setAttribute("data-theme", e ? "light" : "dark"), localStorage.setItem("dependency-radar-theme", e ? "light" : "dark"), 
-            m?.requestRender();
+            document.documentElement.setAttribute("data-theme", e ? "light" : "dark"), p.themeSwitch.setAttribute("aria-pressed", String(e)), 
+            localStorage.setItem("dependency-radar-theme", e ? "light" : "dark"), m?.requestRender();
         });
         const f = window.matchMedia("(max-width: 768px)");
         let y = f.matches;
         const k = e => {
             p.filterControls && p.filtersToggle && (p.filterControls.classList.toggle("open", e), 
+            p.filterControls.inert = !e, p.filterControls.setAttribute("aria-hidden", String(!e)), 
             p.filtersToggle.classList.toggle("open", e), p.filtersToggle.setAttribute("aria-expanded", String(e)), 
             e && u(!1));
         }, b = () => {
@@ -1803,7 +1806,7 @@
             p.filterControls.contains(t) || p.filtersToggle.contains(t) || k(!1);
         }), document.addEventListener("keydown", e => {
             "Escape" === e.key && k(!1);
-        }), window.addEventListener("resize", b), b(), p.sortDirection.addEventListener("click", () => {
+        }), k(!1), window.addEventListener("resize", b), b(), p.sortDirection.addEventListener("click", () => {
             g = !g, p.sortDirection.textContent = g ? "↑" : "↓", E(), Z();
         }), p.sort.addEventListener("change", () => {
             h = p.sort.value, E(), Z();

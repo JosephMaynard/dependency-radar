@@ -739,9 +739,11 @@ select:focus {
 }
 
 .theme-switch {
+  appearance: none;
   position: relative;
   width: 44px;
   height: 24px;
+  padding: 0;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
