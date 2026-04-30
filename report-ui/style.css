@@ -446,7 +446,7 @@ body {
 .filter-top-row .search-wrapper {
   flex: 1 1 420px;
   min-width: 240px;
-  max-width: 520px;
+  max-width: 548px;
 }
 
 .view-switch {
@@ -1593,7 +1593,7 @@ select.graph-workspace-select:focus {
 
 .dep-summary {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
   padding: 0 0 0 12px;
   cursor: pointer;
@@ -1610,6 +1610,7 @@ select.graph-workspace-select:focus {
 }
 
 .expand-icon {
+  align-self: center;
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -1628,6 +1629,7 @@ details[open] > summary .expand-icon {
 }
 
 .dep-name {
+  align-self: center;
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 600;
@@ -1644,6 +1646,7 @@ details[open] > summary .expand-icon {
 .dep-indicators {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
+  align-self: stretch;
   margin-left: auto;
   flex-shrink: 0;
   width: 60%;
@@ -2677,6 +2680,7 @@ details[open] > summary .expand-icon {
 
   /* Wrap badges on mobile - package name above */
   .dep-summary {
+    align-items: center;
     flex-wrap: wrap;
     padding: 8px 12px;
   }
