@@ -420,6 +420,19 @@ function isDetourCrowded(
   return false;
 }
 
+/**
+ * Appends a routed connection path between two graph nodes to the provided canvas context.
+ *
+ * The routing adapts to the nodes' depths and positions using the supplied routing
+ * configuration: same-depth edges may detour through an intermediate corridor or use
+ * a quadratic curve, single-layer spans use a cubic bezier through a corridor center,
+ * and multi-layer spans are routed as a smoothed polyline through intermediate corridors.
+ *
+ * @param context - Canvas 2D rendering context to which the path is added
+ * @param from - Source graph node; its `renderX`/`renderY` and `depth` determine the start point
+ * @param to - Target graph node; its `renderX`/`renderY` and `depth` determine the end point
+ * @param config - Edge routing parameters (layer gaps, paddings, detour thresholds, curve factors) that control corridor positions, detour insets, and corner radii
+ */
 function drawRoutedEdge(
   context: CanvasRenderingContext2D,
   from: GraphNode,
@@ -520,6 +533,16 @@ function drawRoutedEdge(
   drawSmoothedPolyline(context, points, 14);
 }
 
+/**
+ * Draws a highlighted edge path between two graph nodes onto the canvas context.
+ *
+ * The path is a smooth bezier curve that visually emphasizes the edge when a node is focused;
+ * for nearly-vertical alignments the curve detours to one side to maintain clear separation.
+ *
+ * @param context - Canvas 2D rendering context to draw into
+ * @param from - Source node whose rendered coordinates define the path start
+ * @param to - Target node whose rendered coordinates define the path end
+ */
 function drawFocusedEdge(
   context: CanvasRenderingContext2D,
   from: GraphNode,
@@ -552,6 +575,14 @@ function drawFocusedEdge(
   );
 }
 
+/**
+ * Selects and draws the appropriate path for a graph edge based on focus state and routing config.
+ *
+ * @param context - The 2D canvas rendering context to draw into.
+ * @param edge - Object containing `from` and `to` nodes and a `highlighted` flag; when `highlighted` is true and `focused` is true the edge is drawn using the focused routing style.
+ * @param config - Edge routing configuration used for non-focused (standard routed) drawing.
+ * @param focused - Whether the graph is currently in a focused state that enables focused-edge rendering.
+ */
 function drawGraphEdge(
   context: CanvasRenderingContext2D,
   edge: { from: GraphNode; to: GraphNode; highlighted: boolean },
@@ -565,6 +596,13 @@ function drawGraphEdge(
   drawRoutedEdge(context, edge.from, edge.to, config);
 }
 
+/**
+ * Create a normalized dependency key from a package name and version.
+ *
+ * @param name - The package name (e.g., `"lodash"`)
+ * @param version - The package version (e.g., `"4.17.21"`)
+ * @returns A dependency key in the form `name@version`
+ */
 function getDepKey(name: string, version: string): string {
   return `${name}@${version}`;
 }
@@ -679,6 +717,16 @@ function collectAncestors(graph: WorkspaceGraph, slug: string): Set<string> {
   return result;
 }
 
+/**
+ * Collects all descendant node slugs reachable from a given node within a workspace graph.
+ *
+ * Performs a depth-first traversal following `children` links and returns every visited slug
+ * except the starting `slug`.
+ *
+ * @param graph - The workspace graph to traverse
+ * @param slug - The starting node slug whose descendants will be collected
+ * @returns A set of descendant slugs reachable from `slug`, excluding `slug` itself
+ */
 function collectDescendants(graph: WorkspaceGraph, slug: string): Set<string> {
   const result = new Set<string>();
   const stack = [slug];
@@ -696,6 +744,14 @@ function collectDescendants(graph: WorkspaceGraph, slug: string): Set<string> {
   return result;
 }
 
+/**
+ * Compute the shortest directed distance (in edge count) from a starting node to reachable nodes following either parent or child links.
+ *
+ * @param graph - The workspace graph to traverse
+ * @param slug - The starting node slug
+ * @param direction - Which adjacency set to follow: `"parents"` walks toward ancestors, `"children"` walks toward descendants
+ * @returns A map from each reachable node slug to its distance (number of edges) from the starting slug; the starting slug itself is not included
+ */
 function collectDirectedDistances(
   graph: WorkspaceGraph,
   slug: string,
@@ -719,6 +775,19 @@ function collectDirectedDistances(
   return distances;
 }
 
+/**
+ * Converts aggregated dependency report data into a normalized GraphDataset suitable for the graph view.
+ *
+ * When a valid pre-normalized dataset exists at `window.__DEPENDENCY_DATA__`, that dataset is normalized and returned.
+ * Otherwise the function constructs a dataset from `report`, resolving dependency keys, extracting licenses and
+ * vulnerability summaries, enumerating each dependency's direct child slugs, and building workspace direct dependency sets
+ * (including an implicit "root" workspace for packages without workspace origins).
+ *
+ * @param report - The aggregated dependency report to adapt when no pre-normalized dataset is present
+ * @param knownDepKeys - A set of dependency keys that are considered valid/known; sub-dependencies not in this set are omitted
+ * @param resolveDepKey - A callback that maps a raw dependency key from the report to a normalized dependency key, or returns `null` if it cannot be resolved
+ * @returns A GraphDataset containing `workspaces` and a `dependencies` map with normalized GraphDependency records
+ */
 function adaptDataset(
   report: AggregatedData,
   knownDepKeys: Set<string>,
@@ -1097,17 +1166,33 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     panY = clamped.y;
   }
 
+  /**
+   * Sets the animated viewport pan target, clamping the requested coordinates to the graph's allowable pan bounds.
+   *
+   * @param nextPanX - Desired pan X coordinate in world space
+   * @param nextPanY - Desired pan Y coordinate in world space
+   */
   function setViewportTarget(nextPanX: number, nextPanY: number): void {
     const clamped = clampPanToGraph(nextPanX, nextPanY);
     targetPanX = clamped.x;
     targetPanY = clamped.y;
   }
 
+  /**
+   * Clears any pending viewport pan target so the view stops animating toward a stored pan position.
+   */
   function clearViewportTarget(): void {
     targetPanX = null;
     targetPanY = null;
   }
 
+  /**
+   * Animates the viewport pan toward the current pan target.
+   *
+   * If the user has requested reduced motion, the pan snaps directly to the target and the target is cleared. When the pan reaches within a small threshold of the target the function snaps to the final target, clears the target, and marks the view dirty.
+   *
+   * @returns `true` if the viewport is still animating toward a pan target, `false` if no target existed or animation has completed
+   */
   function animateViewport(): boolean {
     if (targetPanX === null || targetPanY === null) return false;
     if (reducedMotionQuery?.matches) {
@@ -1369,11 +1454,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   /**
-   * Adjusts the view so the current graph fits within the canvas.
+   * Fits the current graph to the canvas viewport.
    *
-   * If a graph is loaded, stops any ongoing inertial panning, recomputes fit metrics,
-   * applies the computed fit zoom, and centers the view by setting pan to the default values.
-   * If no graph is loaded, no action is taken.
+   * Recomputes fit metrics, stops any ongoing inertial panning, clears a pending viewport target,
+   * sets the zoom to the computed fit value, and centers the view using the default pan values.
+   * No action is taken if no graph is loaded.
    */
   function fitGraph(): void {
     if (!currentGraph) return;
@@ -1748,6 +1833,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
   }
 
+  /**
+   * Computes target positions for nodes when a specific node is focused, arranging ancestors to the left and descendants to the right of a given center point.
+   *
+   * Positions are assigned per node slug; the focused node is placed at (centerX, centerY). Ancestors and descendants are grouped into discrete left/right columns based on directed distance from the focused node, ordered within each column by distance and vertical position, and vertically spaced to fit within configured row/column gaps.
+   *
+   * @param graph - The workspace graph containing nodes and their layout base coordinates.
+   * @param slug - The slug of the node to focus.
+   * @param centerX - The world-space x coordinate to place the focused node.
+   * @param centerY - The world-space y coordinate to place the focused node.
+   * @returns A map from node slug to target { x, y } coordinates for focus layout; includes an entry for the focused node at the provided center.
   function buildFocusLayoutTargets(
     graph: WorkspaceGraph,
     slug: string,
@@ -1817,6 +1912,16 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     return targets;
   }
 
+  /**
+   * Move the viewport to center the given world coordinates and adjust zoom toward a focused fit.
+   *
+   * Calculates a desired zoom as the larger of the current zoom and 1.35× the fit zoom (clamped to allowed limits),
+   * eases the current zoom toward that value (snapping when reduced-motion is requested), and sets a pan target so
+   * the provided world point appears near the center of the canvas.
+   *
+   * @param centerX - World-space x coordinate to center in the viewport
+   * @param centerY - World-space y coordinate to center in the viewport
+   */
   function focusViewportOn(centerX: number, centerY: number): void {
     if (!currentGraph) return;
     const desiredZoom = clamp(Math.max(zoom, fitZoom * 1.35), minZoom, MAX_ZOOM);
@@ -1824,6 +1929,17 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     setViewportTarget(width * 0.46 - centerX * zoom, height * 0.5 - centerY * zoom);
   }
 
+  /**
+   * Sets the given node as the focused node and computes all focus-related state and layout targets.
+   *
+   * Stops any inertia, builds the sets of focused nodes (ancestors, descendants, and the node itself),
+   * focused edges (ancestor and descendant edge chains), and focus push nodes (focused set plus direct
+   * neighbors). Preserves the existing focus center when the previously opened popover node remains
+   * within the new focus set; otherwise centers on the selected node. Computes focus layout targets,
+   * requests a viewport pan/zoom toward the focus center, marks the view dirty, and requests a render.
+   *
+   * @param slug - The dependency node slug to focus; if the current graph is missing or the slug is not present, this function is a no-op.
+   */
   function applyFocus(slug: string): void {
     if (!currentGraph || !currentGraph.nodes.has(slug)) return;
     stopInertia();
@@ -1902,6 +2018,13 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
+  /**
+   * Clears any active focus on the graph and resets all focus-related state.
+   *
+   * This resets the focused slug, visible focused node/edge sets, push-node set,
+   * focus layout targets, and focus center coordinates; it also clears any
+   * pending viewport pan target and schedules a render.
+   */
   function clearFocus(): void {
     focusSlug = null;
     focusNodes = new Set();
@@ -2586,9 +2709,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   /**
-   * Initialize a touch-driven interaction on the canvas, preparing for panning (one finger) or pinch-zoom (two fingers).
+   * Begin a touch interaction on the canvas to initiate one-finger panning or two-finger pinch-zoom.
    *
-   * @param event - The originating `TouchEvent`; a single touch begins a pan gesture, two touches begin a pinch-zoom and set the zoom anchor. The function prevents the default touch behavior and updates internal pan/zoom and inertia state accordingly.
+   * Stops any active inertia, clears pending viewport targets, prevents the default touch behavior, and records initial touch positions, pan/zoom state, distance, and anchor coordinates used by subsequent touch-move handling.
+   *
+   * @param event - The originating TouchEvent that started the touch interaction
    */
   function handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 0) return;

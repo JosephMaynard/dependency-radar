@@ -416,6 +416,12 @@ function yesNo(flag: boolean | undefined): string {
   return flag ? "Yes" : "No";
 }
 
+/**
+ * Escapes special HTML characters in a string for safe insertion into HTML.
+ *
+ * @param str - The input string to escape. If `null` or `undefined`, it is treated as an empty string.
+ * @returns The input with `&`, `<`, `>`, and `"` replaced by their corresponding HTML entities, or an empty string for `null`/`undefined`.
+ */
 function escapeHtml(str: string | null | undefined): string {
   if (!str) return "";
   return String(str)
@@ -425,6 +431,15 @@ function escapeHtml(str: string | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Determines whether a metadata value is present and non-empty.
+ *
+ * Considers `null` and `undefined` absent; strings are present only if non-empty after trimming;
+ * arrays are present only if they contain at least one item; plain objects are present only if they have at least one own enumerable key; all other values are considered present.
+ *
+ * @param value - The metadata value to test
+ * @returns `true` if the value is present according to the rules above, `false` otherwise.
+ */
 function isPresentMetadataValue(value: unknown): boolean {
   if (value === null || typeof value === "undefined") return false;
   if (typeof value === "string") return value.trim().length > 0;
@@ -433,6 +448,15 @@ function isPresentMetadataValue(value: unknown): boolean {
   return true;
 }
 
+/**
+ * Format arbitrary metadata into an HTML-safe string suitable for embedding in metadata panels.
+ *
+ * Arrays are flattened and joined with ", ". Booleans are rendered as "Yes" or "No".
+ * Plain objects are rendered as HTML-safe `key: value` lines separated by `<br>`.
+ *
+ * @param value - The metadata value to format (string, number, boolean, array, or object)
+ * @returns An HTML-escaped string representation of `value`, using `, ` for array items and `<br>` between object entries
+ */
 function formatMetadataValue(value: unknown): string {
   if (Array.isArray(value)) {
     return value.map((item) => formatMetadataValue(item)).join(", ");
@@ -450,6 +474,13 @@ function formatMetadataValue(value: unknown): string {
   return escapeHtml(String(value));
 }
 
+/**
+ * Produces an HTML fragment for a metadata row with a label and formatted value.
+ *
+ * @param label - The visible label for the row
+ * @param value - The metadata value to format and render; may be any type
+ * @returns The HTML string for the labeled metadata row, or an empty string if `value` is not present
+ */
 function renderMetadataRow(label: string, value: unknown): string {
   if (!isPresentMetadataValue(value)) return "";
   return (
@@ -461,6 +492,13 @@ function renderMetadataRow(label: string, value: unknown): string {
   );
 }
 
+/**
+ * Renders an HTML metadata section containing a title and a grid of rows when any rows are present.
+ *
+ * @param title - The visible section title (HTML-escaped before insertion)
+ * @param rows - An array of HTML string rows; falsy entries are ignored
+ * @returns The section's HTML string, or an empty string if no rows remain after filtering
+ */
 function renderMetadataSection(title: string, rows: string[]): string {
   const visibleRows = rows.filter(Boolean);
   if (visibleRows.length === 0) return "";
@@ -473,6 +511,14 @@ function renderMetadataSection(title: string, rows: string[]): string {
   );
 }
 
+/**
+ * Render the "Workspaces" metadata section as an HTML string.
+ *
+ * Produces a section that indicates whether workspaces are enabled and the workspace type. When workspaces are enabled, the section also includes package count and, if present, a list of workspace packages showing each package's name, relative path, and runtime/dev direct-external flags.
+ *
+ * @param report - Aggregated report object containing a `workspaces` field used to build the section
+ * @returns HTML string for the "Workspaces" metadata section
+ */
 function renderWorkspaceMetadata(report: AggregatedData): string {
   const workspaces = report.workspaces;
   if (!workspaces || !workspaces.enabled) {
@@ -512,6 +558,12 @@ function renderWorkspaceMetadata(report: AggregatedData): string {
   ]);
 }
 
+/**
+ * Renders the "Supply Chain" metadata section from an aggregated report.
+ *
+ * @param report - The aggregated dependency report to extract supply chain information from
+ * @returns The HTML string for the Supply Chain metadata section, or an empty string if no supply chain data is present
+ */
 function renderSupplyChainMetadata(report: AggregatedData): string {
   const supplyChain = report.supplyChain;
   if (!supplyChain) return "";
@@ -529,6 +581,13 @@ function renderSupplyChainMetadata(report: AggregatedData): string {
   ]);
 }
 
+/**
+ * Renders the report metadata panel as an HTML string composed of multiple metadata sections.
+ *
+ * @param report - Aggregated report data containing project, environment, git, summary, workspace, and supply-chain information
+ * @param formattedGeneratedAt - Preformatted generation timestamp to prefer over the raw `report.generatedAt` value
+ * @returns HTML string containing the assembled metadata sections; sections with no visible rows are omitted
+ */
 function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: string): string {
   const env = report.environment || {};
   const minRequiredMajor = env.minRequiredMajor;
@@ -584,6 +643,13 @@ function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: stri
     .join("");
 }
 
+/**
+ * Determine the combined risk from a vulnerability summary and a license-derived risk.
+ *
+ * @param summary - Security summary object whose `risk` field represents the vulnerability-derived risk (`"green" | "amber" | "red"`).
+ * @param licenseRisk - License-derived risk value (`"green" | "amber" | "red"`).
+ * @returns `red` if either input is `red`, `amber` if no `red` and either input is `amber`, `green` otherwise.
+ */
 function getHighestRisk(
   summary: SecuritySummary,
   licenseRisk: "green" | "amber" | "red",
@@ -1748,7 +1814,11 @@ function renderDepDetails(
   ].join("");
 }
 
-// Main application
+/**
+ * Initializes the dependency radar UI: loads report data, populates metadata, and wires all controls and event handlers.
+ *
+ * Performs high-level startup tasks including loading and caching the report, rendering the metadata panel and column headers, constructing workspace and dependency indices, configuring theme, responsive filters, sorting and filter controls, preparing graph/list view switching, setting up lazy-detail rendering and copy-to-clipboard handlers, and performing the initial list render.
+ */
 async function init(): Promise<void> {
   const report = await loadReportData();
   if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
@@ -2159,6 +2229,18 @@ async function init(): Promise<void> {
   const countBy = (
     predicate: (dep: DependencyRecord) => boolean,
   ): number => allDependencies.reduce((count, dep) => count + (predicate(dep) ? 1 : 0), 0);
+  /**
+   * Update visible filter option labels with current dependency counts.
+   *
+   * Recomputes counts from the global `allDependencies` dataset and writes them into the UI filter controls.
+   * Specifically updates:
+   * - the total/"All", "Direct", and "Transitive" counts;
+   * - runtime scope option labels (Production/Development/Optional/Peer);
+   * - license category labels (Permissive, Weak Copyleft, Strong Copyleft, Other / Unknown);
+   * - the "Has vulnerabilities" count.
+   *
+   * This function mutates DOM elements found on the `controls` object by setting their `textContent`.
+   */
   function updateFilterOptionCounts(): void {
     const total = allDependencies.length;
     controls.direct.options[0].textContent = formatCount("All", total);
@@ -2317,6 +2399,15 @@ async function init(): Promise<void> {
     }
   }
 
+  /**
+   * Produce the list of dependencies that satisfy the current UI filter and search settings.
+   *
+   * Filters applied include search term (package name and license fields), direct vs transitive,
+   * runtime scope, workspace membership, presence of vulnerabilities, and enabled license categories.
+   * Dependencies present in `forcedVisibleDepKeys` bypass filtering and are always included.
+   *
+   * @returns An array of DependencyRecord objects that match the active filters and search term.
+   */
   function applyFilters(): DependencyRecord[] {
     const term = (controls.search.value || "").toLowerCase();
     const directFilter = controls.direct.value;
@@ -2381,11 +2472,23 @@ async function init(): Promise<void> {
     remove: () => void;
   };
 
+  /**
+   * Get the display label of a select's currently chosen option, omitting a trailing parenthesized count.
+   *
+   * @param select - The HTMLSelectElement to read the selected option from
+   * @returns The selected option's text with a trailing ` (n)` count removed, or an empty string if no option is selected
+   */
   function selectedOptionLabel(select: HTMLSelectElement): string {
     const option = select.selectedOptions[0];
     return (option?.textContent || "").replace(/\s+\(\d+\)$/, "");
   }
 
+  /**
+   * Restore all non-search filter controls to their initial (unrestricted) state.
+   *
+   * Sets the direct and runtime scope selectors to "all", resets the workspace selector to "all" if present,
+   * clears the "has vulnerabilities" checkbox, and enables all license-category checkboxes.
+   */
   function resetNonSearchFilters(): void {
     controls.direct.value = "all";
     controls.runtime.value = "all";
@@ -2397,11 +2500,26 @@ async function init(): Promise<void> {
     controls.licenseUnknown.checked = true;
   }
 
+  /**
+   * Clear all active filters in the UI.
+   *
+   * Resets the search input to an empty string and restores non-search filter controls
+   * (direct/runtime/workspace/hasVulns and license checkboxes) to their default enabled state.
+   */
   function resetAllFilters(): void {
     controls.search.value = "";
     resetNonSearchFilters();
   }
 
+  /**
+   * Build an array of active filter chip models reflecting the current UI filter state.
+   *
+   * The returned chips represent non-default filters: a search term, non-"all" type/scope/workspace selections,
+   * disabled license category checkboxes, and the "has vulnerabilities" toggle. Each chip includes an `id`, a
+   * human-readable `label`, and a `remove` callback that restores the corresponding control to its default value.
+   *
+   * @returns An array of `ActiveFilterChip` objects; each chip has `id`, `label`, and a `remove` function that resets the related control to its default state.
+   */
   function getActiveFilterChips(): ActiveFilterChip[] {
     const chips: ActiveFilterChip[] = [];
     const searchValue = controls.search.value.trim();
@@ -2495,6 +2613,12 @@ async function init(): Promise<void> {
     return chips;
   }
 
+  /**
+   * Synchronizes the filter UI to reflect the current set of active filters.
+   *
+   * Updates the filters toggle state, the numeric filter-count badge, the visibility
+   * of the active-filters row, and the rendered list of active filter chips.
+   */
   function syncActiveFilterUi(): void {
     const chips = getActiveFilterChips();
     const activeCount = chips.length;
@@ -2520,6 +2644,12 @@ async function init(): Promise<void> {
     }
   }
 
+  /**
+   * Sorts a list of dependency records according to the active sort column and sort direction.
+   *
+   * @param deps - The array of dependency records to sort.
+   * @returns A new array containing `deps` sorted by the current `sortColumn` and `sortAscending` settings.
+   */
   function sortDeps(deps: DependencyRecord[]): DependencyRecord[] {
     const sorted = [...deps];
 
@@ -2547,6 +2677,11 @@ async function init(): Promise<void> {
     return sorted;
   }
 
+  /**
+   * Updates the visible dependency list and summary to reflect current filters and sort state.
+   *
+   * Applies the active filters and sorting, updates the results summary text (including optional workspace context), renders either an empty-state message or the dependency cards into the list container, rebuilds the internal mapping of dependency DOM elements, and opens and lazily renders any dependency cards that are tracked as open.
+   */
   function renderList(): void {
     syncActiveFilterUi();
     const filtered = applyFilters();
