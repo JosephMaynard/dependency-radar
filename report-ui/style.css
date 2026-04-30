@@ -176,30 +176,8 @@ body {
   color: var(--text-secondary);
 }
 
-.metadata-menu {
-  position: relative;
-  display: inline-flex;
-}
-
 .metadata-toggle {
   font-family: inherit;
-  cursor: pointer;
-}
-
-.metadata-toggle .chevron {
-  color: var(--text-muted);
-  font-size: 10px;
-  transition: transform var(--transition);
-}
-
-.metadata-toggle.open .chevron {
-  transform: rotate(180deg);
-}
-
-.metadata-toggle:hover,
-.metadata-toggle.open {
-  border-color: var(--accent);
-  color: var(--text-primary);
 }
 
 .meta-item strong {
@@ -227,9 +205,9 @@ body {
 
 .metadata-panel {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 140;
+  top: calc(100% - 4px);
+  left: min(660px, calc(100% - 520px));
+  z-index: 120;
   width: min(520px, calc(100vw - 48px));
   max-height: min(70vh, 680px);
   overflow: auto;
@@ -238,10 +216,18 @@ body {
   border: 1px solid var(--border-color-strong);
   border-radius: var(--radius-lg);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition:
+    opacity var(--transition),
+    transform var(--transition);
 }
 
-.metadata-panel[hidden] {
-  display: none;
+.metadata-panel.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .metadata-section {
@@ -2365,19 +2351,6 @@ details[open] > summary .expand-icon {
     font-size: 11px;
   }
 
-  .metadata-menu {
-    position: relative;
-  }
-
-  .metadata-panel {
-    position: fixed;
-    top: 88px;
-    left: 16px;
-    right: 16px;
-    width: auto;
-    max-height: 70vh;
-  }
-
   .cta-section {
     width: 100%;
     max-width: none;
@@ -2428,7 +2401,8 @@ details[open] > summary .expand-icon {
     flex-shrink: 0;
   }
 
-  .filter-controls {
+  .filter-controls,
+  .metadata-panel {
     position: static;
     width: 100%;
     max-height: 0;
@@ -2446,7 +2420,8 @@ details[open] > summary .expand-icon {
     box-shadow: none;
   }
 
-  .filter-controls.open {
+  .filter-controls.open,
+  .metadata-panel.open {
     max-height: 900px;
     opacity: 1;
     transform: translateY(0);

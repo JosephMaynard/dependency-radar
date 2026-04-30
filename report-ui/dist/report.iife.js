@@ -318,7 +318,7 @@
                 n.push(e.slug), w.set(t, n);
             });
         });
-        let C = null, x = "", S = null, L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, D = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, $ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
+        let C = null, x = "", L = null, S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, D = new Set, A = new Set, T = null, N = 1, j = 0, R = 0, V = 1, H = .1, O = 0, F = 0, W = null, G = null, $ = !1, U = !0, _ = 0, q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), z = 1, K = 1;
         const J = {
             down: !1,
             moved: !1,
@@ -446,7 +446,7 @@
             Math.hypot(Q.velocityX, Q.velocityY) < .08 ? we() : (Q.active = !0, Q.lastFrameTime = performance.now(), 
             je(!1), _e());
         }
-        function Se() {
+        function Le() {
             const e = c.canvasHost.getBoundingClientRect();
             z = Math.max(1, Math.floor(e.width)), K = Math.max(1, Math.floor(e.height)), q = Math.max(1, Math.floor(window.devicePixelRatio || 1)), 
             c.canvas.width = z * q, c.canvas.height = K * q, c.canvas.style.width = `${z}px`, 
@@ -454,7 +454,7 @@
             const t = c.canvasHost.querySelector(".graph-overlay-top"), n = t ? Math.ceil(t.getBoundingClientRect().height) : 50;
             c.canvasHost.style.setProperty("--graph-toolbar-height", `${n}px`), U = !0, _e();
         }
-        function Le() {
+        function Se() {
             if (!C) return;
             const a = C.bounds;
             let r = a.maxX;
@@ -687,7 +687,7 @@
         }
         function Te(e) {
             if (!C || !C.nodes.has(e)) return;
-            we(), S = e;
+            we(), L = e;
             const t = f(C, e), a = y(C, e);
             I = new Set([ e ]), t.forEach(e => {
                 I.add(e);
@@ -753,22 +753,22 @@
             _e();
         }
         function Ne() {
-            S = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, 
+            L = null, I = new Set, M = new Set, Y = new Set, P = new Map, X = null, B = null, 
             fe(), U = !0, _e();
         }
         function je(e = !0) {
-            L = null, D = new Set, A = new Set, e && (U = !0, _e());
+            S = null, D = new Set, A = new Set, e && (U = !0, _e());
         }
         function Re() {
             if (!C) return;
-            const e = S && C.nodes.get(S) || null;
+            const e = L && C.nodes.get(L) || null;
             C.nodes.forEach(t => {
                 t.targetRadius = function(e) {
-                    const t = S === e.slug, n = I.has(e.slug);
+                    const t = L === e.slug, n = I.has(e.slug);
                     let a = e.radius;
-                    t ? a *= 1.85 : S && n ? a *= 1.22 : S && !n ? a *= .84 : L && D.has(e.slug) ? a *= 1.1 : L && (a *= .9);
+                    t ? a *= 1.85 : L && n ? a *= 1.22 : L && !n ? a *= .84 : S && D.has(e.slug) ? a *= 1.1 : S && (a *= .9);
                     return a;
-                }(t), t.targetLabelChars = a(t.labelGraphemes, Boolean(S) && I.has(t.slug) || !S && Boolean(L) && D.has(t.slug));
+                }(t), t.targetLabelChars = a(t.labelGraphemes, Boolean(L) && I.has(t.slug) || !L && Boolean(S) && D.has(t.slug));
                 const n = P.get(t.slug);
                 if (e && n) return t.targetX = n.x, void (t.targetY = n.y);
                 if (!e || !Y.has(t.slug)) return t.targetX = t.baseX, void (t.targetY = t.baseY);
@@ -777,8 +777,8 @@
             });
         }
         function Ve(e) {
-            if (S) return;
-            if (L = e, D = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
+            if (L) return;
+            if (S = e, D = new Set, A = new Set, !C || !e || !C.nodes.has(e)) return U = !0, 
             void _e();
             const t = f(C, e), n = y(C, e);
             D = new Set([ e ]), t.forEach(e => {
@@ -816,7 +816,7 @@
             c.popover.style.left = `${l}px`, c.popover.style.top = `${d}px`;
         }
         function We(e) {
-            return S ? I.has(e) ? 1 : .14 : L ? D.has(e) ? 1 : .16 : .95;
+            return L ? I.has(e) ? 1 : .14 : S ? D.has(e) ? 1 : .16 : .95;
         }
         function Ge() {
             if (!ee) return;
@@ -833,7 +833,7 @@
             e.nodes.forEach(e => {
                 if (!b.has(e.slug)) return;
                 let t = 0;
-                S === e.slug ? t = 2 : (I.has(e.slug) || D.has(e.slug)) && (t = 1), w.push({
+                L === e.slug ? t = 2 : (I.has(e.slug) || D.has(e.slug)) && (t = 1), w.push({
                     node: e,
                     priority: t,
                     order: E++
@@ -866,21 +866,21 @@
                 X.push({
                     from: n,
                     to: a,
-                    highlighted: M.has(r) || !S && A.has(r),
+                    highlighted: M.has(r) || !L && A.has(r),
                     span: Math.abs(a.depth - n.depth)
                 });
             }), X.sort((e, t) => t.span - e.span), ee.globalCompositeOperation = "source-over", 
-            ee.strokeStyle = S || L ? m : h, ee.lineWidth = 1.05, ee.globalAlpha = function() {
-                if (S || L) return .04 * n((N - .35) / .9, .75, 1);
+            ee.strokeStyle = L || S ? m : h, ee.lineWidth = 1.05, ee.globalAlpha = function() {
+                if (L || S) return .04 * n((N - .35) / .9, .75, 1);
                 return .25 * n((N - .35) / .9, .2, 1);
             }(), ee.beginPath(), X.forEach(e => {
-                e.highlighted || d(ee, e, P, Boolean(S));
+                e.highlighted || d(ee, e, P, Boolean(L));
             }), ee.stroke(), ee.globalCompositeOperation = "lighter", ee.strokeStyle = g, ee.lineWidth = 1.2, 
             ee.globalAlpha = .36 * n((N - .35) / .9, .2, 1), ee.beginPath(), X.forEach(e => {
-                e.highlighted && d(ee, e, P, Boolean(S));
+                e.highlighted && d(ee, e, P, Boolean(L));
             }), ee.stroke(), ee.globalCompositeOperation = "source-over";
             const B = e => {
-                const t = S === e.slug, n = e.renderRadius;
+                const t = L === e.slug, n = e.renderRadius;
                 ee.globalAlpha = 1, ee.fillStyle = k, ee.beginPath(), ee.arc(e.renderX, e.renderY, n, 0, 2 * Math.PI), 
                 ee.fill(), ee.globalAlpha = We(e.slug);
                 const a = ee.createRadialGradient(e.renderX - .3 * n, e.renderY - .3 * n, 0, e.renderX, e.renderY, 1.2 * n);
@@ -894,7 +894,7 @@
                 if ("none" === e.ref.vulnerabilitySeverity) return;
                 const t = e.renderRadius, n = "high" === e.ref.vulnerabilitySeverity ? v : f;
                 var a;
-                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, S ? I.has(a) ? .78 : .11 : L ? D.has(a) ? .76 : .12 : .8), 
+                ee.save(), ee.translate(e.renderX, e.renderY), ee.globalAlpha = (a = e.slug, L ? I.has(a) ? .78 : .11 : S ? D.has(a) ? .76 : .12 : .8), 
                 ee.strokeStyle = n;
                 const r = t / e.radius, s = t / 3 * 1.2 / 12, i = 1.2 * s + 3 * (r - 1), o = Math.max(.5 * s, .15), c = Math.max(1 * s, .3), l = Math.max(3 * s, .8), d = Math.max(1 * s, .3), u = Math.max(.5 * s, .15), p = t + (2 + 6 * (r - 1)) + o / 2, h = p + o / 2 + i + c / 2, g = h + c / 2 + i + l / 2, m = g + l / 2 + i + d / 2, y = m + d / 2 + i + u / 2;
                 ee.setLineDash([]), ee.lineWidth = u, ee.beginPath(), ee.arc(0, 0, y, 0, 2 * Math.PI), 
@@ -926,7 +926,7 @@
                 return C.nodes.forEach(n => {
                     if (t) return n.renderX = n.targetX, n.renderY = n.targetY, n.renderRadius = n.targetRadius, 
                     void (n.renderLabelChars = n.targetLabelChars);
-                    const a = S ? .18 : .15;
+                    const a = L ? .18 : .15;
                     n.renderX += (n.targetX - n.renderX) * a, n.renderY += (n.targetY - n.renderY) * a, 
                     n.renderRadius += .18 * (n.targetRadius - n.renderRadius), n.renderLabelChars += .32 * (n.targetLabelChars - n.renderLabelChars), 
                     Math.abs(n.targetX - n.renderX) < .06 && Math.abs(n.targetY - n.renderY) < .06 && Math.abs(n.targetRadius - n.renderRadius) < .04 && Math.abs(n.targetLabelChars - n.renderLabelChars) < .12 || (e = !0);
@@ -953,8 +953,8 @@
         }
         function qe(e) {
             const t = Xe(e);
-            t && (we(), x = e, C = t, Ne(), Oe(), L = null, D = new Set, A = new Set, Ye(!0), 
-            C && (we(), fe(), Le(), N = V, ve(O, F)), U = !0, _e());
+            t && (we(), x = e, C = t, Ne(), Oe(), S = null, D = new Set, A = new Set, Ye(!0), 
+            C && (we(), fe(), Se(), N = V, ve(O, F)), U = !0, _e());
         }
         function ze(e) {
             0 === e.button && (we(), fe(), J.down = !0, J.moved = !1, J.startX = e.clientX, 
@@ -1047,7 +1047,7 @@
             qe(c.workspaceSelect.value);
         }
         function ot() {
-            $ && (Se(), z <= 1 || K <= 1 || (Le(), N = n(N, H, e), ve(j, R), _e()));
+            $ && (Le(), z <= 1 || K <= 1 || (Se(), N = n(N, H, e), ve(j, R), _e()));
         }
         function ct() {
             re || (c.workspaceSelect.addEventListener("change", it), re = !0), ae || (c.controlsRoot.addEventListener("click", rt), 
@@ -1078,7 +1078,7 @@
                     oe = null), "undefined" != typeof ResizeObserver) return ie = new ResizeObserver(ot), 
                     void ie.observe(c.canvasHost);
                     oe = ot, window.addEventListener("resize", oe);
-                }(), ct(), te ? (Se(), qe(x)) : pe();
+                }(), ct(), te ? (Le(), qe(x)) : pe();
             },
             buildWorkspaceGraph: Xe,
             computeAmplification: Be,
@@ -1103,7 +1103,7 @@
                 }), window.addEventListener("touchcancel", tt, {
                     passive: !1
                 }), c.canvas.addEventListener("mouseleave", nt), document.addEventListener("mousedown", at), 
-                ne = !0), Se(), z > 1 && K > 1 && (Le(), N = n(N, H, e), ve(j, R)), Ue(), void _e()) : void pe();
+                ne = !0), Le(), z > 1 && K > 1 && (Se(), N = n(N, H, e), ve(j, R)), Ue(), void _e()) : void pe();
                 ne && (c.canvas.removeEventListener("mousedown", ze), window.removeEventListener("mousemove", Ke), 
                 window.removeEventListener("mouseup", Je), c.canvas.removeEventListener("wheel", Ze), 
                 c.canvas.removeEventListener("touchstart", Qe), window.removeEventListener("touchmove", et), 
@@ -1145,7 +1145,7 @@
             isInferred: !1
         };
     }
-    function S(e) {
+    function L(e) {
         const t = e.security;
         if (t?.summary) return {
             summary: t.summary,
@@ -1177,7 +1177,7 @@
             advisories: t?.advisories
         };
     }
-    function L(e) {
+    function S(e) {
         return e?.highest || "none";
     }
     function I(e) {
@@ -1236,9 +1236,9 @@
         id: "vulns",
         label: "Vulnerabilities",
         sortKey: "severity",
-        getValue: e => C(L(S(e).summary)),
-        getTone: e => S(e).summary.risk,
-        sortFn: (e, t) => Y[L(S(t).summary)] - Y[L(S(e).summary)]
+        getValue: e => C(S(L(e).summary)),
+        getTone: e => L(e).summary.risk,
+        sortFn: (e, t) => Y[S(L(t).summary)] - Y[S(L(e).summary)]
     }, {
         id: "install",
         label: "Install",
@@ -1637,11 +1637,11 @@
                 t.push(K("Install-time signals", J(n, 6)));
             }
             return le("Install-time execution behaviour", '<div class="section-note">Install-time behaviour signals detected. These describe code that runs automatically during install and may warrant review in security-sensitive environments.</div><div class="kv-grid">' + t.join("") + "</div>");
-        }(e.execution) : "")), S = [ q("Outdated status", (L = e.upgrade.outdatedStatus, 
-        L ? "unknown" === L ? "Unknown" : $(L) : "Not reported")) ];
-        var L;
-        e.upgrade.latestVersion && S.push(q("Latest version", e.upgrade.latestVersion));
-        const I = le("Version", '<div class="section-note">Based on npm outdated findings.</div><div class="kv-grid">' + S.join("") + "</div>"), M = e.package.deprecated ? le("Deprecated", '<div class="kv-grid">' + q("Deprecated", "Yes", "Declared by the package author.") + "</div>", void 0, "warning") : "", Y = [ q("Node engine constraint", e.upgrade.nodeEngine || "Any") ];
+        }(e.execution) : "")), L = [ q("Outdated status", (S = e.upgrade.outdatedStatus, 
+        S ? "unknown" === S ? "Unknown" : $(S) : "Not reported")) ];
+        var S;
+        e.upgrade.latestVersion && L.push(q("Latest version", e.upgrade.latestVersion));
+        const I = le("Version", '<div class="section-note">Based on npm outdated findings.</div><div class="kv-grid">' + L.join("") + "</div>"), M = e.package.deprecated ? le("Deprecated", '<div class="kv-grid">' + q("Deprecated", "Yes", "Declared by the package author.") + "</div>", void 0, "warning") : "", Y = [ q("Node engine constraint", e.upgrade.nodeEngine || "Any") ];
         void 0 !== e.upgrade.blocksNodeMajor && Y.push(q("Blocks Node major upgrade", e.upgrade.blocksNodeMajor ? "Yes" : "No"));
         const P = le("Constraints", '<div class="kv-grid">' + Y.join("") + "</div>"), X = le("Blast radius", '<div class="kv-grid">' + [ q("Used by other packages (fanIn)", e.graph.fanIn), q("Depends on packages (fanOut)", e.graph.fanOut) ].join("") + "</div>"), B = {
             nodeEngine: "Node engine constraint",
@@ -1682,14 +1682,16 @@
         i && (i.innerHTML = function(e, t) {
             const n = e.environment || {}, a = n.minRequiredMajor, r = a && a > 0 ? "Node requirement derived from dependency engine ranges." : "";
             return [ O("Report", [ H("Dependency Radar", e.dependencyRadarVersion), H("Schema", e.schemaVersion), H("Generated", t || e.generatedAt), H("Generated raw", e.generatedAt) ]), O("Project", [ H("Name", e.project.name), H("Version", e.project.version), H("Path", e.project.projectDir), H("Description", e.project.description), H("License", e.project.license), H("Homepage", e.project.homepage), H("Repository", e.project.repository), H("Constraints", e.project.constraints), H("Dependency policy", e.project.dependencyPolicySummary) ]), O("Git", [ H("Branch", e.git?.branch) ]), O("Environment", [ H("Node", n.nodeVersion), H("Runtime", n.runtimeVersion), H("Minimum required Node major", n.minRequiredMajor), H("Target Node major", n.targetNodeMajor), H("Platform", n.platform), H("Architecture", n.arch), H("CI", n.ci), H("packageManager field", n.packageManagerField), H("Package manager", n.packageManager), H("Package manager version", n.packageManagerVersion), H("Tool versions", n.toolVersions), H("Node note", r) ]), F(e), O("Summary", [ H("Dependencies", e.summary?.dependencyCount), H("Direct", e.summary?.directCount), H("Transitive", e.summary?.transitiveCount), H("Findings", e.summary?.findingCount) ]), W(e) ].filter(Boolean).join("");
-        }(e, d));
+        }(e, d), i.hidden = !1);
         const u = e => {
-            s && i && (i.hidden = !e, s.classList.toggle("open", e), s.setAttribute("aria-expanded", String(e)));
+            s && i && (i.classList.toggle("open", e), s.classList.toggle("open", e), s.setAttribute("aria-expanded", String(e)));
         };
         s?.addEventListener("click", () => {
-            u(Boolean(i?.hidden));
+            const e = !i?.classList.contains("open");
+            u(e);
         }), document.addEventListener("click", e => {
-            if (!s || !i || i.hidden) return;
+            if (!s || !i) return;
+            if (!i.classList.contains("open")) return;
             const t = e.target;
             s.contains(t) || i.contains(t) || u(!1);
         }), document.addEventListener("keydown", e => {
@@ -1760,7 +1762,8 @@
         let y = f.matches;
         const k = e => {
             p.filterControls && p.filtersToggle && (p.filterControls.classList.toggle("open", e), 
-            p.filtersToggle.classList.toggle("open", e), p.filtersToggle.setAttribute("aria-expanded", String(e)));
+            p.filtersToggle.classList.toggle("open", e), p.filtersToggle.setAttribute("aria-expanded", String(e)), 
+            e && u(!1));
         }, w = () => {
             if (f.matches) return k(!1), void (y = !0);
             y && k(!1), y = !1;
@@ -1801,7 +1804,7 @@
             p.licensePermissive.checked = !0, p.licenseWeakCopyleft.checked = !1, p.licenseStrongCopyleft.checked = !1, 
             p.licenseUnknown.checked = !1, V.clear(), K();
         });
-        const x = Object.values(e.dependencies || {}), S = function(e) {
+        const x = Object.values(e.dependencies || {}), L = function(e) {
             if (!e.workspaces.enabled) return [];
             const t = new Set;
             return (e.workspaces.workspacePackages || []).forEach(e => {
@@ -1811,24 +1814,24 @@
                     e && t.add(e);
                 });
             }), Array.from(t).sort((e, t) => "root" === e ? -1 : "root" === t ? 1 : e.localeCompare(t));
-        }(e), L = (e, t) => e + " (" + t + ")", I = e => {
+        }(e), S = (e, t) => e + " (" + t + ")", I = e => {
             return T[(t = N(e).summary, t?.highest || "none")] > 0;
             var t;
         }, M = e => x.reduce((t, n) => t + (e(n) ? 1 : 0), 0);
-        if (p.workspace && p.workspaceWrap && S.length > 1) {
+        if (p.workspace && p.workspaceWrap && L.length > 1) {
             p.workspace.textContent = "";
             const e = document.createElement("option");
-            e.value = "all", e.textContent = L("All workspaces", x.length), p.workspace.appendChild(e), 
-            S.forEach(e => {
+            e.value = "all", e.textContent = S("All workspaces", x.length), p.workspace.appendChild(e), 
+            L.forEach(e => {
                 const t = document.createElement("option");
-                t.value = e, t.textContent = L("root" === e ? "Workspace root" : e, M(t => (t.usage.origins.workspaces || []).includes(e))), 
+                t.value = e, t.textContent = S("root" === e ? "Workspace root" : e, M(t => (t.usage.origins.workspaces || []).includes(e))), 
                 p.workspace.appendChild(t);
             }), p.workspaceWrap.classList.remove("hidden");
         }
         !function() {
             const e = x.length;
-            p.direct.options[0].textContent = L("All", e), p.direct.options[1].textContent = L("Direct", M(e => e.usage.direct)), 
-            p.direct.options[2].textContent = L("Transitive", M(e => !e.usage.direct));
+            p.direct.options[0].textContent = S("All", e), p.direct.options[1].textContent = S("Direct", M(e => e.usage.direct)), 
+            p.direct.options[2].textContent = S("Transitive", M(e => !e.usage.direct));
             const t = {
                 all: "All",
                 runtime: "Production",
@@ -1837,7 +1840,7 @@
                 peer: "Peer"
             };
             Array.from(p.runtime.options).forEach(n => {
-                n.textContent = L(t[n.value] || n.textContent || n.value, "all" === n.value ? e : M(e => e.usage.scope === n.value));
+                n.textContent = S(t[n.value] || n.textContent || n.value, "all" === n.value ? e : M(e => e.usage.scope === n.value));
             });
             const n = {
                 permissive: 0,
@@ -1847,11 +1850,11 @@
             };
             x.forEach(e => {
                 n[B(D(e).value)] += 1;
-            }), p.licensePermissiveLabel && (p.licensePermissiveLabel.textContent = L("Permissive", n.permissive)), 
-            p.licenseWeakCopyleftLabel && (p.licenseWeakCopyleftLabel.textContent = L("Weak Copyleft", n.weakCopyleft)), 
-            p.licenseStrongCopyleftLabel && (p.licenseStrongCopyleftLabel.textContent = L("Strong Copyleft", n.strongCopyleft)), 
-            p.licenseUnknownLabel && (p.licenseUnknownLabel.textContent = L("Other / Unknown", n.unknown)), 
-            p.hasVulnsLabel && (p.hasVulnsLabel.textContent = L("Has vulnerabilities", M(I)));
+            }), p.licensePermissiveLabel && (p.licensePermissiveLabel.textContent = S("Permissive", n.permissive)), 
+            p.licenseWeakCopyleftLabel && (p.licenseWeakCopyleftLabel.textContent = S("Weak Copyleft", n.weakCopyleft)), 
+            p.licenseStrongCopyleftLabel && (p.licenseStrongCopyleftLabel.textContent = S("Strong Copyleft", n.strongCopyleft)), 
+            p.licenseUnknownLabel && (p.licenseUnknownLabel.textContent = S("Other / Unknown", n.unknown)), 
+            p.hasVulnsLabel && (p.hasVulnsLabel.textContent = S("Has vulnerabilities", M(I)));
         }();
         const Y = new Map;
         x.forEach(e => {

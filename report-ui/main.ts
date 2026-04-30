@@ -1801,18 +1801,21 @@ async function init(): Promise<void> {
   }
   if (metadataPanel) {
     metadataPanel.innerHTML = renderReportMetadata(report, formattedGeneratedAt);
+    metadataPanel.hidden = false;
   }
   const setMetadataOpen = (isOpen: boolean): void => {
     if (!metadataToggle || !metadataPanel) return;
-    metadataPanel.hidden = !isOpen;
+    metadataPanel.classList.toggle("open", isOpen);
     metadataToggle.classList.toggle("open", isOpen);
     metadataToggle.setAttribute("aria-expanded", String(isOpen));
   };
   metadataToggle?.addEventListener("click", () => {
-    setMetadataOpen(Boolean(metadataPanel?.hidden));
+    const isOpen = !metadataPanel?.classList.contains("open");
+    setMetadataOpen(isOpen);
   });
   document.addEventListener("click", (event) => {
-    if (!metadataToggle || !metadataPanel || metadataPanel.hidden) return;
+    if (!metadataToggle || !metadataPanel) return;
+    if (!metadataPanel.classList.contains("open")) return;
     const target = event.target as Node;
     if (metadataToggle.contains(target) || metadataPanel.contains(target)) return;
     setMetadataOpen(false);
@@ -1982,6 +1985,7 @@ async function init(): Promise<void> {
     controls.filterControls.classList.toggle("open", isOpen);
     controls.filtersToggle.classList.toggle("open", isOpen);
     controls.filtersToggle.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) setMetadataOpen(false);
   };
 
   const syncResponsiveFilterState = (): void => {

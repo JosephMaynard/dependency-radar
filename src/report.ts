@@ -173,14 +173,6 @@ ${safeCssContent}
           <div class="header-meta">
             <span class="meta-item"><span class="meta-label">Project</span> <strong id="project-path">${escapeHtml(data.project.projectDir)}</strong></span>
             <span class="meta-item"><span class="meta-label">Generated</span> <strong id="formatted-date">${escapeHtml(formattedDate)}</strong></span>
-            <div class="metadata-menu">
-              <button type="button" class="meta-item metadata-toggle" id="metadata-toggle" aria-expanded="false" aria-controls="metadata-panel">
-                <span class="meta-label">Metadata</span>
-                <strong>Details</strong>
-                <span class="chevron" aria-hidden="true">▼</span>
-              </button>
-              <div class="metadata-panel" id="metadata-panel" role="dialog" aria-label="Report metadata" hidden></div>
-            </div>
           </div>
         </div>
       </div>
@@ -215,6 +207,16 @@ ${safeCssContent}
           >
             Filters
             <span class="filter-count-badge" id="filter-count-badge" hidden></span>
+            <span class="chevron">▼</span>
+          </button>
+          <button
+            type="button"
+            class="filters-toggle metadata-toggle"
+            id="metadata-toggle"
+            aria-expanded="false"
+            aria-controls="metadata-panel"
+          >
+            Metadata
             <span class="chevron">▼</span>
           </button>
           <div class="view-switch" id="view-switch">
@@ -330,6 +332,8 @@ ${safeCssContent}
             </div>
           </div>
         </div>
+
+        <div class="metadata-panel" id="metadata-panel" role="dialog" aria-label="Report metadata" hidden></div>
 
         <div class="active-filters-row" id="active-filters-row" hidden>
           <span class="active-filters-label">Active filters:</span>
