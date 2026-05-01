@@ -1055,6 +1055,7 @@ function buildSupplyChainSignalIndex(
  * @param linkableKeys - Set of known depKeys used to decide whether an item becomes a link.
  * @param keysByName - Optional index mapping package names to depKeys used to resolve ambiguous name-only references.
  * @returns An HTML string containing a `.package-list` with `.package-tag` elements; resolvable packages are rendered as anchor links (`.package-tag-link.root-package-link`) with `href="#dep-<key>"` and a `data-dep-key` attribute, non-resolvable packages are plain spans.
+ */
 function renderRootPackageList(
   packages: Array<{ name: string; version: string } | string> | undefined,
   maxShow: number,
