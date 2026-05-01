@@ -1843,6 +1843,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    * @param centerX - The world-space x coordinate to place the focused node.
    * @param centerY - The world-space y coordinate to place the focused node.
    * @returns A map from node slug to target { x, y } coordinates for focus layout; includes an entry for the focused node at the provided center.
+   */
   function buildFocusLayoutTargets(
     graph: WorkspaceGraph,
     slug: string,
