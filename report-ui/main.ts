@@ -1004,7 +1004,7 @@ function resolveExactDepLinkTarget(
  * Matches each signal from `report.supplyChain.signals` to a single linkable dependency key by, in order:
  * 1. `signal.packageId`
  * 2. `signal.packageName` + `signal.packageVersion`
- * 3. fallback: matching by `signal.packageName` alone
+ * 3. fallback: matching versionless signals by `signal.packageName` alone
  *
  * @param report - The aggregated report object containing `supplyChain.signals`.
  * @param linkableKeys - Set of dependency keys that can be linked to detail cards.
@@ -1038,7 +1038,7 @@ function buildSupplyChainSignalIndex(
       matched = true;
       break;
     }
-    if (!matched && signal.packageName) {
+    if (!matched && signal.packageName && !signal.packageVersion) {
       const depKey = resolveDepKeyByNameFromSet(signal.packageName, linkableKeys, keysByName);
       if (depKey) add(depKey, signal);
     }
