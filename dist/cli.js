@@ -928,11 +928,15 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
     return { name: "dependency-radar-workspace", version: "0.0.0", dependencies };
 }
 /**
- * Parse command-line tokens into a populated CliOptions object.
+ * Parse CLI tokens and return a configured CliOptions object reflecting the requested command and flags.
  *
- * Recognizes a leading non-flag token as the command and the following flags:
- * --project, --out, --keep-temp, --offline, --json, --timestamp, --open, --no-report, --fail-on, and --help / -h.
- * The --offline flag disables both audit and outdated checks.
+ * Recognizes an optional leading command (scan, explain, compare, why, schema), positional operands for
+ * commands that require them (package name for explain/why, compare path for compare), and these flags:
+ * --project, --quiet, --out, --keep-temp, --offline, --json, --format, --sbom, --target-node,
+ * --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
+ *
+ * The --offline flag disables both audit and outdated checks. Unknown options or unexpected positional
+ * arguments cause the process to exit with an error.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
  * @returns The resolved CliOptions with defaults applied and values overridden by argv
@@ -1066,6 +1070,15 @@ function parseArgs(argv) {
     }
     return opts;
 }
+/**
+ * Extracts and returns the next CLI token as the value for a given option, consuming it from `args`.
+ *
+ * @param args - Remaining argv tokens; the first element will be removed and returned.
+ * @param option - The option name shown in the error message when a value is missing.
+ * @param allowLeadingDash - When `true`, permit values that begin with `-`; otherwise treat such tokens as missing values.
+ * @returns The consumed option value.
+ * @remarks Exits the process with code 1 and prints an error if no valid value is present.
+ */
 function takeOptionValue(args, option, allowLeadingDash = false) {
     const value = args[0];
     if (!value || (!allowLeadingDash && value.startsWith("-"))) {
@@ -1074,12 +1087,30 @@ function takeOptionValue(args, option, allowLeadingDash = false) {
     }
     return args.shift();
 }
+/**
+ * Checks whether a string is a supported report format.
+ *
+ * @param value - The string to test
+ * @returns `true` if `value` is one of `html`, `json`, `sarif`, `cyclonedx`, or `spdx`, `false` otherwise.
+ */
 function isReportFormat(value) {
     return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
 }
+/**
+ * Formats a numeric date/time component as a two-digit string.
+ *
+ * @param value - The numeric part (e.g., day, month, hour, or minute) to format
+ * @returns The value as a two-character string, padded with a leading zero when needed
+ */
 function padDatePart(value) {
     return String(value).padStart(2, "0");
 }
+/**
+ * Formats a Date into a filesystem-safe timestamp string suitable for filenames.
+ *
+ * @param date - The date to format (local time is used).
+ * @returns A string in the form `YYYY-MM-DD_HH-MM-SS` (zero-padded).
+ */
 function formatFilenameTimestamp(date) {
     return [
         date.getFullYear(),
@@ -1091,6 +1122,16 @@ function formatFilenameTimestamp(date) {
         padDatePart(date.getSeconds()),
     ].join("-");
 }
+/**
+ * Insert a local timestamp into the filename portion of an output path.
+ *
+ * If the path has a file extension, the timestamp is inserted before the extension;
+ * otherwise the timestamp is appended to the filename. The directory portion is preserved.
+ *
+ * @param outputPath - The file path whose filename will receive the timestamp
+ * @param date - Date to derive the timestamp from; defaults to the current date/time
+ * @returns The input path with a timestamp embedded into the filename, preserving directory and extension
+ */
 function addTimestampToOutputPath(outputPath, date = new Date()) {
     const parsed = path_1.default.parse(outputPath);
     const timestamp = formatFilenameTimestamp(date);
@@ -1099,6 +1140,11 @@ function addTimestampToOutputPath(outputPath, date = new Date()) {
         : `${parsed.name}.${timestamp}`;
     return path_1.default.join(parsed.dir, basename);
 }
+/**
+ * Determines whether the given package manager uses registry-based collectors.
+ *
+ * @returns `true` if the manager is `npm`, `pnpm`, or `yarn`, `false` otherwise.
+ */
 function supportsRegistryCollectors(manager) {
     return manager === "npm" || manager === "pnpm" || manager === "yarn";
 }
@@ -1457,6 +1503,17 @@ function formatLabel(format) {
         return "CycloneDX SBOM";
     return "SPDX SBOM";
 }
+/**
+ * Run a full dependency analysis for a project/workspace and return the aggregated results.
+ *
+ * Performs workspace detection, per-package collection (audit, dependency trees, import graphs, outdated), merges collected data, runs aggregation and policy evaluation, and optionally writes report artifacts to disk. May create a temporary directory under the project (projectPath/.dependency-radar) and will remove it unless `opts.keepTemp` is set.
+ *
+ * @param opts - CLI-resolved options controlling project path, enabled collectors (audit/outdated), artifact format/output, reporting flags, and policy rules.
+ * @param options.shouldWriteArtifacts - If true, write report artifacts (JSON/HTML/SBOM) to the resolved output path.
+ * @param options.emitArtifactSummary - If true, print a summary line about artifact creation to stdout.
+ * @param options.emitWorkspacePackageSummary - If true, print a brief workspace package summary when a workspace is detected.
+ * @returns An AnalysisExecutionResult containing the aggregated report, CLI summary, policy violations, dependency counts, timing, output path/creation status, collector availability, and workspace metadata.
+ */
 async function executeAnalysis(opts, options) {
     var _a, _b;
     const shouldWriteArtifacts = options.shouldWriteArtifacts;

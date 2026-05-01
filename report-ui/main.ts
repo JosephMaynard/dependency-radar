@@ -970,6 +970,35 @@ function resolveDepLinkTarget(
 }
 
 /**
+ * Resolve a dependency identifier into a linkable dependency key using only exact matches.
+ *
+ * Unlike `resolveDepLinkTarget`, this function does NOT fall back to name-only matching.
+ * It only returns a match if the depKey exists exactly in `linkableKeys` or if it's an npm alias
+ * that resolves to an exact key in `linkableKeys`.
+ *
+ * @param depKey - The dependency identifier to resolve (may be a full `name@version`, a plain name, or include an `npm:` alias).
+ * @param linkableKeys - A set of dependency keys that are considered linkable targets.
+ * @returns The matching depKey from `linkableKeys` when found, or `null` if no exact match exists.
+ */
+function resolveExactDepLinkTarget(
+  depKey: string,
+  linkableKeys: Set<string>,
+): string | null {
+  if (linkableKeys.has(depKey)) return depKey;
+  const parsed = parseDepKey(depKey);
+  if (!parsed) return null;
+
+  if (parsed.version.startsWith("npm:")) {
+    const aliasedTarget = parsed.version.slice("npm:".length);
+    const npmAliasKey =
+      parsed.name +
+      (aliasedTarget.startsWith("@") ? aliasedTarget : "@" + aliasedTarget);
+    if (linkableKeys.has(npmAliasKey)) return npmAliasKey;
+  }
+  return null;
+}
+
+/**
  * Build an index that associates dependency keys with their matching supply-chain signals.
  *
  * Matches each signal from `report.supplyChain.signals` to a single linkable dependency key by, in order:
@@ -1003,7 +1032,7 @@ function buildSupplyChainSignalIndex(
     ].filter(Boolean) as string[];
     let matched = false;
     for (const candidate of candidates) {
-      const depKey = resolveDepLinkTarget(candidate, linkableKeys, keysByName);
+      const depKey = resolveExactDepLinkTarget(candidate, linkableKeys);
       if (!depKey) continue;
       add(depKey, signal);
       matched = true;
