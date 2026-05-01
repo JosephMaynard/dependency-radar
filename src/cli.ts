@@ -1150,10 +1150,10 @@ function parseArgs(argv: string[]): CliOptions {
       console.error(`Unexpected argument: "${arg}".`);
       process.exit(1);
     }
-    else if (arg === "--project") opts.project = takeOptionValue(args, arg);
+    else if (arg === "--project") opts.project = takeOptionValue(args, arg, true);
     else if (arg === "--quiet") opts.quiet = true;
     else if (arg === "--out") {
-      opts.out = takeOptionValue(args, arg);
+      opts.out = takeOptionValue(args, arg, true);
       opts.outProvided = true;
     }
     else if (arg === "--keep-temp") opts.keepTemp = true;
@@ -1229,9 +1229,9 @@ function parseArgs(argv: string[]): CliOptions {
   return opts;
 }
 
-function takeOptionValue(args: string[], option: string): string {
+function takeOptionValue(args: string[], option: string, allowLeadingDash = false): string {
   const value = args[0];
-  if (!value || value.startsWith("-")) {
+  if (!value || (!allowLeadingDash && value.startsWith("-"))) {
     console.error(`Missing value for ${option}.`);
     process.exit(1);
   }

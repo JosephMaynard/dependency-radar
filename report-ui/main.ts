@@ -975,6 +975,7 @@ function buildSupplyChainSignalIndex(
       if (!depKey) continue;
       add(depKey, signal);
       matched = true;
+      break;
     }
     if (!matched && signal.packageName) {
       const depKey = resolveDepKeyByNameFromSet(signal.packageName, linkableKeys, keysByName);
