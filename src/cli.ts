@@ -1091,14 +1091,19 @@ interface CliOptions {
   auditSignatures: boolean;
   schema: boolean;
   outProvided: boolean;
+  timestamp: boolean;
 }
 
 /**
- * Parse command-line tokens into a populated CliOptions object.
+ * Parse CLI tokens and return a configured CliOptions object reflecting the requested command and flags.
  *
- * Recognizes a leading non-flag token as the command and the following flags:
- * --project, --out, --keep-temp, --offline, --json, --open, --no-report, --fail-on, and --help / -h.
- * The --offline flag disables both audit and outdated checks.
+ * Recognizes an optional leading command (scan, explain, compare, why, schema), positional operands for
+ * commands that require them (package name for explain/why, compare path for compare), and these flags:
+ * --project, --quiet, --out, --keep-temp, --offline, --json, --format, --sbom, --target-node,
+ * --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
+ *
+ * The --offline flag disables both audit and outdated checks. Unknown options or unexpected positional
+ * arguments cause the process to exit with an error.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
  * @returns The resolved CliOptions with defaults applied and values overridden by argv
@@ -1121,6 +1126,7 @@ function parseArgs(argv: string[]): CliOptions {
     auditSignatures: false,
     schema: false,
     outProvided: false,
+    timestamp: false,
   };
 
   const args = [...argv];
@@ -1144,10 +1150,14 @@ function parseArgs(argv: string[]): CliOptions {
     else if (!arg.startsWith("-") && opts.command === "compare" && !opts.comparePath) {
       opts.comparePath = arg;
     }
-    else if (arg === "--project" && args[0]) opts.project = args.shift()!;
+    else if (!arg.startsWith("-")) {
+      console.error(`Unexpected argument: "${arg}".`);
+      process.exit(1);
+    }
+    else if (arg === "--project") opts.project = takeOptionValue(args, arg, true);
     else if (arg === "--quiet") opts.quiet = true;
-    else if (arg === "--out" && args[0]) {
-      opts.out = args.shift()!;
+    else if (arg === "--out") {
+      opts.out = takeOptionValue(args, arg, true);
       opts.outProvided = true;
     }
     else if (arg === "--keep-temp") opts.keepTemp = true;
@@ -1158,8 +1168,8 @@ function parseArgs(argv: string[]): CliOptions {
       opts.json = true;
       opts.format = "json";
     }
-    else if (arg === "--format" && args[0]) {
-      const format = args.shift()!;
+    else if (arg === "--format") {
+      const format = takeOptionValue(args, arg);
       if (!isReportFormat(format)) {
         console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
         process.exit(1);
@@ -1167,16 +1177,16 @@ function parseArgs(argv: string[]): CliOptions {
       opts.format = format;
       opts.json = format === "json";
     }
-    else if (arg === "--sbom" && args[0]) {
-      const format = args.shift()!;
+    else if (arg === "--sbom") {
+      const format = takeOptionValue(args, arg);
       if (format !== "cyclonedx" && format !== "spdx") {
         console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
         process.exit(1);
       }
       opts.format = format;
     }
-    else if (arg === "--target-node" && args[0]) {
-      const value = Number.parseInt(args.shift()!, 10);
+    else if (arg === "--target-node") {
+      const value = Number.parseInt(takeOptionValue(args, arg), 10);
       if (!Number.isFinite(value) || value <= 0) {
         console.error("--target-node must be a positive Node.js major version.");
         process.exit(1);
@@ -1185,6 +1195,7 @@ function parseArgs(argv: string[]): CliOptions {
     }
     else if (arg === "--audit-signatures") opts.auditSignatures = true;
     else if (arg === "--schema") opts.schema = true;
+    else if (arg === "--timestamp") opts.timestamp = true;
     else if (arg === "--open") opts.open = true;
     else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--fail-on") {
@@ -1213,15 +1224,95 @@ function parseArgs(argv: string[]): CliOptions {
       printHelp();
       process.exit(0);
     }
+    else {
+      console.error(`Unknown option: "${arg}".`);
+      process.exit(1);
+    }
   }
 
   return opts;
 }
 
+/**
+ * Extracts and returns the next CLI token as the value for a given option, consuming it from `args`.
+ *
+ * @param args - Remaining argv tokens; the first element will be removed and returned.
+ * @param option - The option name shown in the error message when a value is missing.
+ * @param allowLeadingDash - When `true`, permit values that begin with `-`; otherwise treat such tokens as missing values.
+ * @returns The consumed option value.
+ * @remarks Exits the process with code 1 and prints an error if no valid value is present.
+ */
+function takeOptionValue(args: string[], option: string, allowLeadingDash = false): string {
+  const value = args[0];
+  if (!value || (!allowLeadingDash && value.startsWith("-"))) {
+    console.error(`Missing value for ${option}.`);
+    process.exit(1);
+  }
+  return args.shift()!;
+}
+
+/**
+ * Checks whether a string is a supported report format.
+ *
+ * @param value - The string to test
+ * @returns `true` if `value` is one of `html`, `json`, `sarif`, `cyclonedx`, or `spdx`, `false` otherwise.
+ */
 function isReportFormat(value: string): value is ReportFormat {
   return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
 }
 
+/**
+ * Formats a numeric date/time component as a two-digit string.
+ *
+ * @param value - The numeric part (e.g., day, month, hour, or minute) to format
+ * @returns The value as a two-character string, padded with a leading zero when needed
+ */
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/**
+ * Formats a Date into a filesystem-safe timestamp string suitable for filenames.
+ *
+ * @param date - The date to format (local time is used).
+ * @returns A string in the form `YYYY-MM-DD_HH-MM-SS` (zero-padded). 
+ */
+function formatFilenameTimestamp(date: Date): string {
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-") + "_" + [
+    padDatePart(date.getHours()),
+    padDatePart(date.getMinutes()),
+    padDatePart(date.getSeconds()),
+  ].join("-");
+}
+
+/**
+ * Insert a local timestamp into the filename portion of an output path.
+ *
+ * If the path has a file extension, the timestamp is inserted before the extension;
+ * otherwise the timestamp is appended to the filename. The directory portion is preserved.
+ *
+ * @param outputPath - The file path whose filename will receive the timestamp
+ * @param date - Date to derive the timestamp from; defaults to the current date/time
+ * @returns The input path with a timestamp embedded into the filename, preserving directory and extension
+ */
+function addTimestampToOutputPath(outputPath: string, date = new Date()): string {
+  const parsed = path.parse(outputPath);
+  const timestamp = formatFilenameTimestamp(date);
+  const basename = parsed.ext
+    ? `${parsed.name}.${timestamp}${parsed.ext}`
+    : `${parsed.name}.${timestamp}`;
+  return path.join(parsed.dir, basename);
+}
+
+/**
+ * Determines whether the given package manager uses registry-based collectors.
+ *
+ * @returns `true` if the manager is `npm`, `pnpm`, or `yarn`, `false` otherwise.
+ */
 function supportsRegistryCollectors(manager: PackageManager): manager is "npm" | "pnpm" | "yarn" {
   return manager === "npm" || manager === "pnpm" || manager === "yarn";
 }
@@ -1230,7 +1321,7 @@ function supportsRegistryCollectors(manager: PackageManager): manager is "npm" |
  * Print the CLI usage and available options to the console.
  *
  * Displays the command synopsis and descriptions for supported flags including
- * --project, --out, --json, --no-report, --keep-temp, --offline, --open, and --fail-on.
+ * --project, --out, --json, --timestamp, --no-report, --keep-temp, --offline, --open, and --fail-on.
  */
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
@@ -1250,6 +1341,7 @@ Options:
   --audit-signatures Verify npm registry signatures/provenance (opt-in, online only)
   --schema           Print JSON schema, or write it when --out is provided
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
+  --timestamp        Add a local timestamp to generated report filenames
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
@@ -1660,6 +1752,17 @@ type AnalysisExecutionResult = {
   packagePaths: string[];
 };
 
+/**
+ * Run a full dependency analysis for a project/workspace and return the aggregated results.
+ *
+ * Performs workspace detection, per-package collection (audit, dependency trees, import graphs, outdated), merges collected data, runs aggregation and policy evaluation, and optionally writes report artifacts to disk. May create a temporary directory under the project (projectPath/.dependency-radar) and will remove it unless `opts.keepTemp` is set.
+ *
+ * @param opts - CLI-resolved options controlling project path, enabled collectors (audit/outdated), artifact format/output, reporting flags, and policy rules.
+ * @param options.shouldWriteArtifacts - If true, write report artifacts (JSON/HTML/SBOM) to the resolved output path.
+ * @param options.emitArtifactSummary - If true, print a summary line about artifact creation to stdout.
+ * @param options.emitWorkspacePackageSummary - If true, print a brief workspace package summary when a workspace is detected.
+ * @returns An AnalysisExecutionResult containing the aggregated report, CLI summary, policy violations, dependency counts, timing, output path/creation status, collector availability, and workspace metadata.
+ */
 async function executeAnalysis(
   opts: CliOptions,
   options: {
@@ -1704,6 +1807,9 @@ async function executeAnalysis(
       }
     } catch {
       // ignore, best-effort path normalization
+    }
+    if (opts.timestamp) {
+      outputPath = addTimestampToOutputPath(outputPath);
     }
   }
 

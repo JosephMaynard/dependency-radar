@@ -9,6 +9,12 @@ import * as path from 'path';
 const REPORT_UI_DIST = path.join(__dirname, '../report-ui/dist');
 const OUTPUT_FILE = path.join(__dirname, '../src/report-assets.ts');
 
+/**
+ * Escapes backslashes, backticks, and dollar signs so the input can be safely embedded in a JavaScript/TypeScript backtick template literal.
+ *
+ * @param str - The input string to escape
+ * @returns The escaped string with `\`, `` ` ``, and `$` characters prefixed by a backslash
+ */
 function escapeForTemplateLiteral(str: string): string {
   return str
     .replace(/\\/g, '\\\\')  // Escape backslashes first
@@ -16,6 +22,24 @@ function escapeForTemplateLiteral(str: string): string {
     .replace(/\$/g, '\\$');  // Escape dollar signs (for ${})
 }
 
+/**
+ * Disambiguates minified ternary expressions that simple scanners may interpret as optional chaining.
+ *
+ * @param str - JavaScript source code (possibly minified)
+ * @returns The input with occurrences of `?.<digit>` replaced by `? .<digit>` to make the token boundary explicit
+ */
+function sanitizeMinifiedJs(str: string): string {
+  // Terser can emit compact ternaries like `a>b?.5:c`, which are valid but look
+  // like optional chaining to simple scanners. Keep minified output while making
+  // the token boundary explicit.
+  return str.replace(/\?\.(\d)/g, '? .$1');
+}
+
+/**
+ * Builds the embedded report assets file from the report-ui build output.
+ *
+ * Validates that the report-ui dist directory exists; reads `report.css` and `report.iife.js` when present, applies JS sanitization, escapes both contents for safe embedding in template literals, and writes the generated TypeScript file exporting `CSS_CONTENT` and `JS_CONTENT`. If the dist directory is missing, logs an error and exits the process with code 1.
+ */
 function main(): void {
   // Check if dist exists
   if (!fs.existsSync(REPORT_UI_DIST)) {
@@ -38,6 +62,8 @@ function main(): void {
   let jsContent = '';
   if (fs.existsSync(jsPath)) {
     jsContent = fs.readFileSync(jsPath, 'utf8');
+    jsContent = sanitizeMinifiedJs(jsContent);
+    fs.writeFileSync(jsPath, jsContent, 'utf8');
     console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
   } else {
     console.warn('Warning: report.iife.js not found, JS will be empty');

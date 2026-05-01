@@ -5,6 +5,7 @@ import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const ANSI_ESCAPE_REGEX = new RegExp('\\x1b\\[[0-9;]*[A-Za-z]', 'g');
+const FILENAME_TIMESTAMP = '\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}';
 const tempDirs: string[] = [];
 
 function stripAnsi(value: string): string {
@@ -45,6 +46,24 @@ afterEach(async () => {
 });
 
 describe('cli summary output', () => {
+  it('fails fast for unknown options without scanning', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const result = runCli(['scan', '--definitely-not-real'], repoRoot);
+
+    expect(result.status).toBe(1);
+    expect(stripAnsi(result.stderr)).toContain('Unknown option: "--definitely-not-real".');
+    expect(stripAnsi(result.stdout)).not.toContain('Summary:');
+  });
+
+  it('fails fast when an option value is missing', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const result = runCli(['scan', '--project'], repoRoot);
+
+    expect(result.status).toBe(1);
+    expect(stripAnsi(result.stderr)).toContain('Missing value for --project.');
+    expect(stripAnsi(result.stdout)).not.toContain('Summary:');
+  });
+
   it(
     'keeps the default scan command working without explicitly passing scan',
     { timeout: 30000 },
@@ -245,6 +264,81 @@ describe('cli summary output', () => {
       expect(sarif.version).toBe('2.1.0');
       expect(sarif.runs[0].tool.driver.name).toBe('Dependency Radar');
       expect(sarif.runs[0].results.length).toBeGreaterThan(0);
+    },
+  );
+
+  it(
+    'adds a timestamp to the default HTML report filename',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-timestamp-html');
+      const projectCopy = path.join(outputDir, 'project');
+      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+
+      const result = runCli(
+        ['scan', '--project', projectCopy, '--offline', '--timestamp', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const reports = (await fs.readdir(projectCopy)).filter((name) =>
+        new RegExp(`^dependency-radar\\.${FILENAME_TIMESTAMP}\\.html$`).test(name),
+      );
+      expect(reports).toHaveLength(1);
+      await fs.access(path.join(projectCopy, reports[0]));
+    },
+  );
+
+  it(
+    'adds a timestamp to the default JSON report filename',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-timestamp-json');
+      const projectCopy = path.join(outputDir, 'project');
+      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+
+      const result = runCli(
+        ['scan', '--project', projectCopy, '--offline', '--timestamp', '--json', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const reports = (await fs.readdir(projectCopy)).filter((name) =>
+        new RegExp(`^dependency-radar\\.${FILENAME_TIMESTAMP}\\.json$`).test(name),
+      );
+      expect(reports).toHaveLength(1);
+      const report = JSON.parse(await fs.readFile(path.join(projectCopy, reports[0]), 'utf8'));
+      expect(report.schemaVersion).toBe('1.4');
+    },
+  );
+
+  it(
+    'adds a timestamp to a custom report filename',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const outputDir = await makeTempDir('dr-cli-timestamp-out');
+      const projectCopy = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'robert.html');
+      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+
+      const result = runCli(
+        ['scan', '--project', projectCopy, '--offline', '--timestamp', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const reports = (await fs.readdir(outputDir)).filter((name) =>
+        new RegExp(`^robert\\.${FILENAME_TIMESTAMP}\\.html$`).test(name),
+      );
+      expect(reports).toHaveLength(1);
+      await fs.access(path.join(outputDir, reports[0]));
+      await expect(fs.access(outPath)).rejects.toThrow();
     },
   );
 

@@ -24,7 +24,6 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       format: {
-        beautify: true,
         comments: false,
       },
     },

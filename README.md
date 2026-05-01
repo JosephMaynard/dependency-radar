@@ -104,6 +104,7 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--schema` | Print the current Dependency Radar JSON schema, or write it with `--out <path>` |
 | `--offline` | Skip `npm audit` and `npm outdated` (useful for offline/air-gapped scans) |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
+| `--timestamp` | Add a local timestamp to generated report filenames (`dependency-radar.YYYY-MM-DD_HH-mm-ss.html`) |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
 | `--keep-temp` | Keep the temporary `.dependency-radar/` folder for debugging |
 | `--open` | Open the generated report using the system default browser |
@@ -318,7 +319,7 @@ The blocker detail counts can overlap: a single package may contribute to multip
 
 When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
 
-1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--timestamp`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
 2. Detect workspace/package-manager context:
    - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
    - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions

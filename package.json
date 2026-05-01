@@ -31,7 +31,7 @@
     "test:release": "npm run build && npm run test:unit && npm run test:fixtures:all && npm run test:docker && npm run test:pack && npm run test:release:ok",
     "prepublishOnly": "npm run build"
   },
-  "author": " ",
+  "author": "Joseph Maynard",
   "license": "MIT",
   "engines": {
     "node": ">=14.14.0"
@@ -40,7 +40,7 @@
     "type": "git",
     "url": "git+https://github.com/JosephMaynard/dependency-radar.git"
   },
-  "homepage": "http://dependency-radar.com",
+  "homepage": "https://www.dependency-radar.com",
   "bugs": {
     "url": "https://github.com/JosephMaynard/dependency-radar/issues"
   },
