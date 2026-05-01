@@ -1091,13 +1091,14 @@ interface CliOptions {
   auditSignatures: boolean;
   schema: boolean;
   outProvided: boolean;
+  timestamp: boolean;
 }
 
 /**
  * Parse command-line tokens into a populated CliOptions object.
  *
  * Recognizes a leading non-flag token as the command and the following flags:
- * --project, --out, --keep-temp, --offline, --json, --open, --no-report, --fail-on, and --help / -h.
+ * --project, --out, --keep-temp, --offline, --json, --timestamp, --open, --no-report, --fail-on, and --help / -h.
  * The --offline flag disables both audit and outdated checks.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
@@ -1121,6 +1122,7 @@ function parseArgs(argv: string[]): CliOptions {
     auditSignatures: false,
     schema: false,
     outProvided: false,
+    timestamp: false,
   };
 
   const args = [...argv];
@@ -1189,6 +1191,7 @@ function parseArgs(argv: string[]): CliOptions {
     }
     else if (arg === "--audit-signatures") opts.auditSignatures = true;
     else if (arg === "--schema") opts.schema = true;
+    else if (arg === "--timestamp") opts.timestamp = true;
     else if (arg === "--open") opts.open = true;
     else if (arg === "--no-report") opts.noReport = true;
     else if (arg === "--fail-on") {
@@ -1239,6 +1242,31 @@ function isReportFormat(value: string): value is ReportFormat {
   return value === "html" || value === "json" || value === "sarif" || value === "cyclonedx" || value === "spdx";
 }
 
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatFilenameTimestamp(date: Date): string {
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-") + "_" + [
+    padDatePart(date.getHours()),
+    padDatePart(date.getMinutes()),
+    padDatePart(date.getSeconds()),
+  ].join("-");
+}
+
+function addTimestampToOutputPath(outputPath: string, date = new Date()): string {
+  const parsed = path.parse(outputPath);
+  const timestamp = formatFilenameTimestamp(date);
+  const basename = parsed.ext
+    ? `${parsed.name}.${timestamp}${parsed.ext}`
+    : `${parsed.name}.${timestamp}`;
+  return path.join(parsed.dir, basename);
+}
+
 function supportsRegistryCollectors(manager: PackageManager): manager is "npm" | "pnpm" | "yarn" {
   return manager === "npm" || manager === "pnpm" || manager === "yarn";
 }
@@ -1247,7 +1275,7 @@ function supportsRegistryCollectors(manager: PackageManager): manager is "npm" |
  * Print the CLI usage and available options to the console.
  *
  * Displays the command synopsis and descriptions for supported flags including
- * --project, --out, --json, --no-report, --keep-temp, --offline, --open, and --fail-on.
+ * --project, --out, --json, --timestamp, --no-report, --keep-temp, --offline, --open, and --fail-on.
  */
 function printHelp(): void {
   console.log(`dependency-radar [scan] [options]
@@ -1267,6 +1295,7 @@ Options:
   --audit-signatures Verify npm registry signatures/provenance (opt-in, online only)
   --schema           Print JSON schema, or write it when --out is provided
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
+  --timestamp        Add a local timestamp to generated report filenames
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip npm audit and npm outdated (useful for offline scans)
@@ -1721,6 +1750,9 @@ async function executeAnalysis(
       }
     } catch {
       // ignore, best-effort path normalization
+    }
+    if (opts.timestamp) {
+      outputPath = addTimestampToOutputPath(outputPath);
     }
   }
 
