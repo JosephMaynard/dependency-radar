@@ -292,6 +292,7 @@ body {
 
 .metadata-muted {
   color: var(--text-muted);
+  font-size: 12px;
 }
 
 /* CTA Section */
