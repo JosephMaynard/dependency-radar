@@ -17,7 +17,15 @@ import type {
 
 type SupplyChainSignal = NonNullable<AggregatedData["supplyChain"]>["signals"][number];
 
-// In development, load sample data; in production, data is embedded
+/**
+ * Load the aggregated dependency radar report data from the page or a local sample file.
+ *
+ * Attempts to read and parse JSON from the DOM element with id `radar-data` when its
+ * text content is present and not equal to `"{}"`. If that element is missing or empty,
+ * falls back to loading and parsing `./sample-data.json`.
+ *
+ * @returns The parsed `AggregatedData` from the page element when available; otherwise the parsed `AggregatedData` from `./sample-data.json`.
+ */
 async function loadReportData(): Promise<AggregatedData> {
   const dataEl = document.getElementById("radar-data");
   if (dataEl && dataEl.textContent && dataEl.textContent.trim() !== "{}") {
@@ -930,6 +938,17 @@ function resolveDepKeyByNameFromSet(
   return null;
 }
 
+/**
+ * Resolve a dependency identifier into a linkable dependency key that exists in the provided set.
+ *
+ * Attempts to match the exact `depKey`, handles `npm:` version aliases when present, and falls back
+ * to a name-based resolution using `keysByName` when `depKey` is not directly linkable.
+ *
+ * @param depKey - The dependency identifier to resolve (may be a full `name@version`, a plain name, or include an `npm:` alias).
+ * @param linkableKeys - A set of dependency keys that are considered linkable targets.
+ * @param keysByName - Optional index mapping package names to candidate depKeys for name-based resolution.
+ * @returns The matching depKey from `linkableKeys` when found, or `null` if no resolvable target exists.
+ */
 function resolveDepLinkTarget(
   depKey: string,
   linkableKeys: Set<string>,
@@ -950,6 +969,19 @@ function resolveDepLinkTarget(
   return resolveDepKeyByNameFromSet(parsed.name, linkableKeys, keysByName);
 }
 
+/**
+ * Build an index that associates dependency keys with their matching supply-chain signals.
+ *
+ * Matches each signal from `report.supplyChain.signals` to a single linkable dependency key by, in order:
+ * 1. `signal.packageId`
+ * 2. `signal.packageName` + `signal.packageVersion`
+ * 3. fallback: matching by `signal.packageName` alone
+ *
+ * @param report - The aggregated report object containing `supplyChain.signals`.
+ * @param linkableKeys - Set of dependency keys that can be linked to detail cards.
+ * @param keysByName - Precomputed index mapping package names to available dependency keys.
+ * @returns A Map where each key is a resolved depKey and the value is an array of `SupplyChainSignal` objects matched to that depKey.
+ */
 function buildSupplyChainSignalIndex(
   report: AggregatedData,
   linkableKeys: Set<string>,
@@ -986,6 +1018,14 @@ function buildSupplyChainSignalIndex(
   return index;
 }
 
+/**
+ * Renders a compact list of root packages as HTML tags, linking each item to its dependency card when a resolvable depKey exists.
+ *
+ * @param packages - Array of package identifiers, either strings (name or name@version) or objects with `name` and `version`. If `undefined` or empty, renders `"None"`.
+ * @param maxShow - Maximum number of package items to render before truncating with a `+N more` tag.
+ * @param linkableKeys - Set of known depKeys used to decide whether an item becomes a link.
+ * @param keysByName - Optional index mapping package names to depKeys used to resolve ambiguous name-only references.
+ * @returns An HTML string containing a `.package-list` with `.package-tag` elements; resolvable packages are rendered as anchor links (`.package-tag-link.root-package-link`) with `href="#dep-<key>"` and a `data-dep-key` attribute, non-resolvable packages are plain spans.
 function renderRootPackageList(
   packages: Array<{ name: string; version: string } | string> | undefined,
   maxShow: number,
@@ -1228,6 +1268,14 @@ function toneToString(tone?: "red" | "amber" | "green"): string {
   return "Low";
 }
 
+/**
+ * Render the “Install-time execution behaviour” subsection for a dependency.
+ *
+ * Builds a subsection showing execution risk, native build tooling presence, lifecycle hooks, heuristic script complexity, detected install-time signals, and an explanatory note about install-time behaviour signals.
+ *
+ * @param execution - Execution metadata from a dependency record containing risk, native flag, and scripts details
+ * @returns HTML string for the subsection ready to be inserted into the dependency details panel
+ */
 function renderExecutionSection(
   execution: NonNullable<DependencyRecord["execution"]>,
 ): string {
@@ -1278,6 +1326,12 @@ function renderExecutionSection(
   );
 }
 
+/**
+ * Get a human-readable label for a supply chain signal type.
+ *
+ * @param type - The signal type identifier (for example `"git-dependency"` or `"missing-integrity"`)
+ * @returns A human-friendly label for the signal type; if the type is not recognized, returns a title-cased version of `type`
+ */
 function supplyChainSignalLabel(type: string): string {
   const labels: Record<string, string> = {
     "git-dependency": "Git dependency source",
@@ -1289,6 +1343,15 @@ function supplyChainSignalLabel(type: string): string {
   return labels[type] || titleCaseValue(type);
 }
 
+/**
+ * Render a "Supply chain source" subsection showing lockfile/source signals for a dependency.
+ *
+ * Produces an HTML subsection containing a brief note and a key/value grid of each signal's
+ * label, source, and detail. If `signals` is missing or empty, returns an empty string.
+ *
+ * @param signals - An optional array of supply chain signals to render
+ * @returns The HTML string for the subsection, or an empty string when there are no signals
+ */
 function renderSupplyChainSourceSection(
   signals: SupplyChainSignal[] | undefined,
 ): string {
@@ -1544,6 +1607,17 @@ function renderDep(dep: DependencyRecord): string {
   ].join("");
 }
 
+/**
+ * Build the full HTML content for a dependency's expanded detail panel.
+ *
+ * Renders overview, license, vulnerability, execution, supply-chain source, upgrade/change impact, declared sub-dependencies, package links, and a raw JSON pane for the given dependency.
+ *
+ * @param dep - The dependency record to render detail content for.
+ * @param linkableKeys - Set of dependency keys that can be linked to within the report.
+ * @param keysByName - Optional index mapping package name to available dependency keys (used to resolve ambiguous links).
+ * @param supplyChainSignals - Optional list of supply-chain source signals associated with this dependency; when provided a "Supply chain source" subsection will be included.
+ * @returns An HTML string containing the complete detail content for the dependency card.
+ */
 function renderDepDetails(
   dep: DependencyRecord,
   linkableKeys: Set<string>,
@@ -1890,9 +1964,11 @@ function renderDepDetails(
 }
 
 /**
- * Initializes the dependency radar UI: loads report data, populates metadata, and wires all controls and event handlers.
+ * Initialize the Dependency Radar UI, load report data, and wire all controls and event handlers.
  *
- * Performs high-level startup tasks including loading and caching the report, rendering the metadata panel and column headers, constructing workspace and dependency indices, configuring theme, responsive filters, sorting and filter controls, preparing graph/list view switching, setting up lazy-detail rendering and copy-to-clipboard handlers, and performing the initial list render.
+ * Loads and caches the report, renders header metadata and column headers, builds workspace and dependency indices,
+ * configures theme, responsive filters, sorting and license controls, prepares graph/list view switching,
+ * sets up lazy dependency-detail rendering and copy-to-clipboard handling, and performs the initial list render.
  */
 async function init(): Promise<void> {
   const report = await loadReportData();
@@ -2424,6 +2500,19 @@ async function init(): Promise<void> {
     return announcer;
   })();
 
+  /**
+   * Lazily renders and injects the full dependency detail HTML into a dependency card's details container.
+   *
+   * If the details are not yet rendered and the element's `data-dep-key` matches a known dependency, this:
+   * - inserts a lightweight loading placeholder,
+   * - marks the container as busy,
+   * - replaces the placeholder with the full rendered details on the next animation frame,
+   * - marks the container as rendered (`data-rendered="true"`) and clears the busy state.
+   *
+   * No action is taken when `data-dep-key` is missing, the dependency cannot be found, or the details are already rendered.
+   *
+   * @param detailsEl - The <details> element for a dependency card; must contain a child `.dep-details` element and a `data-dep-key` attribute.
+   */
   function ensureDepDetailsRendered(detailsEl: HTMLDetailsElement): void {
     const depKey = detailsEl.dataset.depKey;
     if (!depKey) return;
