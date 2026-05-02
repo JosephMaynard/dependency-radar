@@ -15,7 +15,7 @@
     "build:spdx": "ts-node scripts/build-spdx.ts",
     "build:report-ui": "cd report-ui && npx vite build",
     "build:report": "npm run build:report-ui && npx ts-node scripts/build-report.ts",
-    "build": "npm run clean && npm run build:spdx && npm run build:report && tsc",
+    "build": "npm run clean && npm run build:spdx && npm run build:report && tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
     "dev": "ts-node src/cli.ts scan",
     "scan": "node dist/cli.js scan",
     "test": "npm run test:unit",
@@ -26,7 +26,7 @@
     "test:fixtures:all": "npm --prefix test-fixtures run test:all",
     "test:docker:node14": "node scripts/test-docker-node14.js",
     "test:docker": "npm run test:docker:node14",
-    "test:pack": "npm pack --dry-run",
+    "test:pack": "node scripts/check-pack.js",
     "test:release:ok": "node -e \"console.log('\\n✅ test:release passed')\"",
     "test:release": "npm run build && npm run test:unit && npm run test:fixtures:all && npm run test:docker && npm run test:pack && npm run test:release:ok",
     "prepublishOnly": "npm run build"
