@@ -12,6 +12,8 @@ import type {
   DependencyRecord,
   ExecutionSignal,
   LicenseStatus,
+  PackagingSignal,
+  RegistryRiskSignal,
   Severity,
 } from "./types";
 
@@ -94,6 +96,19 @@ const EXECUTION_SIGNAL_LABELS: Record<ExecutionSignal, string> = {
   "reads-env": "Reads environment variables",
   "reads-home": "Reads user home directory",
   "uses-ssh": "Uses SSH configuration/keys",
+};
+
+const PACKAGING_SIGNAL_LABELS: Record<PackagingSignal, string> = {
+  "bundled-dependencies": "Declares bundled dependencies",
+  "embedded-shrinkwrap": "Contains embedded npm-shrinkwrap.json",
+};
+
+const REGISTRY_SIGNAL_LABELS: Record<RegistryRiskSignal, string> = {
+  "recent-package": "Recently created package",
+  "recent-version": "Recently published installed version",
+  "low-release-history": "Low release history",
+  "reactivated-package": "Reactivated after dormancy",
+  "old-major-new-patch": "Recent patch on older major line",
 };
 
 type SecuritySummary = {
@@ -1347,12 +1362,99 @@ function renderExecutionSection(
     );
   }
 
+  const packageSignals = (execution.signals || []).filter(
+    (signal) => !(execution.scripts?.signals || []).includes(signal),
+  );
+  if (packageSignals.length) {
+    const labels = packageSignals.map(
+      (signal) => `${EXECUTION_SIGNAL_LABELS[signal]} (${signal})`,
+    );
+    items.push(
+      renderKvItemHtml("Local execution signals", renderPackageList(labels, 6)),
+    );
+  }
+
   const note =
-    '<div class="section-note">Install-time behaviour signals detected. These describe code that runs automatically during install and may warrant review in security-sensitive environments.</div>';
+    '<div class="section-note">Execution behaviour signals are local static review cues from lifecycle scripts, entry files, package bins, or a small bounded set of package files. They do not imply compromise.</div>';
 
   return renderSubsection(
     "Install-time execution behaviour",
     note + '<div class="kv-grid">' + items.join("") + "</div>",
+  );
+}
+
+/**
+ * Render the "Package contents" subsection HTML for a dependency when packaging signals exist.
+ *
+ * @param packaging - Packaging metadata from the dependency; expected to contain a `signals` array and optional `bundledDependencies` array. If `packaging` is undefined or has no `signals`, nothing is rendered.
+ * @returns An HTML string containing the "Package contents" subsection (including packaging signal labels and bundled dependencies when present), or an empty string if there are no packaging signals.
+ */
+function renderPackagingSection(
+  packaging: NonNullable<DependencyRecord["packaging"]> | undefined,
+): string {
+  if (!packaging?.signals?.length) return "";
+  const labels = packaging.signals.map(
+    (signal) => `${PACKAGING_SIGNAL_LABELS[signal]} (${signal})`,
+  );
+  const items = [
+    renderKvItemHtml("Packaging signals", renderPackageList(labels, 6)),
+  ];
+  if (packaging.bundledDependencies?.length) {
+    items.push(
+      renderKvItemHtml(
+        "Bundled dependencies",
+        renderPackageList(packaging.bundledDependencies, 8),
+      ),
+    );
+  }
+  return renderSubsection(
+    "Package contents",
+    '<div class="section-note">Packaging signals describe local package structure that may warrant review; they are not malware verdicts.</div>' +
+      '<div class="kv-grid">' +
+      items.join("") +
+      "</div>",
+  );
+}
+
+/**
+ * Render an HTML subsection showing registry enrichment metadata for a dependency.
+ *
+ * @param registry - Registry enrichment data from the dependency's `supplyChain` object; may be `undefined` or have `attempted: false`.
+ * @returns The HTML string for the "Registry metadata" subsection, or an empty string when no registry lookup was attempted.
+ */
+function renderRegistryEnrichmentSection(
+  registry: NonNullable<DependencyRecord["supplyChain"]>["registry"] | undefined,
+): string {
+  if (!registry?.attempted) return "";
+  const items = [
+    renderKvItem("Lookup", registry.ok ? "Available" : "Unavailable"),
+    renderKvItemHtml("Candidate reasons", renderPackageList(registry.candidateReasons || [], 6)),
+  ];
+  if (registry.error) items.push(renderKvItem("Error", registry.error));
+  if (registry.signals?.length) {
+    const labels = registry.signals.map(
+      (signal) => `${REGISTRY_SIGNAL_LABELS[signal]} (${signal})`,
+    );
+    items.push(renderKvItemHtml("Registry signals", renderPackageList(labels, 6)));
+  }
+  if (registry.installedVersionPublishedAt) {
+    items.push(renderKvItem("Installed version published", registry.installedVersionPublishedAt));
+  }
+  if (registry.packageCreatedAt) {
+    items.push(renderKvItem("Package created", registry.packageCreatedAt));
+  }
+  if (typeof registry.versionCount === "number") {
+    items.push(renderKvItem("Published versions", registry.versionCount));
+  }
+  if (registry.latestVersion) {
+    items.push(renderKvItem("Latest dist-tag", registry.latestVersion));
+  }
+  return renderSubsection(
+    "Registry metadata",
+    '<div class="section-note">Targeted npm registry metadata is collected only for packages that already show local review signals, and is skipped in offline scans.</div>' +
+      '<div class="kv-grid">' +
+      items.join("") +
+      "</div>",
   );
 }
 
@@ -1879,12 +1981,14 @@ function renderDepDetails(
   const executionBlock = dep.execution
     ? renderExecutionSection(dep.execution)
     : "";
+  const packagingBlock = renderPackagingSection(dep.packaging);
+  const registryBlock = renderRegistryEnrichmentSection(dep.supplyChain?.registry);
   const supplyChainBlock = renderSupplyChainSourceSection(supplyChainSignals);
 
   const riskSection = renderSection(
     "Risk & Compliance",
     "License, vulnerabilities, install-time execution, and unusual source signals",
-    licenseBlock + vulnBlock + executionBlock + supplyChainBlock,
+    licenseBlock + vulnBlock + executionBlock + packagingBlock + registryBlock + supplyChainBlock,
   );
 
   const currencyItems = [

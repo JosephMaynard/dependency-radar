@@ -15,6 +15,37 @@ const BLOCKER_LABELS: Record<string, string> = {
   deprecated: 'Deprecated by author',
 };
 
+const EXECUTION_SIGNAL_LABELS: Record<string, string> = {
+  'network-access': 'network access',
+  'dynamic-exec': 'dynamic execution',
+  'child-process': 'child process APIs',
+  encoding: 'encoding/decoding logic',
+  obfuscated: 'obfuscation-like code shape',
+  'reads-env': 'environment access',
+  'reads-home': 'home directory access',
+  'uses-ssh': 'SSH-related references'
+};
+
+const PACKAGING_SIGNAL_LABELS: Record<string, string> = {
+  'bundled-dependencies': 'bundled dependencies',
+  'embedded-shrinkwrap': 'embedded npm-shrinkwrap.json'
+};
+
+const REGISTRY_SIGNAL_LABELS: Record<string, string> = {
+  'recent-package': 'recently created package',
+  'recent-version': 'recently published installed version',
+  'low-release-history': 'low release history',
+  'reactivated-package': 'reactivated after dormancy',
+  'old-major-new-patch': 'recent patch on older major line'
+};
+
+/**
+ * Locate dependency records for a given package name and return them in prioritized order.
+ *
+ * @param aggregated - The aggregated dataset containing dependency records
+ * @param packageName - The package name to search for
+ * @returns An array of matching `DependencyRecord` objects sorted with direct dependencies first, then by descending package version; empty if none found
+ */
 export function findDependenciesByPackageName(
   aggregated: AggregatedData,
   packageName: string,
@@ -29,6 +60,15 @@ export function findDependenciesByPackageName(
     });
 }
 
+/**
+ * Generate a human-readable, line-oriented explanation report for a package
+ * across the provided dependency records.
+ *
+ * @param packageName - The package name shown in the report header
+ * @param matches - DependencyRecord entries for the package to render as individual sections
+ * @param context - Rendering context controlling audit availability and import-graph completeness
+ * @returns The formatted multi-section report as a string. If `matches` is empty the string is `✖ Package not found: ${packageName}`.
+ */
 export function formatExplainOutput(
   packageName: string,
   matches: DependencyRecord[],
@@ -130,6 +170,50 @@ export function formatExplainOutput(
       for (const blocker of dep.upgrade.blockers) {
         lines.push(`  - ${BLOCKER_LABELS[blocker] || blocker}`);
       }
+    } else {
+      lines.push('  none');
+    }
+
+    lines.push('');
+    lines.push('Local execution signals:');
+    const scriptSignals = new Set(dep.execution?.scripts?.signals || []);
+    const localSignals = (dep.execution?.signals || []).filter((signal) => !scriptSignals.has(signal));
+    if (localSignals.length) {
+      for (const signal of localSignals) {
+        lines.push(`  - ${signal} (${EXECUTION_SIGNAL_LABELS[signal] || 'review signal'})`);
+      }
+    } else {
+      lines.push('  none');
+    }
+
+    lines.push('');
+    lines.push('Packaging signals:');
+    if (dep.packaging?.signals?.length) {
+      for (const signal of dep.packaging.signals) {
+        lines.push(`  - ${signal} (${PACKAGING_SIGNAL_LABELS[signal] || 'review signal'})`);
+      }
+      if (dep.packaging.bundledDependencies?.length) {
+        lines.push(`  bundled dependencies: ${dep.packaging.bundledDependencies.join(', ')}`);
+      }
+    } else {
+      lines.push('  none');
+    }
+
+    lines.push('');
+    lines.push('Registry metadata signals:');
+    const registry = dep.supplyChain?.registry;
+    if (registry?.signals?.length) {
+      for (const signal of registry.signals) {
+        lines.push(`  - ${signal} (${REGISTRY_SIGNAL_LABELS[signal] || 'review signal'})`);
+      }
+      if (registry.installedVersionPublishedAt) {
+        lines.push(`  installed version published: ${registry.installedVersionPublishedAt}`);
+      }
+      if (typeof registry.versionCount === 'number') {
+        lines.push(`  version count: ${registry.versionCount}`);
+      }
+    } else if (registry?.attempted && !registry.ok) {
+      lines.push(`  unavailable (${registry.error || 'lookup failed'})`);
     } else {
       lines.push('  none');
     }

@@ -20,6 +20,14 @@ function supportsTargetNode(dep: DependencyRecord, targetNodeMajor: number | und
   return isNodeEngineTargetCompatible(dep.upgrade.nodeEngine, targetNodeMajor);
 }
 
+/**
+ * Constructs a DependencyFinding by combining package identifiers derived from a dependency with the provided finding fields.
+ *
+ * @param dep - Dependency record used to derive `packageId`, `packageName`, `packageVersion`, and to generate the finding `id`.
+ * @param suffix - Suffix appended to the package-based id to produce the finding `id`.
+ * @param fields - Remaining `DependencyFinding` properties to include; must not contain `id`, `packageId`, `packageName`, or `packageVersion`.
+ * @returns The assembled `DependencyFinding` with `id`, `packageId`, `packageName`, `packageVersion`, and the supplied fields.
+ */
 function baseFinding(
   dep: DependencyRecord,
   suffix: string,
@@ -34,6 +42,40 @@ function baseFinding(
   };
 }
 
+/**
+ * Produce the execution signals for a dependency after removing any signals that originate from install-only scripts.
+ *
+ * @param dep - Dependency record to inspect for execution signals and script-specific signals
+ * @returns A sorted array of execution signal keys that are not associated with install-only scripts
+ */
+function withoutInstallOnlySignals(dep: DependencyRecord): string[] {
+  const all = new Set(dep.execution?.signals || []);
+  for (const signal of dep.execution?.scripts?.signals || []) {
+    all.delete(signal);
+  }
+  return Array.from(all).sort();
+}
+
+const REGISTRY_SIGNAL_TITLES: Record<string, string> = {
+  'recent-package': 'Recently created package',
+  'recent-version': 'Recently published installed version',
+  'low-release-history': 'Low release history',
+  'reactivated-package': 'Package reactivated after dormancy',
+  'old-major-new-patch': 'Recent patch on older major line'
+};
+
+/**
+ * Convert aggregated dependency and supply-chain data into a sorted list of dependency findings.
+ *
+ * Processes each dependency and the supply-chain signals to emit findings for security, license/compliance,
+ * execution and packaging signals, registry metadata, provenance/signature verification, and Node engine
+ * compatibility relative to an optional target Node major version.
+ *
+ * @param data - Aggregated input containing `dependencies` and `supplyChain` information.
+ * @param options.targetNodeMajor - If provided, emits findings when a dependency's declared Node engine
+ *   does not appear to include the given major Node version.
+ * @returns A list of DependencyFinding objects sorted by severity (error, warning, info), then by `packageId`, then by `id`.
+ */
 export function buildDependencyFindings(
   data: Pick<AggregatedData, 'dependencies' | 'supplyChain'>,
   options: { targetNodeMajor?: number } = {}
@@ -96,6 +138,18 @@ export function buildDependencyFindings(
       }));
     }
 
+    const executionSignals = withoutInstallOnlySignals(dep);
+    if (executionSignals.length > 0) {
+      findings.push(baseFinding(dep, 'local-execution-signals', {
+        category: 'execution',
+        severity: 'warning',
+        title: 'Local execution capability signal',
+        message: `${dep.package.id} contains local execution capability signals that may warrant review.`,
+        evidence: executionSignals.join(', '),
+        recommendation: 'Review the referenced package entrypoints or executables and confirm this behavior is expected.'
+      }));
+    }
+
     if (dep.execution?.native) {
       findings.push(baseFinding(dep, 'native-bindings', {
         category: 'upgrade',
@@ -113,6 +167,34 @@ export function buildDependencyFindings(
         title: 'Package is deprecated',
         message: `${dep.package.id} is marked deprecated in local package metadata.`,
         recommendation: 'Plan migration to a maintained replacement.'
+      }));
+    }
+
+    if (dep.packaging?.signals?.length) {
+      findings.push(baseFinding(dep, 'packaging-signals', {
+        category: 'supply-chain',
+        severity: 'info',
+        title: 'Package packaging review signal',
+        message: `${dep.package.id} has packaging signals that may warrant review.`,
+        evidence: dep.packaging.signals.join(', '),
+        recommendation: 'Review package contents and confirm the packaging pattern is expected.'
+      }));
+    }
+
+    for (const signal of dep.supplyChain?.registry?.signals || []) {
+      const registry = dep.supplyChain?.registry;
+      findings.push(baseFinding(dep, `registry-${signal}`, {
+        category: 'supply-chain',
+        severity: 'info',
+        title: REGISTRY_SIGNAL_TITLES[signal] || 'Registry metadata review signal',
+        message: `${dep.package.id} has npm registry metadata that may warrant review: ${signal}.`,
+        evidence: [
+          registry?.installedVersionPublishedAt ? `installedVersionPublishedAt=${registry.installedVersionPublishedAt}` : undefined,
+          registry?.packageCreatedAt ? `packageCreatedAt=${registry.packageCreatedAt}` : undefined,
+          typeof registry?.versionCount === 'number' ? `versionCount=${registry.versionCount}` : undefined,
+          registry?.latestVersion ? `latest=${registry.latestVersion}` : undefined
+        ].filter(Boolean).join('; '),
+        recommendation: 'Review the package release history and confirm this registry activity is expected.'
       }));
     }
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { evaluatePolicyViolations, parseFailOnRules } from './failOn';
+import { evaluateComparePolicyViolations, evaluatePolicyViolations, parseFailOnRules } from './failOn';
 import type { AggregatedData, DependencyRecord, Severity } from './types';
+
+type ExecutionScripts = NonNullable<NonNullable<DependencyRecord['execution']>['scripts']>;
 
 function highestSeverityFromCounts(
   critical: number,
@@ -23,7 +25,15 @@ function riskFromCounts(critical: number, high: number, moderate: number): 'gree
 
 function makeDependency(options: {
   name: string;
+  version?: string;
   scope?: DependencyRecord['usage']['scope'];
+  direct?: boolean;
+  hasBin?: boolean;
+  installHooks?: ExecutionScripts['hooks'];
+  executionSignals?: NonNullable<DependencyRecord['execution']>['signals'];
+  packagingSignals?: NonNullable<DependencyRecord['packaging']>['signals'];
+  registrySignals?: NonNullable<NonNullable<DependencyRecord['supplyChain']>['registry']>['signals'];
+  native?: boolean;
   importFileCount?: number;
   critical?: number;
   high?: number;
@@ -65,9 +75,10 @@ function makeDependency(options: {
 
   return {
     package: {
-      id: `${options.name}@1.0.0`,
+      id: `${options.name}@${options.version ?? '1.0.0'}`,
       name: options.name,
-      version: '1.0.0',
+      version: options.version ?? '1.0.0',
+      ...(options.hasBin ? { hasBin: true } : {}),
       deprecated: false,
       links: {
         npm: `https://www.npmjs.com/package/${options.name}`
@@ -95,7 +106,7 @@ function makeDependency(options: {
       nodeEngine: null
     },
     usage: {
-      direct: false,
+      direct: options.direct ?? false,
       scope: options.scope ?? 'runtime',
       depth: 1,
       origins: {
@@ -117,7 +128,35 @@ function makeDependency(options: {
     graph: {
       fanIn: 0,
       fanOut: 0
-    }
+    },
+    ...((options.installHooks?.length || options.native || options.executionSignals?.length)
+      ? {
+          execution: {
+            risk: 'amber' as const,
+            ...(options.native ? { native: true as const } : {}),
+            ...(options.executionSignals?.length ? { signals: options.executionSignals } : {}),
+            ...(options.installHooks?.length
+              ? { scripts: { hooks: options.installHooks } }
+              : {})
+          }
+        }
+      : {}),
+    ...(options.packagingSignals?.length
+      ? { packaging: { signals: options.packagingSignals } }
+      : {}),
+    ...(options.registrySignals?.length
+      ? {
+          supplyChain: {
+            registry: {
+              attempted: true as const,
+              ok: true,
+              source: 'npm-registry' as const,
+              candidateReasons: ['bin'],
+              signals: options.registrySignals
+            }
+          }
+        }
+      : {})
   };
 }
 
@@ -154,8 +193,8 @@ function makeAggregatedData(dependencies: Record<string, DependencyRecord>): Agg
 
 describe('parseFailOnRules', () => {
   it('splits comma-separated rules, trims whitespace, and deduplicates', () => {
-    const rules = parseFailOnRules(' reachable-vuln, licence-mismatch ,reachable-vuln ');
-    expect(Array.from(rules)).toEqual(['reachable-vuln', 'licence-mismatch']);
+    const rules = parseFailOnRules(' reachable-vuln, new-install-script ,reachable-vuln ');
+    expect(Array.from(rules)).toEqual(['reachable-vuln', 'new-install-script']);
   });
 
   it('throws on unknown rules', () => {
@@ -166,6 +205,156 @@ describe('parseFailOnRules', () => {
 
   it('throws when no rules are provided', () => {
     expect(() => parseFailOnRules(' ,  ,')).toThrow('No --fail-on rules provided.');
+  });
+});
+
+describe('evaluateComparePolicyViolations', () => {
+  it('detects newly introduced risky dependency traits without failing on ordinary version changes', () => {
+    const previous = makeAggregatedData({
+      'scripted@1.0.0': makeDependency({ name: 'scripted', version: '1.0.0' }),
+      'native@1.0.0': makeDependency({ name: 'native', version: '1.0.0' }),
+      'cli-bin@1.0.0': makeDependency({ name: 'cli-bin', version: '1.0.0' }),
+      'direct-now@1.0.0': makeDependency({ name: 'direct-now', version: '1.0.0' }),
+      'plain-bump@1.0.0': makeDependency({ name: 'plain-bump', version: '1.0.0' })
+    });
+    const current = makeAggregatedData({
+      'scripted@1.1.0': makeDependency({ name: 'scripted', version: '1.1.0', installHooks: ['postinstall'] }),
+      'native@1.1.0': makeDependency({ name: 'native', version: '1.1.0', native: true }),
+      'cli-bin@1.1.0': makeDependency({ name: 'cli-bin', version: '1.1.0', hasBin: true }),
+      'direct-now@1.1.0': makeDependency({ name: 'direct-now', version: '1.1.0', direct: true }),
+      'plain-bump@1.1.0': makeDependency({ name: 'plain-bump', version: '1.1.0' })
+    });
+
+    const violations = evaluateComparePolicyViolations(
+      previous,
+      current,
+      new Set(['new-install-script', 'new-native-binding', 'new-bin', 'new-direct-dependency'])
+    );
+
+    const byRule = new Map(violations.map((violation) => [violation.rule, violation]));
+    expect(byRule.get('new-install-script')?.details).toEqual([
+      'scripted@1.1.0 introduced install hooks: postinstall'
+    ]);
+    expect(byRule.get('new-native-binding')?.details).toEqual([
+      'native@1.1.0 introduced native build/binary surface'
+    ]);
+    expect(byRule.get('new-bin')?.details).toEqual([
+      'cli-bin@1.1.0 introduced a package bin'
+    ]);
+    expect(byRule.get('new-direct-dependency')?.details).toEqual([
+      'direct-now@1.1.0 is now a direct dependency'
+    ]);
+    expect(violations.flatMap((violation) => violation.details || []).join('\n')).not.toContain('plain-bump');
+  });
+
+  it('does not repeat trait failures when the baseline already had the same package trait', () => {
+    const previous = makeAggregatedData({
+      'scripted@1.0.0': makeDependency({ name: 'scripted', version: '1.0.0', installHooks: ['install'] }),
+      'native@1.0.0': makeDependency({ name: 'native', version: '1.0.0', native: true }),
+      'cli-bin@1.0.0': makeDependency({ name: 'cli-bin', version: '1.0.0', hasBin: true }),
+      'direct@1.0.0': makeDependency({ name: 'direct', version: '1.0.0', direct: true })
+    });
+    const current = makeAggregatedData({
+      'scripted@1.1.0': makeDependency({ name: 'scripted', version: '1.1.0', installHooks: ['postinstall'] }),
+      'native@1.1.0': makeDependency({ name: 'native', version: '1.1.0', native: true }),
+      'cli-bin@1.1.0': makeDependency({ name: 'cli-bin', version: '1.1.0', hasBin: true }),
+      'direct@1.1.0': makeDependency({ name: 'direct', version: '1.1.0', direct: true })
+    });
+
+    expect(evaluateComparePolicyViolations(
+      previous,
+      current,
+      new Set(['new-install-script', 'new-native-binding', 'new-bin', 'new-direct-dependency'])
+    )).toEqual([]);
+  });
+
+  it('detects new supply-chain signal types per package', () => {
+    const previous = makeAggregatedData({});
+    previous.supplyChain = {
+      signals: [
+        { type: 'missing-integrity', packageName: 'already-risky', source: 'package-lock.json', detail: 'missing integrity' }
+      ]
+    };
+    const current = makeAggregatedData({});
+    current.supplyChain = {
+      signals: [
+        { type: 'missing-integrity', packageName: 'already-risky', packageVersion: '1.0.0', source: 'package-lock.json', detail: 'missing integrity' },
+        { type: 'git-dependency', packageName: 'new-risk', packageVersion: '2.0.0', source: 'package-lock.json', detail: 'git source' }
+      ]
+    };
+
+    const violations = evaluateComparePolicyViolations(
+      previous,
+      current,
+      new Set(['new-supply-chain-signal'])
+    );
+
+    expect(violations).toEqual([
+      {
+        rule: 'new-supply-chain-signal',
+        count: 1,
+        message: '1 new supply-chain signal',
+        details: ['new-risk@2.0.0 introduced supply-chain signal: git-dependency']
+      }
+    ]);
+  });
+
+  it('detects newly introduced execution and packaging signals', () => {
+    const previous = makeAggregatedData({
+      'exec@1.0.0': makeDependency({ name: 'exec', version: '1.0.0' }),
+      'pkg@1.0.0': makeDependency({ name: 'pkg', version: '1.0.0' })
+    });
+    const current = makeAggregatedData({
+      'exec@1.1.0': makeDependency({ name: 'exec', version: '1.1.0', executionSignals: ['child-process', 'reads-env'] }),
+      'pkg@1.1.0': makeDependency({ name: 'pkg', version: '1.1.0', packagingSignals: ['bundled-dependencies', 'embedded-shrinkwrap'] })
+    });
+
+    const violations = evaluateComparePolicyViolations(
+      previous,
+      current,
+      new Set(['new-child-process', 'new-env-access', 'new-bundled-dependencies', 'new-shrinkwrap'])
+    );
+
+    const byRule = new Map(violations.map((violation) => [violation.rule, violation]));
+    expect(byRule.get('new-child-process')?.details).toEqual([
+      'exec@1.1.0 introduced execution signal: child-process'
+    ]);
+    expect(byRule.get('new-env-access')?.details).toEqual([
+      'exec@1.1.0 introduced execution signal: reads-env'
+    ]);
+    expect(byRule.get('new-bundled-dependencies')?.details).toEqual([
+      'pkg@1.1.0 introduced packaging signal: bundled-dependencies'
+    ]);
+    expect(byRule.get('new-shrinkwrap')?.details).toEqual([
+      'pkg@1.1.0 introduced packaging signal: embedded-shrinkwrap'
+    ]);
+  });
+
+  it('detects newly introduced registry risk signals', () => {
+    const previous = makeAggregatedData({
+      'registry-risk@1.0.0': makeDependency({ name: 'registry-risk', version: '1.0.0' })
+    });
+    const current = makeAggregatedData({
+      'registry-risk@1.0.1': makeDependency({
+        name: 'registry-risk',
+        version: '1.0.1',
+        registrySignals: ['recent-version', 'low-release-history']
+      })
+    });
+
+    const violations = evaluateComparePolicyViolations(
+      previous,
+      current,
+      new Set(['new-recent-version', 'new-low-release-history'])
+    );
+
+    const byRule = new Map(violations.map((violation) => [violation.rule, violation]));
+    expect(byRule.get('new-recent-version')?.details).toEqual([
+      'registry-risk@1.0.1 introduced registry risk signal: recent-version'
+    ]);
+    expect(byRule.get('new-low-release-history')?.details).toEqual([
+      'registry-risk@1.0.1 introduced registry risk signal: low-release-history'
+    ]);
   });
 });
 

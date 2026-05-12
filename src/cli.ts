@@ -12,9 +12,11 @@ import { runImportGraph } from "./runners/importGraphRunner";
 import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
+import { enrichAggregatedWithRegistryMetadata } from "./runners/npmRegistryMetadata";
 import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
 import { compareReports, formatCompareOutput } from "./compare";
+import { buildDependencyFindings } from "./findings";
 import {
   defaultOutputName,
   renderCycloneDx,
@@ -26,6 +28,7 @@ import { formatWhyOutput } from "./why";
 import { REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
+  evaluateComparePolicyViolations,
   evaluatePolicyViolations,
   parseFailOnRules,
 } from "./failOn";
@@ -1102,7 +1105,7 @@ interface CliOptions {
  * --project, --quiet, --out, --keep-temp, --offline, --json, --format, --sbom, --target-node,
  * --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
  *
- * The --offline flag disables both audit and outdated checks. Unknown options or unexpected positional
+ * The --offline flag disables registry-backed checks. Unknown options or unexpected positional
  * arguments cause the process to exit with an error.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
@@ -1344,12 +1347,20 @@ Options:
   --timestamp        Add a local timestamp to generated report filenames
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
-  --offline          Skip npm audit and npm outdated (useful for offline scans)
+  --offline          Skip registry-backed checks (audit, outdated, signatures, targeted registry enrichment)
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
-                     Supported: reachable-vuln, production-vuln, high-severity-vuln,
-                                licence-mismatch, copyleft-detected, unknown-licence,
-                                supply-chain-source
+                     Scan rules: reachable-vuln, production-vuln, high-severity-vuln,
+                                 licence-mismatch, copyleft-detected, unknown-licence,
+                                 supply-chain-source
+                     Compare rules: new-supply-chain-signal, new-install-script,
+                                    new-native-binding, new-bin, new-direct-dependency,
+                                    new-child-process, new-network-access, new-env-access,
+                                    new-home-access, new-ssh-usage, new-obfuscation-signal,
+                                    new-bundled-dependencies, new-shrinkwrap,
+                                    new-recent-package, new-recent-version,
+                                    new-low-release-history, new-reactivated-package,
+                                    new-old-major-patch
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
 \`why\` prints shortest dependency paths for one package.
@@ -1549,6 +1560,9 @@ function printPolicyViolations(violations: PolicyViolation[]): void {
   console.log(colorLeadingSymbol("✖ Policy violations detected:"));
   for (const violation of violations) {
     console.log(`- ${violation.message}`);
+    for (const detail of violation.details || []) {
+      console.log(`  - ${detail}`);
+    }
   }
 }
 
@@ -2119,6 +2133,28 @@ async function executeAnalysis(
       ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
     });
 
+    if (opts.outdated) {
+      let registryEnrichment = { attempted: 0, succeeded: 0 };
+      try {
+        registryEnrichment = await enrichAggregatedWithRegistryMetadata(aggregated, {
+          offline: false,
+        });
+      } catch (err) {
+        if (!opts.quiet) {
+          const message = err instanceof Error ? err.message : String(err);
+          spinner.log(statusLine("⚠", `Targeted registry metadata unavailable (${message})`));
+        }
+      }
+      if (!opts.quiet && registryEnrichment.succeeded > 0) {
+        spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.succeeded} suspicious package${registryEnrichment.succeeded === 1 ? "" : "s"}`));
+      }
+      if (registryEnrichment.attempted > 0) {
+        const findings = buildDependencyFindings(aggregated, { targetNodeMajor: opts.targetNodeMajor });
+        aggregated.findings = findings;
+        aggregated.summary.findingCount = findings.length;
+      }
+    }
+
     dependencyCount = Object.keys(aggregated.dependencies).length;
     const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
     const summary = buildCliSummary(aggregated, {
@@ -2306,6 +2342,16 @@ async function runWhyCommand(opts: CliOptions): Promise<void> {
   }
 }
 
+/**
+ * Compare the current analysis against a previous report and print the comparison and policy violations.
+ *
+ * Validates the `opts.comparePath` report file against the expected schema, runs a new analysis without
+ * writing artifacts, computes a diff between the previous and current aggregated results, prints the
+ * formatted comparison, prints any policy violations (including compare-specific violations), and exits
+ * with code 1 when validation fails or any policy violations are present.
+ *
+ * @param opts - CLI options controlling the comparison run (must include `comparePath` and may include `failOn`)
+ */
 async function runCompareCommand(opts: CliOptions): Promise<void> {
   const previousPath = opts.comparePath?.trim();
   if (!previousPath) {
@@ -2341,8 +2387,17 @@ async function runCompareCommand(opts: CliOptions): Promise<void> {
     emitArtifactSummary: false,
     emitWorkspacePackageSummary: false,
   });
+  const comparison = compareReports(previous, result.aggregated);
+  const policyViolations = [
+    ...result.policyViolations,
+    ...evaluateComparePolicyViolations(previous, result.aggregated, opts.failOn),
+  ];
   console.log("");
-  console.log(formatCompareOutput(compareReports(previous, result.aggregated)));
+  console.log(formatCompareOutput(comparison));
+  printPolicyViolations(policyViolations);
+  if (policyViolations.length > 0) {
+    process.exit(1);
+  }
 }
 
 /**
