@@ -105,7 +105,7 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--target-node <major>` | Add Node major compatibility findings based on local `engines.node` metadata |
 | `--audit-signatures` | Run `npm audit signatures` for registry signature/provenance verification (opt-in; skipped with `--offline`) |
 | `--schema` | Print the current Dependency Radar JSON schema, or write it with `--out <path>` |
-| `--offline` | Skip `npm audit` and `npm outdated` (useful for offline/air-gapped scans) |
+| `--offline` | Skip registry lookups: `npm audit`, `npm outdated`, signature checks, and targeted registry enrichment |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
 | `--timestamp` | Add a local timestamp to generated report filenames (`dependency-radar.YYYY-MM-DD_HH-mm-ss.html`) |
 | `--no-report` | Run analysis only; no HTML/JSON output written |

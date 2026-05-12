@@ -1561,6 +1561,9 @@ function hasPackageBin(binField: any): boolean {
 }
 
 function normalizeBundledDependencies(pkg: any): string[] {
+  if (pkg?.bundledDependencies === true || pkg?.bundleDependencies === true) {
+    return ['*'];
+  }
   const raw: unknown[] = Array.isArray(pkg?.bundledDependencies)
     ? pkg.bundledDependencies
     : Array.isArray(pkg?.bundleDependencies)
@@ -1884,21 +1887,22 @@ function packageBinTargets(binField: any): string[] {
 function packageEntryTargets(pkg: any): string[] {
   const targets = new Set<string>();
   const add = (value: unknown) => {
-    const normalized = normalizePackageRelativePath(value);
-    if (normalized) targets.add(normalized);
+    if (typeof value === 'string') {
+      const normalized = normalizePackageRelativePath(value);
+      if (normalized) targets.add(normalized);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(add);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      Object.values(value).forEach(add);
+    }
   };
   add(pkg?.main);
   add(pkg?.module);
-  if (typeof pkg?.exports === 'string') {
-    add(pkg.exports);
-  } else if (pkg?.exports && typeof pkg.exports === 'object') {
-    for (const value of Object.values(pkg.exports)) {
-      if (typeof value === 'string') add(value);
-      else if (value && typeof value === 'object') {
-        for (const nested of Object.values(value)) add(nested);
-      }
-    }
-  }
+  add(pkg?.exports);
   if (targets.size === 0) targets.add('index.js');
   return Array.from(targets).sort();
 }

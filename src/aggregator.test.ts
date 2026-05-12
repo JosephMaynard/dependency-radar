@@ -68,6 +68,30 @@ describe('aggregateData', () => {
     expect(signals).toContain('child-process');
   });
 
+  it('inspects deeply nested and array package export targets', async () => {
+    const projectPath = await makeTempDir('dr-agg-nested-exports');
+    await fs.mkdir(path.join(projectPath, 'dist'), { recursive: true });
+    await fs.writeFile(path.join(projectPath, 'dist', 'safe.js'), 'module.exports = 1;');
+    await fs.writeFile(path.join(projectPath, 'dist', 'signal.js'), [
+      "const cp = require('child_process');",
+      "cp.exec('git status');"
+    ].join('\n'));
+
+    const signals = await collectPackageExecutionSignals(
+      {
+        exports: {
+          '.': {
+            import: ['./dist/safe.js', { node: './dist/signal.js' }]
+          }
+        }
+      },
+      projectPath,
+      { maxFiles: 6, maxPackageFiles: 6 }
+    );
+
+    expect(signals).toContain('child-process');
+  });
+
   it('records local execution and packaging signals in aggregated dependencies', async () => {
     const projectPath = await makeTempDir('dr-agg-local-signals');
     await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
@@ -133,6 +157,60 @@ describe('aggregateData', () => {
       expect.objectContaining({ category: 'execution', evidence: expect.stringContaining('child-process') }),
       expect.objectContaining({ category: 'supply-chain', evidence: expect.stringContaining('bundled-dependencies') })
     ]));
+  });
+
+  it('records boolean bundledDependencies as a packaging signal', async () => {
+    const projectPath = await makeTempDir('dr-agg-bundle-all');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { 'bundle-all': '1.0.0' }
+    }));
+    const depDir = path.join(projectPath, 'node_modules', 'bundle-all');
+    await fs.mkdir(depDir, { recursive: true });
+    await fs.writeFile(path.join(depDir, 'package.json'), JSON.stringify({
+      name: 'bundle-all',
+      version: '1.0.0',
+      license: 'MIT',
+      bundleDependencies: true
+    }));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { 'bundle-all': '1.0.0' }
+      },
+      projectPackageJson: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { 'bundle-all': '1.0.0' }
+      },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            'bundle-all': {
+              name: 'bundle-all',
+              version: '1.0.0'
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['bundle-all@1.0.0'].packaging).toEqual({
+      signals: ['bundled-dependencies'],
+      bundledDependencies: ['*']
+    });
   });
 
   it('merges workspace usage metadata into dependency origins', async () => {
