@@ -116,7 +116,7 @@ describe('npm registry metadata enrichment', () => {
       }
     });
 
-    expect(result).toEqual({ candidates: [], attempted: 0 });
+    expect(result).toEqual({ candidates: [], attempted: 0, succeeded: 0 });
     expect(aggregated.dependencies['with-bin@1.0.0'].supplyChain?.registry).toBeUndefined();
   });
 

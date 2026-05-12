@@ -255,13 +255,13 @@ export async function enrichAggregatedWithRegistryMetadata(
     now?: Date;
     fetcher?: RegistryMetadataFetcher;
   } = {}
-): Promise<{ candidates: RegistryEnrichmentCandidate[]; attempted: number }> {
-  if (options.offline) return { candidates: [], attempted: 0 };
+): Promise<{ candidates: RegistryEnrichmentCandidate[]; attempted: number; succeeded: number }> {
+  if (options.offline) return { candidates: [], attempted: 0, succeeded: 0 };
   const candidates = selectRegistryEnrichmentCandidates(
     aggregated,
     options.limit ?? REGISTRY_ENRICHMENT_DEFAULT_LIMIT
   );
-  if (candidates.length === 0) return { candidates, attempted: 0 };
+  if (candidates.length === 0) return { candidates, attempted: 0, succeeded: 0 };
   const fetcher = options.fetcher || fetchNpmRegistryMetadata;
   const now = options.now || new Date();
   const results = new Map<string, ToolResult<ParsedNpmMetadata>>();
@@ -281,5 +281,6 @@ export async function enrichAggregatedWithRegistryMetadata(
     };
   }
 
-  return { candidates, attempted: results.size };
+  const succeeded = Array.from(results.values()).filter((result) => result.ok).length;
+  return { candidates, attempted: results.size, succeeded };
 }

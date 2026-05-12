@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { evaluateComparePolicyViolations, evaluatePolicyViolations, parseFailOnRules } from './failOn';
 import type { AggregatedData, DependencyRecord, Severity } from './types';
 
+type ExecutionScripts = NonNullable<NonNullable<DependencyRecord['execution']>['scripts']>;
+
 function highestSeverityFromCounts(
   critical: number,
   high: number,
@@ -27,7 +29,7 @@ function makeDependency(options: {
   scope?: DependencyRecord['usage']['scope'];
   direct?: boolean;
   hasBin?: boolean;
-  installHooks?: NonNullable<DependencyRecord['execution']>['scripts']['hooks'];
+  installHooks?: ExecutionScripts['hooks'];
   executionSignals?: NonNullable<DependencyRecord['execution']>['signals'];
   packagingSignals?: NonNullable<DependencyRecord['packaging']>['signals'];
   registrySignals?: NonNullable<NonNullable<DependencyRecord['supplyChain']>['registry']>['signals'];

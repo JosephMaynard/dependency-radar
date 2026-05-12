@@ -1962,6 +1962,7 @@ async function collectBoundedInspectableFiles(
   async function walk(current: string): Promise<void> {
     if (out.length >= maxFiles || seen >= maxPackageFiles) return;
     const entries = await fs.readdir(current, { withFileTypes: true }).catch(() => []);
+    entries.sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' }));
     for (const entry of entries) {
       if (out.length >= maxFiles || seen >= maxPackageFiles) return;
       const full = path.join(current, entry.name);

@@ -2127,10 +2127,10 @@ async function executeAnalysis(
 
     if (opts.outdated) {
       const registryEnrichment = await enrichAggregatedWithRegistryMetadata(aggregated, {
-        offline: !opts.outdated,
+        offline: false,
       });
-      if (!opts.quiet && registryEnrichment.attempted > 0) {
-        spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.attempted} suspicious package${registryEnrichment.attempted === 1 ? "" : "s"}`));
+      if (!opts.quiet && registryEnrichment.succeeded > 0) {
+        spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.succeeded} suspicious package${registryEnrichment.succeeded === 1 ? "" : "s"}`));
       }
       if (registryEnrichment.attempted > 0) {
         const findings = buildDependencyFindings(aggregated, { targetNodeMajor: opts.targetNodeMajor });

@@ -160,8 +160,10 @@ export function formatExplainOutput(
 
     lines.push('');
     lines.push('Local execution signals:');
-    if (dep.execution?.signals?.length) {
-      for (const signal of dep.execution.signals) {
+    const scriptSignals = new Set(dep.execution?.scripts?.signals || []);
+    const localSignals = (dep.execution?.signals || []).filter((signal) => !scriptSignals.has(signal));
+    if (localSignals.length) {
+      for (const signal of localSignals) {
         lines.push(`  - ${signal} (${EXECUTION_SIGNAL_LABELS[signal] || 'review signal'})`);
       }
     } else {

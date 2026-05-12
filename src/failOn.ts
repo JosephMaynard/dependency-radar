@@ -105,7 +105,7 @@ function byPackageName(deps: Record<string, DependencyRecord> | undefined): Map<
 }
 
 function formatPackage(dep: DependencyRecord): string {
-  return dep.package?.id || `${dep.package.name}@${dep.package.version}`;
+  return dep.package.id || `${dep.package.name}@${dep.package.version}`;
 }
 
 function sortedHooks(dep: DependencyRecord): string[] {
