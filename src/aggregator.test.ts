@@ -52,6 +52,22 @@ describe('aggregateData', () => {
     expect(signals).not.toContain('child-process');
   });
 
+  it('inspects extensionless JavaScript-like bin targets', async () => {
+    const projectPath = await makeTempDir('dr-agg-extensionless-bin');
+    await fs.writeFile(path.join(projectPath, 'cli'), [
+      '#!/usr/bin/env node',
+      "require('child_process').exec('git status');"
+    ].join('\n'));
+
+    const signals = await collectPackageExecutionSignals(
+      { bin: { fixture: 'cli' } },
+      projectPath,
+      { maxFiles: 3, maxPackageFiles: 3 }
+    );
+
+    expect(signals).toContain('child-process');
+  });
+
   it('records local execution and packaging signals in aggregated dependencies', async () => {
     const projectPath = await makeTempDir('dr-agg-local-signals');
     await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({

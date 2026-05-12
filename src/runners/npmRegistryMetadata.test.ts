@@ -76,7 +76,7 @@ describe('npm registry metadata enrichment', () => {
     });
 
     expect(selectRegistryEnrichmentCandidates(aggregated, 2)).toEqual([
-      { name: 'with-bin', reasons: ['bin'] },
+      { name: 'with-script', reasons: ['install-hooks'] },
       { name: 'with-packaging', reasons: ['packaging-signals'] }
     ]);
   });

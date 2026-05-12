@@ -31,6 +31,17 @@ export interface ParsedNpmMetadata {
 
 type RegistryMetadataFetcher = (name: string) => Promise<ToolResult<ParsedNpmMetadata>>;
 
+const REGISTRY_FETCH_CONCURRENCY = 3;
+
+const CANDIDATE_REASON_WEIGHTS: Record<string, number> = {
+  'supply-chain-source': 5,
+  'execution-signals': 5,
+  'install-hooks': 4,
+  'native-binding': 4,
+  'packaging-signals': 3,
+  bin: 2
+};
+
 function daysBetween(later: Date, earlier: Date): number {
   return (later.getTime() - earlier.getTime()) / (24 * 60 * 60 * 1000);
 }
@@ -187,7 +198,15 @@ export function selectRegistryEnrichmentCandidates(
     byName.set(dep.package.name, existing);
   }
   return Array.from(byName.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => {
+      const score = (reasons: Set<string>) => Array.from(reasons)
+        .reduce((total, reason) => total + (CANDIDATE_REASON_WEIGHTS[reason] || 1), 0);
+      const scoreDiff = score(b[1]) - score(a[1]);
+      if (scoreDiff !== 0) return scoreDiff;
+      const reasonCountDiff = b[1].size - a[1].size;
+      if (reasonCountDiff !== 0) return reasonCountDiff;
+      return a[0].localeCompare(b[0]);
+    })
     .slice(0, limit)
     .map(([name, reasons]) => ({ name, reasons: Array.from(reasons).sort() }));
 }
@@ -247,6 +266,24 @@ function buildRegistryEnrichment(
   };
 }
 
+async function fetchRegistryMetadataForCandidates(
+  candidates: RegistryEnrichmentCandidate[],
+  fetcher: RegistryMetadataFetcher
+): Promise<Map<string, ToolResult<ParsedNpmMetadata>>> {
+  const results = new Map<string, ToolResult<ParsedNpmMetadata>>();
+  for (let index = 0; index < candidates.length; index += REGISTRY_FETCH_CONCURRENCY) {
+    const batch = candidates.slice(index, index + REGISTRY_FETCH_CONCURRENCY);
+    const settled = await Promise.allSettled(batch.map((candidate) => fetcher(candidate.name)));
+    settled.forEach((result, offset) => {
+      const name = batch[offset].name;
+      results.set(name, result.status === 'fulfilled'
+        ? result.value
+        : { ok: false, error: result.reason instanceof Error ? result.reason.message : String(result.reason) });
+    });
+  }
+  return results;
+}
+
 export async function enrichAggregatedWithRegistryMetadata(
   aggregated: AggregatedData,
   options: {
@@ -264,11 +301,7 @@ export async function enrichAggregatedWithRegistryMetadata(
   if (candidates.length === 0) return { candidates, attempted: 0, succeeded: 0 };
   const fetcher = options.fetcher || fetchNpmRegistryMetadata;
   const now = options.now || new Date();
-  const results = new Map<string, ToolResult<ParsedNpmMetadata>>();
-
-  for (const candidate of candidates) {
-    results.set(candidate.name, await fetcher(candidate.name));
-  }
+  const results = await fetchRegistryMetadataForCandidates(candidates, fetcher);
 
   const reasonsByName = new Map(candidates.map((candidate) => [candidate.name, candidate.reasons]));
   for (const dep of Object.values(aggregated.dependencies || {})) {

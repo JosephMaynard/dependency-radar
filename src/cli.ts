@@ -1350,9 +1350,17 @@ Options:
   --offline          Skip registry-backed checks (audit, outdated, signatures, targeted registry enrichment)
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
-                     Supported: reachable-vuln, production-vuln, high-severity-vuln,
-                                licence-mismatch, copyleft-detected, unknown-licence,
-                                supply-chain-source
+                     Scan rules: reachable-vuln, production-vuln, high-severity-vuln,
+                                 licence-mismatch, copyleft-detected, unknown-licence,
+                                 supply-chain-source
+                     Compare rules: new-supply-chain-signal, new-install-script,
+                                    new-native-binding, new-bin, new-direct-dependency,
+                                    new-child-process, new-network-access, new-env-access,
+                                    new-home-access, new-ssh-usage, new-obfuscation-signal,
+                                    new-bundled-dependencies, new-shrinkwrap,
+                                    new-recent-package, new-recent-version,
+                                    new-low-release-history, new-reactivated-package,
+                                    new-old-major-patch
 
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
 \`why\` prints shortest dependency paths for one package.
@@ -2126,9 +2134,17 @@ async function executeAnalysis(
     });
 
     if (opts.outdated) {
-      const registryEnrichment = await enrichAggregatedWithRegistryMetadata(aggregated, {
-        offline: false,
-      });
+      let registryEnrichment = { attempted: 0, succeeded: 0 };
+      try {
+        registryEnrichment = await enrichAggregatedWithRegistryMetadata(aggregated, {
+          offline: false,
+        });
+      } catch (err) {
+        if (!opts.quiet) {
+          const message = err instanceof Error ? err.message : String(err);
+          spinner.log(statusLine("⚠", `Targeted registry metadata unavailable (${message})`));
+        }
+      }
       if (!opts.quiet && registryEnrichment.succeeded > 0) {
         spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.succeeded} suspicious package${registryEnrichment.succeeded === 1 ? "" : "s"}`));
       }

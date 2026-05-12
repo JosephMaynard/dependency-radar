@@ -615,6 +615,12 @@ describe('cli summary output', () => {
         'process.exit(1);'
       ].join('\n'), 'utf8');
       await fs.chmod(fakeNpmPath, 0o755);
+      const fakeNpmCmdPath = path.join(binDir, 'npm.cmd');
+      await fs.writeFile(fakeNpmCmdPath, [
+        '@echo off',
+        'node "%~dp0npm" %*'
+      ].join('\r\n'), 'utf8');
+      await fs.chmod(fakeNpmCmdPath, 0o755);
       await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
         name: 'registry-enrichment-project',
         version: '1.0.0',

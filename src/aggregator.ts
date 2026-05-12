@@ -1920,8 +1920,8 @@ async function readInstallScriptFile(
   }
 }
 
-function isInspectableSourceFile(filePath: string): boolean {
-  return /\.(?:js|cjs|mjs|jsx|ts|tsx)$/i.test(filePath);
+function isInspectableSourcePath(filePath: string): boolean {
+  return /\.(?:js|cjs|mjs|jsx|ts|tsx)$/i.test(filePath) || path.extname(filePath) === '';
 }
 
 function looksMinified(fileName: string, text: string): boolean {
@@ -1929,6 +1929,23 @@ function looksMinified(fileName: string, text: string): boolean {
   const lines = text.split(/\r?\n/);
   if (lines.length <= 3 && text.length > 20_000) return true;
   return lines.some((line) => line.length > 10_000);
+}
+
+function looksTextLike(text: string): boolean {
+  if (text.includes('\0')) return false;
+  if (text.length === 0) return true;
+  const suspicious = (text.match(/[\uFFFD\x00-\x08\x0E-\x1F]/g) || []).length;
+  return suspicious / text.length < 0.01;
+}
+
+function looksJavaScriptLike(text: string): boolean {
+  return (
+    /^#!.*\bnode\b/.test(text) ||
+    /\brequire\s*\(/.test(text) ||
+    /\bimport\s+/.test(text) ||
+    /\bmodule\.exports\b/.test(text) ||
+    /\bprocess\./.test(text)
+  );
 }
 
 async function readInspectablePackageFile(
@@ -1939,12 +1956,14 @@ async function readInspectablePackageFile(
   const resolvedDir = path.resolve(packageDir);
   const resolvedPath = path.resolve(resolvedDir, filePath);
   if (!resolvedPath.startsWith(resolvedDir + path.sep)) return undefined;
-  if (!isInspectableSourceFile(resolvedPath)) return undefined;
+  if (!isInspectableSourcePath(resolvedPath)) return undefined;
   try {
     const stat = await fs.stat(resolvedPath);
     if (!stat.isFile()) return undefined;
     if (stat.size > maxBytes) return undefined;
     const text = await fs.readFile(resolvedPath, 'utf8');
+    if (!looksTextLike(text)) return undefined;
+    if (path.extname(resolvedPath) === '' && !looksJavaScriptLike(text)) return undefined;
     if (looksMinified(resolvedPath, text)) return undefined;
     return text;
   } catch {
@@ -1972,7 +1991,7 @@ async function collectBoundedInspectableFiles(
         await walk(full);
       } else if (entry.isFile()) {
         seen += 1;
-        if (isInspectableSourceFile(full)) {
+        if (isInspectableSourcePath(full)) {
           out.push(path.relative(packageDir, full));
         }
       }

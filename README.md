@@ -36,7 +36,10 @@ This runs a scan against the current project and writes a self-contained `depend
 - **CI-friendly** — `--fail-on` flag lets you enforce licence, vulnerability, and compare-mode dependency change policies in pipelines
 - **Review-friendly outputs** — emit JSON, SARIF, CycloneDX SBOM, or SPDX SBOM artifacts from the same local scan
 - **Change comparison** — compare a fresh scan with a previous `dependency-radar.json` to see added dependencies, removed dependencies, version changes, and new findings
-- **Local and targeted supply-chain review signals** — flags git/local/tarball sources, missing integrity, unexpected registry hosts, install-time behavior, bounded local execution capability signals, packaging signals, optional npm signature/provenance verification, and capped registry metadata heuristics for already suspicious packages
+- **Source review signals** — flags git, local file, and non-registry tarball dependency sources
+- **Lockfile integrity signals** — flags missing integrity data and unexpected registry hosts
+- **Local execution review signals** — flags install-time behavior and bounded local execution capability signals
+- **Packaging and registry review signals** — flags packaging cues, optional npm signature/provenance results, and limited registry-metadata heuristics applied only to packages already flagged as suspicious
 - **Offline-capable** — use `--offline` to skip registry calls; dependency metadata is still read from local `node_modules`
 - **Single self-contained HTML file** — no server needed; open it locally, attach it to a ticket, or share it with your team
 
