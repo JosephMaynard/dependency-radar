@@ -31,6 +31,14 @@ const PACKAGING_SIGNAL_LABELS: Record<string, string> = {
   'embedded-shrinkwrap': 'embedded npm-shrinkwrap.json'
 };
 
+const REGISTRY_SIGNAL_LABELS: Record<string, string> = {
+  'recent-package': 'recently created package',
+  'recent-version': 'recently published installed version',
+  'low-release-history': 'low release history',
+  'reactivated-package': 'reactivated after dormancy',
+  'old-major-new-patch': 'recent patch on older major line'
+};
+
 export function findDependenciesByPackageName(
   aggregated: AggregatedData,
   packageName: string,
@@ -169,6 +177,25 @@ export function formatExplainOutput(
       if (dep.packaging.bundledDependencies?.length) {
         lines.push(`  bundled dependencies: ${dep.packaging.bundledDependencies.join(', ')}`);
       }
+    } else {
+      lines.push('  none');
+    }
+
+    lines.push('');
+    lines.push('Registry metadata signals:');
+    const registry = dep.supplyChain?.registry;
+    if (registry?.signals?.length) {
+      for (const signal of registry.signals) {
+        lines.push(`  - ${signal} (${REGISTRY_SIGNAL_LABELS[signal] || 'review signal'})`);
+      }
+      if (registry.installedVersionPublishedAt) {
+        lines.push(`  installed version published: ${registry.installedVersionPublishedAt}`);
+      }
+      if (typeof registry.versionCount === 'number') {
+        lines.push(`  version count: ${registry.versionCount}`);
+      }
+    } else if (registry?.attempted && !registry.ok) {
+      lines.push(`  unavailable (${registry.error || 'lookup failed'})`);
     } else {
       lines.push('  none');
     }

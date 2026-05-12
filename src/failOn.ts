@@ -1,5 +1,5 @@
 import { validateSpdxExpression } from './license';
-import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, SupplyChainSignal } from './types';
+import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, RegistryRiskSignal, SupplyChainSignal } from './types';
 
 export type FailOnRule =
   | 'reachable-vuln'
@@ -21,7 +21,12 @@ export type FailOnRule =
   | 'new-ssh-usage'
   | 'new-obfuscation-signal'
   | 'new-bundled-dependencies'
-  | 'new-shrinkwrap';
+  | 'new-shrinkwrap'
+  | 'new-recent-package'
+  | 'new-recent-version'
+  | 'new-low-release-history'
+  | 'new-reactivated-package'
+  | 'new-old-major-patch';
 
 export type PolicyViolation = {
   rule: FailOnRule;
@@ -50,7 +55,12 @@ export const SUPPORTED_FAIL_ON_RULES = [
   'new-ssh-usage',
   'new-obfuscation-signal',
   'new-bundled-dependencies',
-  'new-shrinkwrap'
+  'new-shrinkwrap',
+  'new-recent-package',
+  'new-recent-version',
+  'new-low-release-history',
+  'new-reactivated-package',
+  'new-old-major-patch'
 ] as const;
 
 const SUPPORTED_FAIL_ON_RULE_SET = new Set<FailOnRule>(SUPPORTED_FAIL_ON_RULES);
@@ -111,6 +121,10 @@ function executionSignals(dep: DependencyRecord): Set<ExecutionSignal> {
 
 function packagingSignals(dep: DependencyRecord): Set<PackagingSignal> {
   return new Set(dep.packaging?.signals || []);
+}
+
+function registrySignals(dep: DependencyRecord): Set<RegistryRiskSignal> {
+  return new Set(dep.supplyChain?.registry?.signals || []);
 }
 
 function signalPackageName(signal: SupplyChainSignal): string | undefined {
@@ -191,6 +205,31 @@ function pushNewPackagingSignalViolation(
     rule,
     count: details.length,
     message: `${details.length} new packaging ${pluralize(details.length, 'signal', 'signals')}: ${signal}`,
+    details
+  });
+}
+
+function pushNewRegistrySignalViolation(
+  violations: PolicyViolation[],
+  previousByName: Map<string, DependencyRecord[]>,
+  currentDeps: DependencyRecord[],
+  rules: Set<FailOnRule>,
+  rule: FailOnRule,
+  signal: RegistryRiskSignal
+): void {
+  if (!rules.has(rule)) return;
+  const details = currentDeps
+    .filter((dep) => {
+      if (!registrySignals(dep).has(signal)) return false;
+      return !(previousByName.get(dep.package.name) || []).some((previousDep) => registrySignals(previousDep).has(signal));
+    })
+    .map((dep) => `${formatPackage(dep)} introduced registry risk signal: ${signal}`)
+    .sort();
+  if (details.length === 0) return;
+  violations.push({
+    rule,
+    count: details.length,
+    message: `${details.length} new registry ${pluralize(details.length, 'risk signal', 'risk signals')}: ${signal}`,
     details
   });
 }
@@ -514,6 +553,11 @@ export function evaluateComparePolicyViolations(
   pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-obfuscation-signal', 'obfuscated');
   pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, 'new-bundled-dependencies', 'bundled-dependencies');
   pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, 'new-shrinkwrap', 'embedded-shrinkwrap');
+  pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-recent-package', 'recent-package');
+  pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-recent-version', 'recent-version');
+  pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-low-release-history', 'low-release-history');
+  pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-reactivated-package', 'reactivated-package');
+  pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-old-major-patch', 'old-major-new-patch');
 
   return violations;
 }

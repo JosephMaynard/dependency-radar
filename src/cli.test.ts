@@ -583,6 +583,101 @@ describe('cli summary output', () => {
     },
   );
 
+  it(
+    'adds targeted registry enrichment for suspicious packages during online scans',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-registry-enrichment');
+      const binDir = path.join(outputDir, 'bin');
+      const projectPath = path.join(outputDir, 'project');
+      const depDir = path.join(projectPath, 'node_modules', 'local-registry-risk');
+      const outPath = path.join(outputDir, 'report.json');
+      await fs.mkdir(binDir, { recursive: true });
+      await fs.mkdir(depDir, { recursive: true });
+      const fakeNpmPath = path.join(binDir, 'npm');
+      await fs.writeFile(fakeNpmPath, [
+        '#!/usr/bin/env node',
+        'const args = process.argv.slice(2);',
+        'if (args.includes("--version")) { console.log("10.9.2"); process.exit(0); }',
+        'if (args[0] === "audit") { console.log(JSON.stringify({ vulnerabilities: {} })); process.exit(0); }',
+        'if (args[0] === "outdated") { console.log(JSON.stringify({})); process.exit(0); }',
+        'if (args[0] === "view") {',
+        '  const recent = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();',
+        '  console.log(JSON.stringify({',
+        '    time: { created: recent, modified: recent, "1.0.0": recent },',
+        '    "dist-tags": { latest: "1.0.0" },',
+        '    versions: ["1.0.0"]',
+        '  }));',
+        '  process.exit(0);',
+        '}',
+        'console.error("unexpected npm args " + args.join(" "));',
+        'process.exit(1);'
+      ].join('\n'), 'utf8');
+      await fs.chmod(fakeNpmPath, 0o755);
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'registry-enrichment-project',
+        version: '1.0.0',
+        dependencies: { 'local-registry-risk': '1.0.0' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        name: 'registry-enrichment-project',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            name: 'registry-enrichment-project',
+            version: '1.0.0',
+            dependencies: { 'local-registry-risk': '1.0.0' }
+          },
+          'node_modules/local-registry-risk': {
+            name: 'local-registry-risk',
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/local-registry-risk/-/local-registry-risk-1.0.0.tgz',
+            integrity: 'sha512-test'
+          }
+        }
+      }), 'utf8');
+      await fs.writeFile(path.join(depDir, 'package.json'), JSON.stringify({
+        name: 'local-registry-risk',
+        version: '1.0.0',
+        license: 'MIT',
+        bin: { risk: 'cli.js' }
+      }), 'utf8');
+      await fs.writeFile(path.join(depDir, 'cli.js'), 'console.log("risk");', 'utf8');
+
+      const previousPath = process.env.PATH;
+      process.env.PATH = `${binDir}${path.delimiter}${previousPath || ''}`;
+      try {
+        const result = runCli(
+          ['scan', '--project', projectPath, '--json', '--out', outPath, '--quiet'],
+          repoRoot,
+        );
+
+        expect(result.status).toBe(0);
+      } finally {
+        process.env.PATH = previousPath;
+      }
+
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      expect(report.dependencies['local-registry-risk@1.0.0'].supplyChain.registry).toEqual(
+        expect.objectContaining({
+          attempted: true,
+          ok: true,
+          candidateReasons: ['bin'],
+          versionCount: 1,
+          signals: expect.arrayContaining(['recent-package', 'recent-version', 'low-release-history'])
+        })
+      );
+      expect(report.findings).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          packageId: 'local-registry-risk@1.0.0',
+          id: expect.stringContaining('registry-recent-version')
+        })
+      ]));
+    },
+  );
+
   it('prints the JSON schema without scanning', () => {
     const repoRoot = path.resolve(__dirname, '..');
     const result = runCli(['--schema', '--quiet'], repoRoot);

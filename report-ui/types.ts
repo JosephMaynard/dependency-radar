@@ -18,6 +18,13 @@ export type PackagingSignal =
   | 'bundled-dependencies'
   | 'embedded-shrinkwrap';
 
+export type RegistryRiskSignal =
+  | 'recent-package'
+  | 'recent-version'
+  | 'low-release-history'
+  | 'reactivated-package'
+  | 'old-major-new-patch';
+
 export type LicenseConfidence = 'high' | 'medium' | 'low';
 export type LicenseStatus =
   | 'declared-only'
@@ -136,6 +143,23 @@ export interface DependencyRecord {
   packaging?: {
     signals: PackagingSignal[];
     bundledDependencies?: string[];
+  };
+  supplyChain?: {
+    registry?: {
+      attempted: true;
+      ok: boolean;
+      source: 'npm-registry';
+      candidateReasons: string[];
+      packageCreatedAt?: string;
+      packageModifiedAt?: string;
+      installedVersionPublishedAt?: string;
+      latestVersion?: string;
+      latestPublishedAt?: string;
+      versionCount?: number;
+      distTags?: Record<string, string>;
+      signals?: RegistryRiskSignal[];
+      error?: string;
+    };
   };
 }
 

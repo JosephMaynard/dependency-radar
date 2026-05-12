@@ -50,6 +50,13 @@ export type PackagingSignal =
   | 'bundled-dependencies'
   | 'embedded-shrinkwrap';
 
+export type RegistryRiskSignal =
+  | 'recent-package'
+  | 'recent-version'
+  | 'low-release-history'
+  | 'reactivated-package'
+  | 'old-major-new-patch';
+
 // Sparse local execution signals only; absence means no signal was detected by bounded static inspection.
 // Signals are behavioral hints, not malware classification, and no code is executed.
 export interface DependencyExecutionInfo {
@@ -69,6 +76,26 @@ export interface DependencyExecutionInfo {
 export interface DependencyPackagingInfo {
   signals: PackagingSignal[];
   bundledDependencies?: string[];
+}
+
+export interface DependencyRegistryEnrichment {
+  attempted: true;
+  ok: boolean;
+  source: 'npm-registry';
+  candidateReasons: string[];
+  packageCreatedAt?: string;
+  packageModifiedAt?: string;
+  installedVersionPublishedAt?: string;
+  latestVersion?: string;
+  latestPublishedAt?: string;
+  versionCount?: number;
+  distTags?: Record<string, string>;
+  signals?: RegistryRiskSignal[];
+  error?: string;
+}
+
+export interface DependencySupplyChainInfo {
+  registry?: DependencyRegistryEnrichment;
 }
 
 export type LicenseConfidence = 'high' | 'medium' | 'low';
@@ -165,6 +192,7 @@ export interface DependencyRecord {
   };
   execution?: DependencyExecutionInfo;
   packaging?: DependencyPackagingInfo;
+  supplyChain?: DependencySupplyChainInfo;
 }
 
 export type FindingSeverity = 'info' | 'warning' | 'error';

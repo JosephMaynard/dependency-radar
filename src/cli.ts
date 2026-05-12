@@ -12,9 +12,11 @@ import { runImportGraph } from "./runners/importGraphRunner";
 import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
+import { enrichAggregatedWithRegistryMetadata } from "./runners/npmRegistryMetadata";
 import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
 import { compareReports, formatCompareOutput } from "./compare";
+import { buildDependencyFindings } from "./findings";
 import {
   defaultOutputName,
   renderCycloneDx,
@@ -1103,7 +1105,7 @@ interface CliOptions {
  * --project, --quiet, --out, --keep-temp, --offline, --json, --format, --sbom, --target-node,
  * --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
  *
- * The --offline flag disables both audit and outdated checks. Unknown options or unexpected positional
+ * The --offline flag disables registry-backed checks. Unknown options or unexpected positional
  * arguments cause the process to exit with an error.
  *
  * @param argv - Array of CLI tokens (typically process.argv.slice(2))
@@ -1345,7 +1347,7 @@ Options:
   --timestamp        Add a local timestamp to generated report filenames
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
-  --offline          Skip npm audit and npm outdated (useful for offline scans)
+  --offline          Skip registry-backed checks (audit, outdated, signatures, targeted registry enrichment)
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Supported: reachable-vuln, production-vuln, high-severity-vuln,
@@ -2122,6 +2124,20 @@ async function executeAnalysis(
       ...(toolVersions ? { toolVersions } : {}),
       ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
     });
+
+    if (opts.outdated) {
+      const registryEnrichment = await enrichAggregatedWithRegistryMetadata(aggregated, {
+        offline: !opts.outdated,
+      });
+      if (!opts.quiet && registryEnrichment.attempted > 0) {
+        spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.attempted} suspicious package${registryEnrichment.attempted === 1 ? "" : "s"}`));
+      }
+      if (registryEnrichment.attempted > 0) {
+        const findings = buildDependencyFindings(aggregated, { targetNodeMajor: opts.targetNodeMajor });
+        aggregated.findings = findings;
+        aggregated.summary.findingCount = findings.length;
+      }
+    }
 
     dependencyCount = Object.keys(aggregated.dependencies).length;
     const importGraphComplete = perPackageImportGraph.every((result) => result.ok);

@@ -30,6 +30,7 @@ function makeDependency(options: {
   installHooks?: NonNullable<DependencyRecord['execution']>['scripts']['hooks'];
   executionSignals?: NonNullable<DependencyRecord['execution']>['signals'];
   packagingSignals?: NonNullable<DependencyRecord['packaging']>['signals'];
+  registrySignals?: NonNullable<NonNullable<DependencyRecord['supplyChain']>['registry']>['signals'];
   native?: boolean;
   importFileCount?: number;
   critical?: number;
@@ -140,6 +141,19 @@ function makeDependency(options: {
       : {}),
     ...(options.packagingSignals?.length
       ? { packaging: { signals: options.packagingSignals } }
+      : {}),
+    ...(options.registrySignals?.length
+      ? {
+          supplyChain: {
+            registry: {
+              attempted: true as const,
+              ok: true,
+              source: 'npm-registry' as const,
+              candidateReasons: ['bin'],
+              signals: options.registrySignals
+            }
+          }
+        }
       : {})
   };
 }
@@ -311,6 +325,33 @@ describe('evaluateComparePolicyViolations', () => {
     ]);
     expect(byRule.get('new-shrinkwrap')?.details).toEqual([
       'pkg@1.1.0 introduced packaging signal: embedded-shrinkwrap'
+    ]);
+  });
+
+  it('detects newly introduced registry risk signals', () => {
+    const previous = makeAggregatedData({
+      'registry-risk@1.0.0': makeDependency({ name: 'registry-risk', version: '1.0.0' })
+    });
+    const current = makeAggregatedData({
+      'registry-risk@1.0.1': makeDependency({
+        name: 'registry-risk',
+        version: '1.0.1',
+        registrySignals: ['recent-version', 'low-release-history']
+      })
+    });
+
+    const violations = evaluateComparePolicyViolations(
+      previous,
+      current,
+      new Set(['new-recent-version', 'new-low-release-history'])
+    );
+
+    const byRule = new Map(violations.map((violation) => [violation.rule, violation]));
+    expect(byRule.get('new-recent-version')?.details).toEqual([
+      'registry-risk@1.0.1 introduced registry risk signal: recent-version'
+    ]);
+    expect(byRule.get('new-low-release-history')?.details).toEqual([
+      'registry-risk@1.0.1 introduced registry risk signal: low-release-history'
     ]);
   });
 });

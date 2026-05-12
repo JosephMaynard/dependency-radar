@@ -36,8 +36,8 @@ This runs a scan against the current project and writes a self-contained `depend
 - **CI-friendly** — `--fail-on` flag lets you enforce licence, vulnerability, and compare-mode dependency change policies in pipelines
 - **Review-friendly outputs** — emit JSON, SARIF, CycloneDX SBOM, or SPDX SBOM artifacts from the same local scan
 - **Change comparison** — compare a fresh scan with a previous `dependency-radar.json` to see added dependencies, removed dependencies, version changes, and new findings
-- **Local supply-chain review signals** — flags git/local/tarball sources, missing integrity, unexpected registry hosts, install-time behavior, bounded local execution capability signals, packaging signals, and optional npm signature/provenance verification
-- **Completely offline-capable** — use `--offline` to skip registry calls; all package metadata is read from local `node_modules`
+- **Local and targeted supply-chain review signals** — flags git/local/tarball sources, missing integrity, unexpected registry hosts, install-time behavior, bounded local execution capability signals, packaging signals, optional npm signature/provenance verification, and capped registry metadata heuristics for already suspicious packages
+- **Offline-capable** — use `--offline` to skip registry calls; dependency metadata is still read from local `node_modules`
 - **Single self-contained HTML file** — no server needed; open it locally, attach it to a ticket, or share it with your team
 
 ## When should you use this?
@@ -186,6 +186,26 @@ Local execution capability signals are derived by bounded static inspection of l
 
 Packaging signals are local metadata/content cues such as declared bundled dependencies or an embedded `npm-shrinkwrap.json`. They are review aids for unusual packaging patterns, not proof of compromise.
 
+### Targeted registry enrichment for suspicious packages
+
+Dependency Radar can perform a small number of targeted npm registry metadata lookups for packages that already show local review signals, such as install hooks, native bindings, executable bins, supply-chain source signals, or suspicious execution/packaging signals.
+
+This enrichment is bounded and selective:
+- it does not query every dependency
+- it is capped to 10 suspicious package names per scan
+- it is skipped when `--offline` is used
+
+When metadata is available, Dependency Radar may derive additional review signals such as:
+- recently published package
+- recently published installed version
+- low release history
+- package reactivated after a long dormant period
+- recent patch activity on an older major version line
+
+These are heuristic review signals, not proof that a package is malicious or compromised.
+
+These signals can appear in the report, JSON output, compare mode, and CI fail rules when supported by the current scan and baseline data.
+
 ### CI policy enforcement (`--fail-on`)
 
 ```
@@ -221,6 +241,11 @@ The following rules are evaluated only by `compare <previous dependency-radar.js
 | `new-obfuscation-signal` | Fail if a dependency newly shows an obfuscation-like local code shape |
 | `new-bundled-dependencies` | Fail if a dependency newly declares bundled dependencies |
 | `new-shrinkwrap` | Fail if a dependency newly contains an embedded `npm-shrinkwrap.json` |
+| `new-recent-package` | Fail if a dependency newly shows the `recent-package` registry review signal |
+| `new-recent-version` | Fail if a dependency newly shows the `recent-version` registry review signal |
+| `new-low-release-history` | Fail if a dependency newly shows the `low-release-history` registry review signal |
+| `new-reactivated-package` | Fail if a dependency newly shows the `reactivated-package` registry review signal |
+| `new-old-major-patch` | Fail if a dependency newly shows the `old-major-new-patch` registry review signal |
 
 When rules are violated, Dependency Radar prints `✖ Policy violations detected:` and exits `1`. Unknown rules also exit `1` with a clear error message.
 
@@ -231,6 +256,8 @@ For compare-mode delta rules, the failure output includes the package and the sp
   - lodash@4.17.21 introduced install hooks: postinstall
 - 1 new execution signal: child-process
   - foo@1.2.3 introduced execution signal: child-process
+- 1 new registry risk signal: recent-version
+  - bar@4.5.6 introduced registry risk signal: recent-version
 ```
 
 To use this in CI, commit a known-good JSON report, regenerate it intentionally when reviewed dependency changes are accepted, and compare pull requests against that file.
@@ -378,6 +405,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Source import graph (static import/require parsing in `src/` or project root)
    - Lockfile supply-chain source signals
    - Optional npm registry signature/provenance verification (`--audit-signatures`)
+   - Targeted npm registry metadata for up to 10 packages that already show local or supply-chain review signals (skipped with `--offline`)
 6. Normalize outputs into one internal shape and merge workspace package results.
    - PNPM lock/CLI dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
 7. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
@@ -387,10 +415,10 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - License declaration + `LICENSE` file inference/validation
    - Advisory summaries and severity/risk rollups
    - Root-cause/origin and runtime-impact heuristics
-   - Install-time execution signals, local execution capability signals, and packaging signals
+   - Install-time execution signals, local execution capability signals, packaging signals, and targeted registry metadata review signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
 9. Build normalized findings from the aggregated dependency model:
-   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
+   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, targeted registry metadata review signals, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
 10. Write final output as one of:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
@@ -399,13 +427,13 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - SPDX SBOM (`--format spdx` / `--sbom spdx`)
 11. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
-The scan is local-first: package metadata is read from `node_modules`; only audit/outdated commands require registry access.
+The scan is local-first: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, and targeted registry enrichment require registry access and are skipped or disabled with `--offline`.
 
 The `explain` command reuses this same pipeline with report writing disabled, then filters the in-memory model down to a single package for terminal output.
 
 ### `node_modules` crawling details
 
-- Dependency metadata is read from installed package directories, not from registry documents.
+- Dependency metadata is read from installed package directories. Targeted registry enrichment reads only npm metadata for a capped set of already suspicious packages during online scans.
 - Package resolution is workspace-aware and PNPM-aware, including `.pnpm` virtual store paths.
 - License discovery checks common file variants such as `LICENSE`, `LICENCE`, `COPYING`, and `NOTICE` (with or without extensions like `.md`).
 
@@ -742,7 +770,7 @@ For full details and any future changes, see `src/types.ts`.
 
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
 - The scan runs on your machine and does not upload your code or dependencies anywhere.
-- `npm audit`, `pnpm audit`, `yarn npm audit` and their corresponding `outdated` commands perform registry lookups; use `--offline` for offline-only scans.
+- `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, and targeted registry enrichment perform registry lookups; use `--offline` for offline-only scans.
 - On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.

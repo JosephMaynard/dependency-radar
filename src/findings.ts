@@ -42,6 +42,14 @@ function withoutInstallOnlySignals(dep: DependencyRecord): string[] {
   return Array.from(all).sort();
 }
 
+const REGISTRY_SIGNAL_TITLES: Record<string, string> = {
+  'recent-package': 'Recently created package',
+  'recent-version': 'Recently published installed version',
+  'low-release-history': 'Low release history',
+  'reactivated-package': 'Package reactivated after dormancy',
+  'old-major-new-patch': 'Recent patch on older major line'
+};
+
 export function buildDependencyFindings(
   data: Pick<AggregatedData, 'dependencies' | 'supplyChain'>,
   options: { targetNodeMajor?: number } = {}
@@ -144,6 +152,23 @@ export function buildDependencyFindings(
         message: `${dep.package.id} has packaging signals that may warrant review.`,
         evidence: dep.packaging.signals.join(', '),
         recommendation: 'Review package contents and confirm the packaging pattern is expected.'
+      }));
+    }
+
+    for (const signal of dep.supplyChain?.registry?.signals || []) {
+      const registry = dep.supplyChain?.registry;
+      findings.push(baseFinding(dep, `registry-${signal}`, {
+        category: 'supply-chain',
+        severity: 'info',
+        title: REGISTRY_SIGNAL_TITLES[signal] || 'Registry metadata review signal',
+        message: `${dep.package.id} has npm registry metadata that may warrant review: ${signal}.`,
+        evidence: [
+          registry?.installedVersionPublishedAt ? `installedVersionPublishedAt=${registry.installedVersionPublishedAt}` : undefined,
+          registry?.packageCreatedAt ? `packageCreatedAt=${registry.packageCreatedAt}` : undefined,
+          typeof registry?.versionCount === 'number' ? `versionCount=${registry.versionCount}` : undefined,
+          registry?.latestVersion ? `latest=${registry.latestVersion}` : undefined
+        ].filter(Boolean).join('; '),
+        recommendation: 'Review the package release history and confirm this registry activity is expected.'
       }));
     }
 

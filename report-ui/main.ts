@@ -13,6 +13,7 @@ import type {
   ExecutionSignal,
   LicenseStatus,
   PackagingSignal,
+  RegistryRiskSignal,
   Severity,
 } from "./types";
 
@@ -100,6 +101,14 @@ const EXECUTION_SIGNAL_LABELS: Record<ExecutionSignal, string> = {
 const PACKAGING_SIGNAL_LABELS: Record<PackagingSignal, string> = {
   "bundled-dependencies": "Declares bundled dependencies",
   "embedded-shrinkwrap": "Contains embedded npm-shrinkwrap.json",
+};
+
+const REGISTRY_SIGNAL_LABELS: Record<RegistryRiskSignal, string> = {
+  "recent-package": "Recently created package",
+  "recent-version": "Recently published installed version",
+  "low-release-history": "Low release history",
+  "reactivated-package": "Reactivated after dormancy",
+  "old-major-new-patch": "Recent patch on older major line",
 };
 
 type SecuritySummary = {
@@ -1401,6 +1410,42 @@ function renderPackagingSection(
   );
 }
 
+function renderRegistryEnrichmentSection(
+  registry: NonNullable<DependencyRecord["supplyChain"]>["registry"] | undefined,
+): string {
+  if (!registry?.attempted) return "";
+  const items = [
+    renderKvItem("Lookup", registry.ok ? "Available" : "Unavailable"),
+    renderKvItemHtml("Candidate reasons", renderPackageList(registry.candidateReasons || [], 6)),
+  ];
+  if (registry.error) items.push(renderKvItem("Error", registry.error));
+  if (registry.signals?.length) {
+    const labels = registry.signals.map(
+      (signal) => `${REGISTRY_SIGNAL_LABELS[signal]} (${signal})`,
+    );
+    items.push(renderKvItemHtml("Registry signals", renderPackageList(labels, 6)));
+  }
+  if (registry.installedVersionPublishedAt) {
+    items.push(renderKvItem("Installed version published", registry.installedVersionPublishedAt));
+  }
+  if (registry.packageCreatedAt) {
+    items.push(renderKvItem("Package created", registry.packageCreatedAt));
+  }
+  if (typeof registry.versionCount === "number") {
+    items.push(renderKvItem("Published versions", registry.versionCount));
+  }
+  if (registry.latestVersion) {
+    items.push(renderKvItem("Latest dist-tag", registry.latestVersion));
+  }
+  return renderSubsection(
+    "Registry metadata",
+    '<div class="section-note">Targeted npm registry metadata is collected only for packages that already show local review signals, and is skipped in offline scans.</div>' +
+      '<div class="kv-grid">' +
+      items.join("") +
+      "</div>",
+  );
+}
+
 /**
  * Get a human-readable label for a supply chain signal type.
  *
@@ -1925,12 +1970,13 @@ function renderDepDetails(
     ? renderExecutionSection(dep.execution)
     : "";
   const packagingBlock = renderPackagingSection(dep.packaging);
+  const registryBlock = renderRegistryEnrichmentSection(dep.supplyChain?.registry);
   const supplyChainBlock = renderSupplyChainSourceSection(supplyChainSignals);
 
   const riskSection = renderSection(
     "Risk & Compliance",
     "License, vulnerabilities, install-time execution, and unusual source signals",
-    licenseBlock + vulnBlock + executionBlock + packagingBlock + supplyChainBlock,
+    licenseBlock + vulnBlock + executionBlock + packagingBlock + registryBlock + supplyChainBlock,
   );
 
   const currencyItems = [
