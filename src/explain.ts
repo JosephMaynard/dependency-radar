@@ -39,6 +39,13 @@ const REGISTRY_SIGNAL_LABELS: Record<string, string> = {
   'old-major-new-patch': 'recent patch on older major line'
 };
 
+/**
+ * Locate dependency records for a given package name and return them in prioritized order.
+ *
+ * @param aggregated - The aggregated dataset containing dependency records
+ * @param packageName - The package name to search for
+ * @returns An array of matching `DependencyRecord` objects sorted with direct dependencies first, then by descending package version; empty if none found
+ */
 export function findDependenciesByPackageName(
   aggregated: AggregatedData,
   packageName: string,
@@ -53,6 +60,15 @@ export function findDependenciesByPackageName(
     });
 }
 
+/**
+ * Generate a human-readable, line-oriented explanation report for a package
+ * across the provided dependency records.
+ *
+ * @param packageName - The package name shown in the report header
+ * @param matches - DependencyRecord entries for the package to render as individual sections
+ * @param context - Rendering context controlling audit availability and import-graph completeness
+ * @returns The formatted multi-section report as a string. If `matches` is empty the string is `✖ Package not found: ${packageName}`.
+ */
 export function formatExplainOutput(
   packageName: string,
   matches: DependencyRecord[],

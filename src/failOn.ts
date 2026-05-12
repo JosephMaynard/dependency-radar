@@ -92,6 +92,12 @@ function vulnerabilityCount(dep: DependencyRecord): number {
   );
 }
 
+/**
+ * Group dependency records by their package name.
+ *
+ * @param deps - Optional record of dependency entries keyed by dependency id; entries missing a package name are ignored
+ * @returns A Map whose keys are package names and whose values are arrays of `DependencyRecord` objects for that package
+ */
 function byPackageName(deps: Record<string, DependencyRecord> | undefined): Map<string, DependencyRecord[]> {
   const map = new Map<string, DependencyRecord[]>();
   for (const dep of Object.values(deps || {})) {
@@ -104,14 +110,32 @@ function byPackageName(deps: Record<string, DependencyRecord> | undefined): Map<
   return map;
 }
 
+/**
+ * Produce a package label for a dependency using its package id when available, otherwise `name@version`.
+ *
+ * @param dep - The dependency record whose package will be formatted
+ * @returns The package `id` if present; otherwise the package `name` and `version` joined with `@`
+ */
 function formatPackage(dep: DependencyRecord): string {
   return dep.package.id || `${dep.package.name}@${dep.package.version}`;
 }
 
+/**
+ * Retrieve the package's execution script hook names sorted lexicographically.
+ *
+ * @param dep - Dependency record to read hooks from
+ * @returns The hook names from `dep.execution?.scripts?.hooks` sorted lexicographically; an empty array if no hooks are present
+ */
 function sortedHooks(dep: DependencyRecord): string[] {
   return [...(dep.execution?.scripts?.hooks || [])].sort();
 }
 
+/**
+ * Collect execution-related signals from a dependency record.
+ *
+ * @param dep - The dependency record to inspect for execution signals
+ * @returns A Set of unique `ExecutionSignal` values found on the dependency
+ */
 function executionSignals(dep: DependencyRecord): Set<ExecutionSignal> {
   return new Set([
     ...(dep.execution?.signals || []),
@@ -119,14 +143,36 @@ function executionSignals(dep: DependencyRecord): Set<ExecutionSignal> {
   ]);
 }
 
+/**
+ * Collects packaging signals present on a dependency.
+ *
+ * @param dep - The dependency record to inspect
+ * @returns A Set of `PackagingSignal` values found on `dep`; empty if the dependency has no packaging signals
+ */
 function packagingSignals(dep: DependencyRecord): Set<PackagingSignal> {
   return new Set(dep.packaging?.signals || []);
 }
 
+/**
+ * Get the registry risk signals associated with a dependency.
+ *
+ * @param dep - The dependency record to inspect
+ * @returns A Set of `RegistryRiskSignal` values found on the dependency's `supplyChain.registry.signals`; an empty `Set` if none are present
+ */
 function registrySignals(dep: DependencyRecord): Set<RegistryRiskSignal> {
   return new Set(dep.supplyChain?.registry?.signals || []);
 }
 
+/**
+ * Extracts the package name associated with a supply-chain signal.
+ *
+ * Prefers `signal.packageName` when present; otherwise derives the name from
+ * `signal.packageId` by taking the substring before the last `@`. Returns
+ * `undefined` if neither value yields a usable package name.
+ *
+ * @param signal - The supply-chain signal to inspect
+ * @returns The package name if present or derivable, `undefined` otherwise
+ */
 function signalPackageName(signal: SupplyChainSignal): string | undefined {
   if (signal.packageName) return signal.packageName;
   if (!signal.packageId) return undefined;
@@ -135,6 +181,12 @@ function signalPackageName(signal: SupplyChainSignal): string | undefined {
   return signal.packageId.slice(0, at);
 }
 
+/**
+ * Produce a human-readable package label for a supply-chain signal.
+ *
+ * @param signal - The supply-chain signal object used to derive the label.
+ * @returns The label chosen in this priority: `signal.packageId`, `packageName@packageVersion`, `packageName`, or `'lockfile'` when no package information is available.
+ */
 function signalPackageLabel(signal: SupplyChainSignal): string {
   if (signal.packageId) return signal.packageId;
   if (signal.packageName && signal.packageVersion) return `${signal.packageName}@${signal.packageVersion}`;
@@ -142,6 +194,14 @@ function signalPackageLabel(signal: SupplyChainSignal): string {
   return 'lockfile';
 }
 
+/**
+ * Produce sets of observed supply-chain signal types, both per-package and globally.
+ *
+ * @param signals - Array of supply-chain signals to analyze; may be `undefined` or empty.
+ * @returns An object with:
+ *  - `byPackage`: map from package name to a `Set` of signal `type` strings observed for that package.
+ *  - `global`: `Set` of all signal `type` strings observed (including those not tied to a package).
+ */
 function supplyChainSignalKeys(signals: SupplyChainSignal[] | undefined): {
   byPackage: Map<string, Set<string>>;
   global: Set<string>;
@@ -159,6 +219,20 @@ function supplyChainSignalKeys(signals: SupplyChainSignal[] | undefined): {
   return { byPackage, global };
 }
 
+/**
+ * Appends a PolicyViolation for dependencies that newly exhibit the specified execution signal.
+ *
+ * If the provided `rule` is present in `rules` and one or more entries in `currentDeps`
+ * have the `signal` while no previous dependency with the same package name had it,
+ * a `PolicyViolation` describing the new execution signal(s) is pushed onto `violations`.
+ *
+ * @param violations - Mutable array to receive the generated PolicyViolation when matches are found
+ * @param previousByName - Map of package name to previous DependencyRecord[] used as the baseline for comparison
+ * @param currentDeps - Current dependency records to evaluate for newly introduced signals
+ * @param rules - Set of enabled fail-on rules; the function is a no-op if `rule` is not in this set
+ * @param rule - The specific FailOnRule to produce a violation for when triggered
+ * @param signal - The ExecutionSignal to detect as newly introduced
+ */
 function pushNewExecutionSignalViolation(
   violations: PolicyViolation[],
   previousByName: Map<string, DependencyRecord[]>,
@@ -184,6 +258,16 @@ function pushNewExecutionSignalViolation(
   });
 }
 
+/**
+ * Add a policy violation to `violations` when `signal` appears in current dependencies but was not present for the same package name in `previousByName`, and the given `rule` is enabled.
+ *
+ * @param violations - Accumulates discovered PolicyViolation objects; this function may push a new violation into it.
+ * @param previousByName - Map from package name to previous scan DependencyRecord[] used to determine whether `signal` was already present for a package.
+ * @param currentDeps - Current scan dependencies to inspect for newly introduced packaging signals.
+ * @param rules - Selected fail-on rules; the function no-ops if `rule` is not in this set.
+ * @param rule - The specific packaging-related compare-mode rule to enforce (e.g., `new-shrinkwrap` or `new-bundled-dependencies`).
+ * @param signal - The PackagingSignal type to detect as newly introduced.
+ */
 function pushNewPackagingSignalViolation(
   violations: PolicyViolation[],
   previousByName: Map<string, DependencyRecord[]>,
@@ -209,6 +293,18 @@ function pushNewPackagingSignalViolation(
   });
 }
 
+/**
+ * Append a PolicyViolation for registry risk signals that appear in the current scan but were not present previously.
+ *
+ * If `rule` is not enabled in `rules`, this function does nothing. When enabled, it identifies current dependencies whose registry signals include `signal` and for which no previous dependency with the same package name had that signal, then pushes a violation with the total `count`, a summary `message`, and `details` listing affected packages.
+ *
+ * @param violations - Array to which the resulting PolicyViolation will be pushed
+ * @param previousByName - Map of package name to list of previous DependencyRecord entries
+ * @param currentDeps - List of current DependencyRecord entries to inspect
+ * @param rules - Set of enabled fail-on rules
+ * @param rule - The specific fail-on rule to check (must be present in `rules` to produce a violation)
+ * @param signal - The registry risk signal to detect as newly introduced
+ */
 function pushNewRegistrySignalViolation(
   violations: PolicyViolation[],
   previousByName: Map<string, DependencyRecord[]>,

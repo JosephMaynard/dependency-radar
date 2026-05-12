@@ -2342,6 +2342,16 @@ async function runWhyCommand(opts: CliOptions): Promise<void> {
   }
 }
 
+/**
+ * Compare the current analysis against a previous report and print the comparison and policy violations.
+ *
+ * Validates the `opts.comparePath` report file against the expected schema, runs a new analysis without
+ * writing artifacts, computes a diff between the previous and current aggregated results, prints the
+ * formatted comparison, prints any policy violations (including compare-specific violations), and exits
+ * with code 1 when validation fails or any policy violations are present.
+ *
+ * @param opts - CLI options controlling the comparison run (must include `comparePath` and may include `failOn`)
+ */
 async function runCompareCommand(opts: CliOptions): Promise<void> {
   const previousPath = opts.comparePath?.trim();
   if (!previousPath) {

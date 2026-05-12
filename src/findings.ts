@@ -20,6 +20,14 @@ function supportsTargetNode(dep: DependencyRecord, targetNodeMajor: number | und
   return isNodeEngineTargetCompatible(dep.upgrade.nodeEngine, targetNodeMajor);
 }
 
+/**
+ * Constructs a DependencyFinding by combining package identifiers derived from a dependency with the provided finding fields.
+ *
+ * @param dep - Dependency record used to derive `packageId`, `packageName`, `packageVersion`, and to generate the finding `id`.
+ * @param suffix - Suffix appended to the package-based id to produce the finding `id`.
+ * @param fields - Remaining `DependencyFinding` properties to include; must not contain `id`, `packageId`, `packageName`, or `packageVersion`.
+ * @returns The assembled `DependencyFinding` with `id`, `packageId`, `packageName`, `packageVersion`, and the supplied fields.
+ */
 function baseFinding(
   dep: DependencyRecord,
   suffix: string,
@@ -34,6 +42,12 @@ function baseFinding(
   };
 }
 
+/**
+ * Produce the execution signals for a dependency after removing any signals that originate from install-only scripts.
+ *
+ * @param dep - Dependency record to inspect for execution signals and script-specific signals
+ * @returns A sorted array of execution signal keys that are not associated with install-only scripts
+ */
 function withoutInstallOnlySignals(dep: DependencyRecord): string[] {
   const all = new Set(dep.execution?.signals || []);
   for (const signal of dep.execution?.scripts?.signals || []) {
@@ -50,6 +64,18 @@ const REGISTRY_SIGNAL_TITLES: Record<string, string> = {
   'old-major-new-patch': 'Recent patch on older major line'
 };
 
+/**
+ * Convert aggregated dependency and supply-chain data into a sorted list of dependency findings.
+ *
+ * Processes each dependency and the supply-chain signals to emit findings for security, license/compliance,
+ * execution and packaging signals, registry metadata, provenance/signature verification, and Node engine
+ * compatibility relative to an optional target Node major version.
+ *
+ * @param data - Aggregated input containing `dependencies` and `supplyChain` information.
+ * @param options.targetNodeMajor - If provided, emits findings when a dependency's declared Node engine
+ *   does not appear to include the given major Node version.
+ * @returns A list of DependencyFinding objects sorted by severity (error, warning, info), then by `packageId`, then by `id`.
+ */
 export function buildDependencyFindings(
   data: Pick<AggregatedData, 'dependencies' | 'supplyChain'>,
   options: { targetNodeMajor?: number } = {}

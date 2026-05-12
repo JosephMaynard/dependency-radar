@@ -1383,6 +1383,12 @@ function renderExecutionSection(
   );
 }
 
+/**
+ * Render the "Package contents" subsection HTML for a dependency when packaging signals exist.
+ *
+ * @param packaging - Packaging metadata from the dependency; expected to contain a `signals` array and optional `bundledDependencies` array. If `packaging` is undefined or has no `signals`, nothing is rendered.
+ * @returns An HTML string containing the "Package contents" subsection (including packaging signal labels and bundled dependencies when present), or an empty string if there are no packaging signals.
+ */
 function renderPackagingSection(
   packaging: NonNullable<DependencyRecord["packaging"]> | undefined,
 ): string {
@@ -1410,6 +1416,12 @@ function renderPackagingSection(
   );
 }
 
+/**
+ * Render an HTML subsection showing registry enrichment metadata for a dependency.
+ *
+ * @param registry - Registry enrichment data from the dependency's `supplyChain` object; may be `undefined` or have `attempted: false`.
+ * @returns The HTML string for the "Registry metadata" subsection, or an empty string when no registry lookup was attempted.
+ */
 function renderRegistryEnrichmentSection(
   registry: NonNullable<DependencyRecord["supplyChain"]>["registry"] | undefined,
 ): string {

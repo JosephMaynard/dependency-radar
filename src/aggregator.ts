@@ -403,6 +403,17 @@ function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean 
   return false;
 }
 
+/**
+ * Builds a consolidated AggregatedData object for a dependency and audit scan.
+ *
+ * Combines package metadata, dependency graph structure, vulnerability summaries,
+ * import/usage data, outdated status, supply-chain signals, and per-dependency
+ * heuristics (license, execution/installation scripts, packaging, types support,
+ * links, peer requirements, and upgrade blockers) into a single summary object.
+ *
+ * @param input - All inputs and options required to perform aggregation (tool outputs, workspace/configuration, resolution paths, platform/runtime metadata, and optional policy overrides).
+ * @returns The assembled AggregatedData containing project metadata, environment info, per-dependency records, findings, and summary counts.
+ */
 export async function aggregateData(input: AggregateInput): Promise<AggregatedData> {
   const pkg = input.pkgOverride || (await readPackageJson(input.projectPath));
   let projectPkg = input.projectPackageJson;
@@ -1461,6 +1472,16 @@ interface PackageInsights {
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
 }
 
+/**
+ * Collects package metadata and bounded filesystem heuristics to produce insights used for dependency analysis.
+ *
+ * Gathers package.json data (description, engines, scripts, bin, dependencies, links), computes file-based stats when the package directory is available, detects TypeScript typing availability (bundled or DefinitelyTyped), counts required peer dependencies, and derives execution and packaging signals for use in aggregation and risk heuristics.
+ *
+ * @param resolvePaths - Array of filesystem roots to use when resolving package metadata.
+ * @param metaCache - Cache mapping package id (`name` or `name@version`) to previously loaded PackageMeta to avoid repeated resolution and parsing.
+ * @param statCache - Cache mapping package directory paths to previously computed PackageStats to avoid repeated filesystem scans.
+ * @returns A PackageInsights object containing deprecation, engine constraint, required peer count, optional fileCount, declared dependency maps, links, execution signals, optional packaging signals, and TypeScript types information.
+ */
 async function gatherPackageInsights(
   name: string,
   version: string,
@@ -1552,6 +1573,12 @@ function countRequiredPeerDependencies(
   return count;
 }
 
+/**
+ * Detects whether a package.json `bin` field indicates at least one executable target.
+ *
+ * @param binField - The `bin` value from a package.json (string or object)
+ * @returns `true` if `binField` contains at least one non-empty string entry, `false` otherwise.
+ */
 function hasPackageBin(binField: any): boolean {
   if (typeof binField === 'string') return binField.trim().length > 0;
   if (!binField || typeof binField !== 'object') return false;
@@ -1560,6 +1587,12 @@ function hasPackageBin(binField: any): boolean {
   );
 }
 
+/**
+ * Normalize a package's `bundledDependencies` / `bundleDependencies` field into a canonical list.
+ *
+ * @param pkg - The package.json-like object to read bundling metadata from
+ * @returns A sorted list of bundled package names. Returns `['*']` when bundling is declared as `true`, or an empty array when no bundled dependencies are specified.
+ */
 function normalizeBundledDependencies(pkg: any): string[] {
   if (pkg?.bundledDependencies === true || pkg?.bundleDependencies === true) {
     return ['*'];
@@ -1575,6 +1608,13 @@ function normalizeBundledDependencies(pkg: any): string[] {
   return Array.from(new Set<string>(entries)).sort();
 }
 
+/**
+ * Derives packaging-related signals from a package manifest and optional filesystem stats.
+ *
+ * @param pkg - The package.json object for the package being analyzed.
+ * @param stats - Optional file-statistics for the package directory (e.g., presence of shrinkwrap).
+ * @returns Packaging information containing `signals` (one or more of `bundled-dependencies` and `embedded-shrinkwrap`) and, when present, a `bundledDependencies` list; returns `undefined` when no packaging signals are detected.
+ */
 function derivePackagingInfo(
   pkg: any,
   stats: PackageStats | undefined
@@ -1592,6 +1632,15 @@ function derivePackagingInfo(
   };
 }
 
+/**
+ * Load and cache a package's package.json and its directory metadata.
+ *
+ * @param name - Package name to resolve
+ * @param resolvePaths - Ordered list of base paths to use when resolving the package.json
+ * @param cache - Map used to store and reuse previously loaded PackageMeta entries; keyed by `name` or `name@version`
+ * @param version - Optional version hint used when resolving a specific package variant
+ * @returns The `PackageMeta` containing the parsed `package.json` (`pkg`) and its directory (`dir`), or `undefined` if the package.json could not be resolved or read
+ */
 async function loadPackageMeta(
   name: string,
   resolvePaths: string[],
@@ -1635,6 +1684,26 @@ async function hasDefinitelyTypedPackage(
   return Boolean(meta);
 }
 
+/**
+ * Collects filesystem-derived statistics for a package directory.
+ *
+ * Scans the package directory (best-effort) to detect whether the package
+ * contains TypeScript declaration files, native binary artifacts, a
+ * binding.gyp file, or an npm shrinkwrap file, and counts files. Nested
+ * dependency stores (node_modules) and .git directories are ignored; I/O
+ * errors are swallowed and the function returns whatever information could
+ * be gathered.
+ *
+ * @param dir - Filesystem path to the package directory to inspect.
+ * @param cache - Memoization map keyed by directory path; cached results are
+ *                returned when available and new results are stored here.
+ * @returns An object with:
+ *          - `hasDts`: `true` when any `.d.ts` files were found.
+ *          - `hasNativeBinary`: `true` when any `.node` binaries were found.
+ *          - `hasBindingGyp`: `true` when a `binding.gyp` file was found.
+ *          - `hasShrinkwrap`: `true` when an `npm-shrinkwrap.json` file was found.
+ *          - `fileCount`: total number of regular files encountered under the directory.
+ */
 async function calculatePackageStats(dir: string, cache: Map<string, PackageStats>): Promise<PackageStats> {
   if (cache.has(dir)) return cache.get(dir)!;
   let hasDts = false;
@@ -1772,6 +1841,12 @@ const LOCAL_SIGNAL_MAX_BYTES_PER_FILE = 120_000;
 const LOCAL_SIGNAL_MAX_PACKAGE_FILES = 2_000;
 const COMPLEXITY_THRESHOLD = 12;
 
+/**
+ * Collects non-empty lifecycle hook commands from a package `scripts` object.
+ *
+ * @param scripts - The `scripts` section from a package.json (map of script names to values).
+ * @returns An object mapping each lifecycle hook found in `scripts` to its trimmed command; only hooks defined in `LIFECYCLE_HOOKS` and with non-empty string values are included.
+ */
 function collectLifecycleScripts(
   scripts: Record<string, any>
 ): Partial<Record<ExecutionHook, string>> {
@@ -1852,6 +1927,12 @@ function extractNodeScriptPath(command: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Finds the first Node script file path referenced by lifecycle hook commands, checking hooks in predefined order.
+ *
+ * @param lifecycleScripts - Map of lifecycle hook names to their command strings; only hooks with non-empty commands are inspected.
+ * @returns The referenced script path (as found in a `node <script>` invocation) when present, `undefined` otherwise.
+ */
 function findReferencedInstallScript(
   lifecycleScripts: Partial<Record<ExecutionHook, string>>
 ): string | undefined {
@@ -1864,6 +1945,12 @@ function findReferencedInstallScript(
   return undefined;
 }
 
+/**
+ * Normalize an input into a package-relative path by trimming whitespace and removing a leading `./` or `.\`.
+ *
+ * @param value - The input value to normalize (expected to be a path string)
+ * @returns The cleaned package-relative path, or `undefined` if the input is not a string, is empty after trimming, or appears to be an absolute/URL (contains `://`)
+ */
 function normalizePackageRelativePath(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const cleaned = value.trim().replace(/^[.][/\\]/, '');
@@ -1871,6 +1958,12 @@ function normalizePackageRelativePath(value: unknown): string | undefined {
   return cleaned;
 }
 
+/**
+ * Collects normalized executable entry targets from a package `bin` field.
+ *
+ * @param binField - The package `bin` field; may be a string or an object mapping executable names to paths.
+ * @returns An array of normalized package-relative executable target paths, deduplicated and sorted.
+ */
 function packageBinTargets(binField: any): string[] {
   const targets = new Set<string>();
   const add = (value: unknown) => {
@@ -1884,6 +1977,14 @@ function packageBinTargets(binField: any): string[] {
   return Array.from(targets).sort();
 }
 
+/**
+ * Collects candidate entry file paths from a package manifest.
+ *
+ * Supports `main`, `module`, and `exports` fields, flattening arrays and objects and normalizing package-relative paths.
+ *
+ * @param pkg - The package.json object to read entry targets from
+ * @returns An array of normalized package-relative entry paths, sorted; contains `index.js` when no entry fields are present
+ */
 function packageEntryTargets(pkg: any): string[] {
   const targets = new Set<string>();
   const add = (value: unknown) => {
@@ -1907,6 +2008,13 @@ function packageEntryTargets(pkg: any): string[] {
   return Array.from(targets).sort();
 }
 
+/**
+ * Reads an install script file from a package directory if it is a regular file within size limits.
+ *
+ * @param scriptPath - The path to the script file as referenced in package scripts (resolved relative to `packageDir`)
+ * @param packageDir - The package root directory used to resolve and bound `scriptPath`
+ * @returns The file contents as UTF-8 text when the file exists inside `packageDir`, is a regular file, and its size is at most `INSTALL_SCRIPT_MAX_BYTES`; `undefined` otherwise.
+ */
 async function readInstallScriptFile(
   scriptPath: string,
   packageDir: string
@@ -1924,10 +2032,25 @@ async function readInstallScriptFile(
   }
 }
 
+/**
+ * Checks whether a file path refers to an inspectable source file used for static analysis.
+ *
+ * @param filePath - The file path to test (relative or absolute)
+ * @returns `true` if the path ends with a JS/TS-related extension (`.js`, `.cjs`, `.mjs`, `.jsx`, `.ts`, `.tsx`) or has no extension, `false` otherwise.
+ */
 function isInspectableSourcePath(filePath: string): boolean {
   return /\.(?:js|cjs|mjs|jsx|ts|tsx)$/i.test(filePath) || path.extname(filePath) === '';
 }
 
+/**
+ * Detects whether a JavaScript-like file is likely minified or otherwise obfuscated.
+ *
+ * Uses filename and simple content heuristics to identify minified files.
+ *
+ * @param fileName - The file name or path (used to detect `.min.js/.min.cjs/.min.mjs` suffixes)
+ * @param text - The file contents to inspect
+ * @returns `true` if the file appears minified or obfuscated, `false` otherwise.
+ */
 function looksMinified(fileName: string, text: string): boolean {
   if (/\.min\.(?:js|cjs|mjs)$/i.test(fileName)) return true;
   const lines = text.split(/\r?\n/);
@@ -1935,6 +2058,15 @@ function looksMinified(fileName: string, text: string): boolean {
   return lines.some((line) => line.length > 10_000);
 }
 
+/**
+ * Determine whether a string appears to be readable text (not binary or overwhelmingly control-character data).
+ *
+ * Empty strings are considered text; presence of a NUL character marks the input as non-text. The function treats
+ * the input as text when the proportion of suspicious control or replacement characters is less than 1%.
+ *
+ * @param text - The string to evaluate
+ * @returns `true` if the input appears to be readable text, `false` otherwise.
+ */
 function looksTextLike(text: string): boolean {
   if (text.includes('\0')) return false;
   if (text.length === 0) return true;
@@ -1942,6 +2074,12 @@ function looksTextLike(text: string): boolean {
   return suspicious / text.length < 0.01;
 }
 
+/**
+ * Detects whether a text blob appears to be JavaScript or Node.js source.
+ *
+ * @param text - The text to inspect for JavaScript/Node indicators
+ * @returns `true` if the text contains common JavaScript or Node.js source markers (shebang with `node`, `require(`, `import`, `module.exports`, or `process.`), `false` otherwise
+ */
 function looksJavaScriptLike(text: string): boolean {
   return (
     /^#!.*\bnode\b/.test(text) ||
@@ -1952,6 +2090,21 @@ function looksJavaScriptLike(text: string): boolean {
   );
 }
 
+/**
+ * Read and return the text of a package-relative source file when it is safe and useful to inspect.
+ *
+ * Attempts to resolve and read `filePath` inside `packageDir` and returns the file contents only if the file:
+ * - resides within `packageDir`,
+ * - matches the allowed inspectable source path patterns,
+ * - is a regular file whose size does not exceed `maxBytes`,
+ * - appears to be text (and, for extensionless files, looks like JavaScript),
+ * - does not appear minified or otherwise obfuscated.
+ *
+ * @param filePath - Path to the candidate file relative to the package directory
+ * @param packageDir - Absolute path of the package root to constrain reads
+ * @param maxBytes - Maximum number of bytes to read from the file (per-file size limit)
+ * @returns The file content when it is inspectable under the above constraints, `undefined` otherwise
+ */
 async function readInspectablePackageFile(
   filePath: string,
   packageDir: string,
@@ -1975,6 +2128,17 @@ async function readInspectablePackageFile(
   }
 }
 
+/**
+ * Collects a bounded list of inspectable source file paths inside a package directory.
+ *
+ * Traverses the package tree (skipping symlinks and common non-source directories) and returns
+ * a sorted array of package-relative paths for files considered inspectable.
+ *
+ * @param packageDir - Absolute path to the package directory to scan
+ * @param maxFiles - Maximum number of inspectable file paths to return
+ * @param maxPackageFiles - Maximum number of files to examine within the package (counts all files visited)
+ * @returns A sorted array of relative file paths (relative to `packageDir`) for inspectable source files
+ */
 async function collectBoundedInspectableFiles(
   packageDir: string,
   maxFiles: number,
@@ -2005,16 +2169,41 @@ async function collectBoundedInspectableFiles(
   return out.sort();
 }
 
+/**
+ * Identify execution-related static signals present in a block of source or script text.
+ *
+ * @param text - The file or lifecycle script text to analyze for execution signals
+ * @returns An ordered array of distinct execution signals detected in `text`, prioritized according to the canonical execution-signal ordering
+ */
 export function detectLocalExecutionSignals(text: string): ExecutionSignal[] {
   const signals = new Set<ExecutionSignal>();
   detectFileSignals(text, signals);
   return EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
 }
 
+/**
+ * Checks whether the given text matches any regular expression in the provided list.
+ *
+ * @param text - The string to test against the patterns
+ * @param patterns - Array of `RegExp` objects to test
+ * @returns `true` if at least one pattern matches `text`, `false` otherwise.
+ */
 function textHasAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+/**
+ * Detects install-time script characteristics from a text blob and adds matching execution signals to the provided set.
+ *
+ * Examines the input text with heuristics for common patterns and adds any of the following `ExecutionSignal` values to `signals` when matched:
+ * - `network-access` — patterns that fetch remote resources (curl, wget, http(s), fetch, axios, net.connect, dns, etc.).
+ * - `reads-env` — access to environment variables or printenv-style usage.
+ * - `reads-home` — references to user home paths or APIs returning the home directory.
+ * - `uses-ssh` — references to SSH-related files, agents, or SSH/git configuration.
+ *
+ * @param text - The script or file text to statically inspect for indicative patterns.
+ * @param signals - A mutable Set that will receive any detected execution signals.
+ */
 function detectScriptSignals(text: string, signals: Set<ExecutionSignal>): void {
   // Signals are derived from static text inspection only: no code execution and no import walking.
   // They are NOT malware detection; they merely highlight review-worthy install-time behavior.
@@ -2052,6 +2241,14 @@ function isObfuscated(text: string): boolean {
   return /[A-Za-z0-9+/]{800,}={0,2}/.test(text);
 }
 
+/**
+ * Detects static execution- and obfuscation-related signals from a JavaScript file's text and adds them to `signals`.
+ *
+ * Scans the provided source text for review cues such as script-level indicators, dynamic code execution APIs, child-process usage, explicit encoding patterns, and signs of obfuscation/minification. Matches are added to the supplied `signals` set; the function does not return a value and does not imply malicious intent by itself.
+ *
+ * @param text - The source text of a JavaScript file to analyze.
+ * @param signals - A mutable set that will be populated with discovered `ExecutionSignal` values.
+ */
 function detectFileSignals(text: string, signals: Set<ExecutionSignal>): void {
   // Signals from a single directly-referenced JS file (no execution, no imports, no deep scanning).
   // These are review cues only and do NOT imply malicious intent.
@@ -2075,6 +2272,15 @@ function detectFileSignals(text: string, signals: Set<ExecutionSignal>): void {
   }
 }
 
+/**
+ * Classifies execution-related risk level for a package based on lifecycle scripts, detected signals, and script complexity.
+ *
+ * @param hasScripts - Whether the package defines any lifecycle scripts
+ * @param hasSignals - Whether static analysis detected execution-related signals (network, child-process, dynamic execution, etc.)
+ * @param highComplexity - Whether the package's lifecycle scripts exceed the complexity threshold
+ * @param hooks - Lifecycle hooks present (note: `install` or `postinstall` count as install-time hooks)
+ * @returns `'red'` when scripts are present and either execution signals exist or scripts are highly complex on an install-time hook; `'amber'` otherwise.
+ */
 function determineExecutionRisk(
   hasScripts: boolean,
   hasSignals: boolean,
@@ -2086,6 +2292,18 @@ function determineExecutionRisk(
   return 'amber';
 }
 
+/**
+ * Collects execution-related static signals from a package's likely entry and inspectable source files using bounded, best-effort inspection.
+ *
+ * This inspects candidate entry points (e.g., `bin`, `main`, `module`, `exports`) plus a bounded set of other inspectable files, applies static detectors, and returns the detected execution signals in the canonical ordering.
+ *
+ * @param pkg - The package.json object for the package being inspected.
+ * @param packageDir - The package filesystem directory to read files from; when `undefined`, the function returns an empty array.
+ * @param options.maxFiles - Maximum number of files to inspect (default: LOCAL_SIGNAL_MAX_FILES_PER_PACKAGE).
+ * @param options.maxBytesPerFile - Maximum bytes to read per file (default: LOCAL_SIGNAL_MAX_BYTES_PER_FILE).
+ * @param options.maxPackageFiles - Maximum number of candidate package files to enumerate before selecting up to `maxFiles` for inspection (default: LOCAL_SIGNAL_MAX_PACKAGE_FILES).
+ * @returns An array of detected `ExecutionSignal` values, ordered according to the canonical `EXECUTION_SIGNAL_ORDER`. Empty if no signals are found.
+ */
 export async function collectPackageExecutionSignals(
   pkg: any,
   packageDir: string | undefined,
@@ -2120,6 +2338,21 @@ export async function collectPackageExecutionSignals(
   return EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
 }
 
+/**
+ * Derives install-time execution signals, script metadata, and a consolidated execution risk for a package.
+ *
+ * Analyzes lifecycle hooks, referenced install scripts, native-build indicators, and bounded package file inspection to produce ordered execution signals, an execution complexity score when applicable, and a risk classification. Returns undefined when no meaningful execution signals, scripts, or native indicators are present.
+ *
+ * @param pkg - The package.json object for the dependency; used to locate entry points and candidate files for inspection.
+ * @param scripts - The package's lifecycle `scripts` map (from package.json).
+ * @param packageDir - Absolute path to the package directory used for reading referenced install scripts and package files; when undefined, file-based inspection is skipped.
+ * @param stats - Optional PackageStats containing file-based heuristics (e.g., `hasNativeBinary`, `hasBindingGyp`) used as native indicators.
+ * @returns An execution record containing:
+ *  - `risk`: computed execution risk,
+ *  - optional `native`: `true` when native-build indicators are present,
+ *  - optional `signals`: ordered list of detected execution signals,
+ *  - optional `scripts`: metadata about lifecycle hooks including `hooks`, optional `complexity`, and optional script-only `signals`.
+ */
 async function deriveExecutionInfo(
   pkg: any,
   scripts: Record<string, any>,
