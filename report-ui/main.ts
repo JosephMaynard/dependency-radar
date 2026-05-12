@@ -12,6 +12,7 @@ import type {
   DependencyRecord,
   ExecutionSignal,
   LicenseStatus,
+  PackagingSignal,
   Severity,
 } from "./types";
 
@@ -94,6 +95,11 @@ const EXECUTION_SIGNAL_LABELS: Record<ExecutionSignal, string> = {
   "reads-env": "Reads environment variables",
   "reads-home": "Reads user home directory",
   "uses-ssh": "Uses SSH configuration/keys",
+};
+
+const PACKAGING_SIGNAL_LABELS: Record<PackagingSignal, string> = {
+  "bundled-dependencies": "Declares bundled dependencies",
+  "embedded-shrinkwrap": "Contains embedded npm-shrinkwrap.json",
 };
 
 type SecuritySummary = {
@@ -1347,12 +1353,51 @@ function renderExecutionSection(
     );
   }
 
+  const packageSignals = (execution.signals || []).filter(
+    (signal) => !(execution.scripts?.signals || []).includes(signal),
+  );
+  if (packageSignals.length) {
+    const labels = packageSignals.map(
+      (signal) => `${EXECUTION_SIGNAL_LABELS[signal]} (${signal})`,
+    );
+    items.push(
+      renderKvItemHtml("Local execution signals", renderPackageList(labels, 6)),
+    );
+  }
+
   const note =
-    '<div class="section-note">Install-time behaviour signals detected. These describe code that runs automatically during install and may warrant review in security-sensitive environments.</div>';
+    '<div class="section-note">Execution behaviour signals are local static review cues from lifecycle scripts, entry files, package bins, or a small bounded set of package files. They do not imply compromise.</div>';
 
   return renderSubsection(
     "Install-time execution behaviour",
     note + '<div class="kv-grid">' + items.join("") + "</div>",
+  );
+}
+
+function renderPackagingSection(
+  packaging: NonNullable<DependencyRecord["packaging"]> | undefined,
+): string {
+  if (!packaging?.signals?.length) return "";
+  const labels = packaging.signals.map(
+    (signal) => `${PACKAGING_SIGNAL_LABELS[signal]} (${signal})`,
+  );
+  const items = [
+    renderKvItemHtml("Packaging signals", renderPackageList(labels, 6)),
+  ];
+  if (packaging.bundledDependencies?.length) {
+    items.push(
+      renderKvItemHtml(
+        "Bundled dependencies",
+        renderPackageList(packaging.bundledDependencies, 8),
+      ),
+    );
+  }
+  return renderSubsection(
+    "Package contents",
+    '<div class="section-note">Packaging signals describe local package structure that may warrant review; they are not malware verdicts.</div>' +
+      '<div class="kv-grid">' +
+      items.join("") +
+      "</div>",
   );
 }
 
@@ -1879,12 +1924,13 @@ function renderDepDetails(
   const executionBlock = dep.execution
     ? renderExecutionSection(dep.execution)
     : "";
+  const packagingBlock = renderPackagingSection(dep.packaging);
   const supplyChainBlock = renderSupplyChainSourceSection(supplyChainSignals);
 
   const riskSection = renderSection(
     "Risk & Compliance",
     "License, vulnerabilities, install-time execution, and unusual source signals",
-    licenseBlock + vulnBlock + executionBlock + supplyChainBlock,
+    licenseBlock + vulnBlock + executionBlock + packagingBlock + supplyChainBlock,
   );
 
   const currencyItems = [

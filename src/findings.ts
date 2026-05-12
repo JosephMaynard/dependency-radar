@@ -34,6 +34,14 @@ function baseFinding(
   };
 }
 
+function withoutInstallOnlySignals(dep: DependencyRecord): string[] {
+  const all = new Set(dep.execution?.signals || []);
+  for (const signal of dep.execution?.scripts?.signals || []) {
+    all.delete(signal);
+  }
+  return Array.from(all).sort();
+}
+
 export function buildDependencyFindings(
   data: Pick<AggregatedData, 'dependencies' | 'supplyChain'>,
   options: { targetNodeMajor?: number } = {}
@@ -96,6 +104,18 @@ export function buildDependencyFindings(
       }));
     }
 
+    const executionSignals = withoutInstallOnlySignals(dep);
+    if (executionSignals.length > 0) {
+      findings.push(baseFinding(dep, 'local-execution-signals', {
+        category: 'execution',
+        severity: 'warning',
+        title: 'Local execution capability signal',
+        message: `${dep.package.id} contains local execution capability signals that may warrant review.`,
+        evidence: executionSignals.join(', '),
+        recommendation: 'Review the referenced package entrypoints or executables and confirm this behavior is expected.'
+      }));
+    }
+
     if (dep.execution?.native) {
       findings.push(baseFinding(dep, 'native-bindings', {
         category: 'upgrade',
@@ -113,6 +133,17 @@ export function buildDependencyFindings(
         title: 'Package is deprecated',
         message: `${dep.package.id} is marked deprecated in local package metadata.`,
         recommendation: 'Plan migration to a maintained replacement.'
+      }));
+    }
+
+    if (dep.packaging?.signals?.length) {
+      findings.push(baseFinding(dep, 'packaging-signals', {
+        category: 'supply-chain',
+        severity: 'info',
+        title: 'Package packaging review signal',
+        message: `${dep.package.id} has packaging signals that may warrant review.`,
+        evidence: dep.packaging.signals.join(', '),
+        recommendation: 'Review package contents and confirm the packaging pattern is expected.'
       }));
     }
 

@@ -46,17 +46,29 @@ export type ExecutionSignal =
   | 'reads-home'
   | 'uses-ssh';
 
-// Sparse install-time execution signals only; absence means "nothing runs automatically".
+export type PackagingSignal =
+  | 'bundled-dependencies'
+  | 'embedded-shrinkwrap';
+
+// Sparse local execution signals only; absence means no signal was detected by bounded static inspection.
 // Signals are behavioral hints, not malware classification, and no code is executed.
 export interface DependencyExecutionInfo {
   risk: 'amber' | 'red';
   // Native compilation/tooling surface only (not a behavioral signal).
   native?: true;
+  // Signals from lifecycle scripts, bin targets, entry files, or a small bounded set of package JS files.
+  signals?: ExecutionSignal[];
   scripts?: {
     hooks: ExecutionHook[];
     complexity?: number;
+    // Backward-compatible install-time subset of signals found in lifecycle commands or referenced install files.
     signals?: ExecutionSignal[];
   };
+}
+
+export interface DependencyPackagingInfo {
+  signals: PackagingSignal[];
+  bundledDependencies?: string[];
 }
 
 export type LicenseConfidence = 'high' | 'medium' | 'low';
@@ -152,6 +164,7 @@ export interface DependencyRecord {
     subDeps?: SubDependencyMap;
   };
   execution?: DependencyExecutionInfo;
+  packaging?: DependencyPackagingInfo;
 }
 
 export type FindingSeverity = 'info' | 'warning' | 'error';

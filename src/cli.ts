@@ -26,6 +26,7 @@ import { formatWhyOutput } from "./why";
 import { REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
+  evaluateComparePolicyViolations,
   evaluatePolicyViolations,
   parseFailOnRules,
 } from "./failOn";
@@ -1549,6 +1550,9 @@ function printPolicyViolations(violations: PolicyViolation[]): void {
   console.log(colorLeadingSymbol("✖ Policy violations detected:"));
   for (const violation of violations) {
     console.log(`- ${violation.message}`);
+    for (const detail of violation.details || []) {
+      console.log(`  - ${detail}`);
+    }
   }
 }
 
@@ -2341,8 +2345,17 @@ async function runCompareCommand(opts: CliOptions): Promise<void> {
     emitArtifactSummary: false,
     emitWorkspacePackageSummary: false,
   });
+  const comparison = compareReports(previous, result.aggregated);
+  const policyViolations = [
+    ...result.policyViolations,
+    ...evaluateComparePolicyViolations(previous, result.aggregated, opts.failOn),
+  ];
   console.log("");
-  console.log(formatCompareOutput(compareReports(previous, result.aggregated)));
+  console.log(formatCompareOutput(comparison));
+  printPolicyViolations(policyViolations);
+  if (policyViolations.length > 0) {
+    process.exit(1);
+  }
 }
 
 /**

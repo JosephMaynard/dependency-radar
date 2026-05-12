@@ -33,10 +33,10 @@ This runs a scan against the current project and writes a self-contained `depend
 - **Import usage heuristics** — classifies each dependency's runtime impact (`runtime`, `build`, `testing`, `tooling`, `mixed`) based on where it's imported in your source
 - **Full transitive tree** — shows depth, parent relationships, fan-in/fan-out, and dependency origins
 - **Workspace support** — works across npm, pnpm, and Yarn workspaces
-- **CI-friendly** — `--fail-on` flag lets you enforce licence and vulnerability policies in pipelines
+- **CI-friendly** — `--fail-on` flag lets you enforce licence, vulnerability, and compare-mode dependency change policies in pipelines
 - **Review-friendly outputs** — emit JSON, SARIF, CycloneDX SBOM, or SPDX SBOM artifacts from the same local scan
 - **Change comparison** — compare a fresh scan with a previous `dependency-radar.json` to see added dependencies, removed dependencies, version changes, and new findings
-- **Lockfile supply-chain signals** — flags git/local/tarball sources, missing integrity, unexpected registry hosts, and optional npm signature/provenance verification
+- **Local supply-chain review signals** — flags git/local/tarball sources, missing integrity, unexpected registry hosts, install-time behavior, bounded local execution capability signals, packaging signals, and optional npm signature/provenance verification
 - **Completely offline-capable** — use `--offline` to skip registry calls; all package metadata is read from local `node_modules`
 - **Single self-contained HTML file** — no server needed; open it locally, attach it to a ticket, or share it with your team
 
@@ -174,6 +174,18 @@ npx dependency-radar compare ./dependency-radar-before.json --json --offline
 
 The comparison highlights added dependencies, removed dependencies, one-version package changes, new findings, and resolved findings. This is useful in pull requests and release checks.
 
+Compare mode can also fail CI when a dependency change introduces a new risky trait compared with a committed JSON baseline:
+
+```bash
+npx dependency-radar compare ./dependency-radar-baseline.json --offline --fail-on new-supply-chain-signal,new-install-script,new-child-process
+```
+
+This is intentionally not a generic "any dependency changed" gate. It is a review guardrail for targeted local signals such as a newly introduced install script, native build surface, CLI executable, direct dependency, local execution capability signal, packaging signal, or lockfile supply-chain source signal. These signals mean "review this change"; they are not malware verdicts.
+
+Local execution capability signals are derived by bounded static inspection of lifecycle script commands, referenced install files, package `bin` targets, entry files, and a small capped subset of text-like package source files. Dependency Radar currently reports signals such as child process APIs, network access references, environment access, home directory access, SSH-related references, and obfuscation-like code shape. Scanning is capped by file count and bytes per file so large packages do not become expensive to inspect.
+
+Packaging signals are local metadata/content cues such as declared bundled dependencies or an embedded `npm-shrinkwrap.json`. They are review aids for unusual packaging patterns, not proof of compromise.
+
 ### CI policy enforcement (`--fail-on`)
 
 ```
@@ -192,7 +204,36 @@ Supported rules:
 | `unknown-licence` | Fail if at least one dependency has neither declared nor inferred licence data |
 | `supply-chain-source` | Fail if lockfile source signals detect git/local/tarball sources, missing integrity, or unexpected registry hosts |
 
+The following rules are evaluated only by `compare <previous dependency-radar.json>` and use the previous JSON report as the baseline:
+
+| Rule | Description |
+|---|---|
+| `new-supply-chain-signal` | Fail if the current scan has a lockfile supply-chain signal that was not present in the baseline for the same package, or was not present at all when the signal is not package-specific |
+| `new-install-script` | Fail if a dependency now exposes install lifecycle hooks and the baseline did not show install hooks for that package |
+| `new-native-binding` | Fail if a dependency now exposes native build or binary surface and the baseline did not show native surface for that package |
+| `new-bin` | Fail if a dependency now declares a package `bin` executable and the baseline did not show a `bin` for that package |
+| `new-direct-dependency` | Fail if a package is now direct and was not direct in the baseline |
+| `new-child-process` | Fail if a dependency newly shows local child process API usage |
+| `new-network-access` | Fail if a dependency newly shows local network access references |
+| `new-env-access` | Fail if a dependency newly shows local environment variable access |
+| `new-home-access` | Fail if a dependency newly shows local home directory access |
+| `new-ssh-usage` | Fail if a dependency newly shows SSH-related path, command, or environment references |
+| `new-obfuscation-signal` | Fail if a dependency newly shows an obfuscation-like local code shape |
+| `new-bundled-dependencies` | Fail if a dependency newly declares bundled dependencies |
+| `new-shrinkwrap` | Fail if a dependency newly contains an embedded `npm-shrinkwrap.json` |
+
 When rules are violated, Dependency Radar prints `✖ Policy violations detected:` and exits `1`. Unknown rules also exit `1` with a clear error message.
+
+For compare-mode delta rules, the failure output includes the package and the specific change, for example:
+
+```text
+- 1 new install script surface
+  - lodash@4.17.21 introduced install hooks: postinstall
+- 1 new execution signal: child-process
+  - foo@1.2.3 introduced execution signal: child-process
+```
+
+To use this in CI, commit a known-good JSON report, regenerate it intentionally when reviewed dependency changes are accepted, and compare pull requests against that file.
 
 ### Example: open the generated report using the system default:
 
@@ -346,10 +387,10 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - License declaration + `LICENSE` file inference/validation
    - Advisory summaries and severity/risk rollups
    - Root-cause/origin and runtime-impact heuristics
-   - Install-time execution signals
+   - Install-time execution signals, local execution capability signals, and packaging signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
 9. Build normalized findings from the aggregated dependency model:
-   - Vulnerabilities, license review items, install-time execution surface, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
+   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
 10. Write final output as one of:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)

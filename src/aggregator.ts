@@ -5,6 +5,7 @@ import {
   ExecutionSignal,
   OutdatedResult,
   OutdatedStatus,
+  PackagingSignal,
   PackageManager,
   ProjectDependencyPolicy,
   ProjectDependencyPolicySummary,
@@ -491,6 +492,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       MAX_TOP_PARENT_PACKAGES
     );
     const execution = packageInsights.execution;
+    const packaging = packageInsights.packaging;
     const id = node.key;
     const upgrade = buildUpgradeBlock(packageInsights);
     const outdated = resolveOutdated(node, direct, outdatedById, outdatedUnknownNames);
@@ -556,7 +558,8 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
         fanOut: node.children.size,
         ...(subDeps ? { subDeps } : {})
       },
-      ...(execution ? { execution } : {})
+      ...(execution ? { execution } : {}),
+      ...(packaging ? { packaging } : {})
     };
 
   }
@@ -1431,6 +1434,7 @@ interface PackageStats {
   hasDts: boolean;
   hasNativeBinary: boolean;
   hasBindingGyp: boolean;
+  hasShrinkwrap: boolean;
   fileCount: number;
 }
 
@@ -1453,6 +1457,7 @@ interface PackageInsights {
     bugs?: string;
   };
   execution?: DependencyRecord['execution'];
+  packaging?: DependencyRecord['packaging'];
   tsTypes: 'bundled' | 'definitelyTyped' | 'none' | 'unknown';
 }
 
@@ -1497,7 +1502,8 @@ async function gatherPackageInsights(
   const hasDefinitelyTyped = await hasDefinitelyTypedPackage(name, resolvePaths, metaCache);
   const tsTypes = determineTypes(pkg, stats?.hasDts || false, hasDefinitelyTyped);
   const links = extractPackageLinks(pkg);
-  const execution = await deriveExecutionInfo(scripts, dir, stats);
+  const execution = await deriveExecutionInfo(pkg, scripts, dir, stats);
+  const packaging = derivePackagingInfo(pkg, stats);
 
   return {
     deprecated,
@@ -1509,6 +1515,7 @@ async function gatherPackageInsights(
     declaredDependencies,
     links,
     execution,
+    ...(packaging ? { packaging } : {}),
     tsTypes
   };
 }
@@ -1551,6 +1558,35 @@ function hasPackageBin(binField: any): boolean {
   return Object.values(binField).some((value) =>
     typeof value === 'string' && value.trim().length > 0
   );
+}
+
+function normalizeBundledDependencies(pkg: any): string[] {
+  const raw: unknown[] = Array.isArray(pkg?.bundledDependencies)
+    ? pkg.bundledDependencies
+    : Array.isArray(pkg?.bundleDependencies)
+      ? pkg.bundleDependencies
+      : [];
+  const entries = raw
+    .map((entry: unknown) => typeof entry === 'string' ? entry.trim() : '')
+    .filter((entry): entry is string => entry.length > 0);
+  return Array.from(new Set<string>(entries)).sort();
+}
+
+function derivePackagingInfo(
+  pkg: any,
+  stats: PackageStats | undefined
+): DependencyRecord['packaging'] | undefined {
+  const signals = new Set<PackagingSignal>();
+  const bundledDependencies = normalizeBundledDependencies(pkg);
+  if (bundledDependencies.length > 0) signals.add('bundled-dependencies');
+  if (stats?.hasShrinkwrap) signals.add('embedded-shrinkwrap');
+  const signalList = ['bundled-dependencies', 'embedded-shrinkwrap']
+    .filter((signal): signal is PackagingSignal => signals.has(signal as PackagingSignal));
+  if (signalList.length === 0) return undefined;
+  return {
+    signals: signalList,
+    ...(bundledDependencies.length > 0 ? { bundledDependencies } : {})
+  };
 }
 
 async function loadPackageMeta(
@@ -1601,6 +1637,7 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
   let hasDts = false;
   let hasNativeBinary = false;
   let hasBindingGyp = false;
+  let hasShrinkwrap = false;
   let fileCount = 0;
 
   async function walk(current: string): Promise<void> {
@@ -1617,6 +1654,7 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
         if (entry.name.endsWith('.d.ts')) hasDts = true;
         if (entry.name.endsWith('.node')) hasNativeBinary = true;
         if (entry.name === 'binding.gyp') hasBindingGyp = true;
+        if (entry.name === 'npm-shrinkwrap.json') hasShrinkwrap = true;
       }
     }
   }
@@ -1626,7 +1664,7 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
   } catch (err) {
     // best-effort; ignore inaccessible paths
   }
-  const result: PackageStats = { hasDts, hasNativeBinary, hasBindingGyp, fileCount };
+  const result: PackageStats = { hasDts, hasNativeBinary, hasBindingGyp, hasShrinkwrap, fileCount };
   cache.set(dir, result);
   return result;
 }
@@ -1726,6 +1764,9 @@ const EXECUTION_SIGNAL_ORDER: ExecutionSignal[] = [
   'uses-ssh'
 ];
 const INSTALL_SCRIPT_MAX_BYTES = 200_000;
+const LOCAL_SIGNAL_MAX_FILES_PER_PACKAGE = 24;
+const LOCAL_SIGNAL_MAX_BYTES_PER_FILE = 120_000;
+const LOCAL_SIGNAL_MAX_PACKAGE_FILES = 2_000;
 const COMPLEXITY_THRESHOLD = 12;
 
 function collectLifecycleScripts(
@@ -1820,6 +1861,48 @@ function findReferencedInstallScript(
   return undefined;
 }
 
+function normalizePackageRelativePath(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const cleaned = value.trim().replace(/^[.][/\\]/, '');
+  if (!cleaned || cleaned.includes('://')) return undefined;
+  return cleaned;
+}
+
+function packageBinTargets(binField: any): string[] {
+  const targets = new Set<string>();
+  const add = (value: unknown) => {
+    const normalized = normalizePackageRelativePath(value);
+    if (normalized) targets.add(normalized);
+  };
+  if (typeof binField === 'string') add(binField);
+  else if (binField && typeof binField === 'object') {
+    for (const value of Object.values(binField)) add(value);
+  }
+  return Array.from(targets).sort();
+}
+
+function packageEntryTargets(pkg: any): string[] {
+  const targets = new Set<string>();
+  const add = (value: unknown) => {
+    const normalized = normalizePackageRelativePath(value);
+    if (normalized) targets.add(normalized);
+  };
+  add(pkg?.main);
+  add(pkg?.module);
+  if (typeof pkg?.exports === 'string') {
+    add(pkg.exports);
+  } else if (pkg?.exports && typeof pkg.exports === 'object') {
+    for (const value of Object.values(pkg.exports)) {
+      if (typeof value === 'string') add(value);
+      else if (value && typeof value === 'object') {
+        for (const nested of Object.values(value)) add(nested);
+      }
+    }
+  }
+  if (targets.size === 0) targets.add('index.js');
+  return Array.from(targets).sort();
+}
+
 async function readInstallScriptFile(
   scriptPath: string,
   packageDir: string
@@ -1837,6 +1920,73 @@ async function readInstallScriptFile(
   }
 }
 
+function isInspectableSourceFile(filePath: string): boolean {
+  return /\.(?:js|cjs|mjs|jsx|ts|tsx)$/i.test(filePath);
+}
+
+function looksMinified(fileName: string, text: string): boolean {
+  if (/\.min\.(?:js|cjs|mjs)$/i.test(fileName)) return true;
+  const lines = text.split(/\r?\n/);
+  if (lines.length <= 3 && text.length > 20_000) return true;
+  return lines.some((line) => line.length > 10_000);
+}
+
+async function readInspectablePackageFile(
+  filePath: string,
+  packageDir: string,
+  maxBytes = LOCAL_SIGNAL_MAX_BYTES_PER_FILE
+): Promise<string | undefined> {
+  const resolvedDir = path.resolve(packageDir);
+  const resolvedPath = path.resolve(resolvedDir, filePath);
+  if (!resolvedPath.startsWith(resolvedDir + path.sep)) return undefined;
+  if (!isInspectableSourceFile(resolvedPath)) return undefined;
+  try {
+    const stat = await fs.stat(resolvedPath);
+    if (!stat.isFile()) return undefined;
+    if (stat.size > maxBytes) return undefined;
+    const text = await fs.readFile(resolvedPath, 'utf8');
+    if (looksMinified(resolvedPath, text)) return undefined;
+    return text;
+  } catch {
+    return undefined;
+  }
+}
+
+async function collectBoundedInspectableFiles(
+  packageDir: string,
+  maxFiles: number,
+  maxPackageFiles: number
+): Promise<string[]> {
+  const out: string[] = [];
+  let seen = 0;
+  async function walk(current: string): Promise<void> {
+    if (out.length >= maxFiles || seen >= maxPackageFiles) return;
+    const entries = await fs.readdir(current, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (out.length >= maxFiles || seen >= maxPackageFiles) return;
+      const full = path.join(current, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'test' || entry.name === 'tests' || entry.name === 'docs') continue;
+        await walk(full);
+      } else if (entry.isFile()) {
+        seen += 1;
+        if (isInspectableSourceFile(full)) {
+          out.push(path.relative(packageDir, full));
+        }
+      }
+    }
+  }
+  await walk(packageDir);
+  return out.sort();
+}
+
+export function detectLocalExecutionSignals(text: string): ExecutionSignal[] {
+  const signals = new Set<ExecutionSignal>();
+  detectFileSignals(text, signals);
+  return EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+}
+
 function textHasAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
@@ -1846,7 +1996,7 @@ function detectScriptSignals(text: string, signals: Set<ExecutionSignal>): void 
   // They are NOT malware detection; they merely highlight review-worthy install-time behavior.
 
   // "network-access" surfaces install scripts that fetch remote resources (review for expected downloads; does NOT imply exfiltration).
-  if (textHasAny(text, [/\bcurl\b/i, /\bwget\b/i, /https?:\/\//i, /\bfetch\s*\(/i, /\baxios\b/i, /node-fetch/i])) {
+  if (textHasAny(text, [/\bcurl\b/i, /\bwget\b/i, /https?:\/\//i, /\bfetch\s*\(/i, /\baxios\b/i, /node-fetch/i, /\bhttps?\.request\s*\(/, /\bnet\.connect\s*\(/, /\bdns\./])) {
     signals.add('network-access');
   }
   // "reads-env" highlights environment access (does NOT imply exfiltration).
@@ -1854,11 +2004,11 @@ function detectScriptSignals(text: string, signals: Set<ExecutionSignal>): void 
     signals.add('reads-env');
   }
   // "reads-home" highlights access to user home paths (does NOT imply credential theft).
-  if (textHasAny(text, [/\$HOME\b/, /process\.env\.HOME\b/, /os\.homedir\s*\(/, /~\//])) {
+  if (textHasAny(text, [/\$HOME\b/, /process\.env\.HOME\b/, /\bUSERPROFILE\b/, /os\.homedir\s*\(/, /~\//, /\/Users\//, /\/home\//])) {
     signals.add('reads-home');
   }
   // "uses-ssh" flags access to SSH-related paths (does NOT imply key exfiltration).
-  if (textHasAny(text, [/\.ssh\b/i, /id_rsa\b/i, /known_hosts\b/i, /\.npmrc\b/i])) {
+  if (textHasAny(text, [/\.ssh\b/i, /id_rsa\b/i, /known_hosts\b/i, /ssh-key/i, /ssh-agent/i, /GIT_SSH_COMMAND\b/, /\.npmrc\b/i])) {
     signals.add('uses-ssh');
   }
 }
@@ -1888,7 +2038,7 @@ function detectFileSignals(text: string, signals: Set<ExecutionSignal>): void {
     signals.add('dynamic-exec');
   }
   // "child-process" flags process spawning (does NOT imply abuse).
-  if (textHasAny(text, [/\bchild_process\.exec\b/, /\bspawn\s*\(/, /\bexecSync\s*\(/])) {
+  if (textHasAny(text, [/\bchild_process\b/, /\bexec\s*\(/, /\bspawn\s*\(/, /\bexecFile\s*\(/, /\bexecSync\s*\(/, /\bspawnSync\s*\(/])) {
     signals.add('child-process');
   }
   // "encoding" flags explicit encode/decode flows (does NOT imply obfuscation intent).
@@ -1912,7 +2062,42 @@ function determineExecutionRisk(
   return 'amber';
 }
 
+export async function collectPackageExecutionSignals(
+  pkg: any,
+  packageDir: string | undefined,
+  options: {
+    maxFiles?: number;
+    maxBytesPerFile?: number;
+    maxPackageFiles?: number;
+  } = {}
+): Promise<ExecutionSignal[]> {
+  if (!packageDir) return [];
+  const maxFiles = options.maxFiles ?? LOCAL_SIGNAL_MAX_FILES_PER_PACKAGE;
+  const maxBytesPerFile = options.maxBytesPerFile ?? LOCAL_SIGNAL_MAX_BYTES_PER_FILE;
+  const maxPackageFiles = options.maxPackageFiles ?? LOCAL_SIGNAL_MAX_PACKAGE_FILES;
+  const candidateFiles = new Set<string>();
+  for (const file of [...packageBinTargets(pkg?.bin), ...packageEntryTargets(pkg)]) {
+    candidateFiles.add(file);
+  }
+  for (const file of await collectBoundedInspectableFiles(packageDir, maxFiles, maxPackageFiles)) {
+    candidateFiles.add(file);
+    if (candidateFiles.size >= maxFiles) break;
+  }
+
+  const signals = new Set<ExecutionSignal>();
+  let inspected = 0;
+  for (const file of candidateFiles) {
+    if (inspected >= maxFiles) break;
+    const text = await readInspectablePackageFile(file, packageDir, maxBytesPerFile);
+    if (!text) continue;
+    inspected += 1;
+    detectFileSignals(text, signals);
+  }
+  return EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+}
+
 async function deriveExecutionInfo(
+  pkg: any,
   scripts: Record<string, any>,
   packageDir: string | undefined,
   stats: PackageStats | undefined
@@ -1922,12 +2107,10 @@ async function deriveExecutionInfo(
   const hasScripts = hooks.length > 0;
   const hasNative = Boolean(stats?.hasNativeBinary || stats?.hasBindingGyp || scriptsContainNativeTooling(scripts));
 
-  if (!hasScripts && !hasNative) return undefined;
-
-  const signals = new Set<ExecutionSignal>();
+  const scriptSignals = new Set<ExecutionSignal>();
   const combinedScripts = hooks.map((hook) => lifecycleScripts[hook]!).join('\n');
   if (combinedScripts) {
-    detectScriptSignals(combinedScripts, signals);
+    detectScriptSignals(combinedScripts, scriptSignals);
   }
 
   if (hasScripts && packageDir) {
@@ -1935,26 +2118,33 @@ async function deriveExecutionInfo(
     if (referencedScript) {
       const fileContent = await readInstallScriptFile(referencedScript, packageDir);
       if (fileContent) {
-        detectFileSignals(fileContent, signals);
+        detectFileSignals(fileContent, scriptSignals);
       }
     }
   }
 
+  const packageSignals = await collectPackageExecutionSignals(pkg, packageDir);
+  const allSignals = new Set<ExecutionSignal>([...scriptSignals, ...packageSignals]);
+
   const complexityScore = hasScripts ? scoreLifecycleScripts(lifecycleScripts) : 0;
   const complexity = complexityScore >= COMPLEXITY_THRESHOLD ? complexityScore : undefined;
 
-  const signalList = EXECUTION_SIGNAL_ORDER.filter((signal) => signals.has(signal));
+  const scriptSignalList = EXECUTION_SIGNAL_ORDER.filter((signal) => scriptSignals.has(signal));
+  const signalList = EXECUTION_SIGNAL_ORDER.filter((signal) => allSignals.has(signal));
+
+  if (!hasScripts && !hasNative && signalList.length === 0) return undefined;
 
   const scriptsInfo: NonNullable<DependencyRecord['execution']>['scripts'] = {
     hooks,
     ...(complexity !== undefined ? { complexity } : {}),
-    ...(signalList.length > 0 ? { signals: signalList } : {})
+    ...(scriptSignalList.length > 0 ? { signals: scriptSignalList } : {})
   };
 
   const risk = determineExecutionRisk(hasScripts, signalList.length > 0, complexity !== undefined, hooks);
   const execution: DependencyRecord['execution'] = { risk };
   // Native is surface description only; not a behavioral signal.
   if (hasNative) execution.native = true;
+  if (signalList.length > 0) execution.signals = signalList;
   if (hasScripts) execution.scripts = scriptsInfo;
   return execution;
 }

@@ -14,6 +14,10 @@ export type ExecutionSignal =
   | 'reads-home'
   | 'uses-ssh';
 
+export type PackagingSignal =
+  | 'bundled-dependencies'
+  | 'embedded-shrinkwrap';
+
 export type LicenseConfidence = 'high' | 'medium' | 'low';
 export type LicenseStatus =
   | 'declared-only'
@@ -122,11 +126,16 @@ export interface DependencyRecord {
   execution?: {
     risk: 'amber' | 'red';
     native?: true;
+    signals?: ExecutionSignal[];
     scripts?: {
       hooks: ExecutionHook[];
       complexity?: number;
       signals?: ExecutionSignal[];
     };
+  };
+  packaging?: {
+    signals: PackagingSignal[];
+    bundledDependencies?: string[];
   };
 }
 

@@ -1,5 +1,5 @@
 import { validateSpdxExpression } from './license';
-import type { AggregatedData, DependencyRecord } from './types';
+import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, SupplyChainSignal } from './types';
 
 export type FailOnRule =
   | 'reachable-vuln'
@@ -8,12 +8,26 @@ export type FailOnRule =
   | 'licence-mismatch'
   | 'copyleft-detected'
   | 'unknown-licence'
-  | 'supply-chain-source';
+  | 'supply-chain-source'
+  | 'new-supply-chain-signal'
+  | 'new-install-script'
+  | 'new-native-binding'
+  | 'new-bin'
+  | 'new-direct-dependency'
+  | 'new-child-process'
+  | 'new-network-access'
+  | 'new-env-access'
+  | 'new-home-access'
+  | 'new-ssh-usage'
+  | 'new-obfuscation-signal'
+  | 'new-bundled-dependencies'
+  | 'new-shrinkwrap';
 
 export type PolicyViolation = {
   rule: FailOnRule;
   count: number;
   message: string;
+  details?: string[];
 };
 
 export const SUPPORTED_FAIL_ON_RULES = [
@@ -23,7 +37,20 @@ export const SUPPORTED_FAIL_ON_RULES = [
   'licence-mismatch',
   'copyleft-detected',
   'unknown-licence',
-  'supply-chain-source'
+  'supply-chain-source',
+  'new-supply-chain-signal',
+  'new-install-script',
+  'new-native-binding',
+  'new-bin',
+  'new-direct-dependency',
+  'new-child-process',
+  'new-network-access',
+  'new-env-access',
+  'new-home-access',
+  'new-ssh-usage',
+  'new-obfuscation-signal',
+  'new-bundled-dependencies',
+  'new-shrinkwrap'
 ] as const;
 
 const SUPPORTED_FAIL_ON_RULE_SET = new Set<FailOnRule>(SUPPORTED_FAIL_ON_RULES);
@@ -53,6 +80,119 @@ function vulnerabilityCount(dep: DependencyRecord): number {
     (dep.security.summary.moderate || 0) +
     (dep.security.summary.low || 0)
   );
+}
+
+function byPackageName(deps: Record<string, DependencyRecord> | undefined): Map<string, DependencyRecord[]> {
+  const map = new Map<string, DependencyRecord[]>();
+  for (const dep of Object.values(deps || {})) {
+    const name = dep.package?.name;
+    if (!name) continue;
+    const entries = map.get(name) || [];
+    entries.push(dep);
+    map.set(name, entries);
+  }
+  return map;
+}
+
+function formatPackage(dep: DependencyRecord): string {
+  return dep.package?.id || `${dep.package.name}@${dep.package.version}`;
+}
+
+function sortedHooks(dep: DependencyRecord): string[] {
+  return [...(dep.execution?.scripts?.hooks || [])].sort();
+}
+
+function executionSignals(dep: DependencyRecord): Set<ExecutionSignal> {
+  return new Set([
+    ...(dep.execution?.signals || []),
+    ...(dep.execution?.scripts?.signals || [])
+  ]);
+}
+
+function packagingSignals(dep: DependencyRecord): Set<PackagingSignal> {
+  return new Set(dep.packaging?.signals || []);
+}
+
+function signalPackageName(signal: SupplyChainSignal): string | undefined {
+  if (signal.packageName) return signal.packageName;
+  if (!signal.packageId) return undefined;
+  const at = signal.packageId.lastIndexOf('@');
+  if (at <= 0) return undefined;
+  return signal.packageId.slice(0, at);
+}
+
+function signalPackageLabel(signal: SupplyChainSignal): string {
+  if (signal.packageId) return signal.packageId;
+  if (signal.packageName && signal.packageVersion) return `${signal.packageName}@${signal.packageVersion}`;
+  if (signal.packageName) return signal.packageName;
+  return 'lockfile';
+}
+
+function supplyChainSignalKeys(signals: SupplyChainSignal[] | undefined): {
+  byPackage: Map<string, Set<string>>;
+  global: Set<string>;
+} {
+  const byPackage = new Map<string, Set<string>>();
+  const global = new Set<string>();
+  for (const signal of signals || []) {
+    global.add(signal.type);
+    const name = signalPackageName(signal);
+    if (!name) continue;
+    const types = byPackage.get(name) || new Set<string>();
+    types.add(signal.type);
+    byPackage.set(name, types);
+  }
+  return { byPackage, global };
+}
+
+function pushNewExecutionSignalViolation(
+  violations: PolicyViolation[],
+  previousByName: Map<string, DependencyRecord[]>,
+  currentDeps: DependencyRecord[],
+  rules: Set<FailOnRule>,
+  rule: FailOnRule,
+  signal: ExecutionSignal
+): void {
+  if (!rules.has(rule)) return;
+  const details = currentDeps
+    .filter((dep) => {
+      if (!executionSignals(dep).has(signal)) return false;
+      return !(previousByName.get(dep.package.name) || []).some((previousDep) => executionSignals(previousDep).has(signal));
+    })
+    .map((dep) => `${formatPackage(dep)} introduced execution signal: ${signal}`)
+    .sort();
+  if (details.length === 0) return;
+  violations.push({
+    rule,
+    count: details.length,
+    message: `${details.length} new execution ${pluralize(details.length, 'signal', 'signals')}: ${signal}`,
+    details
+  });
+}
+
+function pushNewPackagingSignalViolation(
+  violations: PolicyViolation[],
+  previousByName: Map<string, DependencyRecord[]>,
+  currentDeps: DependencyRecord[],
+  rules: Set<FailOnRule>,
+  rule: FailOnRule,
+  signal: PackagingSignal
+): void {
+  if (!rules.has(rule)) return;
+  const details = currentDeps
+    .filter((dep) => {
+      if (!packagingSignals(dep).has(signal)) return false;
+      return !(previousByName.get(dep.package.name) || []).some((previousDep) => packagingSignals(previousDep).has(signal));
+    })
+    .map((dep) => `${formatPackage(dep)} introduced packaging signal: ${signal}`)
+    .sort();
+  if (details.length === 0) return;
+  violations.push({
+    rule,
+    count: details.length,
+    message: `${details.length} new packaging ${pluralize(details.length, 'signal', 'signals')}: ${signal}`,
+    details
+  });
 }
 
 /**
@@ -251,6 +391,129 @@ export function evaluatePolicyViolations(
       )}`
     });
   }
+
+  return violations;
+}
+
+/**
+ * Compute compare-mode policy violations that focus on newly introduced risky traits.
+ *
+ * Delta rules compare the current scan against a previous Dependency Radar JSON report. They only fire
+ * when a targeted trait appears in the current report and the baseline did not show that trait for the
+ * same package name, or did not show that supply-chain signal type at all when a signal cannot be tied to
+ * a package.
+ */
+export function evaluateComparePolicyViolations(
+  previous: AggregatedData,
+  current: AggregatedData,
+  rules: Set<FailOnRule>
+): PolicyViolation[] {
+  if (rules.size === 0) return [];
+
+  const previousByName = byPackageName(previous.dependencies);
+  const currentDeps = Object.values(current.dependencies || {});
+  const violations: PolicyViolation[] = [];
+
+  if (rules.has('new-supply-chain-signal')) {
+    const previousSignals = supplyChainSignalKeys(previous.supplyChain?.signals);
+    const details = (current.supplyChain?.signals || [])
+      .filter((signal) => {
+        const name = signalPackageName(signal);
+        if (name) return !previousSignals.byPackage.get(name)?.has(signal.type);
+        return !previousSignals.global.has(signal.type);
+      })
+      .map((signal) => `${signalPackageLabel(signal)} introduced supply-chain signal: ${signal.type}`)
+      .sort();
+    if (details.length > 0) {
+      violations.push({
+        rule: 'new-supply-chain-signal',
+        count: details.length,
+        message: `${details.length} new supply-chain ${pluralize(details.length, 'signal', 'signals')}`,
+        details
+      });
+    }
+  }
+
+  if (rules.has('new-install-script')) {
+    const details = currentDeps
+      .filter((dep) => {
+        if (sortedHooks(dep).length === 0) return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => sortedHooks(previousDep).length > 0);
+      })
+      .map((dep) => `${formatPackage(dep)} introduced install hooks: ${sortedHooks(dep).join(', ')}`)
+      .sort();
+    if (details.length > 0) {
+      violations.push({
+        rule: 'new-install-script',
+        count: details.length,
+        message: `${details.length} new ${pluralize(details.length, 'install script surface', 'install script surfaces')}`,
+        details
+      });
+    }
+  }
+
+  if (rules.has('new-native-binding')) {
+    const details = currentDeps
+      .filter((dep) => {
+        if (!dep.execution?.native) return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => Boolean(previousDep.execution?.native));
+      })
+      .map((dep) => `${formatPackage(dep)} introduced native build/binary surface`)
+      .sort();
+    if (details.length > 0) {
+      violations.push({
+        rule: 'new-native-binding',
+        count: details.length,
+        message: `${details.length} new native ${pluralize(details.length, 'binding surface', 'binding surfaces')}`,
+        details
+      });
+    }
+  }
+
+  if (rules.has('new-bin')) {
+    const details = currentDeps
+      .filter((dep) => {
+        if (!dep.package?.hasBin) return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => Boolean(previousDep.package?.hasBin));
+      })
+      .map((dep) => `${formatPackage(dep)} introduced a package bin`)
+      .sort();
+    if (details.length > 0) {
+      violations.push({
+        rule: 'new-bin',
+        count: details.length,
+        message: `${details.length} new package ${pluralize(details.length, 'bin', 'bins')}`,
+        details
+      });
+    }
+  }
+
+  if (rules.has('new-direct-dependency')) {
+    const details = currentDeps
+      .filter((dep) => {
+        if (!dep.usage?.direct) return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => Boolean(previousDep.usage?.direct));
+      })
+      .map((dep) => `${formatPackage(dep)} is now a direct dependency`)
+      .sort();
+    if (details.length > 0) {
+      violations.push({
+        rule: 'new-direct-dependency',
+        count: details.length,
+        message: `${details.length} new direct ${pluralize(details.length, 'dependency', 'dependencies')}`,
+        details
+      });
+    }
+  }
+
+  pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-child-process', 'child-process');
+  pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-network-access', 'network-access');
+  pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-env-access', 'reads-env');
+  pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-home-access', 'reads-home');
+  pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-ssh-usage', 'uses-ssh');
+  pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-obfuscation-signal', 'obfuscated');
+  pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, 'new-bundled-dependencies', 'bundled-dependencies');
+  pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, 'new-shrinkwrap', 'embedded-shrinkwrap');
 
   return violations;
 }

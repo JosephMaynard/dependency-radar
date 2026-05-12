@@ -15,6 +15,22 @@ const BLOCKER_LABELS: Record<string, string> = {
   deprecated: 'Deprecated by author',
 };
 
+const EXECUTION_SIGNAL_LABELS: Record<string, string> = {
+  'network-access': 'network access',
+  'dynamic-exec': 'dynamic execution',
+  'child-process': 'child process APIs',
+  encoding: 'encoding/decoding logic',
+  obfuscated: 'obfuscation-like code shape',
+  'reads-env': 'environment access',
+  'reads-home': 'home directory access',
+  'uses-ssh': 'SSH-related references'
+};
+
+const PACKAGING_SIGNAL_LABELS: Record<string, string> = {
+  'bundled-dependencies': 'bundled dependencies',
+  'embedded-shrinkwrap': 'embedded npm-shrinkwrap.json'
+};
+
 export function findDependenciesByPackageName(
   aggregated: AggregatedData,
   packageName: string,
@@ -129,6 +145,29 @@ export function formatExplainOutput(
     if (dep.upgrade.blockers?.length) {
       for (const blocker of dep.upgrade.blockers) {
         lines.push(`  - ${BLOCKER_LABELS[blocker] || blocker}`);
+      }
+    } else {
+      lines.push('  none');
+    }
+
+    lines.push('');
+    lines.push('Local execution signals:');
+    if (dep.execution?.signals?.length) {
+      for (const signal of dep.execution.signals) {
+        lines.push(`  - ${signal} (${EXECUTION_SIGNAL_LABELS[signal] || 'review signal'})`);
+      }
+    } else {
+      lines.push('  none');
+    }
+
+    lines.push('');
+    lines.push('Packaging signals:');
+    if (dep.packaging?.signals?.length) {
+      for (const signal of dep.packaging.signals) {
+        lines.push(`  - ${signal} (${PACKAGING_SIGNAL_LABELS[signal] || 'review signal'})`);
+      }
+      if (dep.packaging.bundledDependencies?.length) {
+        lines.push(`  bundled dependencies: ${dep.packaging.bundledDependencies.join(', ')}`);
       }
     } else {
       lines.push('  none');

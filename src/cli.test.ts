@@ -415,6 +415,174 @@ describe('cli summary output', () => {
     },
   );
 
+  it(
+    'fails compare when a selected risky delta rule is introduced',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'execution-signals');
+      const outputDir = await makeTempDir('dr-cli-compare-fail-on');
+      const previousPath = path.join(outputDir, 'previous.json');
+      await fs.writeFile(previousPath, JSON.stringify({
+        schemaVersion: '1.4',
+        generatedAt: new Date(0).toISOString(),
+        dependencyRadarVersion: 'test',
+        git: { branch: '' },
+        project: { projectDir: '/fixture' },
+        environment: { nodeVersion: '0.0.0', runtimeVersion: 'v0.0.0', minRequiredMajor: 0 },
+        workspaces: { enabled: false },
+        summary: { dependencyCount: 2, directCount: 0, transitiveCount: 2 },
+        dependencies: {
+          '@dr-exec/scripted@1.0.0': {
+            package: {
+              id: '@dr-exec/scripted@1.0.0',
+              name: '@dr-exec/scripted',
+              version: '1.0.0',
+              deprecated: false,
+              links: { npm: 'https://www.npmjs.com/package/@dr-exec/scripted' }
+            },
+            compliance: { license: { status: 'declared-only' }, licenseRisk: 'green' },
+            security: { summary: { critical: 0, high: 0, moderate: 0, low: 0, highest: 'none', risk: 'green' } },
+            upgrade: { nodeEngine: null },
+            usage: {
+              direct: false,
+              scope: 'runtime',
+              depth: 1,
+              origins: { rootPackageCount: 0, topRootPackages: [], parentPackageCount: 0, topParentPackages: [] },
+              tsTypes: 'unknown'
+            },
+            graph: { fanIn: 0, fanOut: 0 }
+          },
+          '@dr-exec/surface-native@1.0.0': {
+            package: {
+              id: '@dr-exec/surface-native@1.0.0',
+              name: '@dr-exec/surface-native',
+              version: '1.0.0',
+              deprecated: false,
+              links: { npm: 'https://www.npmjs.com/package/@dr-exec/surface-native' }
+            },
+            compliance: { license: { status: 'declared-only' }, licenseRisk: 'green' },
+            security: { summary: { critical: 0, high: 0, moderate: 0, low: 0, highest: 'none', risk: 'green' } },
+            upgrade: { nodeEngine: null },
+            usage: {
+              direct: false,
+              scope: 'runtime',
+              depth: 1,
+              origins: { rootPackageCount: 0, topRootPackages: [], parentPackageCount: 0, topParentPackages: [] },
+              tsTypes: 'unknown'
+            },
+            graph: { fanIn: 0, fanOut: 0 }
+          }
+        },
+        findings: []
+      }), 'utf8');
+
+      const result = runCli(
+        ['compare', previousPath, '--project', fixtureProject, '--offline', '--quiet', '--fail-on', 'new-install-script,new-native-binding'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(1);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Dependency Radar comparison');
+      expect(output).toContain('Policy violations detected');
+      expect(output).toContain('@dr-exec/scripted@1.0.0 introduced install hooks: install, postinstall, prepare');
+      expect(output).toContain('@dr-exec/surface-native@1.0.0 introduced native build/binary surface');
+    },
+  );
+
+  it(
+    'fails compare when local execution and packaging signals are introduced',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-local-signal-delta');
+      const projectPath = path.join(outputDir, 'project');
+      const depDir = path.join(projectPath, 'node_modules', 'local-signal');
+      const previousPath = path.join(outputDir, 'previous.json');
+      await fs.mkdir(depDir, { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'local-signal-project',
+        version: '1.0.0',
+        dependencies: { 'local-signal': '1.0.0' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        name: 'local-signal-project',
+        version: '1.0.0',
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            name: 'local-signal-project',
+            version: '1.0.0',
+            dependencies: { 'local-signal': '1.0.0' }
+          },
+          'node_modules/local-signal': {
+            name: 'local-signal',
+            version: '1.0.0',
+            resolved: 'https://registry.npmjs.org/local-signal/-/local-signal-1.0.0.tgz',
+            integrity: 'sha512-test'
+          }
+        }
+      }), 'utf8');
+      await fs.writeFile(path.join(depDir, 'package.json'), JSON.stringify({
+        name: 'local-signal',
+        version: '1.0.0',
+        license: 'MIT',
+        main: 'index.js',
+        bin: { 'local-signal': 'cli.js' },
+        bundledDependencies: ['vendored-child']
+      }), 'utf8');
+      await fs.writeFile(path.join(depDir, 'index.js'), 'module.exports = 1;', 'utf8');
+      await fs.writeFile(path.join(depDir, 'cli.js'), "require('child_process').exec('git status'); console.log(process.env.TOKEN);", 'utf8');
+      await fs.writeFile(path.join(depDir, 'npm-shrinkwrap.json'), '{}', 'utf8');
+      await fs.writeFile(previousPath, JSON.stringify({
+        schemaVersion: '1.4',
+        generatedAt: new Date(0).toISOString(),
+        dependencyRadarVersion: 'test',
+        git: { branch: '' },
+        project: { projectDir: '/fixture' },
+        environment: { nodeVersion: '0.0.0', runtimeVersion: 'v0.0.0', minRequiredMajor: 0 },
+        workspaces: { enabled: false },
+        summary: { dependencyCount: 1, directCount: 1, transitiveCount: 0 },
+        dependencies: {
+          'local-signal@1.0.0': {
+            package: {
+              id: 'local-signal@1.0.0',
+              name: 'local-signal',
+              version: '1.0.0',
+              deprecated: false,
+              links: { npm: 'https://www.npmjs.com/package/local-signal' }
+            },
+            compliance: { license: { status: 'declared-only' }, licenseRisk: 'green' },
+            security: { summary: { critical: 0, high: 0, moderate: 0, low: 0, highest: 'none', risk: 'green' } },
+            upgrade: { nodeEngine: null },
+            usage: {
+              direct: true,
+              scope: 'runtime',
+              depth: 0,
+              origins: { rootPackageCount: 1, topRootPackages: [{ name: 'local-signal', version: '1.0.0' }], parentPackageCount: 0, topParentPackages: [] },
+              tsTypes: 'unknown'
+            },
+            graph: { fanIn: 0, fanOut: 0 }
+          }
+        },
+        findings: []
+      }), 'utf8');
+
+      const result = runCli(
+        ['compare', previousPath, '--project', projectPath, '--offline', '--quiet', '--fail-on', 'new-child-process,new-env-access,new-bundled-dependencies,new-shrinkwrap'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(1);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('local-signal@1.0.0 introduced execution signal: child-process');
+      expect(output).toContain('local-signal@1.0.0 introduced execution signal: reads-env');
+      expect(output).toContain('local-signal@1.0.0 introduced packaging signal: bundled-dependencies');
+      expect(output).toContain('local-signal@1.0.0 introduced packaging signal: embedded-shrinkwrap');
+    },
+  );
+
   it('prints the JSON schema without scanning', () => {
     const repoRoot = path.resolve(__dirname, '..');
     const result = runCli(['--schema', '--quiet'], repoRoot);
