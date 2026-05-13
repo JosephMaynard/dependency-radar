@@ -71,7 +71,7 @@ async function createInstalledFixtureProject(
       version: packageJson.version,
       resolved: specifier,
       ...(typeof packageJson.license === 'string' ? { license: packageJson.license } : {}),
-      ...(packageJson.scripts ? { hasInstallScript: true } : {}),
+      ...(packageJson.scripts && (packageJson.scripts.preinstall || packageJson.scripts.install || packageJson.scripts.postinstall) ? { hasInstallScript: true } : {}),
     };
   }
 
