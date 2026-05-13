@@ -17,6 +17,14 @@ function supportsTargetNode(dep, targetNodeMajor) {
         return undefined;
     return (0, nodeEngine_1.isNodeEngineTargetCompatible)(dep.upgrade.nodeEngine, targetNodeMajor);
 }
+/**
+ * Constructs a DependencyFinding by combining package identifiers derived from a dependency with the provided finding fields.
+ *
+ * @param dep - Dependency record used to derive `packageId`, `packageName`, `packageVersion`, and to generate the finding `id`.
+ * @param suffix - Suffix appended to the package-based id to produce the finding `id`.
+ * @param fields - Remaining `DependencyFinding` properties to include; must not contain `id`, `packageId`, `packageName`, or `packageVersion`.
+ * @returns The assembled `DependencyFinding` with `id`, `packageId`, `packageName`, `packageVersion`, and the supplied fields.
+ */
 function baseFinding(dep, suffix, fields) {
     return {
         id: findingId(dep, suffix),
@@ -26,8 +34,41 @@ function baseFinding(dep, suffix, fields) {
         ...fields
     };
 }
+/**
+ * Produce the execution signals for a dependency after removing any signals that originate from install-only scripts.
+ *
+ * @param dep - Dependency record to inspect for execution signals and script-specific signals
+ * @returns A sorted array of execution signal keys that are not associated with install-only scripts
+ */
+function withoutInstallOnlySignals(dep) {
+    var _a, _b, _c;
+    const all = new Set(((_a = dep.execution) === null || _a === void 0 ? void 0 : _a.signals) || []);
+    for (const signal of ((_c = (_b = dep.execution) === null || _b === void 0 ? void 0 : _b.scripts) === null || _c === void 0 ? void 0 : _c.signals) || []) {
+        all.delete(signal);
+    }
+    return Array.from(all).sort();
+}
+const REGISTRY_SIGNAL_TITLES = {
+    'recent-package': 'Recently created package',
+    'recent-version': 'Recently published installed version',
+    'low-release-history': 'Low release history',
+    'reactivated-package': 'Package reactivated after dormancy',
+    'old-major-new-patch': 'Recent patch on older major line'
+};
+/**
+ * Convert aggregated dependency and supply-chain data into a sorted list of dependency findings.
+ *
+ * Processes each dependency and the supply-chain signals to emit findings for security, license/compliance,
+ * execution and packaging signals, registry metadata, provenance/signature verification, and Node engine
+ * compatibility relative to an optional target Node major version.
+ *
+ * @param data - Aggregated input containing `dependencies` and `supplyChain` information.
+ * @param options.targetNodeMajor - If provided, emits findings when a dependency's declared Node engine
+ *   does not appear to include the given major Node version.
+ * @returns A list of DependencyFinding objects sorted by severity (error, warning, info), then by `packageId`, then by `id`.
+ */
 function buildDependencyFindings(data, options = {}) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
     const findings = [];
     for (const dep of Object.values(data.dependencies || {})) {
         const vulnCount = vulnerabilityTotal(dep);
@@ -82,6 +123,17 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Review install-time behavior, especially in CI and release environments.'
             }));
         }
+        const executionSignals = withoutInstallOnlySignals(dep);
+        if (executionSignals.length > 0) {
+            findings.push(baseFinding(dep, 'local-execution-signals', {
+                category: 'execution',
+                severity: 'warning',
+                title: 'Local execution capability signal',
+                message: `${dep.package.id} contains local execution capability signals that may warrant review.`,
+                evidence: executionSignals.join(', '),
+                recommendation: 'Review the referenced package entrypoints or executables and confirm this behavior is expected.'
+            }));
+        }
         if ((_j = dep.execution) === null || _j === void 0 ? void 0 : _j.native) {
             findings.push(baseFinding(dep, 'native-bindings', {
                 category: 'upgrade',
@@ -100,6 +152,32 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Plan migration to a maintained replacement.'
             }));
         }
+        if ((_l = (_k = dep.packaging) === null || _k === void 0 ? void 0 : _k.signals) === null || _l === void 0 ? void 0 : _l.length) {
+            findings.push(baseFinding(dep, 'packaging-signals', {
+                category: 'supply-chain',
+                severity: 'info',
+                title: 'Package packaging review signal',
+                message: `${dep.package.id} has packaging signals that may warrant review.`,
+                evidence: dep.packaging.signals.join(', '),
+                recommendation: 'Review package contents and confirm the packaging pattern is expected.'
+            }));
+        }
+        for (const signal of ((_o = (_m = dep.supplyChain) === null || _m === void 0 ? void 0 : _m.registry) === null || _o === void 0 ? void 0 : _o.signals) || []) {
+            const registry = (_p = dep.supplyChain) === null || _p === void 0 ? void 0 : _p.registry;
+            findings.push(baseFinding(dep, `registry-${signal}`, {
+                category: 'supply-chain',
+                severity: 'info',
+                title: REGISTRY_SIGNAL_TITLES[signal] || 'Registry metadata review signal',
+                message: `${dep.package.id} has npm registry metadata that may warrant review: ${signal}.`,
+                evidence: [
+                    (registry === null || registry === void 0 ? void 0 : registry.installedVersionPublishedAt) ? `installedVersionPublishedAt=${registry.installedVersionPublishedAt}` : undefined,
+                    (registry === null || registry === void 0 ? void 0 : registry.packageCreatedAt) ? `packageCreatedAt=${registry.packageCreatedAt}` : undefined,
+                    typeof (registry === null || registry === void 0 ? void 0 : registry.versionCount) === 'number' ? `versionCount=${registry.versionCount}` : undefined,
+                    (registry === null || registry === void 0 ? void 0 : registry.latestVersion) ? `latest=${registry.latestVersion}` : undefined
+                ].filter(Boolean).join('; '),
+                recommendation: 'Review the package release history and confirm this registry activity is expected.'
+            }));
+        }
         const targetSupport = supportsTargetNode(dep, options.targetNodeMajor);
         if (targetSupport === false && options.targetNodeMajor) {
             findings.push(baseFinding(dep, `target-node-${options.targetNodeMajor}`, {
@@ -111,10 +189,10 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
     }
-    for (const signal of ((_k = data.supplyChain) === null || _k === void 0 ? void 0 : _k.signals) || []) {
+    for (const signal of ((_q = data.supplyChain) === null || _q === void 0 ? void 0 : _q.signals) || []) {
         findings.push(buildSupplyChainFinding(signal));
     }
-    const signatureAudit = (_l = data.supplyChain) === null || _l === void 0 ? void 0 : _l.signatureAudit;
+    const signatureAudit = (_r = data.supplyChain) === null || _r === void 0 ? void 0 : _r.signatureAudit;
     if ((signatureAudit === null || signatureAudit === void 0 ? void 0 : signatureAudit.attempted) && !signatureAudit.ok) {
         findings.push({
             id: 'supply-chain:signature-verification-failed',
