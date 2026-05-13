@@ -18,6 +18,82 @@ async function makeTempDir(prefix: string): Promise<string> {
   return dir;
 }
 
+async function readJsonFile<T>(filePath: string): Promise<T> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
+}
+
+async function createInstalledFixtureProject(
+  fixtureName: 'license-edge-cases' | 'execution-signals',
+  prefix: string,
+): Promise<string> {
+  const repoRoot = path.resolve(__dirname, '..');
+  const sourceProject = path.join(repoRoot, 'test-fixtures', fixtureName);
+  const outputDir = await makeTempDir(prefix);
+  const projectPath = path.join(outputDir, 'project');
+  const packageJsonPath = path.join(sourceProject, 'package.json');
+  const rootPackageJson = await readJsonFile<{
+    name: string;
+    version: string;
+    dependencies?: Record<string, string>;
+  }>(packageJsonPath);
+  const dependencies = rootPackageJson.dependencies || {};
+
+  await fs.mkdir(projectPath, { recursive: true });
+  await fs.copyFile(packageJsonPath, path.join(projectPath, 'package.json'));
+  await fs.copyFile(path.join(sourceProject, 'index.js'), path.join(projectPath, 'index.js'));
+
+  const lockPackages: Record<string, Record<string, unknown>> = {
+    '': {
+      name: rootPackageJson.name,
+      version: rootPackageJson.version,
+      dependencies,
+    },
+  };
+
+  for (const [packageName, specifier] of Object.entries(dependencies)) {
+    const filePrefix = 'file:./';
+    if (!specifier.startsWith(filePrefix)) {
+      continue;
+    }
+
+    const packageRelativePath = specifier.slice(filePrefix.length);
+    const sourcePackagePath = path.join(sourceProject, packageRelativePath);
+    const packageJson = await readJsonFile<Record<string, unknown>>(
+      path.join(sourcePackagePath, 'package.json'),
+    );
+    const installedPath = path.join(projectPath, 'node_modules', packageName);
+
+    await fs.mkdir(path.dirname(installedPath), { recursive: true });
+    await fs.cp(sourcePackagePath, installedPath, { recursive: true });
+
+    lockPackages[`node_modules/${packageName}`] = {
+      name: packageName,
+      version: packageJson.version,
+      resolved: specifier,
+      ...(typeof packageJson.license === 'string' ? { license: packageJson.license } : {}),
+      ...(packageJson.scripts ? { hasInstallScript: true } : {}),
+    };
+  }
+
+  await fs.writeFile(
+    path.join(projectPath, 'package-lock.json'),
+    JSON.stringify(
+      {
+        name: rootPackageJson.name,
+        version: rootPackageJson.version,
+        lockfileVersion: 3,
+        requires: true,
+        packages: lockPackages,
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  );
+
+  return projectPath;
+}
+
 function runCli(args: string[], cwd?: string) {
   const repoRoot = path.resolve(__dirname, '..');
   const tsNodeBin = path.join(
@@ -104,12 +180,11 @@ describe('cli summary output', () => {
   it(
     'exits non-zero and prints policy violations when --fail-on is triggered',
     { timeout: 30000 },
-    () => {
+    async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(
-        repoRoot,
-        'test-fixtures',
+      const fixtureProject = await createInstalledFixtureProject(
         'license-edge-cases',
+        'dr-cli-policy',
       );
 
       const result = runCli(
@@ -138,14 +213,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(
-        repoRoot,
-        'test-fixtures',
+      const projectCopy = await createInstalledFixtureProject(
         'license-edge-cases',
+        'dr-cli-explain',
       );
-      const outputDir = await makeTempDir('dr-cli-explain');
-      const projectCopy = path.join(outputDir, 'project');
-      await fs.cp(fixtureProject, projectCopy, { recursive: true });
 
       const result = runCli(
         ['explain', '@dr-license/mismatch', '--project', projectCopy, '--offline'],
@@ -192,12 +263,11 @@ describe('cli summary output', () => {
   it(
     'still prints policy failures in quiet mode',
     { timeout: 30000 },
-    () => {
+    async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(
-        repoRoot,
-        'test-fixtures',
+      const fixtureProject = await createInstalledFixtureProject(
         'license-edge-cases',
+        'dr-cli-policy-quiet',
       );
       const result = runCli(
         [
@@ -227,12 +297,11 @@ describe('cli summary output', () => {
   it(
     'returns exit code 1 when explain cannot find the package',
     { timeout: 30000 },
-    () => {
+    async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(
-        repoRoot,
-        'test-fixtures',
+      const fixtureProject = await createInstalledFixtureProject(
         'license-edge-cases',
+        'dr-cli-explain-missing',
       );
       const result = runCli(
         ['explain', 'definitely-not-present', '--project', fixtureProject, '--offline'],
@@ -250,7 +319,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-sarif-project',
+      );
       const outputDir = await makeTempDir('dr-cli-sarif');
       const outPath = path.join(outputDir, 'report.sarif');
 
@@ -272,10 +344,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
-      const outputDir = await makeTempDir('dr-cli-timestamp-html');
-      const projectCopy = path.join(outputDir, 'project');
-      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+      const projectCopy = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-timestamp-html',
+      );
 
       const result = runCli(
         ['scan', '--project', projectCopy, '--offline', '--timestamp', '--quiet'],
@@ -296,10 +368,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
-      const outputDir = await makeTempDir('dr-cli-timestamp-json');
-      const projectCopy = path.join(outputDir, 'project');
-      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+      const projectCopy = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-timestamp-json',
+      );
 
       const result = runCli(
         ['scan', '--project', projectCopy, '--offline', '--timestamp', '--json', '--quiet'],
@@ -321,11 +393,12 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
       const outputDir = await makeTempDir('dr-cli-timestamp-out');
-      const projectCopy = path.join(outputDir, 'project');
       const outPath = path.join(outputDir, 'robert.html');
-      await fs.cp(fixtureProject, projectCopy, { recursive: true });
+      const projectCopy = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-timestamp-out-project',
+      );
 
       const result = runCli(
         ['scan', '--project', projectCopy, '--offline', '--timestamp', '--out', outPath, '--quiet'],
@@ -347,7 +420,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-cdx-project',
+      );
       const outputDir = await makeTempDir('dr-cli-cdx');
       const outPath = path.join(outputDir, 'bom.json');
 
@@ -367,9 +443,12 @@ describe('cli summary output', () => {
   it(
     'prints dependency paths with the why command',
     { timeout: 30000 },
-    () => {
+    async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-why',
+      );
       const result = runCli(
         ['why', '@dr-license/mismatch', '--project', fixtureProject, '--offline', '--quiet'],
         repoRoot,
@@ -387,7 +466,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-compare-project',
+      );
       const outputDir = await makeTempDir('dr-cli-compare');
       const previousPath = path.join(outputDir, 'previous.json');
       await fs.writeFile(previousPath, JSON.stringify({
@@ -420,7 +502,10 @@ describe('cli summary output', () => {
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'execution-signals');
+      const fixtureProject = await createInstalledFixtureProject(
+        'execution-signals',
+        'dr-cli-compare-fail-project',
+      );
       const outputDir = await makeTempDir('dr-cli-compare-fail-on');
       const previousPath = path.join(outputDir, 'previous.json');
       await fs.writeFile(previousPath, JSON.stringify({
@@ -712,9 +797,12 @@ describe('cli summary output', () => {
   it(
     'skips audit signatures when offline',
     { timeout: 30000 },
-    () => {
+    async () => {
       const repoRoot = path.resolve(__dirname, '..');
-      const fixtureProject = path.join(repoRoot, 'test-fixtures', 'license-edge-cases');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-audit-offline',
+      );
       const result = runCli(
         ['scan', '--project', fixtureProject, '--offline', '--audit-signatures', '--no-report', '--quiet'],
         repoRoot,
