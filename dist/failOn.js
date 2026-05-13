@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SUPPORTED_FAIL_ON_RULES = void 0;
 exports.parseFailOnRules = parseFailOnRules;
 exports.evaluatePolicyViolations = evaluatePolicyViolations;
+exports.evaluateComparePolicyViolations = evaluateComparePolicyViolations;
 const license_1 = require("./license");
 exports.SUPPORTED_FAIL_ON_RULES = [
     'reachable-vuln',
@@ -11,7 +12,25 @@ exports.SUPPORTED_FAIL_ON_RULES = [
     'licence-mismatch',
     'copyleft-detected',
     'unknown-licence',
-    'supply-chain-source'
+    'supply-chain-source',
+    'new-supply-chain-signal',
+    'new-install-script',
+    'new-native-binding',
+    'new-bin',
+    'new-direct-dependency',
+    'new-child-process',
+    'new-network-access',
+    'new-env-access',
+    'new-home-access',
+    'new-ssh-usage',
+    'new-obfuscation-signal',
+    'new-bundled-dependencies',
+    'new-shrinkwrap',
+    'new-recent-package',
+    'new-recent-version',
+    'new-low-release-history',
+    'new-reactivated-package',
+    'new-old-major-patch'
 ];
 const SUPPORTED_FAIL_ON_RULE_SET = new Set(exports.SUPPORTED_FAIL_ON_RULES);
 /**
@@ -36,6 +55,230 @@ function vulnerabilityCount(dep) {
         (dep.security.summary.high || 0) +
         (dep.security.summary.moderate || 0) +
         (dep.security.summary.low || 0));
+}
+/**
+ * Group dependency records by their package name.
+ *
+ * @param deps - Optional record of dependency entries keyed by dependency id; entries missing a package name are ignored
+ * @returns A Map whose keys are package names and whose values are arrays of `DependencyRecord` objects for that package
+ */
+function byPackageName(deps) {
+    var _a;
+    const map = new Map();
+    for (const dep of Object.values(deps || {})) {
+        const name = (_a = dep.package) === null || _a === void 0 ? void 0 : _a.name;
+        if (!name)
+            continue;
+        const entries = map.get(name) || [];
+        entries.push(dep);
+        map.set(name, entries);
+    }
+    return map;
+}
+/**
+ * Produce a package label for a dependency using its package id when available, otherwise `name@version`.
+ *
+ * @param dep - The dependency record whose package will be formatted
+ * @returns The package `id` if present; otherwise the package `name` and `version` joined with `@`
+ */
+function formatPackage(dep) {
+    return dep.package.id || `${dep.package.name}@${dep.package.version}`;
+}
+/**
+ * Retrieve the package's execution script hook names sorted lexicographically.
+ *
+ * @param dep - Dependency record to read hooks from
+ * @returns The hook names from `dep.execution?.scripts?.hooks` sorted lexicographically; an empty array if no hooks are present
+ */
+function sortedHooks(dep) {
+    var _a, _b;
+    return [...(((_b = (_a = dep.execution) === null || _a === void 0 ? void 0 : _a.scripts) === null || _b === void 0 ? void 0 : _b.hooks) || [])].sort();
+}
+/**
+ * Collect execution-related signals from a dependency record.
+ *
+ * @param dep - The dependency record to inspect for execution signals
+ * @returns A Set of unique `ExecutionSignal` values found on the dependency
+ */
+function executionSignals(dep) {
+    var _a, _b, _c;
+    return new Set([
+        ...(((_a = dep.execution) === null || _a === void 0 ? void 0 : _a.signals) || []),
+        ...(((_c = (_b = dep.execution) === null || _b === void 0 ? void 0 : _b.scripts) === null || _c === void 0 ? void 0 : _c.signals) || [])
+    ]);
+}
+/**
+ * Collects packaging signals present on a dependency.
+ *
+ * @param dep - The dependency record to inspect
+ * @returns A Set of `PackagingSignal` values found on `dep`; empty if the dependency has no packaging signals
+ */
+function packagingSignals(dep) {
+    var _a;
+    return new Set(((_a = dep.packaging) === null || _a === void 0 ? void 0 : _a.signals) || []);
+}
+/**
+ * Get the registry risk signals associated with a dependency.
+ *
+ * @param dep - The dependency record to inspect
+ * @returns A Set of `RegistryRiskSignal` values found on the dependency's `supplyChain.registry.signals`; an empty `Set` if none are present
+ */
+function registrySignals(dep) {
+    var _a, _b;
+    return new Set(((_b = (_a = dep.supplyChain) === null || _a === void 0 ? void 0 : _a.registry) === null || _b === void 0 ? void 0 : _b.signals) || []);
+}
+/**
+ * Extracts the package name associated with a supply-chain signal.
+ *
+ * Prefers `signal.packageName` when present; otherwise derives the name from
+ * `signal.packageId` by taking the substring before the last `@`. Returns
+ * `undefined` if neither value yields a usable package name.
+ *
+ * @param signal - The supply-chain signal to inspect
+ * @returns The package name if present or derivable, `undefined` otherwise
+ */
+function signalPackageName(signal) {
+    if (signal.packageName)
+        return signal.packageName;
+    if (!signal.packageId)
+        return undefined;
+    const at = signal.packageId.lastIndexOf('@');
+    if (at <= 0)
+        return undefined;
+    return signal.packageId.slice(0, at);
+}
+/**
+ * Produce a human-readable package label for a supply-chain signal.
+ *
+ * @param signal - The supply-chain signal object used to derive the label.
+ * @returns The label chosen in this priority: `signal.packageId`, `packageName@packageVersion`, `packageName`, or `'lockfile'` when no package information is available.
+ */
+function signalPackageLabel(signal) {
+    if (signal.packageId)
+        return signal.packageId;
+    if (signal.packageName && signal.packageVersion)
+        return `${signal.packageName}@${signal.packageVersion}`;
+    if (signal.packageName)
+        return signal.packageName;
+    return 'lockfile';
+}
+/**
+ * Produce sets of observed supply-chain signal types, both per-package and globally.
+ *
+ * @param signals - Array of supply-chain signals to analyze; may be `undefined` or empty.
+ * @returns An object with:
+ *  - `byPackage`: map from package name to a `Set` of signal `type` strings observed for that package.
+ *  - `global`: `Set` of all signal `type` strings observed (including those not tied to a package).
+ */
+function supplyChainSignalKeys(signals) {
+    const byPackage = new Map();
+    const global = new Set();
+    for (const signal of signals || []) {
+        global.add(signal.type);
+        const name = signalPackageName(signal);
+        if (!name)
+            continue;
+        const types = byPackage.get(name) || new Set();
+        types.add(signal.type);
+        byPackage.set(name, types);
+    }
+    return { byPackage, global };
+}
+/**
+ * Appends a PolicyViolation for dependencies that newly exhibit the specified execution signal.
+ *
+ * If the provided `rule` is present in `rules` and one or more entries in `currentDeps`
+ * have the `signal` while no previous dependency with the same package name had it,
+ * a `PolicyViolation` describing the new execution signal(s) is pushed onto `violations`.
+ *
+ * @param violations - Mutable array to receive the generated PolicyViolation when matches are found
+ * @param previousByName - Map of package name to previous DependencyRecord[] used as the baseline for comparison
+ * @param currentDeps - Current dependency records to evaluate for newly introduced signals
+ * @param rules - Set of enabled fail-on rules; the function is a no-op if `rule` is not in this set
+ * @param rule - The specific FailOnRule to produce a violation for when triggered
+ * @param signal - The ExecutionSignal to detect as newly introduced
+ */
+function pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, rule, signal) {
+    if (!rules.has(rule))
+        return;
+    const details = currentDeps
+        .filter((dep) => {
+        if (!executionSignals(dep).has(signal))
+            return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => executionSignals(previousDep).has(signal));
+    })
+        .map((dep) => `${formatPackage(dep)} introduced execution signal: ${signal}`)
+        .sort();
+    if (details.length === 0)
+        return;
+    violations.push({
+        rule,
+        count: details.length,
+        message: `${details.length} new execution ${pluralize(details.length, 'signal', 'signals')}: ${signal}`,
+        details
+    });
+}
+/**
+ * Add a policy violation to `violations` when `signal` appears in current dependencies but was not present for the same package name in `previousByName`, and the given `rule` is enabled.
+ *
+ * @param violations - Accumulates discovered PolicyViolation objects; this function may push a new violation into it.
+ * @param previousByName - Map from package name to previous scan DependencyRecord[] used to determine whether `signal` was already present for a package.
+ * @param currentDeps - Current scan dependencies to inspect for newly introduced packaging signals.
+ * @param rules - Selected fail-on rules; the function no-ops if `rule` is not in this set.
+ * @param rule - The specific packaging-related compare-mode rule to enforce (e.g., `new-shrinkwrap` or `new-bundled-dependencies`).
+ * @param signal - The PackagingSignal type to detect as newly introduced.
+ */
+function pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, rule, signal) {
+    if (!rules.has(rule))
+        return;
+    const details = currentDeps
+        .filter((dep) => {
+        if (!packagingSignals(dep).has(signal))
+            return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => packagingSignals(previousDep).has(signal));
+    })
+        .map((dep) => `${formatPackage(dep)} introduced packaging signal: ${signal}`)
+        .sort();
+    if (details.length === 0)
+        return;
+    violations.push({
+        rule,
+        count: details.length,
+        message: `${details.length} new packaging ${pluralize(details.length, 'signal', 'signals')}: ${signal}`,
+        details
+    });
+}
+/**
+ * Append a PolicyViolation for registry risk signals that appear in the current scan but were not present previously.
+ *
+ * If `rule` is not enabled in `rules`, this function does nothing. When enabled, it identifies current dependencies whose registry signals include `signal` and for which no previous dependency with the same package name had that signal, then pushes a violation with the total `count`, a summary `message`, and `details` listing affected packages.
+ *
+ * @param violations - Array to which the resulting PolicyViolation will be pushed
+ * @param previousByName - Map of package name to list of previous DependencyRecord entries
+ * @param currentDeps - List of current DependencyRecord entries to inspect
+ * @param rules - Set of enabled fail-on rules
+ * @param rule - The specific fail-on rule to check (must be present in `rules` to produce a violation)
+ * @param signal - The registry risk signal to detect as newly introduced
+ */
+function pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, rule, signal) {
+    if (!rules.has(rule))
+        return;
+    const details = currentDeps
+        .filter((dep) => {
+        if (!registrySignals(dep).has(signal))
+            return false;
+        return !(previousByName.get(dep.package.name) || []).some((previousDep) => registrySignals(previousDep).has(signal));
+    })
+        .map((dep) => `${formatPackage(dep)} introduced registry risk signal: ${signal}`)
+        .sort();
+    if (details.length === 0)
+        return;
+    violations.push({
+        rule,
+        count: details.length,
+        message: `${details.length} new registry ${pluralize(details.length, 'risk signal', 'risk signals')}: ${signal}`,
+        details
+    });
 }
 /**
  * Detects whether a dependency has a strong copyleft license.
@@ -187,5 +430,131 @@ function evaluatePolicyViolations(aggregated, rules) {
             message: `${supplyChainSourceCount} ${pluralize(supplyChainSourceCount, 'lockfile supply-chain source finding', 'lockfile supply-chain source findings')}`
         });
     }
+    return violations;
+}
+/**
+ * Compute compare-mode policy violations that focus on newly introduced risky traits.
+ *
+ * Delta rules compare the current scan against a previous Dependency Radar JSON report. They only fire
+ * when a targeted trait appears in the current report and the baseline did not show that trait for the
+ * same package name, or did not show that supply-chain signal type at all when a signal cannot be tied to
+ * a package.
+ */
+function evaluateComparePolicyViolations(previous, current, rules) {
+    var _a, _b;
+    if (rules.size === 0)
+        return [];
+    const previousByName = byPackageName(previous.dependencies);
+    const currentDeps = Object.values(current.dependencies || {});
+    const violations = [];
+    if (rules.has('new-supply-chain-signal')) {
+        const previousSignals = supplyChainSignalKeys((_a = previous.supplyChain) === null || _a === void 0 ? void 0 : _a.signals);
+        const details = (((_b = current.supplyChain) === null || _b === void 0 ? void 0 : _b.signals) || [])
+            .filter((signal) => {
+            var _a;
+            const name = signalPackageName(signal);
+            if (name)
+                return !((_a = previousSignals.byPackage.get(name)) === null || _a === void 0 ? void 0 : _a.has(signal.type));
+            return !previousSignals.global.has(signal.type);
+        })
+            .map((signal) => `${signalPackageLabel(signal)} introduced supply-chain signal: ${signal.type}`)
+            .sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'new-supply-chain-signal',
+                count: details.length,
+                message: `${details.length} new supply-chain ${pluralize(details.length, 'signal', 'signals')}`,
+                details
+            });
+        }
+    }
+    if (rules.has('new-install-script')) {
+        const details = currentDeps
+            .filter((dep) => {
+            if (sortedHooks(dep).length === 0)
+                return false;
+            return !(previousByName.get(dep.package.name) || []).some((previousDep) => sortedHooks(previousDep).length > 0);
+        })
+            .map((dep) => `${formatPackage(dep)} introduced install hooks: ${sortedHooks(dep).join(', ')}`)
+            .sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'new-install-script',
+                count: details.length,
+                message: `${details.length} new ${pluralize(details.length, 'install script surface', 'install script surfaces')}`,
+                details
+            });
+        }
+    }
+    if (rules.has('new-native-binding')) {
+        const details = currentDeps
+            .filter((dep) => {
+            var _a;
+            if (!((_a = dep.execution) === null || _a === void 0 ? void 0 : _a.native))
+                return false;
+            return !(previousByName.get(dep.package.name) || []).some((previousDep) => { var _a; return Boolean((_a = previousDep.execution) === null || _a === void 0 ? void 0 : _a.native); });
+        })
+            .map((dep) => `${formatPackage(dep)} introduced native build/binary surface`)
+            .sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'new-native-binding',
+                count: details.length,
+                message: `${details.length} new native ${pluralize(details.length, 'binding surface', 'binding surfaces')}`,
+                details
+            });
+        }
+    }
+    if (rules.has('new-bin')) {
+        const details = currentDeps
+            .filter((dep) => {
+            var _a;
+            if (!((_a = dep.package) === null || _a === void 0 ? void 0 : _a.hasBin))
+                return false;
+            return !(previousByName.get(dep.package.name) || []).some((previousDep) => { var _a; return Boolean((_a = previousDep.package) === null || _a === void 0 ? void 0 : _a.hasBin); });
+        })
+            .map((dep) => `${formatPackage(dep)} introduced a package bin`)
+            .sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'new-bin',
+                count: details.length,
+                message: `${details.length} new package ${pluralize(details.length, 'bin', 'bins')}`,
+                details
+            });
+        }
+    }
+    if (rules.has('new-direct-dependency')) {
+        const details = currentDeps
+            .filter((dep) => {
+            var _a;
+            if (!((_a = dep.usage) === null || _a === void 0 ? void 0 : _a.direct))
+                return false;
+            return !(previousByName.get(dep.package.name) || []).some((previousDep) => { var _a; return Boolean((_a = previousDep.usage) === null || _a === void 0 ? void 0 : _a.direct); });
+        })
+            .map((dep) => `${formatPackage(dep)} is now a direct dependency`)
+            .sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'new-direct-dependency',
+                count: details.length,
+                message: `${details.length} new direct ${pluralize(details.length, 'dependency', 'dependencies')}`,
+                details
+            });
+        }
+    }
+    pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-child-process', 'child-process');
+    pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-network-access', 'network-access');
+    pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-env-access', 'reads-env');
+    pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-home-access', 'reads-home');
+    pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-ssh-usage', 'uses-ssh');
+    pushNewExecutionSignalViolation(violations, previousByName, currentDeps, rules, 'new-obfuscation-signal', 'obfuscated');
+    pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, 'new-bundled-dependencies', 'bundled-dependencies');
+    pushNewPackagingSignalViolation(violations, previousByName, currentDeps, rules, 'new-shrinkwrap', 'embedded-shrinkwrap');
+    pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-recent-package', 'recent-package');
+    pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-recent-version', 'recent-version');
+    pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-low-release-history', 'low-release-history');
+    pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-reactivated-package', 'reactivated-package');
+    pushNewRegistrySignalViolation(violations, previousByName, currentDeps, rules, 'new-old-major-patch', 'old-major-new-patch');
     return violations;
 }
