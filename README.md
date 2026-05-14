@@ -843,3 +843,39 @@ This opens the report UI in your browser with sample data covering all dependenc
 - `report-ui/sample-data.json` – Sample data for development
 - `report-ui/types.ts` – Client-side TypeScript types
 - `src/report-assets.ts` – Auto-generated file with bundled CSS/JS (do not edit directly)
+
+### Contributing
+
+Bug reports and pull requests are welcome via GitHub.
+
+For bug reports, please include:
+
+- the Dependency Radar version
+- your package manager and version
+- your Node.js version
+- the command you ran
+- what you expected to happen
+- what actually happened
+- any relevant error output
+
+Please remove secrets, private package names, or sensitive project details before sharing logs or reports.
+
+For pull requests, small focused changes are easiest to review. Before opening a PR, please make sure the project builds and the relevant tests pass:
+
+```bash
+npm run build
+npm run test:unit
+```
+For larger dependency graph, package manager, report output, or supply-chain signal changes, also run the relevant fixture tests where practical.
+
+Please do not report suspected security vulnerabilities in public issues. See SECURITY.md￼ for private reporting guidance.
+
+Release notes are published through GitHub Releases￼, which act as the project changelog.
+
+## Releases and changelog
+
+Dependency Radar release notes are published through GitHub Releases:
+
+https://github.com/JosephMaynard/dependency-radar/releases
+
+Each release summarises notable changes, fixes, and compatibility notes where relevant.
