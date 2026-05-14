@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2019",
-    "module": "CommonJS",
+    "module": "Node16",
     "rootDir": "src",
     "outDir": "dist",
     "esModuleInterop": true,
@@ -10,7 +10,8 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2019", "DOM"],
-    "moduleResolution": "node"
+    "moduleResolution": "node16",
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.ts"]
