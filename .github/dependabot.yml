@@ -5,6 +5,14 @@ updates:
     schedule:
       interval: "weekly"
 
+  - package-ecosystem: npm
+    directory: "/test-fixtures/npm-registry-signals"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "lodash"
+      - dependency-name: "minimist"
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
