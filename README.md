@@ -1,5 +1,11 @@
 # Dependency Radar
 
+[![npm version](https://img.shields.io/npm/v/dependency-radar.svg)](https://www.npmjs.com/package/dependency-radar)
+[![CI](https://github.com/JosephMaynard/dependency-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/JosephMaynard/dependency-radar/actions/workflows/ci.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12839/badge)](https://www.bestpractices.dev/projects/12839)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/JosephMaynard/dependency-radar?label=openssf%20scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/JosephMaynard/dependency-radar)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Dependency Radar inspects your Node.js dependency graph and makes structural risk visible.
 
 Unlike basic audit tools, it builds the graph from lockfiles, understands PNPM workspaces, validates declared vs inferred licences, and highlights structural risks before they become production problems.
@@ -784,6 +790,10 @@ For full details and any future changes, see `src/types.ts`.
 ---
 
 ## Development
+
+### Testing expectations
+
+New or changed user-facing functionality should include automated tests where practical. For larger dependency graph, package manager, report output, or supply-chain signal changes, run the relevant fixture tests as well as the unit tests.
 
 ### Setup
 
