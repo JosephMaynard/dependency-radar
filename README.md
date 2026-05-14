@@ -785,7 +785,9 @@ For full details and any future changes, see `src/types.ts`.
 
 ## Development
 
-New or changed user-facing functionality should include automated tests where practical.
+### Testing expectations
+
+New or changed user-facing functionality should include automated tests where practical. For larger dependency graph, package manager, report output, or supply-chain signal changes, run the relevant fixture tests as well as the unit tests.
 
 ### Setup
 
