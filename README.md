@@ -868,9 +868,9 @@ npm run test:unit
 ```
 For larger dependency graph, package manager, report output, or supply-chain signal changes, also run the relevant fixture tests where practical.
 
-Please do not report suspected security vulnerabilities in public issues. See SECURITY.md￼ for private reporting guidance.
+Please do not report suspected security vulnerabilities in public issues. See SECURITY.md for private reporting guidance.
 
-Release notes are published through GitHub Releases￼, which act as the project changelog.
+Release notes are published through GitHub Releases, which act as the project changelog.
 
 ## Releases and changelog
 
