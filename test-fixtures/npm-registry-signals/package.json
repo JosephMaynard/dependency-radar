@@ -6,6 +6,6 @@
   "license": "MIT",
   "dependencies": {
     "lodash": "4.18.1",
-    "minimist": "0.0.8"
+    "minimist": "1.2.6"
   }
 }
