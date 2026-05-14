@@ -785,6 +785,8 @@ For full details and any future changes, see `src/types.ts`.
 
 ## Development
 
+New or changed user-facing functionality should include automated tests where practical.
+
 ### Setup
 
 ```bash
