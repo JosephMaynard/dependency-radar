@@ -62,7 +62,7 @@
     "@types/node": "^25.8.0",
     "terser": "^5.27.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3",
+    "typescript": "^6.0.3",
     "vite": "^8.0.13",
     "vitest": "^4.0.18"
   },
