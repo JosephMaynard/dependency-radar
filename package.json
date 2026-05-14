@@ -63,7 +63,7 @@
     "terser": "^5.27.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.3",
-    "vite": "^7.3.1",
+    "vite": "^8.0.13",
     "vitest": "^4.0.18"
   },
   "packageManager": "npm@10.9.2"
