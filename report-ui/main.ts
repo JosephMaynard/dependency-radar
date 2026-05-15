@@ -5,6 +5,11 @@
 
 import "./style.css";
 import { buildCtaUrl } from "../src/cta";
+import {
+  buildReportOverallRisk,
+  buildReportKeyPoints,
+  reportVulnerabilityTotal,
+} from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { initGraphView, type GraphViewHandle } from "./graphView";
 import type {
@@ -668,23 +673,6 @@ function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: stri
     .join("");
 }
 
-/**
- * Determine the combined risk from a vulnerability summary and a license-derived risk.
- *
- * @param summary - Security summary object whose `risk` field represents the vulnerability-derived risk (`"green" | "amber" | "red"`).
- * @param licenseRisk - License-derived risk value (`"green" | "amber" | "red"`).
- * @returns `red` if either input is `red`, `amber` if no `red` and either input is `amber`, `green` otherwise.
- */
-function getHighestRisk(
-  summary: SecuritySummary,
-  licenseRisk: "green" | "amber" | "red",
-): "red" | "amber" | "green" {
-  const risks = [summary.risk, licenseRisk];
-  if (risks.includes("red")) return "red";
-  if (risks.includes("amber")) return "amber";
-  return "green";
-}
-
 function scopeLabel(scope: string): string {
   if (scope === "runtime") return "Runtime";
   if (scope === "dev") return "Dev";
@@ -830,6 +818,57 @@ function renderRiskValue(
     escapeHtml(String(value)) +
     "</span>"
   );
+}
+
+function renderStatusChip(
+  label: string,
+  tone: "neutral" | "green" | "amber" | "red" = "neutral",
+): string {
+  return (
+    '<span class="status-chip ' +
+    tone +
+    '">' +
+    escapeHtml(label) +
+    "</span>"
+  );
+}
+
+function buildStatusChips(
+  dep: DependencyRecord,
+  summary: SecuritySummary,
+  licenseText: string,
+): string {
+  const vulnTotal = reportVulnerabilityTotal(summary);
+  const installRisk = dep.execution?.risk || "green";
+  const blocker = dep.upgrade.blocksNodeMajor || !!dep.upgrade.blockers?.length;
+  const chips = [
+    renderStatusChip(dep.usage.direct ? "Direct dependency" : "Transitive dependency"),
+    renderStatusChip(scopeLabel(dep.usage.scope)),
+    renderStatusChip(
+      vulnTotal > 0
+        ? "Vulnerability: " + titleCaseValue(summary.highest)
+        : "Vulnerability: None",
+      summary.risk === "green" ? "neutral" : summary.risk,
+    ),
+    renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk === "green" ? "neutral" : dep.compliance.licenseRisk),
+    renderStatusChip(
+      "Install risk: " + toneToString(installRisk),
+      installRisk === "green" ? "neutral" : installRisk,
+    ),
+    renderStatusChip(blocker ? "Upgrade blocker" : "No upgrade blocker", blocker ? "amber" : "neutral"),
+  ];
+  return '<div class="status-chip-strip">' + chips.join("") + "</div>";
+}
+
+function renderKeyPoints(points: string[]): string {
+  return [
+    '<div class="key-points">',
+    '<div class="section-header compact"><span class="section-title">Key points</span></div>',
+    '<ul class="key-points-list">',
+    points.map((point) => '<li>' + escapeHtml(point) + "</li>").join(""),
+    "</ul>",
+    "</div>",
+  ].join("");
 }
 
 function renderKvItemHtml(
@@ -1698,12 +1737,16 @@ function renderAdvisoriesTable(
   return html;
 }
 
-function renderDep(dep: DependencyRecord): string {
+function renderDep(
+  dep: DependencyRecord,
+  supplyChainSignals?: SupplyChainSignal[],
+): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
-  const highestRisk = getHighestRisk(
+  const highestRisk = buildReportOverallRisk(
+    dep as any,
     securitySummary,
-    dep.compliance.licenseRisk,
+    supplyChainSignals?.length || 0,
   );
   const depKey = getDepKey(dep.package.name, dep.package.version);
   const domId = getDepDomId(depKey);
@@ -1765,44 +1808,25 @@ function renderDepDetails(
   const links = resolveLinks(dep);
   const rawJson = JSON.stringify(dep, null, 2);
 
-  const microLines: string[] = [
-    dep.usage.direct ? "Direct dependency" : "Indirect dependency (transitive)",
-    "Scope: " + scopeLabel(dep.usage.scope),
-  ];
-  if (dep.package.description) {
-    microLines.unshift("Description: " + dep.package.description);
-  }
-  if (dep.usage.origins.workspaces?.length) {
-    microLines.push(
-      "Used in " + dep.usage.origins.workspaces.length + " workspaces",
-    );
-  }
-  if (dep.usage.importUsage) {
-    microLines.push(
-      "Imported in " + dep.usage.importUsage.fileCount + " project files",
-    );
-  }
-  if (dep.usage.introduction) {
-    microLines.push("Introduced by: " + titleCaseValue(dep.usage.introduction));
-  }
-  if (microLines.length < 3) {
-    microLines.push("Dependency depth: " + dep.usage.depth);
-  }
-  const microSummaryHtml =
-    '<div class="micro-summary">' +
-    microLines
-      .slice(0, 5)
-      .map((line) => '<div class="micro-line">' + escapeHtml(line) + "</div>")
-      .join("") +
-    "</div>";
-
   const workspaceListHtml = dep.usage.origins.workspaces?.length
     ? '<div class="micro-sublist"><div class="micro-subtitle">Workspaces</div>' +
       renderPackageList(dep.usage.origins.workspaces, 8) +
       "</div>"
     : "";
 
-  const keyContextItems = [
+  const descriptionHtml = dep.package.description
+    ? '<p class="dep-description"><span>Description: </span>' + escapeHtml(dep.package.description) + '</p>'
+    : '';
+
+  const overviewItems = [
+    renderKvItem(
+      "Dependency status",
+      dep.usage.direct ? "Direct dependency" : "Transitive dependency",
+    ),
+    renderKvItem("Scope", scopeLabel(dep.usage.scope)),
+    dep.usage.introduction
+      ? renderKvItem("Introduced by", titleCaseValue(dep.usage.introduction))
+      : "",
     dep.usage.runtimeImpact
       ? renderKvItem(
           "Runtime impact",
@@ -1844,10 +1868,8 @@ function renderDepDetails(
     renderKvItem("TypeScript types", tsTypesLabel(dep.usage.tsTypes)),
   ].filter(Boolean);
 
-  const keyContextHtml =
-    '<div class="section-block"><div class="block-title">Key context</div><div class="kv-grid kv-grid-tight">' +
-    keyContextItems.join("") +
-    "</div></div>";
+  const overviewGridHtml =
+    '<div class="definition-grid">' + overviewItems.join("") + "</div>";
   const importTopFilesHtml = renderDetailList(
     "Top import locations",
     dep.usage.importUsage?.topFiles,
@@ -1857,8 +1879,8 @@ function renderDepDetails(
 
   const overviewSection = renderSection(
     "Overview",
-    "Summary and key context",
-    microSummaryHtml + workspaceListHtml + keyContextHtml + importTopFilesHtml,
+    undefined,
+    overviewGridHtml + workspaceListHtml + importTopFilesHtml,
   );
 
   const licenseInfo = dep.compliance.license;
@@ -1931,16 +1953,12 @@ function renderDepDetails(
     '<div class="kv-grid">' + licenseDetails.join("") + "</div>",
   );
 
-  const vulnTotal =
-    securitySummary.critical +
-    securitySummary.high +
-    securitySummary.moderate +
-    securitySummary.low;
+  const vulnTotal = reportVulnerabilityTotal(securitySummary);
   const vulnSummaryItems = [
     renderKvItemHtml(
-      "Known vulnerabilities",
+      "Vulnerability status",
       renderRiskValue(
-        vulnTotal === 0 ? "None" : String(vulnTotal),
+        vulnTotal === 0 ? "No known vulnerabilities" : String(vulnTotal),
         securitySummary.risk,
       ),
     ),
@@ -1964,15 +1982,14 @@ function renderDepDetails(
       : "";
   const advisoriesTable = renderAdvisoriesTable(normalizedSecurity.advisories);
   const vulnBody = [
-    '<div class="section-note">Based on npm audit findings (known disclosed issues).</div>',
     '<div class="kv-grid">' + vulnSummaryItems.join("") + "</div>",
-    vulnBreakdown ? '<div class="subtle-divider"></div>' + vulnBreakdown : "",
+    vulnBreakdown ? vulnBreakdown : "",
     advisoriesTable
-      ? '<div class="subtle-divider"></div>' + advisoriesTable
+      ? advisoriesTable
       : "",
   ].join("");
   const vulnBlock = renderSubsection(
-    "VULNERABILITIES",
+    "Vulnerabilities",
     vulnBody,
     "Known security issues from npm audit",
     "vuln-block",
@@ -1985,10 +2002,11 @@ function renderDepDetails(
   const registryBlock = renderRegistryEnrichmentSection(dep.supplyChain?.registry);
   const supplyChainBlock = renderSupplyChainSourceSection(supplyChainSignals);
 
+  const riskBody = licenseBlock + vulnBlock + executionBlock + packagingBlock + registryBlock + supplyChainBlock;
   const riskSection = renderSection(
     "Risk & Compliance",
-    "License, vulnerabilities, install-time execution, and unusual source signals",
-    licenseBlock + vulnBlock + executionBlock + packagingBlock + registryBlock + supplyChainBlock,
+    undefined,
+    riskBody,
   );
 
   const currencyItems = [
@@ -2054,16 +2072,18 @@ function renderDepDetails(
     installScripts: "Install lifecycle scripts",
     deprecated: "Deprecated by author",
   };
-  const blockers = dep.upgrade.blockers?.length
-    ? '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div><ul class="bullet-list">' +
-      dep.upgrade.blockers
-        .map(
-          (blocker) =>
-            "<li>" + escapeHtml(blockerLabels[blocker] || blocker) + "</li>",
-        )
-        .join("") +
-      "</ul></div>"
-    : "";
+  const blockers = '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div>' +
+    (dep.upgrade.blockers?.length
+      ? '<ul class="bullet-list">' +
+        dep.upgrade.blockers
+          .map(
+            (blocker) =>
+              "<li>" + escapeHtml(blockerLabels[blocker] || blocker) + "</li>",
+          )
+          .join("") +
+        "</ul>"
+      : '<div class="status-row">No upgrade blockers detected</div>') +
+    "</div>";
 
   const upgradeSection = renderSection(
     "Upgrade & Change Impact",
@@ -2082,6 +2102,9 @@ function renderDepDetails(
 
   return [
     renderPackageLinks(links),
+    descriptionHtml,
+    buildStatusChips(dep, securitySummary, licenseText),
+    renderKeyPoints(buildReportKeyPoints(dep as any, securitySummary)),
     overviewSection,
     riskSection,
     upgradeSection,
@@ -3010,7 +3033,16 @@ async function init(): Promise<void> {
       return;
     }
 
-    container.innerHTML = deps.map(renderDep).join("");
+    container.innerHTML = deps
+      .map((dep) =>
+        renderDep(
+          dep,
+          supplyChainSignalsByKey.get(
+            getDepKey(dep.package.name, dep.package.version),
+          ),
+        ),
+      )
+      .join("");
     depElementsByKey.clear();
     container
       .querySelectorAll<HTMLDetailsElement>("details.dep-card")

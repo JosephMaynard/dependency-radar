@@ -20,15 +20,54 @@ npx dependency-radar
 
 This runs a scan against the current project and writes a self-contained `dependency-radar.html` report you can open locally, share with teammates, or attach to tickets and documentation.
 
+You can see a [Dependency Radar example report](https://www.dependency-radar.com/examples/dependency-radar.html).
+
 ---
 
 ![Dependency Radar – dependency list view](./docs/screenshot-01.jpg)
-*List view: search, filter, and drill into every dependency — licence, vulnerabilities, install risk, depth, origins, and more.*
+*List view: search, filter, and drill into every dependency, licence, vulnerabilities, install risk, depth, origins, and more.*
+
+![Dependency Radar – expanded dependency](./docs/screenshot-03.jpg)
+*Expanded dependency view: scan the key risk signals first, then drill into status, scope, origins, install behaviour, licence, vulnerabilities, and upgrade blockers.*
 
 ![Dependency Radar – interactive dependency graph view](./docs/screenshot-02.jpg)
 *Graph view: explore the full dependency tree visually, with direct, dev, and transitive relationships at a glance.*
 
 ---
+
+## Before you run a random `npx` command
+
+It is reasonable to be cautious about running a new CLI tool inside your project.
+
+Dependency Radar is designed to be inspectable and low-friction to evaluate:
+
+- the CLI has no runtime npm dependencies
+- scans run on your machine
+- Dependency Radar does not modify your `package.json`, lockfile, or installed dependencies
+- Dependency Radar does not upload your source code or generated reports during a normal CLI scan
+- reports are written to disk as local files
+- the only default network activity is package-manager-backed audit and outdated checks, which query the configured package registry for dependency metadata
+- use `--offline` for a no-registry-call scan
+
+You can inspect the source on GitHub, view the npm package metadata, or start with an offline scan:
+
+```bash
+npx dependency-radar --offline
+```
+
+Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
+
+## What the CLI accesses
+
+| Area | What happens |
+|---|---|
+| Project files | Reads package manifests, lockfiles, and installed dependency metadata |
+| `node_modules` | Reads package metadata and selected files for dependency analysis |
+| Output files | Writes reports/SBOMs only where requested |
+| Network | Runs package-manager audit/outdated checks by default, which query the configured package registry for dependency metadata |
+| Offline mode | `--offline` skips audit, outdated, signature verification, and targeted registry enrichment checks |
+| Source code upload | No source code or generated reports are uploaded during a normal CLI scan |
+| Project mutation | Dependency Radar does not install, update, remove, or rewrite dependencies |
 
 ## What you get
 
@@ -59,10 +98,13 @@ This runs a scan against the current project and writes a self-contained `depend
 
 ## What it is not
 
-- Not a CI service or hosted scanning platform
-- Not a replacement for dedicated security scanners
-- Not a bundler or build tool
+Dependency Radar is a review and triage tool. It makes dependency risk easier to see, but it does not make security decisions for you.
+
+- Not a hosted scanning platform or CI service
+- Not a malware detector or guarantee that a package is safe
+- Not a replacement for dedicated security scanners, manual review, or threat modelling
 - Not a dependency updater
+- Not a bundler, package manager, or build tool
 
 ## Why this exists
 
@@ -79,13 +121,15 @@ Dependency Radar exists to make those hidden signals visible in one place, from 
 
 ## Need to share findings with leadership?
 
-The CLI tool is free and fully functional forever.
+The CLI tool is free and fully functional forever. It does not require an account or upload during normal use.
 
 If you need to communicate dependency risk beyond engineering (CTO, compliance, security, clients, or investors), the optional premium service adds executive summaries, presentation-ready reports, and deeper enrichment signals that are not available in the standard local scan.
 
 These include ecosystem and maintenance insights such as whether a dependency is archived, deprecated upstream, actively maintained, or showing signs of stagnation, helping you prioritise risk in larger portfolios or during technical due diligence.
 
 See https://dependency-radar.com for details.
+
+The free CLI does not require an account or upload. The optional premium service is separate and only applies if you choose to use it.
 
 ---
 
@@ -436,7 +480,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - SPDX SBOM (`--format spdx` / `--sbom spdx`)
 11. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
-The scan is local-first: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, and targeted registry enrichment require registry access and are skipped or disabled with `--offline`.
+The scan runs on your machine: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, and targeted registry enrichment require registry access and are skipped or disabled with `--offline`.
 
 The `explain` command reuses this same pipeline with report writing disabled, then filters the in-memory model down to a single package for terminal output.
 
@@ -778,7 +822,7 @@ For full details and any future changes, see `src/types.ts`.
 ## Notes
 
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
-- The scan runs on your machine and does not upload your code or dependencies anywhere.
+- The scan runs on your machine and does not upload your source code or generated reports during a normal CLI scan.
 - `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, and targeted registry enrichment perform registry lookups; use `--offline` for offline-only scans.
 - On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
@@ -876,16 +920,15 @@ For pull requests, small focused changes are easiest to review. Before opening a
 npm run build
 npm run test:unit
 ```
+
 For larger dependency graph, package manager, report output, or supply-chain signal changes, also run the relevant fixture tests where practical.
 
-Please do not report suspected security vulnerabilities in public issues. See SECURITY.md for private reporting guidance.
+Please do not report suspected security vulnerabilities in public issues. See [SECURITY.md](./SECURITY.md) for private reporting guidance.
 
-Release notes are published through GitHub Releases, which act as the project changelog.
+
 
 ## Releases and changelog
 
-Dependency Radar release notes are published through GitHub Releases:
-
-https://github.com/JosephMaynard/dependency-radar/releases
+Release notes are published through [GitHub Releases](https://github.com/JosephMaynard/dependency-radar/releases), which act as the project changelog.
 
 Each release summarises notable changes, fixes, and compatibility notes where relevant.

@@ -1,11 +1,12 @@
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.4",
   "generatedAt": "2026-01-28T00:00:00.000Z",
   "dependencyRadarVersion": "0.0.0",
   "git": {
     "branch": "main"
   },
   "project": {
+    "name": "sample-project",
     "projectDir": "/path/to/project"
   },
   "environment": {
@@ -770,6 +771,50 @@
             "network-access",
             "child-process",
             "reads-env"
+          ]
+        },
+        "signals": [
+          "network-access",
+          "child-process",
+          "reads-env",
+          "reads-home",
+          "uses-ssh",
+          "obfuscated"
+        ]
+      },
+      "packaging": {
+        "signals": [
+          "bundled-dependencies",
+          "embedded-shrinkwrap"
+        ],
+        "bundledDependencies": [
+          "@esbuild/linux-x64",
+          "@esbuild/darwin-arm64"
+        ]
+      },
+      "supplyChain": {
+        "registry": {
+          "attempted": true,
+          "ok": true,
+          "source": "npm-registry",
+          "candidateReasons": [
+            "install-hooks",
+            "execution-signals",
+            "packaging-signals"
+          ],
+          "packageCreatedAt": "2024-12-30T09:14:00.000Z",
+          "packageModifiedAt": "2025-01-17T16:40:00.000Z",
+          "installedVersionPublishedAt": "2025-01-16T18:22:00.000Z",
+          "latestVersion": "0.21.6",
+          "latestPublishedAt": "2025-01-17T16:40:00.000Z",
+          "versionCount": 2,
+          "distTags": {
+            "latest": "0.21.6"
+          },
+          "signals": [
+            "recent-package",
+            "recent-version",
+            "low-release-history"
           ]
         }
       }
@@ -2690,7 +2735,8 @@
           "repository": "https://github.com/tinylibs/tinyexec",
           "homepage": "https://github.com/tinylibs/tinyexec#readme",
           "bugs": "https://github.com/tinylibs/tinyexec/issues"
-        }
+        },
+        "hasBin": true
       },
       "compliance": {
         "license": {
@@ -2794,6 +2840,35 @@
         "scripts": {
           "hooks": [
             "prepare"
+          ]
+        },
+        "signals": [
+          "child-process",
+          "reads-env",
+          "uses-ssh"
+        ]
+      },
+      "supplyChain": {
+        "registry": {
+          "attempted": true,
+          "ok": true,
+          "source": "npm-registry",
+          "candidateReasons": [
+            "bin",
+            "execution-signals"
+          ],
+          "packageCreatedAt": "2021-05-10T08:00:00.000Z",
+          "packageModifiedAt": "2025-01-19T12:05:00.000Z",
+          "installedVersionPublishedAt": "2025-01-19T12:05:00.000Z",
+          "latestVersion": "0.3.2",
+          "latestPublishedAt": "2025-01-19T12:05:00.000Z",
+          "versionCount": 18,
+          "distTags": {
+            "latest": "0.3.2"
+          },
+          "signals": [
+            "reactivated-package",
+            "old-major-new-patch"
           ]
         }
       }
