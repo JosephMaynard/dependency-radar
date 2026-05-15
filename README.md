@@ -20,7 +20,7 @@ npx dependency-radar
 
 This runs a scan against the current project and writes a self-contained `dependency-radar.html` report you can open locally, share with teammates, or attach to tickets and documentation.
 
-You can see an example report [here](https://www.dependency-radar.com/examples/dependency-radar.html).
+You can see a [Dependency Radar example report](https://www.dependency-radar.com/examples/dependency-radar.html).
 
 ---
 

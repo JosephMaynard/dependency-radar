@@ -1937,7 +1937,6 @@ details[open] > summary .expand-icon {
   font-size: 13px;
   color: var(--text-primary);
   overflow-wrap: anywhere;
-  word-break: break-word;
   line-height: 1.4;
 }
 
@@ -2127,7 +2126,6 @@ details[open] > summary .expand-icon {
   font-size: 12px;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
-  word-break: break-word;
   padding: 4px 0;
   border-bottom: 1px solid var(--border-color);
   line-height: 1.4;
@@ -2342,7 +2340,6 @@ details[open] > summary .expand-icon {
   border-bottom: 1px solid var(--border-color);
   vertical-align: top;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .vuln-table thead {
