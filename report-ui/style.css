@@ -41,6 +41,7 @@
     ui-monospace, "SFMono-Regular", "SF Mono", "Menlo", "Consolas", monospace;
   --transition: 0.2s ease;
   --radius: 8px;
+  --radius-sm: 4px;
   --radius-lg: 12px;
 
   --graph-direct-runtime: var(--green);
@@ -429,7 +430,7 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .filter-top-row {
@@ -983,7 +984,7 @@ select:focus {
 .main-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 8px 24px 48px;
+  padding: 6px 24px 48px;
 }
 
 .view-panel {
@@ -1465,7 +1466,7 @@ select.graph-workspace-select:focus {
   margin: 0 auto;
   display: flex;
   align-items: center;
-  padding: 12px 0 8px 14px;
+  padding: 8px 0 8px 14px;
 }
 
 /* Package header wrapper - takes the left ~40% */
@@ -1560,14 +1561,14 @@ select.graph-workspace-select:focus {
 .dependency-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* ===== DEPENDENCY CARD ===== */
 .dep-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   transition: border-color var(--transition);
 }
