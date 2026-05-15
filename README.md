@@ -20,15 +20,52 @@ npx dependency-radar
 
 This runs a scan against the current project and writes a self-contained `dependency-radar.html` report you can open locally, share with teammates, or attach to tickets and documentation.
 
+You can see an example report [here](https://www.dependency-radar.com/examples/dependency-radar.html).
+
 ---
 
 ![Dependency Radar – dependency list view](./docs/screenshot-01.jpg)
-*List view: search, filter, and drill into every dependency — licence, vulnerabilities, install risk, depth, origins, and more.*
+*List view: search, filter, and drill into every dependency, licence, vulnerabilities, install risk, depth, origins, and more.*
+
+![Dependency Radar – expanded dependency](./docs/screenshot-03.jpg)
+*Expanded dependency: dig into the detailed inormation collected about each dependency.*
 
 ![Dependency Radar – interactive dependency graph view](./docs/screenshot-02.jpg)
 *Graph view: explore the full dependency tree visually, with direct, dev, and transitive relationships at a glance.*
 
 ---
+
+## Before you run a random `npx` command
+
+It is reasonable to be cautious about running a new CLI tool inside your project.
+
+Dependency Radar is designed to be inspectable and low-friction to evaluate:
+
+- the CLI has no runtime npm dependencies
+- scans run on your machine
+- Dependency Radar does not modify your `package.json`, lockfile, or installed dependencies
+- Dependency Radar does not upload your source code
+- reports are written to disk as local files
+- by default, Dependency Radar may run package-manager-backed audit and outdated checks, which contact the configured package registry
+- use `--offline` to skip registry-backed checks
+
+You can inspect the source on GitHub, view the npm package metadata, or start with an offline scan:
+
+```bash
+npx dependency-radar --offline
+```
+
+## What the CLI accesses
+
+| Area | What happens |
+|---|---|
+| Project files | Reads package manifests, lockfiles, and installed dependency metadata |
+| `node_modules` | Reads package metadata and selected files for dependency analysis |
+| Output files | Writes reports/SBOMs only where requested |
+| Network | Uses package manager audit/outdated checks by default |
+| Offline mode | `--offline` skips registry-backed checks |
+| Source code upload | No source code is uploaded by the CLI |
+| Project mutation | Dependency Radar does not install, update, remove, or rewrite dependencies |
 
 ## What you get
 
