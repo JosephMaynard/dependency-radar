@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildReportKeyPoints, reportVulnerabilityTotal } from './reportDetailRules';
+import { buildReportKeyPoints, buildReportOverallRisk, reportVulnerabilityTotal } from './reportDetailRules';
 import type { DependencyRecord } from './types';
 
 function dependency(overrides: Partial<DependencyRecord> = {}): DependencyRecord {
@@ -131,5 +131,24 @@ describe('report detail rules', () => {
         risk: 'red'
       })
     ).toBe(10);
+  });
+
+  it('uses the worst risk factor for overall row risk', () => {
+    const dep = dependency({
+      compliance: {
+        license: {
+          declared: { spdxId: 'MIT', expression: false, deprecated: false, valid: true },
+          status: 'declared-only'
+        },
+        licenseRisk: 'green'
+      },
+      execution: {
+        risk: 'red',
+        scripts: { hooks: ['postinstall'] }
+      }
+    });
+
+    expect(buildReportOverallRisk(dep, dep.security.summary)).toBe('red');
+    expect(buildReportOverallRisk(dependency(), dependency().security.summary, 1)).toBe('amber');
   });
 });

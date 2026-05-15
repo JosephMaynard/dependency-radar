@@ -6,6 +6,7 @@
 import "./style.css";
 import { buildCtaUrl } from "../src/cta";
 import {
+  buildReportOverallRisk,
   buildReportKeyPoints,
   reportVulnerabilityTotal,
 } from "../src/reportDetailRules";
@@ -670,23 +671,6 @@ function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: stri
   ]
     .filter(Boolean)
     .join("");
-}
-
-/**
- * Determine the combined risk from a vulnerability summary and a license-derived risk.
- *
- * @param summary - Security summary object whose `risk` field represents the vulnerability-derived risk (`"green" | "amber" | "red"`).
- * @param licenseRisk - License-derived risk value (`"green" | "amber" | "red"`).
- * @returns `red` if either input is `red`, `amber` if no `red` and either input is `amber`, `green` otherwise.
- */
-function getHighestRisk(
-  summary: SecuritySummary,
-  licenseRisk: "green" | "amber" | "red",
-): "red" | "amber" | "green" {
-  const risks = [summary.risk, licenseRisk];
-  if (risks.includes("red")) return "red";
-  if (risks.includes("amber")) return "amber";
-  return "green";
 }
 
 function scopeLabel(scope: string): string {
@@ -1753,12 +1737,16 @@ function renderAdvisoriesTable(
   return html;
 }
 
-function renderDep(dep: DependencyRecord): string {
+function renderDep(
+  dep: DependencyRecord,
+  supplyChainSignals?: SupplyChainSignal[],
+): string {
   const normalizedSecurity = normalizeSecurity(dep);
   const securitySummary = normalizedSecurity.summary;
-  const highestRisk = getHighestRisk(
+  const highestRisk = buildReportOverallRisk(
+    dep as any,
     securitySummary,
-    dep.compliance.licenseRisk,
+    supplyChainSignals?.length || 0,
   );
   const depKey = getDepKey(dep.package.name, dep.package.version);
   const domId = getDepDomId(depKey);
@@ -3045,7 +3033,16 @@ async function init(): Promise<void> {
       return;
     }
 
-    container.innerHTML = deps.map(renderDep).join("");
+    container.innerHTML = deps
+      .map((dep) =>
+        renderDep(
+          dep,
+          supplyChainSignalsByKey.get(
+            getDepKey(dep.package.name, dep.package.version),
+          ),
+        ),
+      )
+      .join("");
     depElementsByKey.clear();
     container
       .querySelectorAll<HTMLDetailsElement>("details.dep-card")

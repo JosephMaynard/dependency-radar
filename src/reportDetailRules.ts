@@ -33,6 +33,33 @@ export function reportAllExecutionSignals(dep: DependencyRecord): ExecutionSigna
   );
 }
 
+function maxRisk(risks: Array<'green' | 'amber' | 'red' | undefined>): 'green' | 'amber' | 'red' {
+  if (risks.includes('red')) return 'red';
+  if (risks.includes('amber')) return 'amber';
+  return 'green';
+}
+
+export function buildReportOverallRisk(
+  dep: DependencyRecord,
+  summary: SecuritySummary,
+  supplyChainSignalCount = 0
+): 'green' | 'amber' | 'red' {
+  const installRisk = dep.execution?.risk || 'green';
+  const supplyChainRisk =
+    supplyChainSignalCount > 0 || (dep.packaging?.signals?.length || 0) > 0
+      ? 'amber'
+      : 'green';
+  const maintenanceRisk = (dep.supplyChain?.registry?.signals?.length || 0) > 0 ? 'amber' : 'green';
+
+  return maxRisk([
+    summary.risk,
+    dep.compliance.licenseRisk,
+    installRisk,
+    supplyChainRisk,
+    maintenanceRisk
+  ]);
+}
+
 function titleCaseValue(value: string): string {
   return value
     .split(/[-_\s]+/)
