@@ -6,6 +6,7 @@
     "branch": "main"
   },
   "project": {
+    "name": "sample-project",
     "projectDir": "/path/to/project"
   },
   "environment": {
