@@ -199,72 +199,35 @@
             </div>
           </div>
         </div>
-        <div class="cta-section">
-          <a
-            href="https://dependency-radar.com/next-steps?source=standalone-report&cli=unknown"
-            class="cta-card"
-            target="_blank"
-            rel="noopener"
-            id="cta-primary-link"
+        <div class="header-stats" id="header-stats" aria-label="Scan summary">
+          <span class="stat-chip" id="stat-total"
+            ><span class="meta-label">Dependencies</span>
+            <strong>–</strong></span
           >
-            <span class="cta-icon" aria-hidden="true">
-              <svg
-                class="cta-icon-svg lucide lucide-radar-icon lucide-radar"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
-                <path d="M4 6h.01" />
-                <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" />
-                <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" />
-                <path d="M12 18h.01" />
-                <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
-                <circle cx="12" cy="12" r="2" />
-                <path d="m13.41 10.59 5.66-5.66" />
-              </svg>
-            </span>
-            <span class="cta-copy">
-              <span class="cta-title">Unlock deeper analysis</span>
-              <span class="cta-text"
-                >Deep analysis, risk modelling, and actionable insights.</span
-              >
-            </span>
-            <span class="cta-action">
-              <span class="cta-button"
-                >Upgrade this scan <span class="cta-arrow">→</span></span
-              >
-              <span class="cta-privacy">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 3 5 6v5c0 4.5 2.9 8.5 7 10 4.1-1.5 7-5.5 7-10V6l-7-3Z"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="m9 12 2 2 4-5"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                Secure. Private. No code sent.
-              </span>
-            </span>
-          </a>
+          <button
+            type="button"
+            class="stat-chip"
+            id="stat-vulnerable"
+            data-stat-filter="has-vulns"
+          >
+            <span class="meta-label">Vulnerable</span> <strong>–</strong>
+          </button>
+          <button
+            type="button"
+            class="stat-chip"
+            id="stat-maintenance"
+            data-stat-filter="maintenance-concerns"
+          >
+            <span class="meta-label">Maintenance</span> <strong>–</strong>
+          </button>
+          <span class="stat-chip" id="stat-license"
+            ><span class="meta-label">Licence issues</span>
+            <strong>–</strong></span
+          >
+          <span class="stat-chip" id="stat-blockers"
+            ><span class="meta-label">Upgrade blockers</span>
+            <strong>–</strong></span
+          >
         </div>
       </div>
     </header>

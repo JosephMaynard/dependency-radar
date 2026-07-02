@@ -169,10 +169,10 @@ describe('cli summary output', () => {
       }
 
       expect(output).toContain(
-        'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at https://www.dependency-radar.com',
+        'Docs, examples, and issue reporting: https://github.com/JosephMaynard/dependency-radar',
       );
       expect(stdoutOutput.trim().endsWith(
-        'Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at https://www.dependency-radar.com',
+        'Docs, examples, and issue reporting: https://github.com/JosephMaynard/dependency-radar',
       )).toBe(true);
     },
   );
@@ -231,7 +231,7 @@ describe('cli summary output', () => {
       expect(output).toMatch(/mismatch \(declared .+, inferred .+\)/);
       expect(output).toContain('Vulnerabilities:\n  not available (--offline)');
       expect(output).not.toContain('Summary:');
-      expect(output).not.toContain('Enrich this scan with maintenance signals');
+      expect(output).not.toContain('Docs, examples, and issue reporting');
       await expect(
         fs.access(path.join(projectCopy, 'dependency-radar.html')),
       ).rejects.toThrow();
@@ -256,7 +256,7 @@ describe('cli summary output', () => {
       expect(output).not.toContain('Scan complete:');
       expect(output).not.toContain('Report output disabled');
       expect(output).not.toContain('Skipping auto-open because --no-report is enabled.');
-      expect(output).not.toContain('Enrich this scan with maintenance signals');
+      expect(output).not.toContain('Docs, examples, and issue reporting');
     },
   );
 
@@ -290,7 +290,7 @@ describe('cli summary output', () => {
       expect(output).toContain('Policy violations detected');
       expect(output).toContain('licence mismatch');
       expect(output).not.toContain('Single project detected');
-      expect(output).not.toContain('Enrich this scan with maintenance signals');
+      expect(output).not.toContain('Docs, examples, and issue reporting');
     },
   );
 

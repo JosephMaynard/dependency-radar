@@ -1928,7 +1928,7 @@ async function runScanCommand(opts) {
     printCliSummary(result.summary);
     printPolicyViolations(result.policyViolations);
     if (!opts.quiet) {
-        console.log(`Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at ${formatTerminalLink("https://www.dependency-radar.com", "https://www.dependency-radar.com")}`);
+        console.log(`Docs, examples, and issue reporting: ${formatTerminalLink("https://github.com/JosephMaynard/dependency-radar", "https://github.com/JosephMaynard/dependency-radar")}`);
     }
     if (result.policyViolations.length > 0) {
         process.exit(1);

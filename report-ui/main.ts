@@ -4,7 +4,6 @@
  */
 
 import "./style.css";
-import { buildCtaUrl } from "../src/cta";
 import {
   buildReportOverallRisk,
   buildReportKeyPoints,
@@ -2256,7 +2255,6 @@ async function init(): Promise<void> {
   }
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
-  const ctaUrl = buildCtaUrl(report.dependencyRadarVersion);
 
   // Update header info with chip-based layout and detailed metadata dropdown
   const projectPathEl = document.getElementById("project-path");
@@ -2270,11 +2268,6 @@ async function init(): Promise<void> {
   const metadataPanel = document.getElementById(
     "metadata-panel",
   ) as HTMLElement | null;
-
-  const ctaPrimaryLink = document.getElementById(
-    "cta-primary-link",
-  ) as HTMLAnchorElement | null;
-  if (ctaPrimaryLink) ctaPrimaryLink.href = ctaUrl;
 
   // Format timestamp
   const dateEl = document.getElementById("formatted-date");
@@ -2765,6 +2758,95 @@ async function init(): Promise<void> {
     controls.workspaceWrap.classList.remove("hidden");
   }
   updateFilterOptionCounts();
+
+  /**
+   * Populate the header "scan at a glance" stat chips from the loaded report.
+   *
+   * Counts are computed client-side in one pass so the header works for any
+   * report version; chips whose source data is absent (older reports or
+   * offline scans) are hidden rather than shown as zero.
+   */
+  function populateHeaderStats(): void {
+    const statsRoot = document.getElementById("header-stats");
+    if (!statsRoot) return;
+
+    let vulnerable = 0;
+    let maintenanceConcernCount = 0;
+    let maintenanceDeprecatedOrArchived = 0;
+    let maintenanceDataSeen = false;
+    let licenseIssues = 0;
+    let blockers = 0;
+    allDependencies.forEach((dep) => {
+      if (hasVulnerabilities(dep)) vulnerable += 1;
+      if (dep.maintenance?.attempted) maintenanceDataSeen = true;
+      if (hasMaintenanceConcern(dep)) {
+        maintenanceConcernCount += 1;
+        const status = dep.maintenance?.status;
+        if (status === "deprecated" || status === "archived") {
+          maintenanceDeprecatedOrArchived += 1;
+        }
+      }
+      if (dep.compliance.licenseRisk !== "green") licenseIssues += 1;
+      if (dep.upgrade.blocksNodeMajor || dep.upgrade.blockers?.length) {
+        blockers += 1;
+      }
+    });
+
+    const setChip = (
+      id: string,
+      value: number,
+      tone?: "red" | "amber",
+      title?: string,
+    ): void => {
+      const chip = document.getElementById(id);
+      if (!chip) return;
+      const valueEl = chip.querySelector("strong");
+      if (valueEl) valueEl.textContent = String(value);
+      chip.classList.remove("red", "amber");
+      if (tone && value > 0) chip.classList.add(tone);
+      if (title) chip.title = title;
+    };
+
+    setChip(
+      "stat-total",
+      report.summary.dependencyCount,
+      undefined,
+      `${report.summary.directCount} direct, ${report.summary.transitiveCount} transitive`,
+    );
+    setChip("stat-vulnerable", vulnerable, "red");
+    setChip("stat-license", licenseIssues, "amber");
+    setChip("stat-blockers", blockers, "amber");
+    const maintenanceChip = document.getElementById("stat-maintenance");
+    if (maintenanceChip) {
+      if (!maintenanceDataSeen) {
+        maintenanceChip.hidden = true;
+      } else {
+        setChip(
+          "stat-maintenance",
+          maintenanceConcernCount,
+          maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
+          "Deprecated, archived, or unmaintained dependencies",
+        );
+      }
+    }
+
+    statsRoot.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-stat-filter]",
+      );
+      if (!button) return;
+      const targets: Record<string, HTMLInputElement | null | undefined> = {
+        "has-vulns": controls.hasVulns,
+        "maintenance-concerns": controls.maintenanceConcerns,
+      };
+      const control = targets[button.dataset.statFilter || ""];
+      if (!control) return;
+      control.checked = true;
+      control.dispatchEvent(new Event("change"));
+    });
+  }
+  populateHeaderStats();
+
   const depByKey = new Map<string, DependencyRecord>();
   allDependencies.forEach((dep) => {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);

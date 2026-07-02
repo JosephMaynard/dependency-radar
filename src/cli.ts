@@ -2322,9 +2322,9 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
   printPolicyViolations(result.policyViolations);
   if (!opts.quiet) {
     console.log(
-      `Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at ${formatTerminalLink(
-        "https://www.dependency-radar.com",
-        "https://www.dependency-radar.com",
+      `Docs, examples, and issue reporting: ${formatTerminalLink(
+        "https://github.com/JosephMaynard/dependency-radar",
+        "https://github.com/JosephMaynard/dependency-radar",
       )}`,
     );
   }
