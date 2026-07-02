@@ -592,7 +592,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const transitiveCount = dependencyCount - directCount;
 
   const aggregated: AggregatedData = {
-    schemaVersion: '1.4',
+    schemaVersion: '1.5',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {

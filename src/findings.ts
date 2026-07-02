@@ -161,12 +161,38 @@ export function buildDependencyFindings(
     }
 
     if (dep.package.deprecated) {
+      const registryDeprecation = dep.maintenance?.deprecated;
       findings.push(baseFinding(dep, 'deprecated', {
         category: 'supply-chain',
         severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
         title: 'Package is deprecated',
-        message: `${dep.package.id} is marked deprecated in local package metadata.`,
+        message: registryDeprecation
+          ? `${dep.package.id} is marked deprecated on the npm registry.`
+          : `${dep.package.id} is marked deprecated in local package metadata.`,
+        evidence: registryDeprecation?.message,
         recommendation: 'Plan migration to a maintained replacement.'
+      }));
+    }
+
+    if (dep.maintenance?.status === 'archived') {
+      findings.push(baseFinding(dep, 'maintenance-archived', {
+        category: 'supply-chain',
+        severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+        title: 'Source repository is archived',
+        message: `${dep.package.id} points at an archived source repository, so fixes and security patches are unlikely.`,
+        evidence: dep.maintenance.repoCheckedAt ? `repoCheckedAt=${dep.maintenance.repoCheckedAt}` : undefined,
+        recommendation: 'Plan migration to a maintained replacement, or accept the risk explicitly.'
+      }));
+    }
+
+    if (dep.maintenance?.status === 'unmaintained') {
+      findings.push(baseFinding(dep, 'maintenance-unmaintained', {
+        category: 'supply-chain',
+        severity: 'info',
+        title: 'Package looks unmaintained',
+        message: `${dep.package.id} has had no npm registry activity for ${dep.maintenance.monthsSinceModified} months.`,
+        evidence: dep.maintenance.packageModifiedAt ? `lastRegistryActivity=${dep.maintenance.packageModifiedAt}` : undefined,
+        recommendation: 'Check whether the package is finished or abandoned, and review alternatives if it matters at runtime.'
       }));
     }
 

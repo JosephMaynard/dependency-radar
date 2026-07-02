@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.4",
+  "schemaVersion": "1.5",
   "generatedAt": "2026-01-28T00:00:00.000Z",
   "dependencyRadarVersion": "0.0.0",
   "git": {
@@ -93,7 +93,8 @@
         }
       },
       "upgrade": {
-        "nodeEngine": ">=14.0.0"
+        "nodeEngine": ">=14.0.0",
+        "latestVersion": "5.6.0"
       },
       "usage": {
         "direct": true,
@@ -120,6 +121,16 @@
       "graph": {
         "fanIn": 0,
         "fanOut": 0
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": true,
+        "status": "active",
+        "packageModifiedAt": "2026-05-14T08:00:00.000Z",
+        "monthsSinceModified": 1,
+        "latestVersion": "5.6.0",
+        "fetchedAt": "2026-07-01T09:00:00.000Z",
+        "fromCache": true
       }
     },
     "ansi-styles@6.2.1": {
@@ -581,6 +592,15 @@
             ]
           }
         }
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": true,
+        "status": "active",
+        "packageModifiedAt": "2026-06-20T08:00:00.000Z",
+        "monthsSinceModified": 0,
+        "latestVersion": "7.3.2",
+        "fetchedAt": "2026-07-01T09:00:00.000Z"
       }
     },
     "esbuild@0.21.5": {
@@ -887,6 +907,12 @@
       "graph": {
         "fanIn": 0,
         "fanOut": 0
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": false,
+        "status": "unknown",
+        "error": "HTTP 404"
       }
     },
     "bad-license-lib@0.4.0": {
@@ -895,7 +921,7 @@
         "name": "@sample/poorly-documented-license-mismatch-demonstration-package",
         "version": "0.4.0",
         "description": "Sample package with invalid SPDX and mismatch.",
-        "deprecated": false,
+        "deprecated": true,
         "links": {
           "npm": "https://www.npmjs.com/package/bad-license-lib"
         }
@@ -932,7 +958,11 @@
         }
       },
       "upgrade": {
-        "nodeEngine": null
+        "nodeEngine": null,
+        "blockers": [
+          "deprecated"
+        ],
+        "latestVersion": "0.4.0"
       },
       "usage": {
         "direct": false,
@@ -957,6 +987,20 @@
       "graph": {
         "fanIn": 1,
         "fanOut": 0
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": true,
+        "status": "deprecated",
+        "deprecated": {
+          "installedVersion": true,
+          "latestVersion": true,
+          "message": "Package no longer supported. Use good-license-lib instead."
+        },
+        "packageModifiedAt": "2024-11-12T08:00:00.000Z",
+        "monthsSinceModified": 19,
+        "latestVersion": "0.4.0",
+        "fetchedAt": "2026-07-01T09:00:00.000Z"
       }
     },
     "postcss@8.5.6": {
@@ -2400,7 +2444,8 @@
         "blockers": [
           "nodeEngine"
         ],
-        "blocksNodeMajor": true
+        "blocksNodeMajor": true,
+        "latestVersion": "6.7.14"
       },
       "usage": {
         "direct": false,
@@ -2541,6 +2586,15 @@
             ]
           }
         }
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": true,
+        "status": "stale",
+        "packageModifiedAt": "2024-10-20T08:00:00.000Z",
+        "monthsSinceModified": 20,
+        "latestVersion": "6.7.14",
+        "fetchedAt": "2026-07-01T09:00:00.000Z"
       }
     },
     "es-module-lexer@1.7.0": {
@@ -2695,7 +2749,8 @@
         }
       },
       "upgrade": {
-        "nodeEngine": null
+        "nodeEngine": null,
+        "latestVersion": "2.9.0"
       },
       "usage": {
         "direct": false,
@@ -2720,6 +2775,15 @@
       "graph": {
         "fanIn": 1,
         "fanOut": 0
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": true,
+        "status": "unmaintained",
+        "packageModifiedAt": "2023-04-15T08:00:00.000Z",
+        "monthsSinceModified": 38,
+        "latestVersion": "2.9.0",
+        "fetchedAt": "2026-07-01T09:00:00.000Z"
       }
     },
     "tinyexec@0.3.2": {
@@ -2993,7 +3057,8 @@
         "blockers": [
           "nodeEngine"
         ],
-        "blocksNodeMajor": true
+        "blocksNodeMajor": true,
+        "latestVersion": "3.2.2"
       },
       "usage": {
         "direct": false,
@@ -3030,6 +3095,17 @@
             ]
           }
         }
+      },
+      "maintenance": {
+        "attempted": true,
+        "ok": true,
+        "status": "archived",
+        "repoArchived": true,
+        "repoCheckedAt": "2026-07-01T09:00:00.000Z",
+        "packageModifiedAt": "2024-02-01T08:00:00.000Z",
+        "monthsSinceModified": 29,
+        "latestVersion": "3.2.2",
+        "fetchedAt": "2026-07-01T09:00:00.000Z"
       }
     },
     "siginfo@2.0.0": {

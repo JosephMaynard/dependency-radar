@@ -98,6 +98,37 @@ export interface DependencySupplyChainInfo {
   registry?: DependencyRegistryEnrichment;
 }
 
+export type MaintenanceStatus =
+  | 'deprecated'
+  | 'archived'
+  | 'unmaintained'
+  | 'stale'
+  | 'active'
+  | 'unknown';
+
+// Registry-derived maintenance signals. Conservative review cues, not verdicts:
+// `packageModifiedAt` comes from the packument `modified` timestamp, which
+// updates on ANY registry write, so age-based statuses under-flag rather than
+// over-flag. Data is fetched best-effort; scans never fail because of it.
+export interface DependencyMaintenanceInfo {
+  attempted: true;
+  ok: boolean;
+  status: MaintenanceStatus;
+  deprecated?: {
+    installedVersion: boolean;
+    latestVersion: boolean;
+    message?: string;
+  };
+  repoArchived?: boolean;
+  repoCheckedAt?: string;
+  packageModifiedAt?: string;
+  monthsSinceModified?: number;
+  latestVersion?: string;
+  fetchedAt?: string;
+  fromCache?: true;
+  error?: string;
+}
+
 export type LicenseConfidence = 'high' | 'medium' | 'low';
 export type LicenseStatus =
   | 'declared-only'
@@ -193,6 +224,7 @@ export interface DependencyRecord {
   execution?: DependencyExecutionInfo;
   packaging?: DependencyPackagingInfo;
   supplyChain?: DependencySupplyChainInfo;
+  maintenance?: DependencyMaintenanceInfo;
 }
 
 export type FindingSeverity = 'info' | 'warning' | 'error';
@@ -288,7 +320,7 @@ export interface ProjectDependencyPolicySummary {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.4';
+  schemaVersion: '1.5';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

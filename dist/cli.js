@@ -14,6 +14,7 @@ const npmAudit_1 = require("./runners/npmAudit");
 const npmLs_1 = require("./runners/npmLs");
 const npmOutdated_1 = require("./runners/npmOutdated");
 const npmRegistryMetadata_1 = require("./runners/npmRegistryMetadata");
+const maintenanceSignals_1 = require("./runners/maintenanceSignals");
 const lockfileSignals_1 = require("./runners/lockfileSignals");
 const report_1 = require("./report");
 const compare_1 = require("./compare");
@@ -934,8 +935,8 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
  *
  * Recognizes an optional leading command (scan, explain, compare, why, schema), positional operands for
  * commands that require them (package name for explain/why, compare path for compare), and these flags:
- * --project, --quiet, --out, --keep-temp, --offline, --json, --format, --sbom, --target-node,
- * --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
+ * --project, --quiet, --out, --keep-temp, --offline, --no-maintenance, --json, --format, --sbom,
+ * --target-node, --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
  *
  * The --offline flag disables registry-backed checks. Unknown options or unexpected positional
  * arguments cause the process to exit with an error.
@@ -953,6 +954,7 @@ function parseArgs(argv) {
         keepTemp: false,
         audit: true,
         outdated: true,
+        maintenance: true,
         json: false,
         open: false,
         noReport: false,
@@ -1002,7 +1004,10 @@ function parseArgs(argv) {
         else if (arg === "--offline") {
             opts.audit = false;
             opts.outdated = false;
+            opts.maintenance = false;
         }
+        else if (arg === "--no-maintenance")
+            opts.maintenance = false;
         else if (arg === "--json") {
             opts.json = true;
             opts.format = "json";
@@ -1177,7 +1182,8 @@ Options:
   --timestamp        Add a local timestamp to generated report filenames
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
-  --offline          Skip registry-backed checks (audit, outdated, signatures, targeted registry enrichment)
+  --offline          Skip registry-backed checks (audit, outdated, signatures, maintenance signals, targeted registry enrichment)
+  --no-maintenance   Skip registry maintenance signals (deprecated/unmaintained/archived checks)
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Scan rules: reachable-vuln, production-vuln, high-severity-vuln,
@@ -1763,6 +1769,7 @@ async function executeAnalysis(opts, options) {
             ...(toolVersions ? { toolVersions } : {}),
             ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
         });
+        let enrichmentTouchedData = false;
         if (opts.outdated) {
             let registryEnrichment = { attempted: 0, succeeded: 0 };
             try {
@@ -1779,11 +1786,43 @@ async function executeAnalysis(opts, options) {
             if (!opts.quiet && registryEnrichment.succeeded > 0) {
                 spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.succeeded} suspicious package${registryEnrichment.succeeded === 1 ? "" : "s"}`));
             }
-            if (registryEnrichment.attempted > 0) {
-                const findings = (0, findings_1.buildDependencyFindings)(aggregated, { targetNodeMajor: opts.targetNodeMajor });
-                aggregated.findings = findings;
-                aggregated.summary.findingCount = findings.length;
+            if (registryEnrichment.attempted > 0)
+                enrichmentTouchedData = true;
+        }
+        if (opts.maintenance) {
+            try {
+                const budgetOverride = Number.parseInt(process.env.DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS || "", 10);
+                const maintenance = await (0, maintenanceSignals_1.enrichAggregatedWithMaintenanceSignals)(aggregated, {
+                    projectPath,
+                    ...(Number.isFinite(budgetOverride) ? { budgetMs: budgetOverride } : {}),
+                });
+                if (maintenance.checkedNames > 0) {
+                    enrichmentTouchedData = true;
+                    if (!opts.quiet) {
+                        const flagged = [
+                            maintenance.deprecatedNames > 0 ? `${maintenance.deprecatedNames} deprecated` : undefined,
+                            maintenance.archivedNames > 0 ? `${maintenance.archivedNames} archived` : undefined,
+                            maintenance.unmaintainedNames > 0 ? `${maintenance.unmaintainedNames} unmaintained` : undefined,
+                            maintenance.fromCache > 0 ? `${maintenance.fromCache} from cache` : undefined,
+                        ].filter(Boolean).join(", ");
+                        spinner.log(statusLine("✔", `Maintenance signals: ${maintenance.checkedNames} package${maintenance.checkedNames === 1 ? "" : "s"} checked${flagged ? ` (${flagged})` : ""}`));
+                        if (maintenance.truncatedNames > 0) {
+                            spinner.log(statusLine("⚠", `Maintenance signals skipped ${maintenance.truncatedNames} package name${maintenance.truncatedNames === 1 ? "" : "s"} beyond the lookup cap`));
+                        }
+                    }
+                }
             }
+            catch (err) {
+                if (!opts.quiet) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    spinner.log(statusLine("⚠", `Maintenance signals unavailable (${message})`));
+                }
+            }
+        }
+        if (enrichmentTouchedData) {
+            const findings = (0, findings_1.buildDependencyFindings)(aggregated, { targetNodeMajor: opts.targetNodeMajor });
+            aggregated.findings = findings;
+            aggregated.summary.findingCount = findings.length;
         }
         dependencyCount = Object.keys(aggregated.dependencies).length;
         const importGraphComplete = perPackageImportGraph.every((result) => result.ok);

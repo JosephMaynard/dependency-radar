@@ -346,7 +346,54 @@ const COLUMN_CONFIG: ColumnConfig[] = [
       return riskOrder[aRisk] - riskOrder[bRisk];
     },
   },
+  {
+    id: "maintenance",
+    label: "Maintenance",
+    sortKey: "maintenance",
+    getValue: (dep) => getMaintenanceStatusLabel(dep.maintenance?.status),
+    getTone: (dep) => getMaintenanceStatusTone(dep.maintenance?.status),
+    sortFn: (a, b) =>
+      maintenanceStatusOrder(b.maintenance?.status) -
+      maintenanceStatusOrder(a.maintenance?.status),
+  },
 ];
+
+const MAINTENANCE_STATUS_LABELS: Record<string, string> = {
+  deprecated: "Deprecated",
+  archived: "Archived",
+  unmaintained: "Unmaintained",
+  stale: "Stale",
+  active: "Active",
+  unknown: "—",
+};
+
+function getMaintenanceStatusLabel(status?: string): string {
+  if (!status) return "—";
+  return MAINTENANCE_STATUS_LABELS[status] || "—";
+}
+
+function getMaintenanceStatusTone(status?: string): string {
+  if (status === "deprecated" || status === "archived") return "red";
+  if (status === "unmaintained" || status === "stale") return "amber";
+  if (status === "active") return "green";
+  return "gray";
+}
+
+function maintenanceStatusOrder(status?: string): number {
+  const order: Record<string, number> = {
+    deprecated: 5,
+    archived: 4,
+    unmaintained: 3,
+    stale: 2,
+    active: 1,
+  };
+  return status ? order[status] || 0 : 0;
+}
+
+function hasMaintenanceConcern(dep: DependencyRecord): boolean {
+  const status = dep.maintenance?.status;
+  return status === "deprecated" || status === "archived" || status === "unmaintained";
+}
 
 // Export column count for CSS variable
 const COLUMN_COUNT = COLUMN_CONFIG.length;
@@ -1498,6 +1545,78 @@ function renderRegistryEnrichmentSection(
 }
 
 /**
+ * Render an HTML subsection showing registry maintenance signals for a dependency.
+ *
+ * @param maintenance - The dependency's maintenance block; may be `undefined` for older reports or skipped lookups.
+ * @returns The HTML string for the "Maintenance" subsection, or an empty string when no lookup was attempted.
+ */
+function renderMaintenanceSection(
+  maintenance: DependencyRecord["maintenance"] | undefined,
+): string {
+  if (!maintenance?.attempted) return "";
+  const items = [
+    renderKvItem("Status", getMaintenanceStatusLabel(maintenance.status)),
+  ];
+  if (maintenance.deprecated) {
+    const scope = maintenance.deprecated.installedVersion
+      ? "Installed version"
+      : "Latest version";
+    items.push(
+      renderKvItem("Deprecated", scope, maintenance.deprecated.message),
+    );
+  }
+  if (maintenance.repoArchived !== undefined) {
+    items.push(
+      renderKvItem(
+        "Repository archived",
+        yesNo(maintenance.repoArchived),
+        maintenance.repoCheckedAt
+          ? `Checked ${maintenance.repoCheckedAt}`
+          : undefined,
+      ),
+    );
+  }
+  if (maintenance.packageModifiedAt) {
+    items.push(
+      renderKvItem(
+        "Last registry activity",
+        maintenance.packageModifiedAt,
+        typeof maintenance.monthsSinceModified === "number"
+          ? `~${maintenance.monthsSinceModified} months ago`
+          : undefined,
+      ),
+    );
+  }
+  if (maintenance.latestVersion) {
+    items.push(renderKvItem("Latest version", maintenance.latestVersion));
+  }
+  if (maintenance.fetchedAt) {
+    items.push(
+      renderKvItem(
+        "Data fetched",
+        maintenance.fetchedAt + (maintenance.fromCache ? " (cached)" : ""),
+      ),
+    );
+  }
+  if (maintenance.error) {
+    items.push(renderKvItem("Error", maintenance.error));
+  }
+  const tone =
+    maintenance.status === "deprecated" || maintenance.status === "archived"
+      ? "warning"
+      : undefined;
+  return renderSubsection(
+    "Maintenance",
+    '<div class="section-note">Conservative registry heuristics: "last registry activity" updates on any packument write, so age-based statuses under-flag rather than over-flag. Review cues, not verdicts.</div>' +
+      '<div class="kv-grid">' +
+      items.join("") +
+      "</div>",
+    undefined,
+    tone,
+  );
+}
+
+/**
  * Get a human-readable label for a supply chain signal type.
  *
  * @param type - The signal type identifier (for example `"git-dependency"` or `"missing-integrity"`)
@@ -2000,9 +2119,10 @@ function renderDepDetails(
     : "";
   const packagingBlock = renderPackagingSection(dep.packaging);
   const registryBlock = renderRegistryEnrichmentSection(dep.supplyChain?.registry);
+  const maintenanceBlock = renderMaintenanceSection(dep.maintenance);
   const supplyChainBlock = renderSupplyChainSourceSection(supplyChainSignals);
 
-  const riskBody = licenseBlock + vulnBlock + executionBlock + packagingBlock + registryBlock + supplyChainBlock;
+  const riskBody = licenseBlock + vulnBlock + maintenanceBlock + executionBlock + packagingBlock + registryBlock + supplyChainBlock;
   const riskSection = renderSection(
     "Risk & Compliance",
     undefined,
@@ -2022,13 +2142,15 @@ function renderDepDetails(
   }
   const currencyBlock = renderSubsection(
     "Version",
-    '<div class="section-note">Based on npm outdated findings.</div>' +
+    '<div class="section-note">Based on npm outdated findings and registry metadata.</div>' +
       '<div class="kv-grid">' +
       currencyItems.join("") +
       "</div>",
   );
 
-  const deprecatedBlock = dep.package.deprecated
+  // The Maintenance section (Risk & Compliance) supersedes this block when
+  // registry maintenance data is present; keep it for older report JSON.
+  const deprecatedBlock = dep.package.deprecated && !dep.maintenance?.attempted
     ? renderSubsection(
         "Deprecated",
         '<div class="kv-grid">' +
@@ -2219,6 +2341,9 @@ async function init(): Promise<void> {
       "sort-direction",
     ) as HTMLButtonElement,
     hasVulns: document.getElementById("has-vulns") as HTMLInputElement,
+    maintenanceConcerns: document.getElementById(
+      "maintenance-concerns",
+    ) as HTMLInputElement | null,
     themeSwitch: document.getElementById("theme-switch") as HTMLButtonElement,
     licenseToggle: document.getElementById(
       "license-toggle",
@@ -2274,6 +2399,9 @@ async function init(): Promise<void> {
     ) as HTMLElement | null,
     hasVulnsLabel: document.getElementById(
       "has-vulns-label",
+    ) as HTMLElement | null,
+    maintenanceConcernsLabel: document.getElementById(
+      "maintenance-concerns-label",
     ) as HTMLElement | null,
     columnHeadersContainer: document.getElementById(
       "column-headers-container",
@@ -2611,6 +2739,11 @@ async function init(): Promise<void> {
         "Has vulnerabilities",
         countBy(hasVulnerabilities),
       );
+    if (controls.maintenanceConcernsLabel)
+      controls.maintenanceConcernsLabel.textContent = formatCount(
+        "Maintenance concerns",
+        countBy(hasMaintenanceConcern),
+      );
   }
   if (controls.workspace && controls.workspaceWrap && workspaceNames.length > 1) {
     controls.workspace.textContent = "";
@@ -2741,6 +2874,7 @@ async function init(): Promise<void> {
     const runtimeFilter = controls.runtime.value;
     const workspaceFilter = controls.workspace?.value || "all";
     const hasVulns = controls.hasVulns.checked;
+    const maintenanceConcerns = controls.maintenanceConcerns?.checked ?? false;
 
     const showPermissive = controls.licensePermissive.checked;
     const showWeakCopyleft = controls.licenseWeakCopyleft.checked;
@@ -2781,6 +2915,7 @@ async function init(): Promise<void> {
         !hasVulnerabilities(dep)
       )
         return false;
+      if (maintenanceConcerns && !hasMaintenanceConcern(dep)) return false;
 
       const licenseCategory = getLicenseCategory(primaryLicense.value);
       if (licenseCategory === "permissive" && !showPermissive) return false;
@@ -2821,6 +2956,7 @@ async function init(): Promise<void> {
     controls.runtime.value = "all";
     if (controls.workspace) controls.workspace.value = "all";
     controls.hasVulns.checked = false;
+    if (controls.maintenanceConcerns) controls.maintenanceConcerns.checked = false;
     controls.licensePermissive.checked = true;
     controls.licenseWeakCopyleft.checked = true;
     controls.licenseStrongCopyleft.checked = true;
@@ -2934,6 +3070,15 @@ async function init(): Promise<void> {
         label: "Has vulnerabilities",
         remove: () => {
           controls.hasVulns.checked = false;
+        },
+      });
+    }
+    if (controls.maintenanceConcerns?.checked) {
+      chips.push({
+        id: "maintenance-concerns",
+        label: "Maintenance concerns",
+        remove: () => {
+          if (controls.maintenanceConcerns) controls.maintenanceConcerns.checked = false;
         },
       });
     }
@@ -3219,6 +3364,7 @@ async function init(): Promise<void> {
     controls.runtime,
     controls.sort,
     controls.hasVulns,
+    controls.maintenanceConcerns,
     controls.workspace,
     controls.licensePermissive,
     controls.licenseWeakCopyleft,

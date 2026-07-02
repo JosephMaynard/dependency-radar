@@ -384,7 +384,7 @@ describe('cli summary output', () => {
       );
       expect(reports).toHaveLength(1);
       const report = JSON.parse(await fs.readFile(path.join(projectCopy, reports[0]), 'utf8'));
-      expect(report.schemaVersion).toBe('1.4');
+      expect(report.schemaVersion).toBe('1.5');
     },
   );
 
@@ -473,7 +473,7 @@ describe('cli summary output', () => {
       const outputDir = await makeTempDir('dr-cli-compare');
       const previousPath = path.join(outputDir, 'previous.json');
       await fs.writeFile(previousPath, JSON.stringify({
-        schemaVersion: '1.4',
+        schemaVersion: '1.5',
         generatedAt: new Date(0).toISOString(),
         dependencyRadarVersion: 'test',
         git: { branch: '' },
@@ -509,7 +509,7 @@ describe('cli summary output', () => {
       const outputDir = await makeTempDir('dr-cli-compare-fail-on');
       const previousPath = path.join(outputDir, 'previous.json');
       await fs.writeFile(previousPath, JSON.stringify({
-        schemaVersion: '1.4',
+        schemaVersion: '1.5',
         generatedAt: new Date(0).toISOString(),
         dependencyRadarVersion: 'test',
         git: { branch: '' },
@@ -621,7 +621,7 @@ describe('cli summary output', () => {
       await fs.writeFile(path.join(depDir, 'cli.js'), "require('child_process').exec('git status'); console.log(process.env.TOKEN);", 'utf8');
       await fs.writeFile(path.join(depDir, 'npm-shrinkwrap.json'), '{}', 'utf8');
       await fs.writeFile(previousPath, JSON.stringify({
-        schemaVersion: '1.4',
+        schemaVersion: '1.5',
         generatedAt: new Date(0).toISOString(),
         dependencyRadarVersion: 'test',
         git: { branch: '' },
@@ -776,7 +776,7 @@ describe('cli summary output', () => {
     expect(result.status).toBe(0);
     const schema = JSON.parse(result.stdout);
     expect(schema.title).toBe('Dependency Radar Report');
-    expect(schema.properties.schemaVersion.const).toBe('1.4');
+    expect(schema.properties.schemaVersion.const).toBe('1.5');
   });
 
   it('writes the JSON schema to --out without scanning', async () => {
@@ -789,7 +789,7 @@ describe('cli summary output', () => {
     expect(result.stdout.trim()).toBe('');
     const schema = JSON.parse(await fs.readFile(outPath, 'utf8'));
     expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
-    expect(schema.properties.schemaVersion.const).toBe('1.4');
+    expect(schema.properties.schemaVersion.const).toBe('1.5');
     expect(schema.properties.supplyChain.properties.signals.items.required).toEqual(['type', 'source', 'detail']);
     expect(schema.properties.findings.items.required).toContain('packageId');
   });

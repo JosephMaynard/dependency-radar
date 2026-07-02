@@ -75,6 +75,7 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 - **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
 - **Interactive dependency graph** — explore your full dependency tree visually, including direct, dev, and transitive relationships
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
+- **Maintenance signals** — flags deprecated, repo-archived, unmaintained, and stale dependencies from npm registry metadata, with a local 7-day cache
 - **Import usage heuristics** — classifies each dependency's runtime impact (`runtime`, `build`, `testing`, `tooling`, `mixed`) based on where it's imported in your source
 - **Full transitive tree** — shows depth, parent relationships, fan-in/fan-out, and dependency origins
 - **Workspace support** — works across npm, pnpm, and Yarn workspaces
@@ -119,17 +120,26 @@ Dependency Radar exists to make those hidden signals visible in one place, from 
 
 ---
 
-## Need to share findings with leadership?
+## Maintenance signals
 
-The CLI tool is free and fully functional forever. It does not require an account or upload during normal use.
+Dependency Radar checks the npm registry for maintenance signals on every online scan — free, no account, no upload:
 
-If you need to communicate dependency risk beyond engineering (CTO, compliance, security, clients, or investors), the optional premium service adds executive summaries, presentation-ready reports, and deeper enrichment signals that are not available in the standard local scan.
+- **Deprecated** — the installed version (or the latest version) carries a registry deprecation notice, shown with the author's message
+- **Archived** — the package's GitHub repository is archived (best-effort lookup via the public ecosyste.ms API)
+- **Unmaintained** — no npm registry activity of any kind for 36+ months
+- **Stale** — no npm registry activity for 18+ months
+- **Active** — none of the above
 
-These include ecosystem and maintenance insights such as whether a dependency is archived, deprecated upstream, actively maintained, or showing signs of stagnation, helping you prioritise risk in larger portfolios or during technical due diligence.
+How it works, and its limits:
 
-See https://dependency-radar.com for details.
+- Deprecation and last-publish data come from abbreviated npm packuments (`Accept: application/vnd.npm.install-v1+json`), fetched for every unique package name in your tree (capped at 1,500 names, prioritising direct dependencies) with a hard time budget so slow networks cannot stall a scan.
+- The "last registry activity" timestamp updates on *any* packument write (publish, dist-tag change, deprecation edit), so the age-based statuses under-flag rather than over-flag: a package flagged unmaintained has had zero registry writes for 3+ years. Stable, "finished" packages can still show as stale or unmaintained — these are review cues, not verdicts.
+- Repo-archived checks are bounded (max 50 per scan, only for packages that are deprecated, direct, or dormant 24+ months) and fail silently.
+- Results are cached for 7 days in `~/.cache/dependency-radar/` (or `XDG_CACHE_HOME` / `%LOCALAPPDATA%`), so repeat scans are fast. Set `DEPENDENCY_RADAR_NO_CACHE=1` to disable the cache, `DEPENDENCY_RADAR_CACHE_DIR` to relocate it, or `DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS` to change the time budget.
+- Privacy: package names are sent to your configured npm registry, and `owner/repo` slugs of candidate packages to ecosyste.ms. No auth tokens are ever read or sent. Use `--no-maintenance` or `--offline` to skip these lookups entirely.
+- Custom registries: the default registry from `npm config get registry` is respected; per-scope registries are not resolved, so private scoped packages simply report an `unknown` maintenance status.
 
-The free CLI does not require an account or upload. The optional premium service is separate and only applies if you choose to use it.
+Maintenance data appears in the HTML report (Maintenance column, filter, and per-dependency detail), the JSON model (`dependencies[id].maintenance`), findings, and the `deprecated-dependency` / `unmaintained-dependency` / `new-deprecated` CI rules.
 
 ---
 
@@ -155,7 +165,8 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--target-node <major>` | Add Node major compatibility findings based on local `engines.node` metadata |
 | `--audit-signatures` | Run `npm audit signatures` for registry signature/provenance verification (opt-in; skipped with `--offline`) |
 | `--schema` | Print the current Dependency Radar JSON schema, or write it with `--out <path>` |
-| `--offline` | Skip registry lookups: `npm audit`, `npm outdated`, signature checks, and targeted registry enrichment |
+| `--offline` | Skip registry lookups: `npm audit`, `npm outdated`, signature checks, maintenance signals, and targeted registry enrichment |
+| `--no-maintenance` | Skip registry maintenance signals (deprecated/unmaintained/archived checks) while keeping audit and outdated checks |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
 | `--timestamp` | Add a local timestamp to generated report filenames (`dependency-radar.YYYY-MM-DD_HH-mm-ss.html`) |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
@@ -276,11 +287,14 @@ Supported rules:
 | `copyleft-detected` | Fail if strong copyleft (GPL/AGPL) appears in runtime dependencies |
 | `unknown-licence` | Fail if at least one dependency has neither declared nor inferred licence data |
 | `supply-chain-source` | Fail if lockfile source signals detect git/local/tarball sources, missing integrity, or unexpected registry hosts |
+| `deprecated-dependency` | Fail if at least one dependency is marked deprecated (registry or local metadata) |
+| `unmaintained-dependency` | Fail if at least one dependency has an `unmaintained` or `archived` maintenance status |
 
 The following rules are evaluated only by `compare <previous dependency-radar.json>` and use the previous JSON report as the baseline:
 
 | Rule | Description |
 |---|---|
+| `new-deprecated` | Fail if a dependency is now marked deprecated and no same-named dependency in the baseline was (note: baselines produced before schema 1.5 rarely carry deprecation data, so this rule can fire once on the first post-upgrade compare) |
 | `new-supply-chain-signal` | Fail if the current scan has a lockfile supply-chain signal that was not present in the baseline for the same package, or was not present at all when the signal is not package-specific |
 | `new-install-script` | Fail if a dependency now exposes install lifecycle hooks and the baseline did not show install hooks for that package |
 | `new-native-binding` | Fail if a dependency now exposes native build or binary surface and the baseline did not show native surface for that package |
@@ -555,7 +569,7 @@ For each installed dependency, Dependency Radar inspects local package metadata 
 - `peerDependency`: Added when the package declares at least one non-optional peer dependency (`peerDependencies`, excluding peers marked `peerDependenciesMeta.<name>.optional: true`).
 - `nativeBindings`: Added when native build/binary surface is detected (`binding.gyp`, `.node` binaries, or native build tooling in scripts such as `node-gyp`/`prebuild`).
 - `installScripts`: Added when install lifecycle hooks are present (`preinstall`, `install`, or `postinstall`).
-- `deprecated`: Added when the package is marked deprecated in installed metadata.
+- `deprecated`: Added when the package is marked deprecated on the npm registry (installed or latest version), or in installed metadata as an offline fallback.
 
 ### `blocksNodeMajor` meaning
 
@@ -704,7 +718,7 @@ export interface DependencyRecord {
     description?: string; // Description from the installed package.json (if present)
     fileCount?: number; // Number of files in the installed package folder (excluding nested node_modules)
     hasBin?: true; // True if package.json declares at least one executable in `bin`
-    deprecated: boolean; // True if the package.json has a deprecated flag
+    deprecated: boolean; // True when deprecated on the npm registry (installed or latest version), or via a local package.json deprecated flag
     links: {
       npm: string; // npm package page URL
       repository?: string; // Repository URL (if present)

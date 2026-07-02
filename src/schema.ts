@@ -1,8 +1,8 @@
-export const REPORT_SCHEMA_VERSION = '1.4';
+export const REPORT_SCHEMA_VERSION = '1.5';
 
 export const REPORT_JSON_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://dependency-radar.com/schemas/dependency-radar-1.4.schema.json',
+  $id: 'https://dependency-radar.com/schemas/dependency-radar-1.5.schema.json',
   title: 'Dependency Radar Report',
   type: 'object',
   required: ['schemaVersion', 'generatedAt', 'dependencyRadarVersion', 'project', 'environment', 'workspaces', 'summary', 'dependencies'],

@@ -346,6 +346,11 @@ ${safeCssContent}
                 <input type="checkbox" id="has-vulns" />
                 <span id="has-vulns-label">Has vulnerabilities</span>
               </label>
+
+              <label class="checkbox-filter">
+                <input type="checkbox" id="maintenance-concerns" />
+                <span id="maintenance-concerns-label">Maintenance concerns</span>
+              </label>
             </div>
 
             <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
@@ -358,6 +363,7 @@ ${safeCssContent}
                 <option value="license">License</option>
                 <option value="severity">Severity</option>
                 <option value="install">Install</option>
+                <option value="maintenance">Maintenance</option>
                 <option value="depth">Depth</option>
               </select>
               <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>

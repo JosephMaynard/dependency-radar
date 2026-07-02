@@ -54,7 +54,7 @@ function makeDependency(options: {
 function makeAggregated(dependencies: Record<string, DependencyRecord>): AggregatedData {
   const count = Object.keys(dependencies).length;
   return {
-    schemaVersion: '1.4',
+    schemaVersion: '1.5',
     generatedAt: '2026-05-01T00:00:00.000Z',
     dependencyRadarVersion: 'test',
     git: { branch: 'main' },

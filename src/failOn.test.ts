@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateComparePolicyViolations, evaluatePolicyViolations, parseFailOnRules } from './failOn';
-import type { AggregatedData, DependencyRecord, Severity } from './types';
+import type { AggregatedData, DependencyRecord, MaintenanceStatus, Severity } from './types';
 
 type ExecutionScripts = NonNullable<NonNullable<DependencyRecord['execution']>['scripts']>;
 
@@ -42,6 +42,8 @@ function makeDependency(options: {
   licenseStatus?: DependencyRecord['compliance']['license']['status'];
   declaredSpdx?: string;
   inferredSpdx?: string;
+  deprecated?: boolean;
+  maintenanceStatus?: MaintenanceStatus;
 }): DependencyRecord {
   const critical = options.critical ?? 0;
   const high = options.high ?? 0;
@@ -79,7 +81,7 @@ function makeDependency(options: {
       name: options.name,
       version: options.version ?? '1.0.0',
       ...(options.hasBin ? { hasBin: true } : {}),
-      deprecated: false,
+      deprecated: options.deprecated ?? false,
       links: {
         npm: `https://www.npmjs.com/package/${options.name}`
       }
@@ -156,6 +158,15 @@ function makeDependency(options: {
             }
           }
         }
+      : {}),
+    ...(options.maintenanceStatus
+      ? {
+          maintenance: {
+            attempted: true as const,
+            ok: true,
+            status: options.maintenanceStatus
+          }
+        }
       : {})
   };
 }
@@ -163,7 +174,7 @@ function makeDependency(options: {
 function makeAggregatedData(dependencies: Record<string, DependencyRecord>): AggregatedData {
   const count = Object.keys(dependencies).length;
   return {
-    schemaVersion: '1.4',
+    schemaVersion: '1.5',
     generatedAt: '2026-03-01T00:00:00.000Z',
     dependencyRadarVersion: 'test',
     git: {
@@ -245,6 +256,27 @@ describe('evaluateComparePolicyViolations', () => {
       'direct-now@1.1.0 is now a direct dependency'
     ]);
     expect(violations.flatMap((violation) => violation.details || []).join('\n')).not.toContain('plain-bump');
+  });
+
+  it('detects newly deprecated dependencies against the baseline', () => {
+    const previous = makeAggregatedData({
+      'was-deprecated@1.0.0': makeDependency({ name: 'was-deprecated', version: '1.0.0', deprecated: true }),
+      'now-deprecated@1.0.0': makeDependency({ name: 'now-deprecated', version: '1.0.0' })
+    });
+    const current = makeAggregatedData({
+      'was-deprecated@1.1.0': makeDependency({ name: 'was-deprecated', version: '1.1.0', deprecated: true }),
+      'now-deprecated@1.1.0': makeDependency({ name: 'now-deprecated', version: '1.1.0', deprecated: true })
+    });
+
+    const violations = evaluateComparePolicyViolations(previous, current, new Set(['new-deprecated']));
+    expect(violations).toEqual([
+      {
+        rule: 'new-deprecated',
+        count: 1,
+        message: '1 newly deprecated dependency',
+        details: ['now-deprecated@1.1.0 is now marked deprecated']
+      }
+    ]);
   });
 
   it('does not repeat trait failures when the baseline already had the same package trait', () => {
@@ -451,5 +483,27 @@ describe('evaluatePolicyViolations', () => {
         message: '1 lockfile supply-chain source finding'
       }
     ]);
+  });
+
+  it('fails on deprecated and unmaintained dependencies', () => {
+    const aggregated = makeAggregatedData({
+      'deprecated-lib@1.0.0': makeDependency({ name: 'deprecated-lib', deprecated: true, maintenanceStatus: 'deprecated' }),
+      'dead-lib@1.0.0': makeDependency({ name: 'dead-lib', maintenanceStatus: 'unmaintained' }),
+      'archived-lib@1.0.0': makeDependency({ name: 'archived-lib', maintenanceStatus: 'archived' }),
+      'stale-lib@1.0.0': makeDependency({ name: 'stale-lib', maintenanceStatus: 'stale' }),
+      'fine-lib@1.0.0': makeDependency({ name: 'fine-lib', maintenanceStatus: 'active' })
+    });
+
+    const violations = evaluatePolicyViolations(
+      aggregated,
+      new Set(['deprecated-dependency', 'unmaintained-dependency'])
+    );
+
+    const byRule = new Map(violations.map((violation) => [violation.rule, violation]));
+    expect(byRule.get('deprecated-dependency')?.count).toBe(1);
+    expect(byRule.get('deprecated-dependency')?.message).toBe('1 deprecated dependency');
+    // Archived counts as unmaintained; stale does not.
+    expect(byRule.get('unmaintained-dependency')?.count).toBe(2);
+    expect(byRule.get('unmaintained-dependency')?.message).toBe('2 unmaintained or archived dependencies');
   });
 });

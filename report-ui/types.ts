@@ -161,10 +161,36 @@ export interface DependencyRecord {
       error?: string;
     };
   };
+  maintenance?: {
+    attempted: true;
+    ok: boolean;
+    status: MaintenanceStatus;
+    deprecated?: {
+      installedVersion: boolean;
+      latestVersion: boolean;
+      message?: string;
+    };
+    repoArchived?: boolean;
+    repoCheckedAt?: string;
+    packageModifiedAt?: string;
+    monthsSinceModified?: number;
+    latestVersion?: string;
+    fetchedAt?: string;
+    fromCache?: true;
+    error?: string;
+  };
 }
 
+export type MaintenanceStatus =
+  | 'deprecated'
+  | 'archived'
+  | 'unmaintained'
+  | 'stale'
+  | 'active'
+  | 'unknown';
+
 export interface AggregatedData {
-  schemaVersion: '1.2' | '1.3' | '1.4';
+  schemaVersion: '1.2' | '1.3' | '1.4' | '1.5';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

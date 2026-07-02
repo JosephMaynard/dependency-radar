@@ -13,6 +13,9 @@ exports.SUPPORTED_FAIL_ON_RULES = [
     'copyleft-detected',
     'unknown-licence',
     'supply-chain-source',
+    'deprecated-dependency',
+    'unmaintained-dependency',
+    'new-deprecated',
     'new-supply-chain-signal',
     'new-install-script',
     'new-native-binding',
@@ -341,7 +344,7 @@ function parseFailOnRules(value) {
  * @returns An array of PolicyViolation objects for each rule that has one or more matching issues; returns an empty array if no violations are found
  */
 function evaluatePolicyViolations(aggregated, rules) {
-    var _a, _b;
+    var _a, _b, _c, _d;
     if (rules.size === 0)
         return [];
     let reachableProductionVulnCount = 0;
@@ -351,6 +354,8 @@ function evaluatePolicyViolations(aggregated, rules) {
     let copyleftDetectedCount = 0;
     let unknownLicenceCount = 0;
     let supplyChainSourceCount = 0;
+    let deprecatedDependencyCount = 0;
+    let unmaintainedDependencyCount = 0;
     for (const dep of Object.values(aggregated.dependencies || {})) {
         const isRuntime = dep.usage.scope === 'runtime';
         const hasVuln = vulnerabilityCount(dep) > 0;
@@ -374,8 +379,14 @@ function evaluatePolicyViolations(aggregated, rules) {
         if (!dep.compliance.license.declared && !dep.compliance.license.inferred) {
             unknownLicenceCount += 1;
         }
+        if (dep.package.deprecated) {
+            deprecatedDependencyCount += 1;
+        }
+        if (((_b = dep.maintenance) === null || _b === void 0 ? void 0 : _b.status) === 'unmaintained' || ((_c = dep.maintenance) === null || _c === void 0 ? void 0 : _c.status) === 'archived') {
+            unmaintainedDependencyCount += 1;
+        }
     }
-    supplyChainSourceCount = (((_b = aggregated.supplyChain) === null || _b === void 0 ? void 0 : _b.signals) || []).filter((signal) => signal.type === 'git-dependency' ||
+    supplyChainSourceCount = (((_d = aggregated.supplyChain) === null || _d === void 0 ? void 0 : _d.signals) || []).filter((signal) => signal.type === 'git-dependency' ||
         signal.type === 'file-dependency' ||
         signal.type === 'non-registry-tarball' ||
         signal.type === 'missing-integrity' ||
@@ -428,6 +439,20 @@ function evaluatePolicyViolations(aggregated, rules) {
             rule: 'supply-chain-source',
             count: supplyChainSourceCount,
             message: `${supplyChainSourceCount} ${pluralize(supplyChainSourceCount, 'lockfile supply-chain source finding', 'lockfile supply-chain source findings')}`
+        });
+    }
+    if (rules.has('deprecated-dependency') && deprecatedDependencyCount > 0) {
+        violations.push({
+            rule: 'deprecated-dependency',
+            count: deprecatedDependencyCount,
+            message: `${deprecatedDependencyCount} deprecated ${pluralize(deprecatedDependencyCount, 'dependency', 'dependencies')}`
+        });
+    }
+    if (rules.has('unmaintained-dependency') && unmaintainedDependencyCount > 0) {
+        violations.push({
+            rule: 'unmaintained-dependency',
+            count: unmaintainedDependencyCount,
+            message: `${unmaintainedDependencyCount} unmaintained or archived ${pluralize(unmaintainedDependencyCount, 'dependency', 'dependencies')}`
         });
     }
     return violations;
@@ -539,6 +564,25 @@ function evaluateComparePolicyViolations(previous, current, rules) {
                 rule: 'new-direct-dependency',
                 count: details.length,
                 message: `${details.length} new direct ${pluralize(details.length, 'dependency', 'dependencies')}`,
+                details
+            });
+        }
+    }
+    if (rules.has('new-deprecated')) {
+        const details = currentDeps
+            .filter((dep) => {
+            var _a;
+            if (!((_a = dep.package) === null || _a === void 0 ? void 0 : _a.deprecated))
+                return false;
+            return !(previousByName.get(dep.package.name) || []).some((previousDep) => { var _a; return Boolean((_a = previousDep.package) === null || _a === void 0 ? void 0 : _a.deprecated); });
+        })
+            .map((dep) => `${formatPackage(dep)} is now marked deprecated`)
+            .sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'new-deprecated',
+                count: details.length,
+                message: `${details.length} newly deprecated ${pluralize(details.length, 'dependency', 'dependencies')}`,
                 details
             });
         }
