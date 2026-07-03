@@ -2813,7 +2813,12 @@ async function init(): Promise<void> {
       undefined,
       `${report.summary.directCount} direct, ${report.summary.transitiveCount} transitive`,
     );
-    setChip("stat-vulnerable", vulnerable, "red");
+    setChip(
+      "stat-vulnerable",
+      vulnerable,
+      "red",
+      "Dependencies with known vulnerabilities — click to filter",
+    );
     setChip("stat-license", licenseIssues, "amber");
     setChip("stat-blockers", blockers, "amber");
     const maintenanceChip = document.getElementById("stat-maintenance");
@@ -2825,7 +2830,7 @@ async function init(): Promise<void> {
           "stat-maintenance",
           maintenanceConcernCount,
           maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
-          "Deprecated, archived, or unmaintained dependencies",
+          "Deprecated, archived, or unmaintained dependencies — click to filter",
         );
       }
     }

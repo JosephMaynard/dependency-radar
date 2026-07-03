@@ -290,7 +290,7 @@ body {
   font-size: 12px;
 }
 
-/* Header "scan at a glance" stat chips */
+/* Header "scan at a glance" stat tiles */
 .header-stats {
   flex: 0 1 auto;
   display: flex;
@@ -298,36 +298,54 @@ body {
   gap: 8px;
   justify-content: flex-end;
   align-self: center;
-  align-items: center;
-  font-size: 12px;
+  align-items: stretch;
 }
 
 .stat-chip {
-  display: inline-flex;
+  /* Number on top, label beneath; DOM keeps label-first for screen readers. */
+  display: flex;
+  flex-direction: column-reverse;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  justify-content: center;
+  gap: 4px;
+  min-width: 92px;
+  padding: 10px 14px 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 10px;
   color: var(--text-secondary);
+  text-align: center;
 }
 
 .stat-chip strong {
   color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  /* Display value: sans, semibold, proportional figures (not mono/tabular). */
+  font-family: var(--font-stack);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.stat-chip .meta-label {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 button.stat-chip {
   cursor: pointer;
   font: inherit;
-  transition: border-color var(--transition);
+  transition:
+    border-color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
 }
 
 button.stat-chip:hover {
   border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 button.stat-chip:focus-visible {
@@ -335,9 +353,13 @@ button.stat-chip:focus-visible {
   outline-offset: 2px;
 }
 
+/* State tints apply only when the count is non-zero (set from JS):
+   the value carries the status hue; a soft wash + keyline mark the tile. */
 .stat-chip.red {
   border-color: rgba(239, 68, 68, 0.4);
-  background: var(--red-bg);
+  background:
+    linear-gradient(to top, var(--red-bg), transparent 85%),
+    var(--bg-secondary);
 }
 
 .stat-chip.red strong {
@@ -346,7 +368,9 @@ button.stat-chip:focus-visible {
 
 .stat-chip.amber {
   border-color: rgba(245, 158, 11, 0.4);
-  background: var(--amber-bg);
+  background:
+    linear-gradient(to top, var(--amber-bg), transparent 85%),
+    var(--bg-secondary);
 }
 
 .stat-chip.amber strong {
@@ -2565,8 +2589,13 @@ details[open] > summary .expand-icon {
   }
 
   .stat-chip {
-    padding: 3px 8px;
-    font-size: 11px;
+    flex: 1 1 auto;
+    min-width: 76px;
+    padding: 8px 10px 6px;
+  }
+
+  .stat-chip strong {
+    font-size: 18px;
   }
 
   .filter-bar {
@@ -2846,8 +2875,16 @@ details[open] > summary .expand-icon {
   }
 
   .stat-chip {
-    font-size: 10px;
-    padding: 2px 6px;
+    min-width: 64px;
+    padding: 6px 8px 5px;
+  }
+
+  .stat-chip strong {
+    font-size: 16px;
+  }
+
+  .stat-chip .meta-label {
+    font-size: 8px;
   }
 
   .badge-card {
