@@ -178,8 +178,8 @@ ${safeCssContent}
         <span class="stat-chip" id="stat-total"><span class="meta-label">Dependencies</span> <strong>–</strong></span>
         <button type="button" class="stat-chip" id="stat-vulnerable" data-stat-filter="has-vulns"><span class="meta-label">Vulnerable</span> <strong>–</strong></button>
         <button type="button" class="stat-chip" id="stat-maintenance" data-stat-filter="maintenance-concerns"><span class="meta-label">Maintenance</span> <strong>–</strong></button>
-        <span class="stat-chip" id="stat-license"><span class="meta-label">Licence issues</span> <strong>–</strong></span>
-        <span class="stat-chip" id="stat-blockers"><span class="meta-label">Upgrade blockers</span> <strong>–</strong></span>
+        <button type="button" class="stat-chip" id="stat-license" data-stat-filter="license-issues"><span class="meta-label">Licence issues</span> <strong>–</strong></button>
+        <button type="button" class="stat-chip" id="stat-blockers" data-stat-filter="upgrade-blockers"><span class="meta-label">Upgrade blockers</span> <strong>–</strong></button>
       </div>
     </div>
   </header>
@@ -317,6 +317,16 @@ ${safeCssContent}
               <label class="checkbox-filter">
                 <input type="checkbox" id="maintenance-concerns" />
                 <span id="maintenance-concerns-label">Maintenance concerns</span>
+              </label>
+
+              <label class="checkbox-filter">
+                <input type="checkbox" id="license-issues" />
+                <span id="license-issues-label">Licence issues</span>
+              </label>
+
+              <label class="checkbox-filter">
+                <input type="checkbox" id="upgrade-blockers" />
+                <span id="upgrade-blockers-label">Upgrade blockers</span>
               </label>
             </div>
 

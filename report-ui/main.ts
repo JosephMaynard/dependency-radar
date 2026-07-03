@@ -394,6 +394,14 @@ function hasMaintenanceConcern(dep: DependencyRecord): boolean {
   return status === "deprecated" || status === "archived" || status === "unmaintained";
 }
 
+function hasLicenseIssue(dep: DependencyRecord): boolean {
+  return dep.compliance.licenseRisk !== "green";
+}
+
+function hasUpgradeBlocker(dep: DependencyRecord): boolean {
+  return Boolean(dep.upgrade.blocksNodeMajor || dep.upgrade.blockers?.length);
+}
+
 // Export column count for CSS variable
 const COLUMN_COUNT = COLUMN_CONFIG.length;
 
@@ -2337,6 +2345,12 @@ async function init(): Promise<void> {
     maintenanceConcerns: document.getElementById(
       "maintenance-concerns",
     ) as HTMLInputElement | null,
+    licenseIssues: document.getElementById(
+      "license-issues",
+    ) as HTMLInputElement | null,
+    upgradeBlockers: document.getElementById(
+      "upgrade-blockers",
+    ) as HTMLInputElement | null,
     themeSwitch: document.getElementById("theme-switch") as HTMLButtonElement,
     licenseToggle: document.getElementById(
       "license-toggle",
@@ -2395,6 +2409,12 @@ async function init(): Promise<void> {
     ) as HTMLElement | null,
     maintenanceConcernsLabel: document.getElementById(
       "maintenance-concerns-label",
+    ) as HTMLElement | null,
+    licenseIssuesLabel: document.getElementById(
+      "license-issues-label",
+    ) as HTMLElement | null,
+    upgradeBlockersLabel: document.getElementById(
+      "upgrade-blockers-label",
     ) as HTMLElement | null,
     columnHeadersContainer: document.getElementById(
       "column-headers-container",
@@ -2737,6 +2757,16 @@ async function init(): Promise<void> {
         "Maintenance concerns",
         countBy(hasMaintenanceConcern),
       );
+    if (controls.licenseIssuesLabel)
+      controls.licenseIssuesLabel.textContent = formatCount(
+        "Licence issues",
+        countBy(hasLicenseIssue),
+      );
+    if (controls.upgradeBlockersLabel)
+      controls.upgradeBlockersLabel.textContent = formatCount(
+        "Upgrade blockers",
+        countBy(hasUpgradeBlocker),
+      );
   }
   if (controls.workspace && controls.workspaceWrap && workspaceNames.length > 1) {
     controls.workspace.textContent = "";
@@ -2786,10 +2816,8 @@ async function init(): Promise<void> {
           maintenanceDeprecatedOrArchived += 1;
         }
       }
-      if (dep.compliance.licenseRisk !== "green") licenseIssues += 1;
-      if (dep.upgrade.blocksNodeMajor || dep.upgrade.blockers?.length) {
-        blockers += 1;
-      }
+      if (hasLicenseIssue(dep)) licenseIssues += 1;
+      if (hasUpgradeBlocker(dep)) blockers += 1;
     });
 
     const setChip = (
@@ -2819,8 +2847,18 @@ async function init(): Promise<void> {
       "red",
       "Dependencies with known vulnerabilities — click to filter",
     );
-    setChip("stat-license", licenseIssues, "amber");
-    setChip("stat-blockers", blockers, "amber");
+    setChip(
+      "stat-license",
+      licenseIssues,
+      "amber",
+      "Dependencies with licence review flags — click to filter",
+    );
+    setChip(
+      "stat-blockers",
+      blockers,
+      "amber",
+      "Dependencies with upgrade blockers — click to filter",
+    );
     const maintenanceChip = document.getElementById("stat-maintenance");
     if (maintenanceChip) {
       if (!maintenanceDataSeen) {
@@ -2843,10 +2881,17 @@ async function init(): Promise<void> {
       const targets: Record<string, HTMLInputElement | null | undefined> = {
         "has-vulns": controls.hasVulns,
         "maintenance-concerns": controls.maintenanceConcerns,
+        "license-issues": controls.licenseIssues,
+        "upgrade-blockers": controls.upgradeBlockers,
       };
       const control = targets[button.dataset.statFilter || ""];
       if (!control) return;
-      control.checked = true;
+      // Stat tiles are shortcuts, not additive filters: clear every other
+      // filter (including search), then toggle just this one.
+      const wasChecked = control.checked;
+      controls.search.value = "";
+      resetNonSearchFilters();
+      control.checked = !wasChecked;
       control.dispatchEvent(new Event("change"));
     });
   }
@@ -2962,6 +3007,8 @@ async function init(): Promise<void> {
     const workspaceFilter = controls.workspace?.value || "all";
     const hasVulns = controls.hasVulns.checked;
     const maintenanceConcerns = controls.maintenanceConcerns?.checked ?? false;
+    const licenseIssuesOnly = controls.licenseIssues?.checked ?? false;
+    const upgradeBlockersOnly = controls.upgradeBlockers?.checked ?? false;
 
     const showPermissive = controls.licensePermissive.checked;
     const showWeakCopyleft = controls.licenseWeakCopyleft.checked;
@@ -3003,6 +3050,8 @@ async function init(): Promise<void> {
       )
         return false;
       if (maintenanceConcerns && !hasMaintenanceConcern(dep)) return false;
+      if (licenseIssuesOnly && !hasLicenseIssue(dep)) return false;
+      if (upgradeBlockersOnly && !hasUpgradeBlocker(dep)) return false;
 
       const licenseCategory = getLicenseCategory(primaryLicense.value);
       if (licenseCategory === "permissive" && !showPermissive) return false;
@@ -3044,6 +3093,8 @@ async function init(): Promise<void> {
     if (controls.workspace) controls.workspace.value = "all";
     controls.hasVulns.checked = false;
     if (controls.maintenanceConcerns) controls.maintenanceConcerns.checked = false;
+    if (controls.licenseIssues) controls.licenseIssues.checked = false;
+    if (controls.upgradeBlockers) controls.upgradeBlockers.checked = false;
     controls.licensePermissive.checked = true;
     controls.licenseWeakCopyleft.checked = true;
     controls.licenseStrongCopyleft.checked = true;
@@ -3166,6 +3217,24 @@ async function init(): Promise<void> {
         label: "Maintenance concerns",
         remove: () => {
           if (controls.maintenanceConcerns) controls.maintenanceConcerns.checked = false;
+        },
+      });
+    }
+    if (controls.licenseIssues?.checked) {
+      chips.push({
+        id: "license-issues",
+        label: "Licence issues",
+        remove: () => {
+          if (controls.licenseIssues) controls.licenseIssues.checked = false;
+        },
+      });
+    }
+    if (controls.upgradeBlockers?.checked) {
+      chips.push({
+        id: "upgrade-blockers",
+        label: "Upgrade blockers",
+        remove: () => {
+          if (controls.upgradeBlockers) controls.upgradeBlockers.checked = false;
         },
       });
     }
@@ -3452,6 +3521,8 @@ async function init(): Promise<void> {
     controls.sort,
     controls.hasVulns,
     controls.maintenanceConcerns,
+    controls.licenseIssues,
+    controls.upgradeBlockers,
     controls.workspace,
     controls.licensePermissive,
     controls.licenseWeakCopyleft,
