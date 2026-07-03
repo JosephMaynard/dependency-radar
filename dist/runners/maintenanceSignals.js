@@ -52,8 +52,9 @@ function emptySummary() {
 }
 /** Encode a package name for use as a single registry URL path segment. */
 function encodePackageName(name) {
-    // Scoped names keep the leading @ but encode the separating slash.
-    return name.replace('/', '%2F');
+    // Names come from installed package.json files (untrusted content), so
+    // percent-encode every segment; the scope separator becomes %2F.
+    return name.split('/').map(encodeURIComponent).join('%2F');
 }
 /**
  * Resolve the default registry base URL via `npm config get registry` so

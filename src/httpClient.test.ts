@@ -22,10 +22,12 @@ afterEach(async () => {
 });
 
 describe('httpGetJson', () => {
-  it('returns parsed JSON for a 2xx response', async () => {
+  it('returns parsed JSON for a 2xx response and sends headers', async () => {
+    let receivedAccept: string | undefined;
     const base = await startServer((req, res) => {
+      receivedAccept = req.headers.accept;
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ hello: 'world', accept: req.headers.accept }));
+      res.end(JSON.stringify({ hello: 'world' }));
     });
 
     const result = await httpGetJson(`${base}/thing`, {
@@ -33,7 +35,8 @@ describe('httpGetJson', () => {
     });
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
-    expect(result.data).toEqual({ hello: 'world', accept: 'application/vnd.npm.install-v1+json' });
+    expect(result.data).toEqual({ hello: 'world' });
+    expect(receivedAccept).toBe('application/vnd.npm.install-v1+json');
   });
 
   it('reports non-2xx statuses without throwing', async () => {
@@ -80,19 +83,22 @@ describe('httpGetJson', () => {
   });
 
   it('follows redirects up to the cap', async () => {
+    const visited: string[] = [];
     const base = await startServer((req, res) => {
+      visited.push(req.url || '');
       if (req.url === '/start') {
         res.writeHead(302, { Location: '/end' });
         res.end();
         return;
       }
       res.writeHead(200);
-      res.end(JSON.stringify({ at: req.url }));
+      res.end(JSON.stringify({ arrived: true }));
     });
 
     const result = await httpGetJson(`${base}/start`);
     expect(result.ok).toBe(true);
-    expect(result.data).toEqual({ at: '/end' });
+    expect(result.data).toEqual({ arrived: true });
+    expect(visited).toEqual(['/start', '/end']);
   });
 
   it('fails on redirect loops', async () => {

@@ -1,3 +1,5 @@
+import http from 'http';
+import { AddressInfo } from 'net';
 import { describe, expect, it } from 'vitest';
 import {
   deriveMaintenanceStatus,
@@ -366,6 +368,33 @@ describe('enrichAggregatedWithMaintenanceSignals', () => {
     for (const dep of Object.values(aggregated.dependencies)) {
       expect(dep.maintenance?.repoArchived).toBeUndefined();
       expect(dep.maintenance?.status).toBe('active');
+    }
+  });
+
+  it('percent-encodes every package-name segment in registry URLs', async () => {
+    const requestedPaths: string[] = [];
+    const server = http.createServer((req, res) => {
+      requestedPaths.push(req.url || '');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ modified: monthsAgo(1), 'dist-tags': { latest: '1.0.0' }, versions: { '1.0.0': {} } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as AddressInfo;
+
+    try {
+      const aggregated = makeAggregated({
+        '@scope/pkg@1.0.0': makeDependency({ name: '@scope/pkg' })
+      });
+      await enrichAggregatedWithMaintenanceSignals(aggregated, {
+        now: NOW,
+        cache: new MaintenanceCache(undefined),
+        registryUrl: `http://127.0.0.1:${port}`
+      });
+
+      expect(requestedPaths).toEqual(['/%40scope%2Fpkg']);
+      expect(aggregated.dependencies['@scope/pkg@1.0.0'].maintenance?.status).toBe('active');
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 
