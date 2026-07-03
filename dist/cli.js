@@ -2001,12 +2001,12 @@ async function runCompareCommand(opts) {
         const schemaVersion = parsed && typeof parsed === "object" ? parsed.schemaVersion : undefined;
         if (!parsed ||
             typeof parsed !== "object" ||
-            schemaVersion !== schema_1.REPORT_SCHEMA_VERSION ||
+            !schema_1.COMPATIBLE_BASELINE_SCHEMA_VERSIONS.includes(schemaVersion) ||
             !parsed.project ||
             !parsed.summary ||
             !parsed.dependencies ||
             typeof parsed.dependencies !== "object") {
-            console.error(`Previous report schema mismatch: expected schemaVersion ${schema_1.REPORT_SCHEMA_VERSION}, found ${schemaVersion !== null && schemaVersion !== void 0 ? schemaVersion : "missing"}.`);
+            console.error(`Previous report schema mismatch: expected schemaVersion ${schema_1.COMPATIBLE_BASELINE_SCHEMA_VERSIONS.join(", ")} (found ${schemaVersion !== null && schemaVersion !== void 0 ? schemaVersion : "missing"}).`);
             process.exit(1);
             return;
         }

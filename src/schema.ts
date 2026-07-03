@@ -1,5 +1,10 @@
 export const REPORT_SCHEMA_VERSION = '1.5';
 
+// Baseline reports accepted by `compare`. Schema changes since 1.2 have been
+// purely additive, and every consumer of baseline data optional-chains the
+// newer fields, so older baselines remain valid comparison inputs.
+export const COMPATIBLE_BASELINE_SCHEMA_VERSIONS: readonly string[] = ['1.2', '1.3', '1.4', REPORT_SCHEMA_VERSION];
+
 export const REPORT_JSON_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://dependency-radar.com/schemas/dependency-radar-1.5.schema.json',

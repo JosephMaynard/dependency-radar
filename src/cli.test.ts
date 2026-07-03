@@ -498,6 +498,43 @@ describe('cli summary output', () => {
   );
 
   it(
+    'accepts baselines produced by older schema versions',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-compare-old-schema-project',
+      );
+      const outputDir = await makeTempDir('dr-cli-compare-old-schema');
+      const previousPath = path.join(outputDir, 'previous.json');
+      // A v0.9-era baseline: schema 1.4, no maintenance blocks anywhere.
+      await fs.writeFile(previousPath, JSON.stringify({
+        schemaVersion: '1.4',
+        generatedAt: new Date(0).toISOString(),
+        dependencyRadarVersion: 'test',
+        git: { branch: '' },
+        project: { projectDir: '/fixture' },
+        environment: { nodeVersion: '0.0.0', runtimeVersion: 'v0.0.0', minRequiredMajor: 0 },
+        workspaces: { enabled: false },
+        summary: { dependencyCount: 0, directCount: 0, transitiveCount: 0 },
+        dependencies: {},
+        findings: []
+      }), 'utf8');
+
+      const result = runCli(
+        ['compare', previousPath, '--project', fixtureProject, '--offline', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Dependency Radar comparison');
+      expect(output).not.toContain('schema mismatch');
+    },
+  );
+
+  it(
     'fails compare when a selected risky delta rule is introduced',
     { timeout: 30000 },
     async () => {

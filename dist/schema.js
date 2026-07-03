@@ -1,8 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.REPORT_JSON_SCHEMA = exports.REPORT_SCHEMA_VERSION = void 0;
+exports.REPORT_JSON_SCHEMA = exports.COMPATIBLE_BASELINE_SCHEMA_VERSIONS = exports.REPORT_SCHEMA_VERSION = void 0;
 exports.renderReportJsonSchema = renderReportJsonSchema;
 exports.REPORT_SCHEMA_VERSION = '1.5';
+// Baseline reports accepted by `compare`. Schema changes since 1.2 have been
+// purely additive, and every consumer of baseline data optional-chains the
+// newer fields, so older baselines remain valid comparison inputs.
+exports.COMPATIBLE_BASELINE_SCHEMA_VERSIONS = ['1.2', '1.3', '1.4', exports.REPORT_SCHEMA_VERSION];
 exports.REPORT_JSON_SCHEMA = {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: 'https://dependency-radar.com/schemas/dependency-radar-1.5.schema.json',

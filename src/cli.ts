@@ -26,7 +26,7 @@ import {
   type ReportFormat,
 } from "./outputFormats";
 import { formatWhyOutput } from "./why";
-import { REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
+import { COMPATIBLE_BASELINE_SCHEMA_VERSIONS, REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
   evaluateComparePolicyViolations,
@@ -2406,13 +2406,13 @@ async function runCompareCommand(opts: CliOptions): Promise<void> {
     if (
       !parsed ||
       typeof parsed !== "object" ||
-      schemaVersion !== REPORT_SCHEMA_VERSION ||
+      !COMPATIBLE_BASELINE_SCHEMA_VERSIONS.includes(schemaVersion) ||
       !parsed.project ||
       !parsed.summary ||
       !parsed.dependencies ||
       typeof parsed.dependencies !== "object"
     ) {
-      console.error(`Previous report schema mismatch: expected schemaVersion ${REPORT_SCHEMA_VERSION}, found ${schemaVersion ?? "missing"}.`);
+      console.error(`Previous report schema mismatch: expected schemaVersion ${COMPATIBLE_BASELINE_SCHEMA_VERSIONS.join(", ")} (found ${schemaVersion ?? "missing"}).`);
       process.exit(1);
       return;
     }
