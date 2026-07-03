@@ -151,4 +151,26 @@ describe('report detail rules', () => {
     expect(buildReportOverallRisk(dep, dep.security.summary)).toBe('red');
     expect(buildReportOverallRisk(dependency(), dependency().security.summary, 1)).toBe('amber');
   });
+
+  it('folds every maintenance status into overall risk and key points consistently', () => {
+    const withStatus = (status: 'deprecated' | 'archived' | 'unmaintained' | 'stale' | 'active') =>
+      dependency({
+        maintenance: { attempted: true, ok: true, status }
+      });
+
+    expect(buildReportOverallRisk(withStatus('deprecated'), dependency().security.summary)).toBe('red');
+    expect(buildReportOverallRisk(withStatus('archived'), dependency().security.summary)).toBe('red');
+    expect(buildReportOverallRisk(withStatus('unmaintained'), dependency().security.summary)).toBe('amber');
+    // Stale is an informational cue by design: no finding, no CI rule, no
+    // risk-stripe escalation — but it must surface as a key point.
+    expect(buildReportOverallRisk(withStatus('stale'), dependency().security.summary)).toBe('green');
+    expect(buildReportOverallRisk(withStatus('active'), dependency().security.summary)).toBe('green');
+
+    const keyPointFor = (status: 'deprecated' | 'archived' | 'unmaintained' | 'stale') =>
+      buildReportKeyPoints(withStatus(status), dependency().security.summary)[0];
+    expect(keyPointFor('deprecated')).toBe('Deprecated by the author');
+    expect(keyPointFor('archived')).toBe('Source repository is archived');
+    expect(keyPointFor('unmaintained')).toBe('No registry activity for 3+ years');
+    expect(keyPointFor('stale')).toBe('No registry activity for 18+ months');
+  });
 });

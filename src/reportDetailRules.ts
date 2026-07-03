@@ -51,6 +51,10 @@ export function buildReportOverallRisk(
       : 'green';
   const registryRisk = (dep.supplyChain?.registry?.signals?.length || 0) > 0 ? 'amber' : 'green';
   const maintenanceStatus = dep.maintenance?.status;
+  // 'stale' deliberately does not escalate overall risk: 18 months without
+  // registry writes is common for stable, finished packages, and stale
+  // carries no finding, CI rule, or filter concern either. It stays an
+  // informational cue (Maintenance badge, key point, detail section).
   const maintenanceRisk =
     maintenanceStatus === 'deprecated' || maintenanceStatus === 'archived'
       ? 'red'
@@ -140,6 +144,8 @@ export function buildReportKeyPoints(dep: DependencyRecord, summary: SecuritySum
     points.push('Source repository is archived');
   } else if (dep.maintenance?.status === 'unmaintained') {
     points.push('No registry activity for 3+ years');
+  } else if (dep.maintenance?.status === 'stale') {
+    points.push('No registry activity for 18+ months');
   }
   if (dep.compliance.licenseRisk !== 'green') {
     points.push('Licence status: ' + formatLicenseStatus(dep.compliance.license.status));
