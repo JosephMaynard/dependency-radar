@@ -292,9 +292,8 @@ body {
 
 /* Header "scan at a glance" stat tiles */
 .header-stats {
-  flex: 0 1 auto;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   justify-content: flex-end;
   align-self: center;
@@ -309,7 +308,7 @@ body {
   justify-content: center;
   gap: 4px;
   min-width: 92px;
-  padding: 10px 14px 8px;
+  padding: 8px 8px 6px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
@@ -2550,7 +2549,6 @@ details[open] > summary .expand-icon {
 
   .header-stats {
     width: 100%;
-    justify-content: flex-start;
   }
 
   .filter-top-row {
@@ -2599,7 +2597,6 @@ details[open] > summary .expand-icon {
 
   .header-stats {
     width: 100%;
-    justify-content: flex-start;
   }
 
   .stat-chip {
