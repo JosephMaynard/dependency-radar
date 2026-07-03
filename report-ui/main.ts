@@ -2156,8 +2156,9 @@ function renderDepDetails(
   );
 
   // The Maintenance section (Risk & Compliance) supersedes this block when
-  // registry maintenance data is present; keep it for older report JSON.
-  const deprecatedBlock = dep.package.deprecated && !dep.maintenance?.attempted
+  // it actually carries deprecation info; keep it for older report JSON and
+  // for local-metadata deprecations whose registry lookup failed.
+  const deprecatedBlock = dep.package.deprecated && !dep.maintenance?.deprecated
     ? renderSubsection(
         "Deprecated",
         '<div class="kv-grid">' +

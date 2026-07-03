@@ -94,17 +94,21 @@ function parseAbbreviatedPackument(data, now) {
     if ((!versions || typeof versions !== 'object') && (!distTags || typeof distTags !== 'object')) {
         return undefined;
     }
+    // Cap every string persisted to the cache: the registry response is
+    // untrusted input and must not be able to bloat the cache file.
     const entry = { fetchedAt: now.toISOString() };
     if (typeof packument.modified === 'string')
-        entry.modified = packument.modified;
+        entry.modified = packument.modified.slice(0, 64);
     const latest = distTags && typeof distTags.latest === 'string' ? distTags.latest : undefined;
     if (latest)
-        entry.latestVersion = latest;
+        entry.latestVersion = latest.slice(0, 64);
     if (versions && typeof versions === 'object') {
         const deprecatedVersions = {};
         let count = 0;
         for (const [version, meta] of Object.entries(versions)) {
             if (!meta || typeof meta !== 'object')
+                continue;
+            if (version.length > 256)
                 continue;
             const deprecated = meta.deprecated;
             // npm treats any non-empty string (and boolean true) as deprecated.

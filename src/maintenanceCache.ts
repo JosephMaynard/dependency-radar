@@ -56,7 +56,10 @@ export function resolveMaintenanceCacheDir(env: NodeJS.ProcessEnv = process.env)
  * scans can only race whole files (last writer wins), never tear one.
  */
 export class MaintenanceCache {
-  private entries: Record<string, MaintenanceCacheEntry> = {};
+  // Null-prototype store: package names are untrusted (they come from
+  // installed package.json files), and a name like "__proto__" must behave
+  // as a plain key rather than mutating the object's prototype.
+  private entries: Record<string, MaintenanceCacheEntry> = Object.create(null);
   private readonly filePath?: string;
   private readonly ttlMs: number;
 
@@ -71,10 +74,10 @@ export class MaintenanceCache {
     try {
       const parsed = await readJsonFile<MaintenanceCacheFile>(this.filePath);
       if (parsed && parsed.version === CACHE_FILE_VERSION && parsed.entries && typeof parsed.entries === 'object') {
-        this.entries = parsed.entries;
+        this.entries = Object.assign(Object.create(null), parsed.entries);
       }
     } catch {
-      this.entries = {};
+      this.entries = Object.create(null);
     }
   }
 

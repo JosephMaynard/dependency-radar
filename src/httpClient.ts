@@ -57,6 +57,15 @@ export function httpGetJson(url: string, options: HttpGetJsonOptions = {}): Prom
         return;
       }
       const transport = parsed.protocol === 'https:' ? https : http;
+      // An agent is bound to one protocol; passing an https agent to an http
+      // request (or vice versa) makes Node throw synchronously. Drop the
+      // agent when the target protocol does not match — this also covers
+      // cross-protocol redirect hops.
+      const agentIsHttps = options.agent instanceof https.Agent;
+      const agent =
+        options.agent && agentIsHttps === (parsed.protocol === 'https:')
+          ? options.agent
+          : undefined;
 
       let settled = false;
       const settle = (result: HttpJsonResult) => {
@@ -65,13 +74,15 @@ export function httpGetJson(url: string, options: HttpGetJsonOptions = {}): Prom
         resolve(result);
       };
 
-      const req = transport.get(
-        parsed,
-        {
-          headers: options.headers,
-          agent: options.agent
-        },
-        (res) => {
+      let req: http.ClientRequest;
+      try {
+        req = transport.get(
+          parsed,
+          {
+            headers: options.headers,
+            agent
+          },
+          (res) => {
           const status = res.statusCode ?? 0;
 
           if (REDIRECT_STATUS_CODES.has(status) && res.headers.location) {
@@ -87,7 +98,9 @@ export function httpGetJson(url: string, options: HttpGetJsonOptions = {}): Prom
               settle({ ok: false, status, error: `invalid redirect location: ${res.headers.location}` });
               return;
             }
-            requestOnce(nextUrl, redirectsLeft - 1).then(settle);
+            requestOnce(nextUrl, redirectsLeft - 1).then(settle, (err) => {
+              settle({ ok: false, error: err instanceof Error ? err.message : String(err) });
+            });
             return;
           }
 
@@ -118,8 +131,14 @@ export function httpGetJson(url: string, options: HttpGetJsonOptions = {}): Prom
               settle({ ok: false, status, error: 'invalid JSON response' });
             }
           });
-        }
-      );
+          }
+        );
+      } catch (err) {
+        // transport.get can throw synchronously (bad options, agent/protocol
+        // mismatch on exotic setups); the promise must still settle.
+        settle({ ok: false, error: err instanceof Error ? err.message : String(err) });
+        return;
+      }
 
       const timer = setTimeout(() => {
         req.destroy(new Error(`request timed out after ${timeoutMs}ms`));

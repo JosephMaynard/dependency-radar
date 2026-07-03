@@ -1359,11 +1359,13 @@ Options:
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Scan rules: reachable-vuln, production-vuln, high-severity-vuln,
                                  licence-mismatch, copyleft-detected, unknown-licence,
-                                 supply-chain-source
-                     Compare rules: new-supply-chain-signal, new-install-script,
-                                    new-native-binding, new-bin, new-direct-dependency,
-                                    new-child-process, new-network-access, new-env-access,
-                                    new-home-access, new-ssh-usage, new-obfuscation-signal,
+                                 supply-chain-source, deprecated-dependency,
+                                 unmaintained-dependency
+                     Compare rules: new-deprecated, new-supply-chain-signal,
+                                    new-install-script, new-native-binding, new-bin,
+                                    new-direct-dependency, new-child-process,
+                                    new-network-access, new-env-access, new-home-access,
+                                    new-ssh-usage, new-obfuscation-signal,
                                     new-bundled-dependencies, new-shrinkwrap,
                                     new-recent-package, new-recent-version,
                                     new-low-release-history, new-reactivated-package,

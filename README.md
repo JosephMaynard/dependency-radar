@@ -46,8 +46,8 @@ Dependency Radar is designed to be inspectable and low-friction to evaluate:
 - Dependency Radar does not modify your `package.json`, lockfile, or installed dependencies
 - Dependency Radar does not upload your source code or generated reports during a normal CLI scan
 - reports are written to disk as local files
-- the only default network activity is package-manager-backed audit and outdated checks, which query the configured package registry for dependency metadata
-- use `--offline` for a no-registry-call scan
+- default network activity is limited to: package-manager-backed audit and outdated checks, npm registry metadata lookups for maintenance signals, and bounded repo-archived checks against the public ecosyste.ms API (see [Maintenance signals](#maintenance-signals))
+- use `--no-maintenance` to skip the maintenance lookups, or `--offline` for a no-network scan
 
 You can inspect the source on GitHub, view the npm package metadata, or start with an offline scan:
 
@@ -64,8 +64,8 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 | Project files | Reads package manifests, lockfiles, and installed dependency metadata |
 | `node_modules` | Reads package metadata and selected files for dependency analysis |
 | Output files | Writes reports/SBOMs only where requested |
-| Network | Runs package-manager audit/outdated checks by default, which query the configured package registry for dependency metadata |
-| Offline mode | `--offline` skips audit, outdated, signature verification, and targeted registry enrichment checks |
+| Network | Runs package-manager audit/outdated checks, npm registry maintenance-signal lookups, and bounded ecosyste.ms repo-archived checks by default |
+| Offline mode | `--offline` skips audit, outdated, signature verification, maintenance signals, and targeted registry enrichment checks |
 | Source code upload | No source code or generated reports are uploaded during a normal CLI scan |
 | Project mutation | Dependency Radar does not install, update, remove, or rewrite dependencies |
 
@@ -406,7 +406,7 @@ npx dependency-radar scan --quiet --no-report
 - reports are still generated unless `--no-report` is set
 - the final summary block is still printed
 - policy failures are still printed
-- progress/info logs, automatic browser opening, and the promotional footer are suppressed
+- progress/info logs, automatic browser opening, and the footer links are suppressed
 
 __Note:__ When used with `--no-report`, the `--keep-temp` flag is ignored. 
 Temporary files are normally deleted automatically. 
@@ -454,7 +454,7 @@ The blocker detail counts can overlap: a single package may contribute to multip
 
 When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
 
-1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--timestamp`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--no-maintenance`, `--json`, `--timestamp`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
 2. Detect workspace/package-manager context:
    - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
    - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions
@@ -473,6 +473,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Lockfile supply-chain source signals
    - Optional npm registry signature/provenance verification (`--audit-signatures`)
    - Targeted npm registry metadata for up to 10 packages that already show local or supply-chain review signals (skipped with `--offline`)
+   - Registry maintenance signals: abbreviated packument lookups for every unique package name plus bounded ecosyste.ms repo-archived checks, cached for 7 days (skipped with `--no-maintenance` or `--offline`)
 6. Normalize outputs into one internal shape and merge workspace package results.
    - PNPM lock/CLI dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
 7. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
@@ -485,7 +486,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Install-time execution signals, local execution capability signals, packaging signals, and targeted registry metadata review signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
 9. Build normalized findings from the aggregated dependency model:
-   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, targeted registry metadata review signals, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
+   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, targeted registry metadata review signals, native bindings, deprecated packages, archived/unmaintained maintenance signals, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
 10. Write final output as one of:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
@@ -494,7 +495,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - SPDX SBOM (`--format spdx` / `--sbom spdx`)
 11. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
-The scan runs on your machine: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, and targeted registry enrichment require registry access and are skipped or disabled with `--offline`.
+The scan runs on your machine: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, maintenance-signal lookups, and targeted registry enrichment require network access and are skipped or disabled with `--offline`.
 
 The `explain` command reuses this same pipeline with report writing disabled, then filters the in-memory model down to a single package for terminal output.
 
@@ -611,7 +612,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.4'; // Report schema version for compatibility checks
+  schemaVersion: '1.5'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -828,6 +829,24 @@ export interface DependencyRecord {
       >; // Review-worthy install-time signals (sparse)
     };
   };
+  maintenance?: {
+    attempted: true; // Present whenever a registry maintenance lookup ran (or was served from cache)
+    ok: boolean; // False when the lookup failed (status is then 'unknown')
+    status: 'deprecated' | 'archived' | 'unmaintained' | 'stale' | 'active' | 'unknown';
+    deprecated?: {
+      installedVersion: boolean; // Installed version carries a registry deprecation notice
+      latestVersion: boolean; // dist-tags.latest carries a registry deprecation notice
+      message?: string; // Author-provided deprecation message (capped)
+    };
+    repoArchived?: boolean; // Source repository archived (best-effort ecosyste.ms check)
+    repoCheckedAt?: string; // When the repo-archived check ran
+    packageModifiedAt?: string; // Packument `modified` timestamp (any registry write)
+    monthsSinceModified?: number; // Whole months since packageModifiedAt
+    latestVersion?: string; // dist-tags.latest (also backfills upgrade.latestVersion)
+    fetchedAt?: string; // When the underlying registry data was fetched
+    fromCache?: true; // Served from the local 7-day cache
+    error?: string; // Lookup failure detail
+  };
 }
 ```
 
@@ -837,7 +856,7 @@ For full details and any future changes, see `src/types.ts`.
 
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
 - The scan runs on your machine and does not upload your source code or generated reports during a normal CLI scan.
-- `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, and targeted registry enrichment perform registry lookups; use `--offline` for offline-only scans.
+- `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, maintenance-signal lookups, and targeted registry enrichment perform network lookups; use `--offline` for offline-only scans.
 - On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.

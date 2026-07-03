@@ -47,6 +47,14 @@ function httpGetJson(url, options = {}) {
             return;
         }
         const transport = parsed.protocol === 'https:' ? https_1.default : http_1.default;
+        // An agent is bound to one protocol; passing an https agent to an http
+        // request (or vice versa) makes Node throw synchronously. Drop the
+        // agent when the target protocol does not match — this also covers
+        // cross-protocol redirect hops.
+        const agentIsHttps = options.agent instanceof https_1.default.Agent;
+        const agent = options.agent && agentIsHttps === (parsed.protocol === 'https:')
+            ? options.agent
+            : undefined;
         let settled = false;
         const settle = (result) => {
             if (settled)
@@ -54,59 +62,70 @@ function httpGetJson(url, options = {}) {
             settled = true;
             resolve(result);
         };
-        const req = transport.get(parsed, {
-            headers: options.headers,
-            agent: options.agent
-        }, (res) => {
-            var _a;
-            const status = (_a = res.statusCode) !== null && _a !== void 0 ? _a : 0;
-            if (REDIRECT_STATUS_CODES.has(status) && res.headers.location) {
-                res.resume();
-                if (redirectsLeft <= 0) {
-                    settle({ ok: false, status, error: 'too many redirects' });
+        let req;
+        try {
+            req = transport.get(parsed, {
+                headers: options.headers,
+                agent
+            }, (res) => {
+                var _a;
+                const status = (_a = res.statusCode) !== null && _a !== void 0 ? _a : 0;
+                if (REDIRECT_STATUS_CODES.has(status) && res.headers.location) {
+                    res.resume();
+                    if (redirectsLeft <= 0) {
+                        settle({ ok: false, status, error: 'too many redirects' });
+                        return;
+                    }
+                    let nextUrl;
+                    try {
+                        nextUrl = new url_1.URL(res.headers.location, parsed).toString();
+                    }
+                    catch {
+                        settle({ ok: false, status, error: `invalid redirect location: ${res.headers.location}` });
+                        return;
+                    }
+                    requestOnce(nextUrl, redirectsLeft - 1).then(settle, (err) => {
+                        settle({ ok: false, error: err instanceof Error ? err.message : String(err) });
+                    });
                     return;
                 }
-                let nextUrl;
-                try {
-                    nextUrl = new url_1.URL(res.headers.location, parsed).toString();
-                }
-                catch {
-                    settle({ ok: false, status, error: `invalid redirect location: ${res.headers.location}` });
-                    return;
-                }
-                requestOnce(nextUrl, redirectsLeft - 1).then(settle);
-                return;
-            }
-            let received = 0;
-            const chunks = [];
-            res.on('data', (chunk) => {
-                received += chunk.length;
-                if (received > maxBytes) {
-                    res.destroy();
-                    settle({ ok: false, status, error: `response exceeded ${maxBytes} bytes` });
-                    return;
-                }
-                chunks.push(chunk);
+                let received = 0;
+                const chunks = [];
+                res.on('data', (chunk) => {
+                    received += chunk.length;
+                    if (received > maxBytes) {
+                        res.destroy();
+                        settle({ ok: false, status, error: `response exceeded ${maxBytes} bytes` });
+                        return;
+                    }
+                    chunks.push(chunk);
+                });
+                res.on('error', (err) => {
+                    settle({ ok: false, status, error: err instanceof Error ? err.message : String(err) });
+                });
+                res.on('end', () => {
+                    if (settled)
+                        return;
+                    if (status < 200 || status >= 300) {
+                        settle({ ok: false, status, error: `HTTP ${status}` });
+                        return;
+                    }
+                    try {
+                        const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+                        settle({ ok: true, status, data });
+                    }
+                    catch {
+                        settle({ ok: false, status, error: 'invalid JSON response' });
+                    }
+                });
             });
-            res.on('error', (err) => {
-                settle({ ok: false, status, error: err instanceof Error ? err.message : String(err) });
-            });
-            res.on('end', () => {
-                if (settled)
-                    return;
-                if (status < 200 || status >= 300) {
-                    settle({ ok: false, status, error: `HTTP ${status}` });
-                    return;
-                }
-                try {
-                    const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-                    settle({ ok: true, status, data });
-                }
-                catch {
-                    settle({ ok: false, status, error: 'invalid JSON response' });
-                }
-            });
-        });
+        }
+        catch (err) {
+            // transport.get can throw synchronously (bad options, agent/protocol
+            // mismatch on exotic setups); the promise must still settle.
+            settle({ ok: false, error: err instanceof Error ? err.message : String(err) });
+            return;
+        }
         const timer = setTimeout(() => {
             req.destroy(new Error(`request timed out after ${timeoutMs}ms`));
         }, timeoutMs);

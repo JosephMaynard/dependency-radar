@@ -150,7 +150,9 @@ function buildDependencyFindings(data, options = {}) {
                 severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
                 title: 'Package is deprecated',
                 message: registryDeprecation
-                    ? `${dep.package.id} is marked deprecated on the npm registry.`
+                    ? registryDeprecation.installedVersion
+                        ? `${dep.package.id} is marked deprecated on the npm registry.`
+                        : `${dep.package.id}'s latest version is marked deprecated on the npm registry.`
                     : `${dep.package.id} is marked deprecated in local package metadata.`,
                 evidence: registryDeprecation === null || registryDeprecation === void 0 ? void 0 : registryDeprecation.message,
                 recommendation: 'Plan migration to a maintained replacement.'

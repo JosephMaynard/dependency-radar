@@ -316,6 +316,12 @@ body {
   text-align: center;
 }
 
+/* The explicit display above beats the UA's [hidden] rule, so the
+   hide-when-no-data path (offline scans, pre-1.5 reports) needs this. */
+.stat-chip[hidden] {
+  display: none;
+}
+
 .stat-chip strong {
   color: var(--text-primary);
   /* Display value: sans, semibold, proportional figures (not mono/tabular). */

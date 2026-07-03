@@ -44,7 +44,10 @@ function resolveMaintenanceCacheDir(env = process.env) {
  */
 class MaintenanceCache {
     constructor(cacheDir, ttlMs = exports.MAINTENANCE_CACHE_TTL_MS) {
-        this.entries = {};
+        // Null-prototype store: package names are untrusted (they come from
+        // installed package.json files), and a name like "__proto__" must behave
+        // as a plain key rather than mutating the object's prototype.
+        this.entries = Object.create(null);
         this.filePath = cacheDir ? path_1.default.join(cacheDir, CACHE_FILE_NAME) : undefined;
         this.ttlMs = ttlMs;
     }
@@ -55,11 +58,11 @@ class MaintenanceCache {
         try {
             const parsed = await (0, utils_1.readJsonFile)(this.filePath);
             if (parsed && parsed.version === CACHE_FILE_VERSION && parsed.entries && typeof parsed.entries === 'object') {
-                this.entries = parsed.entries;
+                this.entries = Object.assign(Object.create(null), parsed.entries);
             }
         }
         catch {
-            this.entries = {};
+            this.entries = Object.create(null);
         }
     }
     /** Return the fresh (within TTL) entry for a package name, if any. */

@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 import { AddressInfo } from 'net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { httpGetJson, mapWithConcurrency } from './httpClient';
@@ -115,6 +116,38 @@ describe('httpGetJson', () => {
   it('rejects unsupported protocols and invalid URLs without throwing', async () => {
     expect((await httpGetJson('ftp://example.test')).ok).toBe(false);
     expect((await httpGetJson('not a url')).ok).toBe(false);
+  });
+
+  it('drops a protocol-mismatched agent instead of throwing or hanging', async () => {
+    // Regression: an https keep-alive agent used on an http request (direct,
+    // or via an https -> http redirect hop) made Node throw synchronously
+    // inside the promise executor, leaving the promise unsettled.
+    const base = await startServer((_req, res) => {
+      res.writeHead(200);
+      res.end(JSON.stringify({ ok: true }));
+    });
+
+    const agent = new https.Agent({ keepAlive: true });
+    try {
+      const result = await httpGetJson(base, { agent, timeoutMs: 2_000 });
+      expect(result.ok).toBe(true);
+      expect(result.data).toEqual({ ok: true });
+    } finally {
+      agent.destroy();
+    }
+  });
+
+  it('settles when a redirect hop fails', async () => {
+    const base = await startServer((_req, res) => {
+      // Redirect to a port nothing listens on: the hop must settle as a
+      // failure result, never an unhandled rejection.
+      res.writeHead(302, { Location: 'http://127.0.0.1:1/' });
+      res.end();
+    });
+
+    const result = await httpGetJson(base, { timeoutMs: 2_000 });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeTruthy();
   });
 });
 

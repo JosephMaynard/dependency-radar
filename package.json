@@ -56,7 +56,10 @@
     "scan",
     "npm",
     "node",
-    "html"
+    "html",
+    "maintenance",
+    "deprecated",
+    "unmaintained"
   ],
   "devDependencies": {
     "@types/node": "^25.8.0",
