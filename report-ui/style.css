@@ -1453,7 +1453,7 @@ select.graph-workspace-select:focus {
 /* Column headers - matches .dep-indicators grid layout */
 .column-headers {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   width: 100%;
 }
 
@@ -1590,7 +1590,7 @@ details[open] > summary .expand-icon {
 /* Badge cards - CSS Grid with fixed equal columns */
 .dep-indicators {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   align-self: stretch;
   margin-left: auto;
   flex-shrink: 0;
