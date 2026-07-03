@@ -338,14 +338,12 @@ button.stat-chip {
   font: inherit;
   transition:
     border-color var(--transition),
-    transform var(--transition),
-    box-shadow var(--transition);
+    background var(--transition);
 }
 
 button.stat-chip:hover {
   border-color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  background: var(--bg-card-hover);
 }
 
 button.stat-chip:focus-visible {
@@ -353,13 +351,10 @@ button.stat-chip:focus-visible {
   outline-offset: 2px;
 }
 
-/* State tints apply only when the count is non-zero (set from JS):
-   the value carries the status hue; a soft wash + keyline mark the tile. */
+/* Flat state treatment, applied only when the count is non-zero (set from
+   JS): the value carries the status hue, the keyline border reinforces it. */
 .stat-chip.red {
   border-color: rgba(239, 68, 68, 0.4);
-  background:
-    linear-gradient(to top, var(--red-bg), transparent 85%),
-    var(--bg-secondary);
 }
 
 .stat-chip.red strong {
@@ -368,9 +363,6 @@ button.stat-chip:focus-visible {
 
 .stat-chip.amber {
   border-color: rgba(245, 158, 11, 0.4);
-  background:
-    linear-gradient(to top, var(--amber-bg), transparent 85%),
-    var(--bg-secondary);
 }
 
 .stat-chip.amber strong {
@@ -622,6 +614,28 @@ input[type="search"]:focus {
 
 input[type="search"]::placeholder {
   color: var(--text-muted);
+}
+
+/* Replace the glossy native WebKit clear control with a flat masked ✕
+   that follows the theme's ink color. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+  background-color: var(--text-muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+input[type="search"]:focus::-webkit-search-cancel-button,
+input[type="search"]:hover::-webkit-search-cancel-button {
+  background-color: var(--text-primary);
 }
 
 select {
