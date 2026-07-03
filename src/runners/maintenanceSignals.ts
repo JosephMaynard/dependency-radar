@@ -373,11 +373,14 @@ export async function enrichAggregatedWithMaintenanceSignals(
     let fetcher = options.fetcher;
     if (!fetcher) {
       const registry = options.registryUrl || (await resolveRegistryBaseUrl(options.projectPath));
+      // The keep-alive agent is https-only; an http registry (e.g. a private
+      // mirror) must not receive it or Node rejects the request outright.
+      const registryAgent = registry.toLowerCase().startsWith('https:') ? agent : undefined;
       fetcher = (name: string) =>
         httpGetJson(`${registry}/${encodePackageName(name)}`, {
           headers: { Accept: 'application/vnd.npm.install-v1+json' },
           timeoutMs: PACKUMENT_TIMEOUT_MS,
-          agent
+          agent: registryAgent
         });
     }
 
