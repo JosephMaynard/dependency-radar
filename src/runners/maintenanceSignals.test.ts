@@ -1,6 +1,6 @@
 import http from 'http';
 import { AddressInfo } from 'net';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   deriveMaintenanceStatus,
   enrichAggregatedWithMaintenanceSignals,
@@ -13,6 +13,10 @@ import type { AggregatedData, DependencyRecord } from '../types';
 import type { HttpJsonResult } from '../httpClient';
 
 const NOW = new Date('2026-07-01T00:00:00.000Z');
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function monthsAgo(months: number): string {
   return new Date(NOW.getTime() - months * 30.44 * 24 * 60 * 60 * 1000).toISOString();
@@ -298,6 +302,37 @@ describe('enrichAggregatedWithMaintenanceSignals', () => {
 
     expect(aggregated.dependencies['lib@1.0.0'].maintenance?.status).toBe('unknown');
     expect(summary.attempted).toBe(0);
+  });
+
+  it('does not start archived checks after the shared deadline is spent', async () => {
+    const aggregated = makeAggregated({
+      'slow-lib@1.0.0': makeDependency({
+        name: 'slow-lib',
+        direct: true,
+        repository: 'https://github.com/owner/slow-lib'
+      })
+    });
+    let currentTime = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => currentTime);
+    let repoCalls = 0;
+
+    await enrichAggregatedWithMaintenanceSignals(aggregated, {
+      now: NOW,
+      cache: new MaintenanceCache(undefined),
+      budgetMs: 50,
+      fetcher: async () => {
+        currentTime = 1_100;
+        return packument({ modified: monthsAgo(1), latest: '1.0.0' });
+      },
+      repoFetcher: async () => {
+        repoCalls += 1;
+        return { ok: true, status: 200, data: { archived: true } };
+      }
+    });
+
+    expect(repoCalls).toBe(0);
+    expect(aggregated.dependencies['slow-lib@1.0.0'].maintenance?.status).toBe('active');
+    expect(aggregated.dependencies['slow-lib@1.0.0'].maintenance?.repoArchived).toBeUndefined();
   });
 
   it('backfills upgrade.latestVersion without overwriting outdated data', async () => {

@@ -161,8 +161,8 @@ describe('report detail rules', () => {
     expect(buildReportOverallRisk(withStatus('deprecated'), dependency().security.summary)).toBe('red');
     expect(buildReportOverallRisk(withStatus('archived'), dependency().security.summary)).toBe('red');
     expect(buildReportOverallRisk(withStatus('unmaintained'), dependency().security.summary)).toBe('amber');
-    // Stale is an informational cue by design: no finding, no CI rule, no
-    // risk-stripe escalation — but it must surface as a key point.
+    // Stale is an informational cue by design: no finding, no CI rule, and no
+    // risk-stripe escalation, but it must surface as a report cue.
     expect(buildReportOverallRisk(withStatus('stale'), dependency().security.summary)).toBe('green');
     expect(buildReportOverallRisk(withStatus('active'), dependency().security.summary)).toBe('green');
 

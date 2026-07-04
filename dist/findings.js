@@ -169,11 +169,14 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
         if (((_m = dep.maintenance) === null || _m === void 0 ? void 0 : _m.status) === 'unmaintained') {
+            const monthsSinceModified = dep.maintenance.monthsSinceModified;
             findings.push(baseFinding(dep, 'maintenance-unmaintained', {
                 category: 'supply-chain',
                 severity: 'info',
                 title: 'Package looks unmaintained',
-                message: `${dep.package.id} has had no npm registry activity for ${dep.maintenance.monthsSinceModified} months.`,
+                message: typeof monthsSinceModified === 'number'
+                    ? `${dep.package.id} has had no npm registry activity for ${monthsSinceModified} months.`
+                    : `${dep.package.id} has had no recent npm registry activity.`,
                 evidence: dep.maintenance.packageModifiedAt ? `lastRegistryActivity=${dep.maintenance.packageModifiedAt}` : undefined,
                 recommendation: 'Check whether the package is finished or abandoned, and review alternatives if it matters at runtime.'
             }));

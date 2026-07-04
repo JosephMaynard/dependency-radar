@@ -62,12 +62,14 @@ function encodePackageName(name) {
  * registry on any failure. Per-scope registries are intentionally not
  * resolved and no auth is ever attached.
  */
-async function resolveRegistryBaseUrl(projectPath) {
+async function resolveRegistryBaseUrl(projectPath, timeoutMs = 10000) {
     var _a;
+    if (timeoutMs <= 0)
+        return DEFAULT_REGISTRY_URL;
     try {
         const result = await (0, utils_1.runCommand)('npm', ['config', 'get', 'registry'], {
             cwd: projectPath,
-            timeoutMs: 10000
+            timeoutMs
         });
         const url = (_a = result.stdout) === null || _a === void 0 ? void 0 : _a.trim();
         if (url && /^https?:\/\//i.test(url)) {
@@ -78,6 +80,17 @@ async function resolveRegistryBaseUrl(projectPath) {
         // fall through to the default
     }
     return DEFAULT_REGISTRY_URL;
+}
+function remainingBudgetMs(deadline) {
+    return Math.max(0, deadline - Date.now());
+}
+function timeoutWithinBudget(deadline, maxTimeoutMs) {
+    return Math.min(maxTimeoutMs, remainingBudgetMs(deadline));
+}
+function deadlineWithPhaseCap(deadline, maxPhaseMs) {
+    const now = Date.now();
+    const remainingMs = Math.max(0, deadline - now);
+    return Math.min(deadline, now + Math.min(maxPhaseMs, remainingMs));
 }
 /**
  * Extract the maintenance-relevant subset of an abbreviated packument
@@ -323,24 +336,31 @@ async function enrichAggregatedWithMaintenanceSignals(aggregated, options = {}) 
     const targetNames = names.slice(0, Math.max(0, limit));
     summary.checkedNames = targetNames.length;
     summary.truncatedNames = names.length - targetNames.length;
+    const budgetMs = (_b = options.budgetMs) !== null && _b !== void 0 ? _b : exports.DEFAULT_MAINTENANCE_BUDGET_MS;
+    const deadline = Date.now() + budgetMs;
     const cache = options.cache || new maintenanceCache_1.MaintenanceCache((0, maintenanceCache_1.resolveMaintenanceCacheDir)());
     await cache.load();
     const agent = new https_1.default.Agent({ keepAlive: true, maxSockets: PACKUMENT_CONCURRENCY });
     try {
         let fetcher = options.fetcher;
         if (!fetcher) {
-            const registry = options.registryUrl || (await resolveRegistryBaseUrl(options.projectPath));
+            const registry = options.registryUrl ||
+                (await resolveRegistryBaseUrl(options.projectPath, timeoutWithinBudget(deadline, 10000)));
             // The keep-alive agent is https-only; an http registry (e.g. a private
             // mirror) must not receive it or Node rejects the request outright.
             const registryAgent = registry.toLowerCase().startsWith('https:') ? agent : undefined;
-            fetcher = (name) => (0, httpClient_1.httpGetJson)(`${registry}/${encodePackageName(name)}`, {
-                headers: { Accept: 'application/vnd.npm.install-v1+json' },
-                timeoutMs: PACKUMENT_TIMEOUT_MS,
-                agent: registryAgent
-            });
+            fetcher = (name) => {
+                const timeoutMs = timeoutWithinBudget(deadline, PACKUMENT_TIMEOUT_MS);
+                if (timeoutMs <= 0) {
+                    return Promise.resolve({ ok: false, error: 'maintenance time budget exhausted' });
+                }
+                return (0, httpClient_1.httpGetJson)(`${registry}/${encodePackageName(name)}`, {
+                    headers: { Accept: 'application/vnd.npm.install-v1+json' },
+                    timeoutMs,
+                    agent: registryAgent
+                });
+            };
         }
-        const budgetMs = (_b = options.budgetMs) !== null && _b !== void 0 ? _b : exports.DEFAULT_MAINTENANCE_BUDGET_MS;
-        const deadline = Date.now() + budgetMs;
         const lookupByName = new Map();
         const lookups = await (0, httpClient_1.mapWithConcurrency)(targetNames, PACKUMENT_CONCURRENCY, deadline, async (name) => {
             const cached = cache.getFresh(name, now);
@@ -375,10 +395,16 @@ async function enrichAggregatedWithMaintenanceSignals(aggregated, options = {}) 
         const candidates = selectArchivedCheckCandidates(byName, lookupByName, now);
         if (candidates.length > 0) {
             const repoFetcher = options.repoFetcher ||
-                ((owner, repo) => (0, httpClient_1.httpGetJson)(`${ECOSYSTEMS_REPOS_BASE}/${encodeURIComponent(owner)}%2F${encodeURIComponent(repo)}`, { timeoutMs: ARCHIVED_CHECK_TIMEOUT_MS, agent }));
+                ((owner, repo) => {
+                    const timeoutMs = timeoutWithinBudget(deadline, ARCHIVED_CHECK_TIMEOUT_MS);
+                    if (timeoutMs <= 0) {
+                        return Promise.resolve({ ok: false, error: 'maintenance time budget exhausted' });
+                    }
+                    return (0, httpClient_1.httpGetJson)(`${ECOSYSTEMS_REPOS_BASE}/${encodeURIComponent(owner)}%2F${encodeURIComponent(repo)}`, { timeoutMs, agent });
+                });
             let breakerTripped = false;
             let consecutiveFailures = 0;
-            const archivedDeadline = Date.now() + ARCHIVED_PHASE_BUDGET_MS;
+            const archivedDeadline = deadlineWithPhaseCap(deadline, ARCHIVED_PHASE_BUDGET_MS);
             await (0, httpClient_1.mapWithConcurrency)(candidates, ARCHIVED_CHECK_CONCURRENCY, archivedDeadline, async (candidate) => {
                 if (breakerTripped)
                     return undefined;

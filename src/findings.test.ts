@@ -145,6 +145,14 @@ describe('buildDependencyFindings maintenance signals', () => {
             packageModifiedAt: '2023-02-01T00:00:00.000Z'
           }
         }),
+        'unknown-age-lib@1.0.0': makeDependency({
+          name: 'unknown-age-lib',
+          maintenance: {
+            attempted: true,
+            ok: true,
+            status: 'unmaintained'
+          }
+        }),
         'stale-lib@1.0.0': makeDependency({
           name: 'stale-lib',
           maintenance: { attempted: true, ok: true, status: 'stale', monthsSinceModified: 20 }
@@ -163,6 +171,12 @@ describe('buildDependencyFindings maintenance signals', () => {
         severity: 'info',
         title: 'Package looks unmaintained',
         message: 'dead-lib@1.0.0 has had no npm registry activity for 40 months.'
+      },
+      {
+        id: 'unknown-age-lib@1.0.0-maintenance-unmaintained',
+        severity: 'info',
+        title: 'Package looks unmaintained',
+        message: 'unknown-age-lib@1.0.0 has had no recent npm registry activity.'
       }
     ]);
     // Stale produces no finding by design.

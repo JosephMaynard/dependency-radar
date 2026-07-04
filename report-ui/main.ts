@@ -391,7 +391,12 @@ function maintenanceStatusOrder(status?: string): number {
 
 function hasMaintenanceConcern(dep: DependencyRecord): boolean {
   const status = dep.maintenance?.status;
-  return status === "deprecated" || status === "archived" || status === "unmaintained";
+  return (
+    status === "deprecated" ||
+    status === "archived" ||
+    status === "unmaintained" ||
+    status === "stale"
+  );
 }
 
 function hasLicenseIssue(dep: DependencyRecord): boolean {
@@ -2869,7 +2874,7 @@ async function init(): Promise<void> {
           "stat-maintenance",
           maintenanceConcernCount,
           maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
-          "Deprecated, archived, or unmaintained dependencies — click to filter",
+          "Deprecated, archived, unmaintained, or stale dependencies — click to filter",
         );
       }
     }

@@ -52,9 +52,9 @@ export function buildReportOverallRisk(
   const registryRisk = (dep.supplyChain?.registry?.signals?.length || 0) > 0 ? 'amber' : 'green';
   const maintenanceStatus = dep.maintenance?.status;
   // 'stale' deliberately does not escalate overall risk: 18 months without
-  // registry writes is common for stable, finished packages, and stale
-  // carries no finding, CI rule, or filter concern either. It stays an
-  // informational cue (Maintenance badge, key point, detail section).
+  // registry writes is common for stable, finished packages. It stays a report
+  // review cue (Maintenance badge, filter, key point, detail section), not a
+  // dependency finding or CI fail rule.
   const maintenanceRisk =
     maintenanceStatus === 'deprecated' || maintenanceStatus === 'archived'
       ? 'red'
