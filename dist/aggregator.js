@@ -29,9 +29,9 @@ async function getGitBranch(projectPath) {
         return undefined;
     }
 }
-function findRootCauses(node, nodeMap, pkg) {
+function findRootCauses(node, nodeMap) {
     // If it's a direct dependency, it's its own root cause
-    if (isDirectDependency(node.name, pkg)) {
+    if (node.isDirect) {
         return [{ name: node.name, version: node.version }];
     }
     // BFS up the parent chain to find all direct dependencies that lead to this
@@ -46,7 +46,7 @@ function findRootCauses(node, nodeMap, pkg) {
         const parent = nodeMap.get(parentKey);
         if (!parent)
             continue;
-        if (isDirectDependency(parent.name, pkg)) {
+        if (parent.isDirect) {
             rootCauses.set(parent.key, { name: parent.name, version: parent.version });
         }
         else {
@@ -315,7 +315,10 @@ async function aggregateData(input) {
     const project = buildProjectMetadata(input.projectPath, projectPkg, input.projectDependencyPolicy);
     // Get git branch
     const gitBranch = await getGitBranch(input.projectPath);
-    const nodeMap = buildNodeMap((_a = input.npmLsResult) === null || _a === void 0 ? void 0 : _a.data);
+    const nodeMap = buildNodeMap((_a = input.npmLsResult) === null || _a === void 0 ? void 0 : _a.data, Boolean(input.workspaceEnabled));
+    for (const node of nodeMap.values()) {
+        node.isDirect = node.importerChild && isDirectDependency(node.name, pkg);
+    }
     const vulnMap = parseVulnerabilities((_b = input.auditResult) === null || _b === void 0 ? void 0 : _b.data);
     const importGraph = normalizeImportGraph((_c = input.importGraphResult) === null || _c === void 0 ? void 0 : _c.data);
     const usageResult = buildUsageSummary(importGraph, input.projectPath);
@@ -335,7 +338,7 @@ async function aggregateData(input) {
     const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
     const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
     for (const node of nodes) {
-        const direct = isDirectDependency(node.name, pkg);
+        const direct = node.isDirect;
         if (direct)
             directCount += 1;
         const cacheKey = `${node.name}@${node.version}`;
@@ -352,7 +355,7 @@ async function aggregateData(input) {
         const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
         const licenseRisk = resolveLicenseRisk(licenseInfo);
         // Calculate root causes (direct dependencies that cause this to be installed)
-        const rootCauses = findRootCauses(node, nodeMap, pkg);
+        const rootCauses = findRootCauses(node, nodeMap);
         const packageInsights = await gatherPackageInsights(node.name, node.version, resolvePaths, packageMetaCache, packageStatCache);
         if (packageInsights.nodeEngine) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
@@ -438,7 +441,7 @@ async function aggregateData(input) {
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
     const aggregated = {
-        schemaVersion: '1.4',
+        schemaVersion: '1.5',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
@@ -555,8 +558,11 @@ function parseMajorFromToken(token) {
     const major = Number.parseInt(match[1], 10);
     return Number.isNaN(major) ? undefined : major;
 }
-function buildNodeMap(lsData) {
+function buildNodeMap(lsData, workspaceMode = false) {
     const map = new Map();
+    // In combined workspace graphs each workspace package is a synthetic depth-1
+    // node, so the importer's real direct dependencies sit at traversal depth 2.
+    const importerDepth = workspaceMode ? 2 : 1;
     const traverse = (node, depth, parentKey, providedName) => {
         const nodeName = (node === null || node === void 0 ? void 0 : node.name) || providedName;
         if (!node || !nodeName)
@@ -573,12 +579,16 @@ function buildNodeMap(lsData) {
                 children: new Set(),
                 childByName: new Map(),
                 dev: node.dev,
-                path: typeof node.path === 'string' ? node.path : undefined
+                path: typeof node.path === 'string' ? node.path : undefined,
+                importerChild: depth === importerDepth,
+                isDirect: false
             });
         }
         else {
             const existing = map.get(key);
             existing.depth = Math.min(existing.depth, depth);
+            if (depth === importerDepth)
+                existing.importerChild = true;
             if (parentKey)
                 existing.parents.add(parentKey);
             if (existing.dev === undefined && node.dev !== undefined)

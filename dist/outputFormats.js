@@ -32,7 +32,7 @@ function renderSarif(data) {
             id: finding.category,
             name: finding.category,
             shortDescription: { text: `Dependency Radar ${finding.category} finding` },
-            helpUri: 'https://www.dependency-radar.com'
+            helpUri: 'https://github.com/JosephMaynard/dependency-radar'
         });
     }
     return JSON.stringify({
@@ -43,7 +43,7 @@ function renderSarif(data) {
                 tool: {
                     driver: {
                         name: 'Dependency Radar',
-                        informationUri: 'https://www.dependency-radar.com',
+                        informationUri: 'https://github.com/JosephMaynard/dependency-radar',
                         semanticVersion: data.dependencyRadarVersion,
                         rules: Array.from(rules.values())
                     }

@@ -49,13 +49,25 @@ export function buildReportOverallRisk(
     supplyChainSignalCount > 0 || (dep.packaging?.signals?.length || 0) > 0
       ? 'amber'
       : 'green';
-  const maintenanceRisk = (dep.supplyChain?.registry?.signals?.length || 0) > 0 ? 'amber' : 'green';
+  const registryRisk = (dep.supplyChain?.registry?.signals?.length || 0) > 0 ? 'amber' : 'green';
+  const maintenanceStatus = dep.maintenance?.status;
+  // 'stale' deliberately does not escalate overall risk: 18 months without
+  // registry writes is common for stable, finished packages. It stays a report
+  // review cue (Maintenance badge, filter, key point, detail section), not a
+  // dependency finding or CI fail rule.
+  const maintenanceRisk =
+    maintenanceStatus === 'deprecated' || maintenanceStatus === 'archived'
+      ? 'red'
+      : maintenanceStatus === 'unmaintained'
+        ? 'amber'
+        : 'green';
 
   return maxRisk([
     summary.risk,
     dep.compliance.licenseRisk,
     installRisk,
     supplyChainRisk,
+    registryRisk,
     maintenanceRisk
   ]);
 }
@@ -121,6 +133,19 @@ export function buildReportKeyPoints(dep: DependencyRecord, summary: SecuritySum
     points.push(
       `${formatModerateLow(summary)} ${lowerTotal === 1 ? 'vulnerability' : 'vulnerabilities'}${hasFix ? ', fix available' : ''}`
     );
+  }
+  if (dep.maintenance?.status === 'deprecated') {
+    points.push(
+      dep.maintenance.deprecated && !dep.maintenance.deprecated.installedVersion
+        ? 'Latest version deprecated by the author'
+        : 'Deprecated by the author'
+    );
+  } else if (dep.maintenance?.status === 'archived') {
+    points.push('Source repository is archived');
+  } else if (dep.maintenance?.status === 'unmaintained') {
+    points.push('No registry activity for 3+ years');
+  } else if (dep.maintenance?.status === 'stale') {
+    points.push('No registry activity for 18+ months');
   }
   if (dep.compliance.licenseRisk !== 'green') {
     points.push('Licence status: ' + formatLicenseStatus(dep.compliance.license.status));

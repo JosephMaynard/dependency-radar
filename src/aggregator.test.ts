@@ -265,4 +265,187 @@ describe('aggregateData', () => {
     expect(data.workspaces.enabled).toBe(true);
     expect(data.workspaces.type).toBe('pnpm');
   });
+
+  it('only marks the resolved direct version as direct when multiple versions are installed', async () => {
+    const projectPath = await makeTempDir('dr-agg-dup-versions');
+    const pkg = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { uuid: '^9.0.0', 'lib-a': '^1.0.0' }
+    };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            uuid: { name: 'uuid', version: '9.0.1' },
+            'lib-a': {
+              name: 'lib-a',
+              version: '1.0.0',
+              dependencies: {
+                uuid: { name: 'uuid', version: '3.4.0' }
+              }
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['uuid@9.0.1'].usage.direct).toBe(true);
+    expect(data.dependencies['uuid@3.4.0'].usage.direct).toBe(false);
+    expect(data.dependencies['uuid@3.4.0'].usage.introduction).toBe('transitive');
+    expect(data.dependencies['uuid@3.4.0'].usage.origins.topRootPackages).toEqual([
+      { name: 'lib-a', version: '1.0.0' }
+    ]);
+    expect(data.summary.directCount).toBe(2);
+    expect(data.summary.transitiveCount).toBe(1);
+  });
+
+  it('classifies duplicate versions correctly in combined workspace graphs', async () => {
+    const projectPath = await makeTempDir('dr-agg-workspace-dup');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({ name: 'fixture-root', version: '1.0.0' }));
+    const mergedPkg = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { uuid: '^9.0.0', 'lib-a': '^1.0.0' }
+    };
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: mergedPkg,
+      projectPackageJson: { name: 'fixture-root', version: '1.0.0' },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            'workspace-a': {
+              name: 'workspace-a',
+              version: '1.0.0',
+              dependencies: {
+                uuid: { name: 'uuid', version: '9.0.1' },
+                'lib-a': {
+                  name: 'lib-a',
+                  version: '1.0.0',
+                  dependencies: {
+                    uuid: { name: 'uuid', version: '3.4.0' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: true,
+      workspaceType: 'pnpm',
+      workspacePackageCount: 1,
+      workspacePackageIds: new Set(['workspace-a@1.0.0']),
+      workspacePackageNames: new Set(['workspace-a']),
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['workspace-a@1.0.0']).toBeUndefined();
+    expect(data.dependencies['uuid@9.0.1'].usage.direct).toBe(true);
+    expect(data.dependencies['uuid@3.4.0'].usage.direct).toBe(false);
+    expect(data.dependencies['uuid@3.4.0'].usage.origins.topRootPackages).toEqual([
+      { name: 'lib-a', version: '1.0.0' }
+    ]);
+    expect(data.summary.directCount).toBe(2);
+  });
+
+  it('keeps a package direct when the same version is also reachable transitively', async () => {
+    const projectPath = await makeTempDir('dr-agg-direct-and-transitive');
+    const pkg = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { uuid: '^9.0.0', 'lib-a': '^1.0.0' }
+    };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            uuid: { name: 'uuid', version: '9.0.1' },
+            'lib-a': {
+              name: 'lib-a',
+              version: '1.0.0',
+              dependencies: {
+                uuid: { name: 'uuid', version: '9.0.1' }
+              }
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    const uuid = data.dependencies['uuid@9.0.1'];
+    expect(uuid.usage.direct).toBe(true);
+    expect(uuid.usage.depth).toBe(1);
+    expect(uuid.graph.fanIn).toBe(1);
+    expect(data.summary.directCount).toBe(2);
+  });
+
+  it('does not mark undeclared top-level tree entries as direct (flat/hoisted trees)', async () => {
+    const projectPath = await makeTempDir('dr-agg-flat-tree');
+    const pkg = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { 'lib-a': '^1.0.0' }
+    };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: {
+        ok: true,
+        data: {
+          // Legacy npm lockfile v1 / `yarn list` fallbacks emit hoisted
+          // transitives at the top level of the tree.
+          dependencies: {
+            'lib-a': { name: 'lib-a', version: '1.0.0' },
+            'hoisted-transitive': { name: 'hoisted-transitive', version: '2.0.0' }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['lib-a@1.0.0'].usage.direct).toBe(true);
+    expect(data.dependencies['hoisted-transitive@2.0.0'].usage.direct).toBe(false);
+    expect(data.summary.directCount).toBe(1);
+  });
 });

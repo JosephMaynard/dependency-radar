@@ -13,6 +13,7 @@ import { runPackageAudit } from "./runners/npmAudit";
 import { runNpmLs } from "./runners/npmLs";
 import { runPackageOutdated } from "./runners/npmOutdated";
 import { enrichAggregatedWithRegistryMetadata } from "./runners/npmRegistryMetadata";
+import { enrichAggregatedWithMaintenanceSignals } from "./runners/maintenanceSignals";
 import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
 import { compareReports, formatCompareOutput } from "./compare";
@@ -25,7 +26,7 @@ import {
   type ReportFormat,
 } from "./outputFormats";
 import { formatWhyOutput } from "./why";
-import { REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
+import { COMPATIBLE_BASELINE_SCHEMA_VERSIONS, REPORT_SCHEMA_VERSION, renderReportJsonSchema } from "./schema";
 import {
   SUPPORTED_FAIL_ON_RULES,
   evaluateComparePolicyViolations,
@@ -1085,6 +1086,7 @@ interface CliOptions {
   keepTemp: boolean;
   audit: boolean;
   outdated: boolean;
+  maintenance: boolean;
   json: boolean;
   open: boolean;
   noReport: boolean;
@@ -1102,8 +1104,8 @@ interface CliOptions {
  *
  * Recognizes an optional leading command (scan, explain, compare, why, schema), positional operands for
  * commands that require them (package name for explain/why, compare path for compare), and these flags:
- * --project, --quiet, --out, --keep-temp, --offline, --json, --format, --sbom, --target-node,
- * --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
+ * --project, --quiet, --out, --keep-temp, --offline, --no-maintenance, --json, --format, --sbom,
+ * --target-node, --audit-signatures, --schema, --timestamp, --open, --no-report, --fail-on, --help / -h.
  *
  * The --offline flag disables registry-backed checks. Unknown options or unexpected positional
  * arguments cause the process to exit with an error.
@@ -1121,6 +1123,7 @@ function parseArgs(argv: string[]): CliOptions {
     keepTemp: false,
     audit: true,
     outdated: true,
+    maintenance: true,
     json: false,
     open: false,
     noReport: false,
@@ -1167,7 +1170,10 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg === "--offline") {
       opts.audit = false;
       opts.outdated = false;
-    } else if (arg === "--json") {
+      opts.maintenance = false;
+    }
+    else if (arg === "--no-maintenance") opts.maintenance = false;
+    else if (arg === "--json") {
       opts.json = true;
       opts.format = "json";
     }
@@ -1347,16 +1353,19 @@ Options:
   --timestamp        Add a local timestamp to generated report filenames
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
-  --offline          Skip registry-backed checks (audit, outdated, signatures, targeted registry enrichment)
+  --offline          Skip registry-backed checks (audit, outdated, signatures, maintenance signals, targeted registry enrichment)
+  --no-maintenance   Skip registry maintenance signals (deprecated/unmaintained/archived checks)
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Scan rules: reachable-vuln, production-vuln, high-severity-vuln,
                                  licence-mismatch, copyleft-detected, unknown-licence,
-                                 supply-chain-source
-                     Compare rules: new-supply-chain-signal, new-install-script,
-                                    new-native-binding, new-bin, new-direct-dependency,
-                                    new-child-process, new-network-access, new-env-access,
-                                    new-home-access, new-ssh-usage, new-obfuscation-signal,
+                                 supply-chain-source, deprecated-dependency,
+                                 unmaintained-dependency
+                     Compare rules: new-deprecated, new-supply-chain-signal,
+                                    new-install-script, new-native-binding, new-bin,
+                                    new-direct-dependency, new-child-process,
+                                    new-network-access, new-env-access, new-home-access,
+                                    new-ssh-usage, new-obfuscation-signal,
                                     new-bundled-dependencies, new-shrinkwrap,
                                     new-recent-package, new-recent-version,
                                     new-low-release-history, new-reactivated-package,
@@ -2133,6 +2142,7 @@ async function executeAnalysis(
       ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
     });
 
+    let enrichmentTouchedData = false;
     if (opts.outdated) {
       let registryEnrichment = { attempted: 0, succeeded: 0 };
       try {
@@ -2148,11 +2158,43 @@ async function executeAnalysis(
       if (!opts.quiet && registryEnrichment.succeeded > 0) {
         spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.succeeded} suspicious package${registryEnrichment.succeeded === 1 ? "" : "s"}`));
       }
-      if (registryEnrichment.attempted > 0) {
-        const findings = buildDependencyFindings(aggregated, { targetNodeMajor: opts.targetNodeMajor });
-        aggregated.findings = findings;
-        aggregated.summary.findingCount = findings.length;
+      if (registryEnrichment.attempted > 0) enrichmentTouchedData = true;
+    }
+
+    if (opts.maintenance) {
+      try {
+        const budgetOverride = Number.parseInt(process.env.DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS || "", 10);
+        const maintenance = await enrichAggregatedWithMaintenanceSignals(aggregated, {
+          projectPath,
+          ...(Number.isFinite(budgetOverride) ? { budgetMs: budgetOverride } : {}),
+        });
+        if (maintenance.checkedNames > 0) {
+          enrichmentTouchedData = true;
+          if (!opts.quiet) {
+            const flagged = [
+              maintenance.deprecatedNames > 0 ? `${maintenance.deprecatedNames} deprecated` : undefined,
+              maintenance.archivedNames > 0 ? `${maintenance.archivedNames} archived` : undefined,
+              maintenance.unmaintainedNames > 0 ? `${maintenance.unmaintainedNames} unmaintained` : undefined,
+              maintenance.fromCache > 0 ? `${maintenance.fromCache} from cache` : undefined,
+            ].filter(Boolean).join(", ");
+            spinner.log(statusLine("✔", `Maintenance signals: ${maintenance.checkedNames} package${maintenance.checkedNames === 1 ? "" : "s"} checked${flagged ? ` (${flagged})` : ""}`));
+            if (maintenance.truncatedNames > 0) {
+              spinner.log(statusLine("⚠", `Maintenance signals skipped ${maintenance.truncatedNames} package name${maintenance.truncatedNames === 1 ? "" : "s"} beyond the lookup cap`));
+            }
+          }
+        }
+      } catch (err) {
+        if (!opts.quiet) {
+          const message = err instanceof Error ? err.message : String(err);
+          spinner.log(statusLine("⚠", `Maintenance signals unavailable (${message})`));
+        }
       }
+    }
+
+    if (enrichmentTouchedData) {
+      const findings = buildDependencyFindings(aggregated, { targetNodeMajor: opts.targetNodeMajor });
+      aggregated.findings = findings;
+      aggregated.summary.findingCount = findings.length;
     }
 
     dependencyCount = Object.keys(aggregated.dependencies).length;
@@ -2282,9 +2324,9 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
   printPolicyViolations(result.policyViolations);
   if (!opts.quiet) {
     console.log(
-      `Enrich this scan with maintenance signals, upgrade readiness, and risk modelling at ${formatTerminalLink(
-        "https://www.dependency-radar.com",
-        "https://www.dependency-radar.com",
+      `Docs, examples, and issue reporting: ${formatTerminalLink(
+        "https://github.com/JosephMaynard/dependency-radar",
+        "https://github.com/JosephMaynard/dependency-radar",
       )}`,
     );
   }
@@ -2366,13 +2408,13 @@ async function runCompareCommand(opts: CliOptions): Promise<void> {
     if (
       !parsed ||
       typeof parsed !== "object" ||
-      schemaVersion !== REPORT_SCHEMA_VERSION ||
+      !COMPATIBLE_BASELINE_SCHEMA_VERSIONS.includes(schemaVersion) ||
       !parsed.project ||
       !parsed.summary ||
       !parsed.dependencies ||
       typeof parsed.dependencies !== "object"
     ) {
-      console.error(`Previous report schema mismatch: expected schemaVersion ${REPORT_SCHEMA_VERSION}, found ${schemaVersion ?? "missing"}.`);
+      console.error(`Previous report schema mismatch: expected schemaVersion ${COMPATIBLE_BASELINE_SCHEMA_VERSIONS.join(", ")} (found ${schemaVersion ?? "missing"}).`);
       process.exit(1);
       return;
     }

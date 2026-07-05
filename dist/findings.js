@@ -68,7 +68,7 @@ const REGISTRY_SIGNAL_TITLES = {
  * @returns A list of DependencyFinding objects sorted by severity (error, warning, info), then by `packageId`, then by `id`.
  */
 function buildDependencyFindings(data, options = {}) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
     const findings = [];
     for (const dep of Object.values(data.dependencies || {})) {
         const vulnCount = vulnerabilityTotal(dep);
@@ -144,15 +144,44 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
         if (dep.package.deprecated) {
+            const registryDeprecation = (_k = dep.maintenance) === null || _k === void 0 ? void 0 : _k.deprecated;
             findings.push(baseFinding(dep, 'deprecated', {
                 category: 'supply-chain',
                 severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
                 title: 'Package is deprecated',
-                message: `${dep.package.id} is marked deprecated in local package metadata.`,
+                message: registryDeprecation
+                    ? registryDeprecation.installedVersion
+                        ? `${dep.package.id} is marked deprecated on the npm registry.`
+                        : `${dep.package.id}'s latest version is marked deprecated on the npm registry.`
+                    : `${dep.package.id} is marked deprecated in local package metadata.`,
+                evidence: registryDeprecation === null || registryDeprecation === void 0 ? void 0 : registryDeprecation.message,
                 recommendation: 'Plan migration to a maintained replacement.'
             }));
         }
-        if ((_l = (_k = dep.packaging) === null || _k === void 0 ? void 0 : _k.signals) === null || _l === void 0 ? void 0 : _l.length) {
+        if (((_l = dep.maintenance) === null || _l === void 0 ? void 0 : _l.status) === 'archived') {
+            findings.push(baseFinding(dep, 'maintenance-archived', {
+                category: 'supply-chain',
+                severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+                title: 'Source repository is archived',
+                message: `${dep.package.id} points at an archived source repository, so fixes and security patches are unlikely.`,
+                evidence: dep.maintenance.repoCheckedAt ? `repoCheckedAt=${dep.maintenance.repoCheckedAt}` : undefined,
+                recommendation: 'Plan migration to a maintained replacement, or accept the risk explicitly.'
+            }));
+        }
+        if (((_m = dep.maintenance) === null || _m === void 0 ? void 0 : _m.status) === 'unmaintained') {
+            const monthsSinceModified = dep.maintenance.monthsSinceModified;
+            findings.push(baseFinding(dep, 'maintenance-unmaintained', {
+                category: 'supply-chain',
+                severity: 'info',
+                title: 'Package looks unmaintained',
+                message: typeof monthsSinceModified === 'number'
+                    ? `${dep.package.id} has had no npm registry activity for ${monthsSinceModified} months.`
+                    : `${dep.package.id} has had no recent npm registry activity.`,
+                evidence: dep.maintenance.packageModifiedAt ? `lastRegistryActivity=${dep.maintenance.packageModifiedAt}` : undefined,
+                recommendation: 'Check whether the package is finished or abandoned, and review alternatives if it matters at runtime.'
+            }));
+        }
+        if ((_p = (_o = dep.packaging) === null || _o === void 0 ? void 0 : _o.signals) === null || _p === void 0 ? void 0 : _p.length) {
             findings.push(baseFinding(dep, 'packaging-signals', {
                 category: 'supply-chain',
                 severity: 'info',
@@ -162,8 +191,8 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Review package contents and confirm the packaging pattern is expected.'
             }));
         }
-        for (const signal of ((_o = (_m = dep.supplyChain) === null || _m === void 0 ? void 0 : _m.registry) === null || _o === void 0 ? void 0 : _o.signals) || []) {
-            const registry = (_p = dep.supplyChain) === null || _p === void 0 ? void 0 : _p.registry;
+        for (const signal of ((_r = (_q = dep.supplyChain) === null || _q === void 0 ? void 0 : _q.registry) === null || _r === void 0 ? void 0 : _r.signals) || []) {
+            const registry = (_s = dep.supplyChain) === null || _s === void 0 ? void 0 : _s.registry;
             findings.push(baseFinding(dep, `registry-${signal}`, {
                 category: 'supply-chain',
                 severity: 'info',
@@ -189,10 +218,10 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
     }
-    for (const signal of ((_q = data.supplyChain) === null || _q === void 0 ? void 0 : _q.signals) || []) {
+    for (const signal of ((_t = data.supplyChain) === null || _t === void 0 ? void 0 : _t.signals) || []) {
         findings.push(buildSupplyChainFinding(signal));
     }
-    const signatureAudit = (_r = data.supplyChain) === null || _r === void 0 ? void 0 : _r.signatureAudit;
+    const signatureAudit = (_u = data.supplyChain) === null || _u === void 0 ? void 0 : _u.signatureAudit;
     if ((signatureAudit === null || signatureAudit === void 0 ? void 0 : signatureAudit.attempted) && !signatureAudit.ok) {
         findings.push({
             id: 'supply-chain:signature-verification-failed',

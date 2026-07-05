@@ -46,8 +46,8 @@ Dependency Radar is designed to be inspectable and low-friction to evaluate:
 - Dependency Radar does not modify your `package.json`, lockfile, or installed dependencies
 - Dependency Radar does not upload your source code or generated reports during a normal CLI scan
 - reports are written to disk as local files
-- the only default network activity is package-manager-backed audit and outdated checks, which query the configured package registry for dependency metadata
-- use `--offline` for a no-registry-call scan
+- default network activity is limited to: package-manager-backed audit and outdated checks, npm registry metadata lookups for maintenance signals, and bounded repo-archived checks against the public ecosyste.ms API (see [Maintenance signals](#maintenance-signals))
+- use `--no-maintenance` to skip the maintenance lookups, or `--offline` for a no-network scan
 
 You can inspect the source on GitHub, view the npm package metadata, or start with an offline scan:
 
@@ -64,8 +64,8 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 | Project files | Reads package manifests, lockfiles, and installed dependency metadata |
 | `node_modules` | Reads package metadata and selected files for dependency analysis |
 | Output files | Writes reports/SBOMs only where requested |
-| Network | Runs package-manager audit/outdated checks by default, which query the configured package registry for dependency metadata |
-| Offline mode | `--offline` skips audit, outdated, signature verification, and targeted registry enrichment checks |
+| Network | Runs package-manager audit/outdated checks, npm registry maintenance-signal lookups, and bounded ecosyste.ms repo-archived checks by default |
+| Offline mode | `--offline` skips audit, outdated, signature verification, maintenance signals, and targeted registry enrichment checks |
 | Source code upload | No source code or generated reports are uploaded during a normal CLI scan |
 | Project mutation | Dependency Radar does not install, update, remove, or rewrite dependencies |
 
@@ -75,6 +75,7 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 - **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
 - **Interactive dependency graph** — explore your full dependency tree visually, including direct, dev, and transitive relationships
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
+- **Maintenance signals** — flags deprecated, repo-archived, unmaintained, and stale dependencies from npm registry metadata, with a local 7-day cache
 - **Import usage heuristics** — classifies each dependency's runtime impact (`runtime`, `build`, `testing`, `tooling`, `mixed`) based on where it's imported in your source
 - **Full transitive tree** — shows depth, parent relationships, fan-in/fan-out, and dependency origins
 - **Workspace support** — works across npm, pnpm, and Yarn workspaces
@@ -119,17 +120,26 @@ Dependency Radar exists to make those hidden signals visible in one place, from 
 
 ---
 
-## Need to share findings with leadership?
+## Maintenance signals
 
-The CLI tool is free and fully functional forever. It does not require an account or upload during normal use.
+Dependency Radar checks the npm registry for maintenance signals on every online scan — free, no account, no upload:
 
-If you need to communicate dependency risk beyond engineering (CTO, compliance, security, clients, or investors), the optional premium service adds executive summaries, presentation-ready reports, and deeper enrichment signals that are not available in the standard local scan.
+- **Deprecated** — the installed version (or the latest version) carries a registry deprecation notice, shown with the author's message
+- **Archived** — the package's GitHub repository is archived (best-effort lookup via the public ecosyste.ms API)
+- **Unmaintained** — no npm registry activity of any kind for 36+ months
+- **Stale** — no npm registry activity for 18+ months
+- **Active** — none of the above
 
-These include ecosystem and maintenance insights such as whether a dependency is archived, deprecated upstream, actively maintained, or showing signs of stagnation, helping you prioritise risk in larger portfolios or during technical due diligence.
+How it works, and its limits:
 
-See https://dependency-radar.com for details.
+- Deprecation and last-publish data come from abbreviated npm packuments (`Accept: application/vnd.npm.install-v1+json`), fetched for every unique package name in your tree (capped at 1,500 names, prioritising direct dependencies) with a hard time budget so slow networks cannot stall a scan.
+- The "last registry activity" timestamp updates on *any* packument write (publish, dist-tag change, deprecation edit), so the age-based statuses under-flag rather than over-flag: a package flagged unmaintained has had zero registry writes for 3+ years. Stable, "finished" packages can still show as stale or unmaintained — these are review cues, not verdicts.
+- Repo-archived checks are bounded (max 50 per scan, only for packages that are deprecated, direct, or dormant 24+ months) and fail silently.
+- Results are cached for 7 days in `~/.cache/dependency-radar/` (or `XDG_CACHE_HOME` / `%LOCALAPPDATA%`), so repeat scans are fast. Set `DEPENDENCY_RADAR_NO_CACHE=1` to disable the cache, `DEPENDENCY_RADAR_CACHE_DIR` to relocate it, or `DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS` to change the time budget.
+- Privacy: package names are sent to your configured npm registry, and `owner/repo` slugs of candidate packages to ecosyste.ms. No auth tokens are ever read or sent. Use `--no-maintenance` or `--offline` to skip these lookups entirely.
+- Custom registries: the default registry from `npm config get registry` is respected; per-scope registries are not resolved, so private scoped packages simply report an `unknown` maintenance status.
 
-The free CLI does not require an account or upload. The optional premium service is separate and only applies if you choose to use it.
+Maintenance data appears in the HTML report (Maintenance column, filter, and per-dependency detail), the JSON model (`dependencies[id].maintenance`), findings, and the `deprecated-dependency` / `unmaintained-dependency` / `new-deprecated` CI rules.
 
 ---
 
@@ -155,7 +165,8 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--target-node <major>` | Add Node major compatibility findings based on local `engines.node` metadata |
 | `--audit-signatures` | Run `npm audit signatures` for registry signature/provenance verification (opt-in; skipped with `--offline`) |
 | `--schema` | Print the current Dependency Radar JSON schema, or write it with `--out <path>` |
-| `--offline` | Skip registry lookups: `npm audit`, `npm outdated`, signature checks, and targeted registry enrichment |
+| `--offline` | Skip registry lookups: `npm audit`, `npm outdated`, signature checks, maintenance signals, and targeted registry enrichment |
+| `--no-maintenance` | Skip registry maintenance signals (deprecated/unmaintained/archived checks) while keeping audit and outdated checks |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
 | `--timestamp` | Add a local timestamp to generated report filenames (`dependency-radar.YYYY-MM-DD_HH-mm-ss.html`) |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
@@ -276,11 +287,14 @@ Supported rules:
 | `copyleft-detected` | Fail if strong copyleft (GPL/AGPL) appears in runtime dependencies |
 | `unknown-licence` | Fail if at least one dependency has neither declared nor inferred licence data |
 | `supply-chain-source` | Fail if lockfile source signals detect git/local/tarball sources, missing integrity, or unexpected registry hosts |
+| `deprecated-dependency` | Fail if at least one dependency is marked deprecated (registry or local metadata) |
+| `unmaintained-dependency` | Fail if at least one dependency has an `unmaintained` or `archived` maintenance status |
 
 The following rules are evaluated only by `compare <previous dependency-radar.json>` and use the previous JSON report as the baseline:
 
 | Rule | Description |
 |---|---|
+| `new-deprecated` | Fail if a dependency is now marked deprecated and no same-named dependency in the baseline was (note: baselines produced before schema 1.5 rarely carry deprecation data, so this rule can fire once on the first post-upgrade compare) |
 | `new-supply-chain-signal` | Fail if the current scan has a lockfile supply-chain signal that was not present in the baseline for the same package, or was not present at all when the signal is not package-specific |
 | `new-install-script` | Fail if a dependency now exposes install lifecycle hooks and the baseline did not show install hooks for that package |
 | `new-native-binding` | Fail if a dependency now exposes native build or binary surface and the baseline did not show native surface for that package |
@@ -392,7 +406,7 @@ npx dependency-radar scan --quiet --no-report
 - reports are still generated unless `--no-report` is set
 - the final summary block is still printed
 - policy failures are still printed
-- progress/info logs, automatic browser opening, and the promotional footer are suppressed
+- progress/info logs, automatic browser opening, and the footer links are suppressed
 
 __Note:__ When used with `--no-report`, the `--keep-temp` flag is ignored. 
 Temporary files are normally deleted automatically. 
@@ -440,7 +454,7 @@ The blocker detail counts can overlap: a single package may contribute to multip
 
 When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI executes this pipeline:
 
-1. Parse CLI options (`--project`, `--out`, `--offline`, `--json`, `--timestamp`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
+1. Parse CLI options (`--project`, `--out`, `--offline`, `--no-maintenance`, `--json`, `--timestamp`, `--no-report`, `--keep-temp`, `--open`, `--fail-on`, `--audit-signatures`, `--schema`).
 2. Detect workspace/package-manager context:
    - Workspace roots from `pnpm-workspace.yaml` or `package.json#workspaces`
    - Dependency policy from `package.json` and `pnpm-workspace.yaml` overrides/resolutions
@@ -459,6 +473,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Lockfile supply-chain source signals
    - Optional npm registry signature/provenance verification (`--audit-signatures`)
    - Targeted npm registry metadata for up to 10 packages that already show local or supply-chain review signals (skipped with `--offline`)
+   - Registry maintenance signals: abbreviated packument lookups for every unique package name plus bounded ecosyste.ms repo-archived checks, cached for 7 days (skipped with `--no-maintenance` or `--offline`)
 6. Normalize outputs into one internal shape and merge workspace package results.
    - PNPM lock/CLI dependency trees are filtered to installed-only packages (non-installed optional/platform variants are dropped)
 7. Resolve and crawl installed package directories in `node_modules` to collect local metadata:
@@ -471,7 +486,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - Install-time execution signals, local execution capability signals, packaging signals, and targeted registry metadata review signals
    - Local package metadata (`description`, links, deprecation, TypeScript type availability, installed file count, CLI `bin` presence)
 9. Build normalized findings from the aggregated dependency model:
-   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, targeted registry metadata review signals, native bindings, deprecated packages, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
+   - Vulnerabilities, license review items, install-time execution surface, local execution capability signals, packaging signals, targeted registry metadata review signals, native bindings, deprecated packages, archived/unmaintained maintenance signals, target Node compatibility findings, lockfile source signals, and npm signature/provenance failures
 10. Write final output as one of:
    - `dependency-radar.html` (self-contained report), or
    - `dependency-radar.json` (raw aggregated model)
@@ -480,7 +495,7 @@ When you run `npx dependency-radar` (or `dependency-radar scan`), the CLI execut
    - SPDX SBOM (`--format spdx` / `--sbom spdx`)
 11. Remove `.dependency-radar/` unless `--keep-temp` is set.
 
-The scan runs on your machine: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, and targeted registry enrichment require registry access and are skipped or disabled with `--offline`.
+The scan runs on your machine: package metadata is read from `node_modules`. Audit/outdated commands, optional signature checks, maintenance-signal lookups, and targeted registry enrichment require network access and are skipped or disabled with `--offline`.
 
 The `explain` command reuses this same pipeline with report writing disabled, then filters the in-memory model down to a single package for terminal output.
 
@@ -555,7 +570,7 @@ For each installed dependency, Dependency Radar inspects local package metadata 
 - `peerDependency`: Added when the package declares at least one non-optional peer dependency (`peerDependencies`, excluding peers marked `peerDependenciesMeta.<name>.optional: true`).
 - `nativeBindings`: Added when native build/binary surface is detected (`binding.gyp`, `.node` binaries, or native build tooling in scripts such as `node-gyp`/`prebuild`).
 - `installScripts`: Added when install lifecycle hooks are present (`preinstall`, `install`, or `postinstall`).
-- `deprecated`: Added when the package is marked deprecated in installed metadata.
+- `deprecated`: Added when the package is marked deprecated on the npm registry (installed or latest version), or in installed metadata as an offline fallback.
 
 ### `blocksNodeMajor` meaning
 
@@ -597,7 +612,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.4'; // Report schema version for compatibility checks
+  schemaVersion: '1.5'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -704,7 +719,7 @@ export interface DependencyRecord {
     description?: string; // Description from the installed package.json (if present)
     fileCount?: number; // Number of files in the installed package folder (excluding nested node_modules)
     hasBin?: true; // True if package.json declares at least one executable in `bin`
-    deprecated: boolean; // True if the package.json has a deprecated flag
+    deprecated: boolean; // True when deprecated on the npm registry (installed or latest version), or via a local package.json deprecated flag
     links: {
       npm: string; // npm package page URL
       repository?: string; // Repository URL (if present)
@@ -814,6 +829,24 @@ export interface DependencyRecord {
       >; // Review-worthy install-time signals (sparse)
     };
   };
+  maintenance?: {
+    attempted: true; // Present whenever a registry maintenance lookup ran (or was served from cache)
+    ok: boolean; // False when the lookup failed (status is then 'unknown')
+    status: 'deprecated' | 'archived' | 'unmaintained' | 'stale' | 'active' | 'unknown';
+    deprecated?: {
+      installedVersion: boolean; // Installed version carries a registry deprecation notice
+      latestVersion: boolean; // dist-tags.latest carries a registry deprecation notice
+      message?: string; // Author-provided deprecation message (capped)
+    };
+    repoArchived?: boolean; // Source repository archived (best-effort ecosyste.ms check)
+    repoCheckedAt?: string; // When the repo-archived check ran
+    packageModifiedAt?: string; // Packument `modified` timestamp (any registry write)
+    monthsSinceModified?: number; // Whole months since packageModifiedAt
+    latestVersion?: string; // dist-tags.latest (also backfills upgrade.latestVersion)
+    fetchedAt?: string; // When the underlying registry data was fetched
+    fromCache?: true; // Served from the local 7-day cache
+    error?: string; // Lookup failure detail
+  };
 }
 ```
 
@@ -823,7 +856,7 @@ For full details and any future changes, see `src/types.ts`.
 
 - The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
 - The scan runs on your machine and does not upload your source code or generated reports during a normal CLI scan.
-- `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, and targeted registry enrichment perform registry lookups; use `--offline` for offline-only scans.
+- `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, maintenance-signal lookups, and targeted registry enrichment perform network lookups; use `--offline` for offline-only scans.
 - On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
