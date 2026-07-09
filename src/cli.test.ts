@@ -96,16 +96,16 @@ async function createInstalledFixtureProject(
 
 function runCli(args: string[], cwd?: string) {
   const repoRoot = path.resolve(__dirname, '..');
-  const tsNodeBin = path.join(
+  const tsxCli = path.join(
     repoRoot,
     'node_modules',
-    'ts-node',
+    'tsx',
     'dist',
-    'bin.js',
+    'cli.mjs',
   );
   const cliPath = path.join(repoRoot, 'src', 'cli.ts');
 
-  return spawnSync(process.execPath, [tsNodeBin, cliPath, ...args], {
+  return spawnSync(process.execPath, [tsxCli, cliPath, ...args], {
     cwd: cwd || repoRoot,
     encoding: 'utf8',
     env: {

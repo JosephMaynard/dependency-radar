@@ -884,7 +884,7 @@ npm run build
 | Script | Description |
 |---|---|
 | `npm run build` | Generate SPDX/report assets and compile TypeScript to `dist/` |
-| `npm run dev` | Run a scan from source (`ts-node src/cli.ts scan`) |
+| `npm run dev` | Run a scan from source (`tsx src/cli.ts scan`) |
 | `npm run scan` | Run a scan from the built output (`node dist/cli.js scan`) |
 | `npm run dev:report` | Run the report UI dev server |
 | `npm run build:spdx` | Rebuild bundled SPDX identifiers |
