@@ -12,11 +12,11 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "dev:report": "cd report-ui && npx vite",
-    "build:spdx": "ts-node scripts/build-spdx.ts",
+    "build:spdx": "tsx scripts/build-spdx.ts",
     "build:report-ui": "cd report-ui && npx vite build",
-    "build:report": "npm run build:report-ui && npx ts-node scripts/build-report.ts",
+    "build:report": "npm run build:report-ui && tsx scripts/build-report.ts",
     "build": "npm run clean && npm run build:spdx && npm run build:report && tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
-    "dev": "ts-node src/cli.ts scan",
+    "dev": "tsx src/cli.ts scan",
     "scan": "node dist/cli.js scan",
     "test": "npm run test:unit",
     "test:unit": "vitest run",
@@ -62,12 +62,12 @@
     "unmaintained"
   ],
   "devDependencies": {
-    "@types/node": "^26.1.0",
-    "terser": "^5.27.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.13",
-    "vitest": "^4.0.18"
+    "@types/node": "^26.1.1",
+    "terser": "^5.49.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   },
   "packageManager": "npm@10.9.2"
 }

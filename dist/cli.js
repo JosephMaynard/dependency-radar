@@ -206,7 +206,8 @@ function normalizeStringArray(value) {
         .filter(Boolean);
 }
 function parseSimpleYaml(yaml) {
-    var _a, _b;
+    var _a;
+    var _b;
     const lines = [];
     for (const rawLine of yaml.split(/\r?\n/)) {
         const noComment = stripYamlInlineComment(rawLine).replace(/\s+$/, "");
