@@ -248,7 +248,8 @@ function isRepoCheckFresh(entry, now) {
     return now.getTime() - checkedAt <= maintenanceCache_1.MAINTENANCE_CACHE_TTL_MS;
 }
 function buildMaintenanceInfo(dep, lookup, now) {
-    var _a, _b;
+    var _a;
+    var _b;
     const entry = lookup.entry;
     if (!entry) {
         return {
@@ -261,15 +262,14 @@ function buildMaintenanceInfo(dep, lookup, now) {
     const installedDeprecated = Boolean(entry.deprecatedVersions && entry.deprecatedVersions[dep.package.version] !== undefined);
     const latestDeprecated = entry.latestDeprecated === true;
     const message = entry.deprecatedVersions
-        ? (_a = entry.deprecatedVersions[dep.package.version]) !== null && _a !== void 0 ? _a : (entry.latestVersion ? entry.deprecatedVersions[entry.latestVersion] : undefined)
-        : undefined;
+        ? (_b = entry.deprecatedVersions[dep.package.version]) !== null && _b !== void 0 ? _b : (entry.latestVersion ? entry.deprecatedVersions[entry.latestVersion] : undefined) : undefined;
     const months = monthsSince(entry.modified, now);
     const info = {
         attempted: true,
         ok: true,
         status: deriveMaintenanceStatus({
             deprecated: installedDeprecated || latestDeprecated,
-            repoArchived: (_b = entry.repo) === null || _b === void 0 ? void 0 : _b.archived,
+            repoArchived: (_a = entry.repo) === null || _a === void 0 ? void 0 : _a.archived,
             monthsSinceModified: months
         }),
         fetchedAt: entry.fetchedAt

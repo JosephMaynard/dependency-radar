@@ -12,7 +12,8 @@ exports.splitSelectorList = splitSelectorList;
  * @returns A plain object representing the parsed mapping, or an empty object if parsing fails or no top-level mapping is present.
  */
 function parseYamlLike(raw) {
-    var _a, _b;
+    var _a;
+    var _b;
     try {
         const lines = [];
         for (const rawLine of raw.split(/\r?\n/)) {
@@ -121,7 +122,8 @@ function parseYamlLike(raw) {
  * @returns A Map from selector string to `YarnLockEntry`, or `undefined` if no entries could be parsed
  */
 function parseYarnV1Lockfile(raw) {
-    var _a, _b;
+    var _a;
+    var _b;
     try {
         const map = new Map();
         const lines = raw.split(/\r?\n/);
