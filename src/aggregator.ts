@@ -944,6 +944,8 @@ function vulnerabilitiesForNode(index: VulnerabilityIndex, node: NodeInfo): Vuln
 function parseVulnerabilities(auditData: any): VulnerabilityIndex {
   const map = new Map<string, VulnerabilitySummary>();
   const nodePathsByName = new Map<string, Set<string>>();
+  const advisoriesByAuditKey = new Map<string, VulnerabilityAdvisory[]>();
+  const advisoriesByNodePath = new Map<string, VulnerabilityAdvisory[]>();
   const advisoriesByPackageId = new Map<string, VulnerabilityAdvisory[]>();
   if (!auditData) {
     return {
@@ -963,7 +965,23 @@ function parseVulnerabilities(auditData: any): VulnerabilityIndex {
   };
 
   const advisoryKeys = new Map<string, Set<string>>();
-  const deferredViaStrings: Array<{ name: string; via: string[] }> = [];
+  const deferredViaStrings: Array<{
+    auditKey: string;
+    name: string;
+    nodePaths: string[];
+    via: string[];
+  }> = [];
+  const addAdvisoryToList = (
+    target: Map<string, VulnerabilityAdvisory[]>,
+    key: string,
+    advisory: VulnerabilityAdvisory,
+  ) => {
+    const advisories = target.get(key) || [];
+    if (!advisories.some((entry) => entry.id === advisory.id && entry.vulnerableRange === advisory.vulnerableRange)) {
+      advisories.push(advisory);
+    }
+    target.set(key, advisories);
+  };
   const addAdvisory = (name: string, advisory: VulnerabilityAdvisory) => {
     const entry = ensureEntry(name);
     const key = `${advisory.id}|${advisory.vulnerableRange}`;
@@ -981,34 +999,47 @@ function parseVulnerabilities(auditData: any): VulnerabilityIndex {
   // Advisories are disclosed findings from npm audit (not malware detection).
   // Summary-only output loses evidence and is a data loss bug.
   if (auditData.vulnerabilities) {
-    Object.values<any>(auditData.vulnerabilities).forEach((item: any) => {
+    Object.entries<any>(auditData.vulnerabilities).forEach(([auditKey, item]) => {
       const name = item.name || 'unknown';
       const nodePaths = Array.isArray(item.nodes)
-        ? item.nodes.filter((node: unknown): node is string => typeof node === 'string' && node.trim().length > 0)
+        ? item.nodes
+          .filter((node: unknown): node is string => typeof node === 'string' && node.trim().length > 0)
+          .map((node: string) => path.resolve(node))
         : [];
       if (nodePaths.length > 0) {
         const paths = nodePathsByName.get(name) || new Set<string>();
-        for (const nodePath of nodePaths) paths.add(path.resolve(nodePath));
+        for (const nodePath of nodePaths) paths.add(nodePath);
         nodePathsByName.set(name, paths);
       }
       const viaList = Array.isArray(item.via) ? item.via : [];
+      const itemAdvisories: VulnerabilityAdvisory[] = [];
       let added = false;
       for (const via of viaList) {
         if (via && typeof via === 'object') {
           const advisory = buildAdvisoryFromVia(via, item);
           if (advisory) {
             addAdvisory(name, advisory);
+            itemAdvisories.push(advisory);
             added = true;
           }
         }
       }
       const viaStrings = viaList.filter((via: unknown) => typeof via === 'string') as string[];
       if (viaStrings.length > 0) {
-        deferredViaStrings.push({ name, via: viaStrings });
+        deferredViaStrings.push({ auditKey, name, nodePaths, via: viaStrings });
       }
       if (!added) {
         const fallback = buildAdvisoryFromVia(item, item);
-        if (fallback) addAdvisory(name, fallback);
+        if (fallback) {
+          addAdvisory(name, fallback);
+          itemAdvisories.push(fallback);
+        }
+      }
+      for (const advisory of itemAdvisories) {
+        addAdvisoryToList(advisoriesByAuditKey, auditKey, advisory);
+        for (const nodePath of nodePaths) {
+          addAdvisoryToList(advisoriesByNodePath, nodePath, advisory);
+        }
       }
     });
   }
@@ -1034,13 +1065,17 @@ function parseVulnerabilities(auditData: any): VulnerabilityIndex {
     });
   }
 
-  // One-level expansion: map string "via" references to their advisories without storing paths.
+  // One-level expansion: map string "via" references to their advisories while preserving paths.
   for (const entry of deferredViaStrings) {
     for (const refName of entry.via) {
-      const referenced = map.get(refName);
-      if (referenced?.advisories) {
-        for (const advisory of referenced.advisories) {
+      const referenced = advisoriesByAuditKey.get(refName);
+      if (referenced) {
+        for (const advisory of referenced) {
           addAdvisory(entry.name, advisory);
+          addAdvisoryToList(advisoriesByAuditKey, entry.auditKey, advisory);
+          for (const nodePath of entry.nodePaths) {
+            addAdvisoryToList(advisoriesByNodePath, nodePath, advisory);
+          }
         }
       }
     }
@@ -1051,10 +1086,8 @@ function parseVulnerabilities(auditData: any): VulnerabilityIndex {
   });
 
   const byNodePath = new Map<string, VulnerabilitySummary>();
-  for (const [name, nodePaths] of nodePathsByName) {
-    const summary = map.get(name);
-    if (!summary) continue;
-    for (const nodePath of nodePaths) byNodePath.set(nodePath, summary);
+  for (const [nodePath, advisories] of advisoriesByNodePath) {
+    byNodePath.set(nodePath, summarizeAdvisories(advisories));
   }
   const byPackageId = new Map<string, VulnerabilitySummary>();
   for (const [packageId, advisories] of advisoriesByPackageId) {

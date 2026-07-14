@@ -121,7 +121,6 @@ const dependency: DependencyRecord = {
       peer: { child: ['^2.0.0', 'child@2.0.0'] }
     }
   },
-  size: { unpackedBytes: 0, fileCount: 0 },
   maintenance: { attempted: true, ok: false, status: 'unknown' }
 };
 

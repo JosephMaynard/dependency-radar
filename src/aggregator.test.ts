@@ -372,6 +372,77 @@ describe('aggregateData', () => {
     expect(data.dependencies['uuid@3.4.0'].security.advisories?.[0].vulnerableRange).toBe('<7.0.0');
   });
 
+  it('keeps workspace advisories isolated to their audit node paths', async () => {
+    const projectPath = await makeTempDir('dr-agg-workspace-vuln-paths');
+    const directPath = path.join(projectPath, 'node_modules', 'uuid');
+    const parentPath = path.join(projectPath, 'node_modules', 'lib-a');
+    const nestedPath = path.join(parentPath, 'node_modules', 'uuid');
+    const pkg = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { uuid: '^9.0.0', 'lib-a': '^1.0.0' }
+    };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            uuid: { name: 'uuid', version: '9.0.1', path: directPath },
+            'lib-a': {
+              name: 'lib-a',
+              version: '1.0.0',
+              path: parentPath,
+              dependencies: {
+                uuid: { name: 'uuid', version: '3.4.0', path: nestedPath }
+              }
+            }
+          }
+        }
+      },
+      auditResult: {
+        ok: true,
+        data: {
+          vulnerabilities: {
+            '0:uuid': {
+              name: 'uuid',
+              severity: 'low',
+              range: '>=9.0.0 <9.0.2',
+              nodes: [directPath],
+              via: [{ source: 1001, name: 'uuid', title: 'Direct advisory', severity: 'low', range: '>=9.0.0 <9.0.2', url: 'https://example.test/direct' }]
+            },
+            '1:uuid': {
+              name: 'uuid',
+              severity: 'high',
+              range: '<7.0.0',
+              nodes: [nestedPath],
+              via: [{ source: 1002, name: 'uuid', title: 'Nested advisory', severity: 'high', range: '<7.0.0', url: 'https://example.test/nested' }]
+            }
+          }
+        }
+      },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: true,
+      workspaceType: 'npm',
+      workspacePackageCount: 2,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['uuid@9.0.1'].security.summary).toMatchObject({ low: 1, high: 0 });
+    expect(data.dependencies['uuid@9.0.1'].security.advisories?.map((advisory) => advisory.title)).toEqual([
+      'Direct advisory'
+    ]);
+    expect(data.dependencies['uuid@3.4.0'].security.summary).toMatchObject({ low: 0, high: 1 });
+    expect(data.dependencies['uuid@3.4.0'].security.advisories?.map((advisory) => advisory.title)).toEqual([
+      'Nested advisory'
+    ]);
+  });
+
   it('does not turn a low-confidence licence guess into a mismatch', async () => {
     const projectPath = await makeTempDir('dr-agg-license-confidence');
     const depPath = path.join(projectPath, 'node_modules', 'low-confidence');

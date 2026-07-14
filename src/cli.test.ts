@@ -914,6 +914,26 @@ describe('cli summary output', () => {
   );
 
   it(
+    'marks skipped signature verification unavailable in strict mode',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-audit-offline-strict',
+      );
+      const result = runCli(
+        ['scan', '--project', fixtureProject, '--offline', '--audit-signatures', '--strict', '--no-report', '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(2);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('supplyChain collection is unavailable (--strict)');
+    },
+  );
+
+  it(
     'fails on supply-chain-source policy violations',
     { timeout: 30000 },
     async () => {

@@ -732,18 +732,9 @@ function mergeDepsFromWorkspace(
 type AuditMergeInput = { data: any; contextPath: string };
 
 function mergeAuditResults(results: Array<AuditMergeInput | undefined>): any | undefined {
-  const defined = results.filter(Boolean);
+  const defined = results.filter((entry): entry is AuditMergeInput => Boolean(entry));
   if (defined.length === 0) return undefined;
   const base: any = {};
-  const uniqueValues = (values: unknown[]): unknown[] => {
-    const seen = new Set<string>();
-    return values.filter((value) => {
-      const key = typeof value === "string" ? `string:${value}` : `json:${JSON.stringify(value)}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
   const absoluteAuditNodes = (nodes: unknown, contextPath: string): string[] => {
     if (!Array.isArray(nodes)) return [];
     return Array.from(new Set(nodes
@@ -751,27 +742,30 @@ function mergeAuditResults(results: Array<AuditMergeInput | undefined>): any | u
       .map((node) => path.resolve(contextPath, node.trim()))));
   };
 
-  for (const entry of defined) {
-    const r = entry!.data;
+  for (const [resultIndex, entry] of defined.entries()) {
+    const r = entry.data;
     if (!r || typeof r !== "object") continue;
     // npm audit v7+ shape: { vulnerabilities: {..} }
     if (r.vulnerabilities && typeof r.vulnerabilities === "object") {
       base.vulnerabilities = base.vulnerabilities || {};
+      const vulnerabilityEntries = Object.entries<any>(r.vulnerabilities);
+      const mergedKeys = new Map(
+        vulnerabilityEntries.map(([key]) => [key, `${resultIndex}:${key}`]),
+      );
       for (const [k, v] of Object.entries<any>(r.vulnerabilities)) {
+        const mergedKey = mergedKeys.get(k)!;
         const normalized = {
           ...v,
-          nodes: absoluteAuditNodes(v?.nodes, entry!.contextPath),
+          nodes: absoluteAuditNodes(v?.nodes, entry.contextPath),
+          ...(Array.isArray(v?.via)
+            ? {
+                via: v.via.map((via: unknown) =>
+                  typeof via === "string" ? mergedKeys.get(via) || via : via,
+                ),
+              }
+            : {}),
         };
-        if (!base.vulnerabilities[k]) base.vulnerabilities[k] = normalized;
-        else {
-          const existing = base.vulnerabilities[k];
-          base.vulnerabilities[k] = {
-            ...existing,
-            ...normalized,
-            nodes: Array.from(new Set([...(existing.nodes || []), ...normalized.nodes])),
-            via: uniqueValues([...(existing.via || []), ...(normalized.via || [])]),
-          };
-        }
+        base.vulnerabilities[mergedKey] = normalized;
       }
     }
     // legacy shape
@@ -2209,7 +2203,11 @@ async function executeAnalysis(
     const auditCollectorStatus = collectorStatusFromResults(perPackageAudit, opts.audit);
     let dependencyTreeCollectorStatus = collectorStatusFromResults(perPackageLs, true);
     const importCollectorStatus = collectorStatusFromResults(perPackageImportGraph, true);
-    const supplyChainCollectorStatus: ScanCollectorStatus = supplyChainResult.ok ? "available" : "unavailable";
+    const signatureAuditOk = !opts.auditSignatures
+      || (supplyChainResult.ok && supplyChainResult.data?.signatureAudit?.ok === true);
+    const supplyChainCollectorStatus: ScanCollectorStatus = supplyChainResult.ok && signatureAuditOk
+      ? "available"
+      : "unavailable";
     if (auditFailure) {
       spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
     }
