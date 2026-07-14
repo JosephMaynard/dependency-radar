@@ -2,6 +2,7 @@ import { validateSpdxExpression } from './license';
 import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, RegistryRiskSignal, SupplyChainSignal } from './types';
 
 export type FailOnRule =
+  | 'directly-imported-vuln'
   | 'reachable-vuln'
   | 'production-vuln'
   | 'high-severity-vuln'
@@ -39,6 +40,7 @@ export type PolicyViolation = {
 };
 
 export const SUPPORTED_FAIL_ON_RULES = [
+  'directly-imported-vuln',
   'reachable-vuln',
   'production-vuln',
   'high-severity-vuln',
@@ -410,7 +412,7 @@ export function evaluatePolicyViolations(
 ): PolicyViolation[] {
   if (rules.size === 0) return [];
 
-  let reachableProductionVulnCount = 0;
+  let directlyImportedProductionVulnCount = 0;
   let productionVulnCount = 0;
   let highSeverityVulnCount = 0;
   let licenceMismatchCount = 0;
@@ -423,12 +425,12 @@ export function evaluatePolicyViolations(
   for (const dep of Object.values(aggregated.dependencies || {})) {
     const isRuntime = dep.usage.scope === 'runtime';
     const hasVuln = vulnerabilityCount(dep) > 0;
-    const isReachable = (dep.usage.importUsage?.fileCount || 0) > 0;
+    const isDirectlyImported = (dep.usage.importUsage?.fileCount || 0) > 0;
     const hasHighSeverityVuln =
       (dep.security.summary.high || 0) + (dep.security.summary.critical || 0) > 0;
 
-    if (isRuntime && hasVuln && isReachable) {
-      reachableProductionVulnCount += 1;
+    if (isRuntime && hasVuln && isDirectlyImported) {
+      directlyImportedProductionVulnCount += 1;
     }
     if (isRuntime && hasVuln) {
       productionVulnCount += 1;
@@ -463,12 +465,17 @@ export function evaluatePolicyViolations(
 
   const violations: PolicyViolation[] = [];
 
-  if (rules.has('reachable-vuln') && reachableProductionVulnCount > 0) {
+  const directlyImportedRule = rules.has('directly-imported-vuln')
+    ? 'directly-imported-vuln'
+    : rules.has('reachable-vuln')
+      ? 'reachable-vuln'
+      : undefined;
+  if (directlyImportedRule && directlyImportedProductionVulnCount > 0) {
     violations.push({
-      rule: 'reachable-vuln',
-      count: reachableProductionVulnCount,
-      message: `${reachableProductionVulnCount} reachable production ${pluralize(
-        reachableProductionVulnCount,
+      rule: directlyImportedRule,
+      count: directlyImportedProductionVulnCount,
+      message: `${directlyImportedProductionVulnCount} directly imported production ${pluralize(
+        directlyImportedProductionVulnCount,
         'vulnerability',
         'vulnerabilities'
       )}`

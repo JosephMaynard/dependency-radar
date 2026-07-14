@@ -313,6 +313,129 @@ describe('aggregateData', () => {
     expect(data.summary.transitiveCount).toBe(1);
   });
 
+  it('associates npm audit findings with the affected installed path, not every version of a package', async () => {
+    const projectPath = await makeTempDir('dr-agg-vuln-paths');
+    const directPath = path.join(projectPath, 'node_modules', 'uuid');
+    const parentPath = path.join(projectPath, 'node_modules', 'lib-a');
+    const vulnerablePath = path.join(parentPath, 'node_modules', 'uuid');
+    const pkg = {
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { uuid: '^9.0.0', 'lib-a': '^1.0.0' }
+    };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            uuid: { name: 'uuid', version: '9.0.1', path: directPath },
+            'lib-a': {
+              name: 'lib-a',
+              version: '1.0.0',
+              path: parentPath,
+              dependencies: {
+                uuid: { name: 'uuid', version: '3.4.0', path: vulnerablePath }
+              }
+            }
+          }
+        }
+      },
+      auditResult: {
+        ok: true,
+        data: {
+          vulnerabilities: {
+            uuid: {
+              name: 'uuid',
+              severity: 'high',
+              range: '<7.0.0',
+              nodes: [vulnerablePath],
+              via: [{ source: 1234, name: 'uuid', title: 'Predictable values', severity: 'high', range: '<7.0.0', url: 'https://example.test/advisory' }]
+            }
+          }
+        }
+      },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['uuid@9.0.1'].security.summary.high).toBe(0);
+    expect(data.dependencies['uuid@3.4.0'].security.summary.high).toBe(1);
+    expect(data.dependencies['uuid@3.4.0'].security.advisories?.[0].vulnerableRange).toBe('<7.0.0');
+  });
+
+  it('does not turn a low-confidence licence guess into a mismatch', async () => {
+    const projectPath = await makeTempDir('dr-agg-license-confidence');
+    const depPath = path.join(projectPath, 'node_modules', 'low-confidence');
+    const pkg = { name: 'fixture-root', version: '1.0.0', dependencies: { 'low-confidence': '1.0.0' } };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+    await fs.mkdir(depPath, { recursive: true });
+    await fs.writeFile(path.join(depPath, 'package.json'), JSON.stringify({
+      name: 'low-confidence', version: '1.0.0', license: 'ISC'
+    }));
+    await fs.writeFile(path.join(depPath, 'LICENSE'), 'THE SOFTWARE IS PROVIDED "AS IS"');
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: { ok: true, data: { dependencies: { 'low-confidence': { name: 'low-confidence', version: '1.0.0', path: depPath } } } },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['low-confidence@1.0.0'].compliance.license.status).toBe('declared-only');
+    expect(data.dependencies['low-confidence@1.0.0'].compliance.license.inferred?.confidence).toBe('low');
+  });
+
+  it('drops unsafe package metadata links and strips URL credentials', async () => {
+    const projectPath = await makeTempDir('dr-agg-safe-links');
+    const depPath = path.join(projectPath, 'node_modules', 'unsafe-links');
+    const pkg = { name: 'fixture-root', version: '1.0.0', dependencies: { 'unsafe-links': '1.0.0' } };
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify(pkg));
+    await fs.mkdir(depPath, { recursive: true });
+    await fs.writeFile(path.join(depPath, 'package.json'), JSON.stringify({
+      name: 'unsafe-links',
+      version: '1.0.0',
+      license: 'MIT',
+      repository: 'javascript:alert(1)',
+      homepage: 'https://user:secret@example.test/project',
+      bugs: 'data:text/html,unsafe'
+    }));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: pkg,
+      projectPackageJson: pkg,
+      npmLsResult: { ok: true, data: { dependencies: { 'unsafe-links': { name: 'unsafe-links', version: '1.0.0', path: depPath } } } },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    const links = data.dependencies['unsafe-links@1.0.0'].package.links;
+    expect(links.repository).toBeUndefined();
+    expect(links.bugs).toBeUndefined();
+    expect(links.homepage).toBe('https://example.test/project');
+  });
+
   it('classifies duplicate versions correctly in combined workspace graphs', async () => {
     const projectPath = await makeTempDir('dr-agg-workspace-dup');
     await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({ name: 'fixture-root', version: '1.0.0' }));

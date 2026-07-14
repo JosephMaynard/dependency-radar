@@ -2,7 +2,6 @@
   "name": "dependency-radar",
   "version": "0.9.0",
   "description": "Local-first dependency analysis tool that generates a single HTML report showing risk, size, usage, and structure of your project's dependencies.",
-  "main": "dist/index.js",
   "bin": {
     "dependency-radar": "dist/cli.js"
   },
@@ -12,15 +11,16 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "dev:report": "cd report-ui && npx vite",
-    "build:spdx": "tsx scripts/build-spdx.ts",
+    "update:spdx": "tsx scripts/build-spdx.ts",
     "build:report-ui": "cd report-ui && npx vite build",
     "build:report": "npm run build:report-ui && tsx scripts/build-report.ts",
-    "build": "npm run clean && npm run build:spdx && npm run build:report && tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "build": "npm run clean && npm run build:report && tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
     "dev": "tsx src/cli.ts scan",
     "scan": "node dist/cli.js scan",
     "test": "npm run test:unit",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
+    "test:schemas": "tsx scripts/validate-output-schemas.ts",
     "test:fixtures": "npm --prefix test-fixtures run test",
     "test:fixtures:online": "npm --prefix test-fixtures run test:online",
     "test:fixtures:all": "npm --prefix test-fixtures run test:all",
@@ -28,7 +28,7 @@
     "test:docker": "npm run test:docker:node14",
     "test:pack": "node scripts/check-pack.js",
     "test:release:ok": "node -e \"console.log('\\n✅ test:release passed')\"",
-    "test:release": "npm run build && npm run test:unit && npm run test:fixtures:all && npm run test:docker && npm run test:pack && npm run test:release:ok",
+    "test:release": "npm run build && npm run test:unit && npm run test:schemas && npm run test:fixtures:all && npm run test:docker && npm run test:pack && npm run test:release:ok",
     "prepublishOnly": "npm run build"
   },
   "author": "Joseph Maynard",
@@ -63,6 +63,9 @@
   ],
   "devDependencies": {
     "@types/node": "^26.1.1",
+    "ajv": "^8.18.0",
+    "ajv-draft-04": "^1.0.0",
+    "ajv-formats": "^3.0.1",
     "terser": "^5.49.0",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2",

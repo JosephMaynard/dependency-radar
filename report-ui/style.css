@@ -338,6 +338,32 @@ body {
   white-space: nowrap;
 }
 
+.stat-chip:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.scan-status-banner {
+  margin: 12px auto 0;
+  width: min(1100px, calc(100% - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--amber);
+  border-radius: 10px;
+  background: var(--amber-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.scan-status-banner strong {
+  color: var(--text-primary);
+}
+
+.scan-status-banner ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
 button.stat-chip {
   cursor: pointer;
   font: inherit;
@@ -2603,11 +2629,12 @@ details[open] > summary .expand-icon {
 
   .header-stats {
     width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stat-chip {
     flex: 1 1 auto;
-    min-width: 76px;
+    min-width: 0;
     padding: 8px 10px 6px;
   }
 

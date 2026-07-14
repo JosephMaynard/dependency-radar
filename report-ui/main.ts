@@ -726,6 +726,11 @@ function renderReportMetadata(report: AggregatedData, formattedGeneratedAt: stri
       renderMetadataRow("Transitive", report.summary?.transitiveCount),
       renderMetadataRow("Findings", report.summary?.findingCount),
     ]),
+    renderMetadataSection("Scan evidence", [
+      renderMetadataRow("Complete", report.scanStatus?.complete),
+      renderMetadataRow("Collectors", report.scanStatus?.collectors),
+      renderMetadataRow("Warnings", report.scanStatus?.warnings),
+    ]),
     renderSupplyChainMetadata(report),
   ]
     .filter(Boolean)
@@ -1790,37 +1795,54 @@ function renderPackageLinks(links: LinkSet): string {
     return "";
   }
   let html = '<div class="package-links">';
-  if (links.npm) {
+  const safeExternalUrl = (value: string | undefined): string | undefined => {
+    if (!value) return undefined;
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return undefined;
+      parsed.username = "";
+      parsed.password = "";
+      return parsed.toString();
+    } catch {
+      return undefined;
+    }
+  };
+  const npmUrl = safeExternalUrl(links.npm);
+  const repositoryUrl = safeExternalUrl(links.repository);
+  const homepageUrl = safeExternalUrl(links.homepage);
+  const issuesUrl = safeExternalUrl(links.issues);
+  if (!npmUrl && !repositoryUrl && !homepageUrl && !issuesUrl) return "";
+  if (npmUrl) {
     html +=
       '<a href="' +
-      escapeHtml(links.npm) +
+      escapeHtml(npmUrl) +
       '" target="_blank" rel="noopener" class="package-link">' +
       icons.npm +
       "npm</a>";
   }
 
-  if (links.repository) {
+  if (repositoryUrl) {
     html +=
       '<a href="' +
-      escapeHtml(links.repository) +
+      escapeHtml(repositoryUrl) +
       '" target="_blank" rel="noopener" class="package-link">' +
       icons.repo +
       "Repository</a>";
   }
 
-  if (links.homepage) {
+  if (homepageUrl) {
     html +=
       '<a href="' +
-      escapeHtml(links.homepage) +
+      escapeHtml(homepageUrl) +
       '" target="_blank" rel="noopener" class="package-link">' +
       icons.homepage +
       "Homepage</a>";
   }
 
-  if (links.issues) {
+  if (issuesUrl) {
     html +=
       '<a href="' +
-      escapeHtml(links.issues) +
+      escapeHtml(issuesUrl) +
       '" target="_blank" rel="noopener" class="package-link">' +
       icons.bugs +
       "Issues</a>";
@@ -1842,9 +1864,20 @@ function renderAdvisoriesTable(
   html += "</tr></thead><tbody>";
   advisories.forEach((adv) => {
     const advisoryCell = escapeHtml(adv.title);
-    const referenceCell = adv.url
+    const referenceUrl = (() => {
+      try {
+        const parsed = new URL(adv.url);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return undefined;
+        parsed.username = "";
+        parsed.password = "";
+        return parsed.toString();
+      } catch {
+        return undefined;
+      }
+    })();
+    const referenceCell = referenceUrl
       ? '<a href="' +
-        escapeHtml(adv.url) +
+        escapeHtml(referenceUrl) +
         '" target="_blank" rel="noopener">Link</a>'
       : "";
     html += '<tr data-severity="' + escapeHtml(adv.severity) + '">';
@@ -2269,6 +2302,22 @@ async function init(): Promise<void> {
   }
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
+  const scanStatusBanner = document.getElementById("scan-status-banner");
+  if (scanStatusBanner && report.scanStatus?.warnings.length) {
+    scanStatusBanner.hidden = false;
+    const heading = document.createElement("strong");
+    heading.textContent = report.scanStatus.complete
+      ? "Some analysis was intentionally skipped"
+      : "Scan evidence is incomplete";
+    scanStatusBanner.appendChild(heading);
+    const list = document.createElement("ul");
+    report.scanStatus.warnings.slice(0, 8).forEach((warning) => {
+      const item = document.createElement("li");
+      item.textContent = warning.length > 300 ? `${warning.slice(0, 297)}…` : warning;
+      list.appendChild(item);
+    });
+    scanStatusBanner.appendChild(list);
+  }
 
   // Update header info with chip-based layout and detailed metadata dropdown
   const projectPathEl = document.getElementById("project-path");
@@ -2853,6 +2902,20 @@ async function init(): Promise<void> {
       "red",
       "Dependencies with known vulnerabilities — click to filter",
     );
+    const markChipUnknown = (id: string, status: string, label: string): void => {
+      const chip = document.getElementById(id) as HTMLButtonElement | null;
+      if (!chip) return;
+      chip.hidden = false;
+      chip.disabled = true;
+      chip.classList.remove("red", "amber");
+      const valueEl = chip.querySelector("strong");
+      if (valueEl) valueEl.textContent = "?";
+      chip.title = `${label} is unknown because its collector is ${status}`;
+    };
+    const auditStatus = report.scanStatus?.collectors.audit;
+    if (auditStatus && auditStatus !== "available") {
+      markChipUnknown("stat-vulnerable", auditStatus, "Vulnerability status");
+    }
     setChip(
       "stat-license",
       licenseIssues,
@@ -2867,7 +2930,10 @@ async function init(): Promise<void> {
     );
     const maintenanceChip = document.getElementById("stat-maintenance");
     if (maintenanceChip) {
-      if (!maintenanceDataSeen) {
+      const maintenanceStatus = report.scanStatus?.collectors.maintenance;
+      if (maintenanceStatus && maintenanceStatus !== "available") {
+        markChipUnknown("stat-maintenance", maintenanceStatus, "Maintenance status");
+      } else if (!maintenanceDataSeen) {
         maintenanceChip.hidden = true;
       } else {
         setChip(
@@ -2884,6 +2950,7 @@ async function init(): Promise<void> {
         "[data-stat-filter]",
       );
       if (!button) return;
+      if (button.disabled) return;
       const targets: Record<string, HTMLInputElement | null | undefined> = {
         "has-vulns": controls.hasVulns,
         "maintenance-concerns": controls.maintenanceConcerns,

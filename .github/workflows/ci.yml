@@ -27,8 +27,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install fixture package managers
+        run: npm install --global pnpm@9.5.0 yarn@1.22.22
+
       - name: Build
         run: npm run build
 
       - name: Unit tests
         run: npm test
+
+      - name: Validate output schemas
+        run: npm run test:schemas
+
+      - name: Fixture matrix
+        run: npm run test:fixtures:all
+
+      - name: Validate packed package
+        run: npm run test:pack
+
+      - name: Node 14 packed-package smoke test
+        run: npm run test:docker:node14

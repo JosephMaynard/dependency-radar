@@ -1,6 +1,20 @@
 export type Severity = 'low' | 'moderate' | 'high' | 'critical';
 export type OutdatedStatus = 'current' | 'patch' | 'minor' | 'major' | 'unknown';
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
+export type ScanCollectorStatus = 'available' | 'partial' | 'unavailable' | 'skipped';
+export type ScanCollectorName =
+  | 'dependencyTree'
+  | 'audit'
+  | 'imports'
+  | 'maintenance'
+  | 'registryMetadata'
+  | 'supplyChain';
+
+export interface ScanStatus {
+  complete: boolean;
+  collectors: Record<ScanCollectorName, ScanCollectorStatus>;
+  warnings: string[];
+}
 
 export interface VulnerabilityAdvisory {
   id: string;
@@ -281,6 +295,9 @@ export interface ToolResult<T> {
   data?: T;
   error?: string;
   file?: string;
+  // Working directory used when relative paths in collector output need to be
+  // reconciled with the installed dependency graph.
+  contextPath?: string;
 }
 
 export interface OutdatedEntry {
@@ -320,7 +337,7 @@ export interface ProjectDependencyPolicySummary {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.5';
+  schemaVersion: '1.6';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -373,6 +390,7 @@ export interface AggregatedData {
     transitiveCount: number;
     findingCount?: number;
   };
+  scanStatus?: ScanStatus;
   supplyChain?: SupplyChainSummary;
   findings?: DependencyFinding[];
   dependencies: Record<string, DependencyRecord>;

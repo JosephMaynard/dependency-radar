@@ -10,7 +10,7 @@ Dependency Radar inspects your Node.js dependency graph and makes structural ris
 
 Unlike basic audit tools, it builds the graph from lockfiles, understands PNPM workspaces, validates declared vs inferred licences, and highlights structural risks before they become production problems.
 
-No accounts. No uploads. Nothing leaves your machine.
+No account or report upload is required. Source code and generated reports stay on your machine; online collectors send package identifiers to the package manager, configured registry, and the bounded maintenance services described below.
 
 The simplest way to get started is to go to your project root and run:
 
@@ -71,7 +71,7 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 
 ## What you get
 
-- **Vulnerability scanning** — runs `npm audit` / `pnpm audit` / `yarn audit` and surfaces advisories with severity, fix availability, and reachability heuristics
+- **Vulnerability scanning** — runs `npm audit` / `pnpm audit` / `yarn audit` and surfaces advisories with severity, fix availability, installed-version matching, and direct static-import evidence
 - **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
 - **Interactive dependency graph** — explore your full dependency tree visually, including direct, dev, and transitive relationships
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
@@ -111,7 +111,7 @@ Dependency Radar is a review and triage tool. It makes dependency risk easier to
 
 Modern Node projects pull in hundreds (or thousands) of transitive dependencies, and most of the risk is structural, not obvious.
 
-- `npm audit` tells you about known vulnerabilities, but it does not explain how a dependency got there, whether it is reachable at runtime, or how deep it sits in your graph.
+- `npm audit` tells you about known vulnerabilities, but it does not explain how a dependency got there, whether your source directly imports it, or how deep it sits in your graph.
 - License tooling often trusts `package.json` declarations, even though they can be missing, invalid, or wrong, and rarely checks what is actually in the installed `LICENSE` file.
 - Monorepos and PNPM workspaces make the tree harder to reason about, especially when package manager outputs include optional platform variants that are not installed on your machine.
 - Upgrade pain usually shows up late, when a Node major bump or a package update breaks due to peer dependency constraints, engine ranges, native bindings, or install scripts.
@@ -136,7 +136,7 @@ How it works, and its limits:
 - The "last registry activity" timestamp updates on *any* packument write (publish, dist-tag change, deprecation edit), so the age-based statuses under-flag rather than over-flag: a package flagged unmaintained has had zero registry writes for 3+ years. Stable, "finished" packages can still show as stale or unmaintained — these are review cues, not verdicts.
 - Repo-archived checks are bounded (max 50 per scan, only for packages that are deprecated, direct, or dormant 24+ months) and fail silently.
 - Results are cached for 7 days in `~/.cache/dependency-radar/` (or `XDG_CACHE_HOME` / `%LOCALAPPDATA%`), so repeat scans are fast. Set `DEPENDENCY_RADAR_NO_CACHE=1` to disable the cache, `DEPENDENCY_RADAR_CACHE_DIR` to relocate it, or `DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS` to change the time budget.
-- Privacy: package names are sent to your configured npm registry, and `owner/repo` slugs of candidate packages to ecosyste.ms. No auth tokens are ever read or sent. Use `--no-maintenance` or `--offline` to skip these lookups entirely.
+- Privacy: package names are sent to your configured npm registry, and `owner/repo` slugs of candidate packages to ecosyste.ms. Dependency Radar's direct HTTP maintenance requests strip URL credentials and do not attach npm authentication. Package-manager commands still run with your normal npm/pnpm/Yarn configuration and may use credentials configured for those tools. Use `--no-maintenance` or `--offline` to skip these lookups entirely.
 - Custom registries: the default registry from `npm config get registry` is respected; per-scope registries are not resolved, so private scoped packages simply report an `unknown` maintenance status.
 
 Maintenance data appears in the HTML report (Maintenance column, filter, and per-dependency detail), the JSON model (`dependencies[id].maintenance`), findings, and the `deprecated-dependency` / `unmaintained-dependency` / `new-deprecated` CI rules.
@@ -169,6 +169,8 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--no-maintenance` | Skip registry maintenance signals (deprecated/unmaintained/archived checks) while keeping audit and outdated checks |
 | `--json` | Output JSON instead of HTML (`dependency-radar.json`) |
 | `--timestamp` | Add a local timestamp to generated report filenames (`dependency-radar.YYYY-MM-DD_HH-mm-ss.html`) |
+| `--strict` | Exit with code 2 when an enabled collector is incomplete or unavailable |
+| `--version`, `-V` | Print the installed Dependency Radar version |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
 | `--keep-temp` | Keep the temporary `.dependency-radar/` folder for debugging |
 | `--open` | Open the generated report using the system default browser |
@@ -273,15 +275,16 @@ These signals can appear in the report, JSON output, compare mode, and CI fail r
 ### CI policy enforcement (`--fail-on`)
 
 ```
-npx dependency-radar --fail-on reachable-vuln,licence-mismatch
+npx dependency-radar --fail-on directly-imported-vuln,licence-mismatch
 ```
 
 Supported rules:
 
 | Rule | Description |
 |---|---|
-| `reachable-vuln` | Fail if at least one reachable runtime vulnerability is present |
-| `production-vuln` | Fail if at least one runtime vulnerability is present (reachability ignored) |
+| `directly-imported-vuln` | Fail if at least one runtime vulnerability has direct static-import evidence in project source |
+| `reachable-vuln` | Deprecated alias for `directly-imported-vuln`; this is not exploit reachability analysis |
+| `production-vuln` | Fail if at least one runtime vulnerability is present (static-import evidence ignored) |
 | `high-severity-vuln` | Fail if at least one high/critical vulnerability is present |
 | `licence-mismatch` | Fail if at least one dependency has a declared-vs-inferred licence mismatch |
 | `copyleft-detected` | Fail if strong copyleft (GPL/AGPL) appears in runtime dependencies |
@@ -314,7 +317,17 @@ The following rules are evaluated only by `compare <previous dependency-radar.js
 | `new-reactivated-package` | Fail if a dependency newly shows the `reactivated-package` registry review signal |
 | `new-old-major-patch` | Fail if a dependency newly shows the `old-major-new-patch` registry review signal |
 
-When rules are violated, Dependency Radar prints `✖ Policy violations detected:` and exits `1`. Unknown rules also exit `1` with a clear error message.
+Every `--fail-on` rule requires its underlying evidence collector to be available. If a required collector fails, is partial, or was deliberately skipped (for example, a vulnerability rule combined with `--offline`), Dependency Radar fails closed with exit code `2` instead of silently treating missing evidence as a clean result.
+
+Exit codes are stable for scripting:
+
+| Code | Meaning |
+|---|---|
+| `0` | Scan completed and no selected policy was violated |
+| `1` | One or more selected policy rules were violated |
+| `2` | Invalid usage or incomplete evidence required by `--fail-on` / `--strict` |
+
+`--strict` applies the same exit-code-2 behaviour to any enabled collector that is partial or unavailable, even when no policy rule depends on it. Collectors deliberately disabled with `--offline` or `--no-maintenance` are recorded as `skipped`; they only block a policy that requires them.
 
 For compare-mode delta rules, the failure output includes the package and the specific change, for example:
 
@@ -391,7 +404,7 @@ npx dependency-radar --offline
 ### Example: don't create report and fail the command in CI when selected policy rules are violated:
 
 ```bash
-npx dependency-radar --no-report --fail-on reachable-vuln,licence-mismatch
+npx dependency-radar --no-report --fail-on directly-imported-vuln,licence-mismatch
 ```
 
 ### Example: quiet mode for CI or scripting
@@ -421,7 +434,7 @@ At the end of each scan, the CLI prints a summary block with high-level counts, 
 Summary:
 • Direct dependencies scanned: 6
 • Transitive dependencies scanned: 62
-• Vulnerable packages: 1 (0 reachable)
+• Vulnerable packages: 1 (0 directly imported)
 • Dependencies with no static import reference: 0
 • License mismatches: 3
 • Major upgrade blockers: 24
@@ -592,7 +605,7 @@ It is not set from `peerDependency` or `deprecated` alone.
 
 ## License Scanning
 
-Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a bundled SPDX identifier list (generated at build time) with no runtime network access. Each dependency gets a structured license record with:
+Dependency Radar validates SPDX licenses declared in `package.json` and can infer licenses from `LICENSE` files when declarations are missing or invalid. It works offline and uses a checked-in SPDX identifier list with no runtime network access. Maintainers update that list explicitly with `npm run update:spdx`; normal builds are reproducible and do not fetch mutable upstream data. Each dependency gets a structured license record with:
 
 - Declared SPDX validation (including deprecated IDs and `WITH` exceptions)
 - Inferred SPDX license (with confidence: `high`, `medium`, `low`) based on deterministic text matching
@@ -612,7 +625,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.5'; // Report schema version for compatibility checks
+  schemaVersion: '1.6'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -674,6 +687,19 @@ export interface AggregatedData {
     directCount: number; // External dependencies listed in package.json
     transitiveCount: number; // External dependencies pulled in by other dependencies
     findingCount?: number; // Number of normalized findings generated from the dependency model
+  };
+  scanStatus?: {
+    complete: boolean; // True when requested collectors did not fail or return partial data
+    collectors: Record<
+      | 'dependencyTree'
+      | 'audit'
+      | 'imports'
+      | 'maintenance'
+      | 'registryMetadata'
+      | 'supplyChain',
+      'available' | 'partial' | 'unavailable' | 'skipped'
+    >;
+    warnings: string[]; // Consequences of missing, partial, or deliberately skipped evidence
   };
   supplyChain?: {
     signals: Array<{
@@ -854,15 +880,15 @@ For full details and any future changes, see `src/types.ts`.
 
 ## Notes
 
-- The target project must have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first).
+- The target project should have dependencies installed (run `npm install`, `pnpm install`, or `yarn install` first). Without installed metadata, Dependency Radar writes an incomplete report; use `--strict` to make that condition fail CI.
 - The scan runs on your machine and does not upload your source code or generated reports during a normal CLI scan.
 - `npm audit`, `pnpm audit`, `yarn npm audit`, corresponding `outdated` commands, optional npm signature checks, maintenance-signal lookups, and targeted registry enrichment perform network lookups; use `--offline` for offline-only scans.
 - On some Yarn Berry setups, `yarn outdated` is not available; the scan continues and marks outdated data as unavailable.
 - A temporary `.dependency-radar/` folder is created during the scan to store intermediate tool output.
 - Use `--keep-temp` to retain this folder for debugging; otherwise it is deleted automatically.
-- If some per-package tools fail (common in large workspaces), the scan continues and reports warnings; missing sections are marked unavailable where applicable.
+- If a collector fails or returns partial data, the scan continues and records the outcome in `scanStatus`; the HTML report shows a warning rather than a misleading clean count. `--fail-on` and `--strict` fail closed when the missing evidence matters.
 - Environment data includes Node.js version, OS platform, CPU architecture, and package manager versions.
-- No personal information, usernames, paths, or environment variables are collected.
+- Reports include project-relative paths, import locations, dependency metadata, and environment/tool versions. Environment variable values are not intentionally copied into reports, but retained `.dependency-radar/` diagnostics and package-manager error output should still be treated as local project data.
 
 ---
 
@@ -883,21 +909,22 @@ npm run build
 
 | Script | Description |
 |---|---|
-| `npm run build` | Generate SPDX/report assets and compile TypeScript to `dist/` |
+| `npm run build` | Build report assets and compile TypeScript to `dist/` |
 | `npm run dev` | Run a scan from source (`tsx src/cli.ts scan`) |
 | `npm run scan` | Run a scan from the built output (`node dist/cli.js scan`) |
 | `npm run dev:report` | Run the report UI dev server |
-| `npm run build:spdx` | Rebuild bundled SPDX identifiers |
+| `npm run update:spdx` | Refresh bundled SPDX identifiers from the pinned upstream revision |
 | `npm run build:report-ui` | Build report UI assets |
 | `npm run build:report` | Rebuild report assets used by the CLI |
 | `npm run test:unit` | Run Vitest unit tests |
+| `npm run test:schemas` | Validate Dependency Radar, CycloneDX, SPDX, and SARIF output against pinned schemas |
 | `npm run test:unit:watch` | Watch mode for fast local iteration |
 | `npm run test:fixtures` | Run curated fixture integration tests (mostly offline scans) |
 | `npm run test:fixtures:online` | Run online fixture checks (audit/outdated regression coverage) |
 | `npm run test:fixtures:all` | Run all fixture integration tests |
 | `npm run test:docker:node14` | Pack the published artifact and smoke-test it in Docker on Node `14.21.3` |
 | `npm run test:docker` | Alias for the Node `14.21.3` Docker compatibility smoke test |
-| `npm run test:release` | Full pre-release gate (`build` + unit + fixture + Docker Node 14 smoke test + package dry run) |
+| `npm run test:release` | Full pre-release gate (`build` + unit + schema + fixture + Docker Node 14 smoke test + package dry run) |
 
 
 Fixture orchestration lives in `/test-fixtures/package.json` with helper scripts under `/test-fixtures/scripts`.

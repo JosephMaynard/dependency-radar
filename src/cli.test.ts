@@ -122,11 +122,21 @@ afterEach(async () => {
 });
 
 describe('cli summary output', () => {
+  it('prints its version without running a scan', async () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const packageJson = await readJsonFile<{ version: string }>(path.join(repoRoot, 'package.json'));
+    const result = runCli(['--version'], repoRoot);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(packageJson.version);
+    expect(result.stderr).toBe('');
+  });
+
   it('fails fast for unknown options without scanning', () => {
     const repoRoot = path.resolve(__dirname, '..');
     const result = runCli(['scan', '--definitely-not-real'], repoRoot);
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(stripAnsi(result.stderr)).toContain('Unknown option: "--definitely-not-real".');
     expect(stripAnsi(result.stdout)).not.toContain('Summary:');
   });
@@ -135,7 +145,7 @@ describe('cli summary output', () => {
     const repoRoot = path.resolve(__dirname, '..');
     const result = runCli(['scan', '--project'], repoRoot);
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(stripAnsi(result.stderr)).toContain('Missing value for --project.');
     expect(stripAnsi(result.stdout)).not.toContain('Summary:');
   });
@@ -155,7 +165,7 @@ describe('cli summary output', () => {
       expect(output).toContain('Summary:');
       expect(output).toMatch(/• Direct dependencies scanned: \d+/);
       expect(output).toMatch(/• Transitive dependencies scanned: \d+/);
-      expect(output).toMatch(/• Vulnerable packages: \d+ \(\d+ reachable\)/);
+      expect(output).toMatch(/• Vulnerable packages: \d+ \(\d+ directly imported\)/);
       expect(output).toMatch(/• Dependencies with no static import reference: \d+/);
       expect(output).toMatch(/• License mismatches: \d+/);
       expect(output).toMatch(/• Major upgrade blockers: \d+/);
@@ -205,6 +215,49 @@ describe('cli summary output', () => {
       const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
       expect(output).toContain('Policy violations detected');
       expect(output).toContain('licence mismatch');
+    },
+  );
+
+  it(
+    'exits 2 instead of passing a policy whose required evidence was skipped',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const fixtureProject = await createInstalledFixtureProject(
+        'license-edge-cases',
+        'dr-cli-policy-incomplete',
+      );
+      const result = runCli([
+        'scan',
+        '--project',
+        fixtureProject,
+        '--offline',
+        '--no-report',
+        '--quiet',
+        '--fail-on',
+        'production-vuln',
+      ], repoRoot);
+
+      expect(result.status).toBe(2);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('Scan evidence is incomplete');
+      expect(output).toContain('audit evidence is skipped');
+    },
+  );
+
+  it(
+    'exits 2 in strict mode when declared dependencies are not installed',
+    { timeout: 30000 },
+    () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const projectPath = path.join(repoRoot, 'test-fixtures', 'no-node-modules');
+      const result = runCli([
+        'scan', '--project', projectPath, '--offline', '--no-report', '--quiet', '--strict'
+      ], repoRoot);
+
+      expect(result.status).toBe(2);
+      const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
+      expect(output).toContain('dependencyTree collection is partial (--strict)');
     },
   );
 
@@ -295,7 +348,7 @@ describe('cli summary output', () => {
   );
 
   it(
-    'returns exit code 1 when explain cannot find the package',
+    'returns exit code 2 when explain cannot find the package',
     { timeout: 30000 },
     async () => {
       const repoRoot = path.resolve(__dirname, '..');
@@ -308,7 +361,7 @@ describe('cli summary output', () => {
         repoRoot,
       );
 
-      expect(result.status).toBe(1);
+      expect(result.status).toBe(2);
       const output = stripAnsi(`${result.stdout}\n${result.stderr}`).replace(/\r/g, '');
       expect(output).toContain('✖ Package not found: definitely-not-present');
     },
@@ -384,7 +437,15 @@ describe('cli summary output', () => {
       );
       expect(reports).toHaveLength(1);
       const report = JSON.parse(await fs.readFile(path.join(projectCopy, reports[0]), 'utf8'));
-      expect(report.schemaVersion).toBe('1.5');
+      expect(report.schemaVersion).toBe('1.6');
+      expect(report.scanStatus).toEqual(expect.objectContaining({
+        complete: expect.any(Boolean),
+        collectors: expect.objectContaining({
+          dependencyTree: 'available',
+          audit: 'skipped',
+          imports: 'available'
+        })
+      }));
     },
   );
 
@@ -813,7 +874,7 @@ describe('cli summary output', () => {
     expect(result.status).toBe(0);
     const schema = JSON.parse(result.stdout);
     expect(schema.title).toBe('Dependency Radar Report');
-    expect(schema.properties.schemaVersion.const).toBe('1.5');
+    expect(schema.properties.schemaVersion.const).toBe('1.6');
   });
 
   it('writes the JSON schema to --out without scanning', async () => {
@@ -826,7 +887,8 @@ describe('cli summary output', () => {
     expect(result.stdout.trim()).toBe('');
     const schema = JSON.parse(await fs.readFile(outPath, 'utf8'));
     expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
-    expect(schema.properties.schemaVersion.const).toBe('1.5');
+    expect(schema.properties.schemaVersion.const).toBe('1.6');
+    expect(schema.required).toContain('scanStatus');
     expect(schema.properties.supplyChain.properties.signals.items.required).toEqual(['type', 'source', 'detail']);
     expect(schema.properties.findings.items.required).toContain('packageId');
   });

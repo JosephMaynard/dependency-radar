@@ -997,6 +997,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
   let width = 1;
   let height = 1;
+  let toolbarHeight = 50;
 
   const panState = {
     down: false,
@@ -1405,12 +1406,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     options.canvas.style.height = `${height}px`;
     const overlayTop =
       options.canvasHost.querySelector<HTMLElement>(".graph-overlay-top");
-    const overlayHeight = overlayTop
+    toolbarHeight = overlayTop
       ? Math.ceil(overlayTop.getBoundingClientRect().height)
       : 50;
     options.canvasHost.style.setProperty(
       "--graph-toolbar-height",
-      `${overlayHeight}px`,
+      `${toolbarHeight}px`,
     );
     dirty = true;
     requestRender();
@@ -1442,15 +1443,21 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       context.restore();
     }
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
-    const fitZoomX = width / Math.max(1, contentMaxX - bounds.minX);
-    const fitZoomY = height / graphHeight;
+    const horizontalPadding = 32;
+    const verticalPadding = 24;
+    const usableWidth = Math.max(1, width - horizontalPadding);
+    const usableHeight = Math.max(1, height - toolbarHeight - verticalPadding);
+    const fitZoomX = usableWidth / Math.max(1, contentMaxX - bounds.minX);
+    const fitZoomY = usableHeight / graphHeight;
     fitZoom = clamp(Math.min(fitZoomX, fitZoomY), 0.05, MAX_ZOOM);
     minZoom = clamp(fitZoom * MIN_ZOOM_FIT_RATIO, 0.05, MAX_ZOOM);
     defaultPanX =
-      (width - Math.max(1, contentMaxX - bounds.minX) * fitZoom) * 0.5 -
+      horizontalPadding * 0.5 +
+      (usableWidth - Math.max(1, contentMaxX - bounds.minX) * fitZoom) * 0.5 -
       bounds.minX * fitZoom;
     defaultPanY =
-      (height - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
+      toolbarHeight + verticalPadding * 0.5 +
+      (usableHeight - graphHeight * fitZoom) * 0.5 - bounds.minY * fitZoom;
   }
 
   /**

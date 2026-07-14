@@ -81,6 +81,8 @@ function checkLicenseEdgeCases() {
   const report = loadReport(fixtureName);
   if (!report) return;
   const deps = getDependencies(report);
+  assert(report.summary?.directCount === 4, `[${fixtureName}] expected four direct file dependencies`);
+  assert(deps.every((entry) => entry?.usage?.direct === true), `[${fixtureName}] every declared file dependency should remain direct`);
   const statuses = new Set(
     deps
       .filter((entry) => entry?.package?.name?.startsWith('@dr-license/'))
@@ -98,6 +100,7 @@ function checkExecutionSignals() {
   const report = loadReport(fixtureName);
   if (!report) return;
   const deps = getDependencies(report);
+  assert(report.summary?.directCount === 2, `[${fixtureName}] expected two direct file dependencies`);
   const hasNative = deps.some((entry) => entry?.execution?.native === true);
   const hasInstallHooks = deps.some((entry) => Array.isArray(entry?.execution?.scripts?.hooks) && entry.execution.scripts.hooks.length > 0);
   assert(hasNative, `[${fixtureName}] expected at least one dependency with native execution surface`);
@@ -109,6 +112,7 @@ function checkUsageClassification() {
   const report = loadReport(fixtureName);
   if (!report) return;
   const deps = getDependencies(report);
+  assert(report.summary?.directCount === 5, `[${fixtureName}] expected five direct file dependencies`);
   const runtimeImpacts = new Set(deps.map((entry) => entry?.usage?.runtimeImpact).filter(Boolean));
   const introductions = new Set(deps.map((entry) => entry?.usage?.introduction).filter(Boolean));
   assert(runtimeImpacts.has('runtime'), `[${fixtureName}] expected runtime runtimeImpact`);
@@ -133,8 +137,12 @@ function checkWorkspaceFixture(fixtureName, expectedType) {
 
 function checkNoNodeModulesResult() {
   const fixtureName = 'no-node-modules';
-  const reportPath = path.join(fixturesRoot, fixtureName, 'dependency-radar.json');
-  assert(!fs.existsSync(reportPath), `[${fixtureName}] expected no JSON report when no dependencies are installed`);
+  const report = loadReport(fixtureName);
+  if (!report) return;
+  assert(report.summary?.dependencyCount === 0, `[${fixtureName}] expected zero resolved dependencies`);
+  assert(report.scanStatus?.complete === false, `[${fixtureName}] expected incomplete scan status`);
+  assert(report.scanStatus?.collectors?.dependencyTree === 'partial', `[${fixtureName}] expected partial dependency-tree evidence`);
+  assert(Array.isArray(report.scanStatus?.warnings) && report.scanStatus.warnings.length > 0, `[${fixtureName}] expected scan warnings`);
 }
 
 function checkOnlineRegistrySignals() {
