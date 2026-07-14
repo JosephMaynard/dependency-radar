@@ -928,6 +928,7 @@ npm run build
 
 
 Fixture orchestration lives in `/test-fixtures/package.json` with helper scripts under `/test-fixtures/scripts`.
+The intentionally vulnerable `npm-registry-signals` fixture stores its package definition as `fixture-manifest.json`; the fixture runner materializes an ignored `package.json` only while testing so GitHub's dependency graph does not report fixture vulnerabilities as repository alerts.
 
 The Docker smoke test uses the packed tarball, installs it inside `node:14.21.3-bullseye`, and runs an offline scan against `test-fixtures/license-edge-cases`. This verifies the published CLI on the oldest Node version we currently exercise in automation without requiring local Node 14 installation.
 

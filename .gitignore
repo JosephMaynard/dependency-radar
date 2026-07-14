@@ -8,6 +8,7 @@ test-fixtures/**/dependency-radar.json
 test-fixtures/**/.dependency-radar
 test-fixtures/**/node_modules
 test-fixtures/**/package-lock.json
+test-fixtures/npm-registry-signals/package.json
 test-fixtures/**/pnpm-lock.yaml
 test-fixtures/**/.pnp.*
 test-fixtures/**/.yarn/*

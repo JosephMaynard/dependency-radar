@@ -16,6 +16,9 @@ for (const entry of fs.readdirSync(fixturesRoot, { withFileTypes: true })) {
     path.join(fixtureDir, 'package-lock.json'),
     path.join(fixtureDir, 'pnpm-lock.yaml')
   ];
+  if (entry.name === 'npm-registry-signals') {
+    targets.push(path.join(fixtureDir, 'package.json'));
+  }
   for (const target of targets) {
     try {
       fs.rmSync(target, { recursive: true, force: true });

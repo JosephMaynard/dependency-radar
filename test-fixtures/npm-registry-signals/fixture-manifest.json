@@ -2,6 +2,7 @@
   "name": "dr-npm-registry-signals",
   "version": "0.1.0",
   "private": true,
+  "description": "Intentionally vulnerable integration fixture for live registry and audit tests.",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {

@@ -5,6 +5,7 @@ const path = require('path');
 const fixturesRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(fixturesRoot, '..');
 const cliPath = path.join(repoRoot, 'dist', 'cli.js');
+const generatedManifestFixture = 'npm-registry-signals';
 
 const suites = {
   core: [
@@ -44,6 +45,13 @@ function usage() {
   process.exit(1);
 }
 
+function materializeFixtureManifest(fixtureName, fixtureDir) {
+  if (fixtureName !== generatedManifestFixture) return;
+  const source = path.join(fixtureDir, 'fixture-manifest.json');
+  const target = path.join(fixtureDir, 'package.json');
+  fs.copyFileSync(source, target);
+}
+
 const action = process.argv[2];
 const suiteName = process.argv[3] || 'core';
 if (!action || !['install', 'scan'].includes(action)) usage();
@@ -52,6 +60,7 @@ if (!fixtures) usage();
 
 for (const fixture of fixtures) {
   const fixtureDir = path.join(fixturesRoot, fixture.name);
+  materializeFixtureManifest(fixture.name, fixtureDir);
   if (action === 'install') {
     if (!fixture.manager) {
       console.log(`\n> [${fixture.name}] install skipped`);
