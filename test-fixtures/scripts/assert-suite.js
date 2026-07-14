@@ -69,11 +69,22 @@ function checkPnpmInstalledOnly() {
   if (!report) return;
   const deps = getDependencies(report);
   const esbuildDeps = deps.filter((entry) => entry?.package?.name?.startsWith('@esbuild/'));
-  const linuxDeps = esbuildDeps.filter((entry) => entry.package.name.startsWith('@esbuild/linux-'));
-  const darwinDeps = esbuildDeps.filter((entry) => entry.package.name === '@esbuild/darwin-arm64');
+  const platform = report.environment?.platform;
+  const arch = report.environment?.arch;
+  const expectedPackage = platform && arch ? `@esbuild/${platform}-${arch}` : undefined;
+  const unexpectedPackages = expectedPackage
+    ? esbuildDeps.filter((entry) => entry.package.name !== expectedPackage)
+    : esbuildDeps;
   assert(esbuildDeps.length > 0, `[${fixtureName}] expected @esbuild/* dependencies`);
-  assert(linuxDeps.length === 0, `[${fixtureName}] found non-installed linux @esbuild packages in report`);
-  assert(darwinDeps.length > 0, `[${fixtureName}] expected installed @esbuild/darwin-arm64 package in report`);
+  assert(Boolean(expectedPackage), `[${fixtureName}] expected report environment platform and architecture`);
+  assert(
+    Boolean(expectedPackage && esbuildDeps.some((entry) => entry.package.name === expectedPackage)),
+    `[${fixtureName}] expected installed ${expectedPackage || '@esbuild/<platform>-<arch>'} package in report`
+  );
+  assert(
+    unexpectedPackages.length === 0,
+    `[${fixtureName}] found non-installed @esbuild platform packages in report: ${unexpectedPackages.map((entry) => entry.package.name).join(', ')}`
+  );
 }
 
 function checkLicenseEdgeCases() {
