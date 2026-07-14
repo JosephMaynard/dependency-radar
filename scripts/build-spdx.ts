@@ -21,10 +21,13 @@ type SpdxExceptionList = {
   exceptions?: SpdxExceptionEntry[];
 };
 
+// Deliberately pinned: updating the bundled SPDX data is an explicit source
+// change, not a network-dependent side effect of build or publish.
+const SPDX_LICENSE_LIST_COMMIT = '98f5c2939d624d338d9fbc159d97f0994c7cfaf3';
 const LICENSES_URL =
-  'https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/licenses.json';
+  `https://raw.githubusercontent.com/spdx/license-list-data/${SPDX_LICENSE_LIST_COMMIT}/json/licenses.json`;
 const EXCEPTIONS_URL =
-  'https://raw.githubusercontent.com/spdx/license-list-data/refs/heads/main/json/exceptions.json';
+  `https://raw.githubusercontent.com/spdx/license-list-data/${SPDX_LICENSE_LIST_COMMIT}/json/exceptions.json`;
 
 async function fetchJson<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -68,7 +71,7 @@ function toSortedUnique(values: string[]): string[] {
 }
 
 function buildSetLiteral(values: string[]): string {
-  const entries = values.map((v) => `  '${v}'`).join(',\n');
+  const entries = values.map((value) => `  ${JSON.stringify(value)}`).join(',\n');
   return `new Set<string>([\n${entries}\n])`;
 }
 

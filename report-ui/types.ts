@@ -190,7 +190,7 @@ export type MaintenanceStatus =
   | 'unknown';
 
 export interface AggregatedData {
-  schemaVersion: '1.2' | '1.3' | '1.4' | '1.5';
+  schemaVersion: '1.2' | '1.3' | '1.4' | '1.5' | '1.6';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {
@@ -254,6 +254,18 @@ export interface AggregatedData {
         dev: number;
       };
     }>;
+  };
+  scanStatus?: {
+    complete: boolean;
+    collectors: {
+      dependencyTree: 'available' | 'partial' | 'unavailable' | 'skipped';
+      audit: 'available' | 'partial' | 'unavailable' | 'skipped';
+      imports: 'available' | 'partial' | 'unavailable' | 'skipped';
+      maintenance: 'available' | 'partial' | 'unavailable' | 'skipped';
+      registryMetadata: 'available' | 'partial' | 'unavailable' | 'skipped';
+      supplyChain: 'available' | 'partial' | 'unavailable' | 'skipped';
+    };
+    warnings: string[];
   };
   supplyChain?: {
     signals: Array<{

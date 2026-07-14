@@ -183,6 +183,7 @@ ${safeCssContent}
       </div>
     </div>
   </header>
+  <div class="scan-status-banner" id="scan-status-banner" role="status" hidden></div>
   
   <!-- Sticky Filter Bar -->
   <div class="filter-bar">

@@ -14,6 +14,19 @@ function purl(dep: DependencyRecord): string {
   return `pkg:npm/${encodedName}@${encodeURIComponent(dep.package.version)}`;
 }
 
+function safeExternalUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
+    parsed.username = '';
+    parsed.password = '';
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function findingLevel(finding: DependencyFinding): 'error' | 'warning' | 'note' {
   if (finding.severity === 'error') return 'error';
   if (finding.severity === 'warning') return 'warning';
@@ -75,10 +88,18 @@ function sarifLocation(finding: DependencyFinding): any {
   };
 }
 
-function licenseIds(dep: DependencyRecord): Array<{ license: { id: string } } | { license: { name: string } }> {
+function licenseIds(dep: DependencyRecord): Array<
+  { license: { id: string } }
+  | { expression: string }
+  | { license: { name: string } }
+> {
   const declared = dep.compliance.license.declared;
   const inferred = dep.compliance.license.inferred;
-  if (declared?.valid && declared.spdxId) return [{ license: { id: declared.spdxId } }];
+  if (declared?.valid && declared.spdxId) {
+    return declared.expression
+      ? [{ expression: declared.spdxId }]
+      : [{ license: { id: declared.spdxId } }];
+  }
   if (inferred?.spdxId) return [{ license: { id: inferred.spdxId } }];
   return [{ license: { name: 'UNKNOWN' } }];
 }
@@ -106,10 +127,10 @@ export function renderCycloneDx(data: AggregatedData): string {
       purl: purl(dep),
       licenses: licenseIds(dep),
       externalReferences: [
-        { type: 'distribution', url: dep.package.links.npm },
-        ...(dep.package.links.repository ? [{ type: 'vcs', url: dep.package.links.repository }] : []),
-        ...(dep.package.links.homepage ? [{ type: 'website', url: dep.package.links.homepage }] : [])
-      ]
+        safeExternalUrl(dep.package.links.npm) ? { type: 'distribution', url: safeExternalUrl(dep.package.links.npm)! } : undefined,
+        safeExternalUrl(dep.package.links.repository) ? { type: 'vcs', url: safeExternalUrl(dep.package.links.repository)! } : undefined,
+        safeExternalUrl(dep.package.links.homepage) ? { type: 'website', url: safeExternalUrl(dep.package.links.homepage)! } : undefined
+      ].filter(Boolean)
     })),
     dependencies: dependencies.map((dep) => ({
       ref: dep.package.id,
@@ -119,13 +140,13 @@ export function renderCycloneDx(data: AggregatedData): string {
 }
 
 function subDependencyRefs(dep: DependencyRecord): string[] {
-  return Object.values(dep.graph.subDeps || {})
+  return Array.from(new Set(Object.values(dep.graph.subDeps || {})
     .flatMap((group) => Object.values(group || {}))
     .filter((entry): entry is [string, string | null] =>
       Array.isArray(entry) && entry.length >= 2 && (entry[1] === null || typeof entry[1] === 'string')
     )
     .map((entry) => entry[1])
-    .filter((resolved): resolved is string => Boolean(resolved));
+    .filter((resolved): resolved is string => Boolean(resolved))));
 }
 
 function spdxNamespace(data: AggregatedData): string {

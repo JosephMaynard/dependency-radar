@@ -12,7 +12,7 @@ describe('SPDX validation', () => {
   it('validates SPDX expressions with exceptions', () => {
     const result = validateSpdxExpression('GPL-2.0-only WITH Classpath-exception-2.0');
     expect(result.valid).toBe(true);
-    expect(result.expression).toBe(false);
+    expect(result.expression).toBe(true);
     expect(result.exceptions).toContainEqual({ id: 'Classpath-exception-2.0', deprecated: false, valid: true });
   });
 
@@ -30,6 +30,31 @@ describe('license inference', () => {
     ].join('\n');
     const inferred = inferLicenseFromText(text);
     expect(inferred?.spdxId).toBe('MIT');
+  });
+
+  it('matches canonical ISC text when a fingerprint phrase wraps across lines', () => {
+    const text = [
+      'Permission to use, copy, modify,',
+      'and/or distribute this software for any purpose with or without fee is hereby granted.',
+      'THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES.'
+    ].join('\n');
+    expect(inferLicenseFromText(text)).toEqual({ spdxId: 'ISC', confidence: 'high' });
+  });
+
+  it('distinguishes canonical BSD-2-Clause and BSD-3-Clause text', () => {
+    const common = [
+      'Redistribution and use in source and binary forms, with or without modification, are permitted.',
+      'Redistributions of source code must retain the above copyright notice,',
+      'this list of conditions and the following disclaimer.'
+    ];
+    expect(inferLicenseFromText(common.join('\n'))).toEqual({
+      spdxId: 'BSD-2-Clause',
+      confidence: 'high'
+    });
+    expect(inferLicenseFromText([...common, 'Neither the name of Example nor the names of its contributors may be used.'].join('\n'))).toEqual({
+      spdxId: 'BSD-3-Clause',
+      confidence: 'high'
+    });
   });
 
   it('returns undefined for unrecognized text', () => {

@@ -27,8 +27,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 9.5.0
+
+      - name: Setup Yarn Classic
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+
       - name: Build
         run: npm run build
 
       - name: Unit tests
         run: npm test
+
+      - name: Validate output schemas
+        run: npm run test:schemas
+
+      - name: Fixture matrix
+        run: npm run test:fixtures:all
+
+      - name: Validate packed package
+        run: npm run test:pack
+
+      - name: Node 14 packed-package smoke test
+        run: npm run test:docker:node14

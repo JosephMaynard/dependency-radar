@@ -101,7 +101,12 @@ export async function runPackageAudit(
       if (persistToDisk) {
         await writeJsonFile(targetFile, normalized);
       }
-      return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
+      return {
+        ok: true,
+        data: normalized,
+        contextPath: cwd,
+        ...(persistToDisk ? { file: targetFile } : {})
+      };
     }
     if (persistToDisk) {
       await writeJsonFile(targetFile, {
@@ -113,6 +118,7 @@ export async function runPackageAudit(
     return {
       ok: false,
       error: `Failed to parse ${tool} audit output`,
+      contextPath: cwd,
       ...(persistToDisk ? { file: targetFile } : {}),
     };
   } catch (err: any) {

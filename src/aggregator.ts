@@ -444,7 +444,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   for (const node of nodeMap.values()) {
     node.isDirect = node.importerChild && isDirectDependency(node.name, pkg);
   }
-  const vulnMap = parseVulnerabilities(input.auditResult?.data);
+  const vulnerabilityIndex = parseVulnerabilities(input.auditResult?.data);
   const importGraph = normalizeImportGraph(input.importGraphResult?.data);
   const usageResult = buildUsageSummary(importGraph, input.projectPath);
   const outdatedById = buildOutdatedMap(input.outdatedResult);
@@ -480,7 +480,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     if (!licenseCache.has(cacheKey)) {
       licenseCache.set(cacheKey, licenseSource);
     }
-    const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
+    const vulnerabilities = vulnerabilitiesForNode(vulnerabilityIndex, node);
 
     const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
     const licenseRisk = resolveLicenseRisk(licenseInfo);
@@ -592,7 +592,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const transitiveCount = dependencyCount - directCount;
 
   const aggregated: AggregatedData = {
-    schemaVersion: '1.5',
+    schemaVersion: '1.6',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
@@ -904,9 +904,58 @@ function buildAdvisoryFromLegacy(adv: any): VulnerabilityAdvisory | undefined {
   };
 }
 
-function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary> {
+type VulnerabilityIndex = {
+  byName: Map<string, VulnerabilitySummary>;
+  byNodePath: Map<string, VulnerabilitySummary>;
+  byPackageId: Map<string, VulnerabilitySummary>;
+  namesWithNodePaths: Set<string>;
+  namesWithPackageIds: Set<string>;
+};
+
+function summarizeAdvisories(advisories: VulnerabilityAdvisory[]): VulnerabilitySummary {
+  const sorted = [...advisories].sort((a, b) => {
+    const order = { critical: 4, high: 3, moderate: 2, low: 1 };
+    const diff = order[b.severity] - order[a.severity];
+    if (diff !== 0) return diff;
+    return a.title.localeCompare(b.title);
+  });
+  const counts = { low: 0, moderate: 0, high: 0, critical: 0 };
+  for (const advisory of sorted) counts[advisory.severity] += 1;
+  return {
+    counts,
+    highestSeverity: computeHighestSeverity(counts),
+    risk: vulnRiskLevel(counts),
+    ...(sorted.length > 0 ? { advisories: sorted } : {})
+  };
+}
+
+function vulnerabilitiesForNode(index: VulnerabilityIndex, node: NodeInfo): VulnerabilitySummary {
+  if (node.path) {
+    const pathMatch = index.byNodePath.get(path.resolve(node.path));
+    if (pathMatch) return pathMatch;
+    if (index.namesWithNodePaths.has(node.name)) return emptyVulnSummary();
+  }
+  const packageIdMatch = index.byPackageId.get(node.key);
+  if (packageIdMatch) return packageIdMatch;
+  if (index.namesWithPackageIds.has(node.name)) return emptyVulnSummary();
+  return index.byName.get(node.name) || emptyVulnSummary();
+}
+
+function parseVulnerabilities(auditData: any): VulnerabilityIndex {
   const map = new Map<string, VulnerabilitySummary>();
-  if (!auditData) return map;
+  const nodePathsByName = new Map<string, Set<string>>();
+  const advisoriesByAuditKey = new Map<string, VulnerabilityAdvisory[]>();
+  const advisoriesByNodePath = new Map<string, VulnerabilityAdvisory[]>();
+  const advisoriesByPackageId = new Map<string, VulnerabilityAdvisory[]>();
+  if (!auditData) {
+    return {
+      byName: map,
+      byNodePath: new Map(),
+      byPackageId: new Map(),
+      namesWithNodePaths: new Set(),
+      namesWithPackageIds: new Set(),
+    };
+  }
 
   const ensureEntry = (name: string) => {
     if (!map.has(name)) {
@@ -916,7 +965,23 @@ function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary>
   };
 
   const advisoryKeys = new Map<string, Set<string>>();
-  const deferredViaStrings: Array<{ name: string; via: string[] }> = [];
+  const deferredViaStrings: Array<{
+    auditKey: string;
+    name: string;
+    nodePaths: string[];
+    via: string[];
+  }> = [];
+  const addAdvisoryToList = (
+    target: Map<string, VulnerabilityAdvisory[]>,
+    key: string,
+    advisory: VulnerabilityAdvisory,
+  ) => {
+    const advisories = target.get(key) || [];
+    if (!advisories.some((entry) => entry.id === advisory.id && entry.vulnerableRange === advisory.vulnerableRange)) {
+      advisories.push(advisory);
+    }
+    target.set(key, advisories);
+  };
   const addAdvisory = (name: string, advisory: VulnerabilityAdvisory) => {
     const entry = ensureEntry(name);
     const key = `${advisory.id}|${advisory.vulnerableRange}`;
@@ -934,26 +999,47 @@ function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary>
   // Advisories are disclosed findings from npm audit (not malware detection).
   // Summary-only output loses evidence and is a data loss bug.
   if (auditData.vulnerabilities) {
-    Object.values<any>(auditData.vulnerabilities).forEach((item: any) => {
+    Object.entries<any>(auditData.vulnerabilities).forEach(([auditKey, item]) => {
       const name = item.name || 'unknown';
+      const nodePaths = Array.isArray(item.nodes)
+        ? item.nodes
+          .filter((node: unknown): node is string => typeof node === 'string' && node.trim().length > 0)
+          .map((node: string) => path.resolve(node))
+        : [];
+      if (nodePaths.length > 0) {
+        const paths = nodePathsByName.get(name) || new Set<string>();
+        for (const nodePath of nodePaths) paths.add(nodePath);
+        nodePathsByName.set(name, paths);
+      }
       const viaList = Array.isArray(item.via) ? item.via : [];
+      const itemAdvisories: VulnerabilityAdvisory[] = [];
       let added = false;
       for (const via of viaList) {
         if (via && typeof via === 'object') {
           const advisory = buildAdvisoryFromVia(via, item);
           if (advisory) {
             addAdvisory(name, advisory);
+            itemAdvisories.push(advisory);
             added = true;
           }
         }
       }
       const viaStrings = viaList.filter((via: unknown) => typeof via === 'string') as string[];
       if (viaStrings.length > 0) {
-        deferredViaStrings.push({ name, via: viaStrings });
+        deferredViaStrings.push({ auditKey, name, nodePaths, via: viaStrings });
       }
       if (!added) {
         const fallback = buildAdvisoryFromVia(item, item);
-        if (fallback) addAdvisory(name, fallback);
+        if (fallback) {
+          addAdvisory(name, fallback);
+          itemAdvisories.push(fallback);
+        }
+      }
+      for (const advisory of itemAdvisories) {
+        addAdvisoryToList(advisoriesByAuditKey, auditKey, advisory);
+        for (const nodePath of nodePaths) {
+          addAdvisoryToList(advisoriesByNodePath, nodePath, advisory);
+        }
       }
     });
   }
@@ -962,43 +1048,59 @@ function parseVulnerabilities(auditData: any): Map<string, VulnerabilitySummary>
     Object.values<any>(auditData.advisories).forEach((adv: any) => {
       const name = adv.module_name || adv.module || 'unknown';
       const advisory = buildAdvisoryFromLegacy(adv);
-      if (advisory) addAdvisory(name, advisory);
+      if (advisory) {
+        addAdvisory(name, advisory);
+        const findings = Array.isArray(adv.findings) ? adv.findings : [];
+        for (const finding of findings) {
+          const version = typeof finding?.version === 'string' ? finding.version.trim() : '';
+          if (!version) continue;
+          const packageId = `${name}@${version}`;
+          const advisories = advisoriesByPackageId.get(packageId) || [];
+          if (!advisories.some((entry) => entry.id === advisory.id && entry.vulnerableRange === advisory.vulnerableRange)) {
+            advisories.push(advisory);
+          }
+          advisoriesByPackageId.set(packageId, advisories);
+        }
+      }
     });
   }
 
-  // One-level expansion: map string "via" references to their advisories without storing paths.
+  // One-level expansion: map string "via" references to their advisories while preserving paths.
   for (const entry of deferredViaStrings) {
     for (const refName of entry.via) {
-      const referenced = map.get(refName);
-      if (referenced?.advisories) {
-        for (const advisory of referenced.advisories) {
+      const referenced = advisoriesByAuditKey.get(refName);
+      if (referenced) {
+        for (const advisory of referenced) {
           addAdvisory(entry.name, advisory);
+          addAdvisoryToList(advisoriesByAuditKey, entry.auditKey, advisory);
+          for (const nodePath of entry.nodePaths) {
+            addAdvisoryToList(advisoriesByNodePath, nodePath, advisory);
+          }
         }
       }
     }
   }
 
-  map.forEach((entry) => {
-    const counts = { low: 0, moderate: 0, high: 0, critical: 0 };
-    if (entry.advisories) {
-      for (const advisory of entry.advisories) {
-        counts[advisory.severity] += 1;
-      }
-    }
-    entry.counts = counts;
-    entry.highestSeverity = computeHighestSeverity(counts);
-    entry.risk = vulnRiskLevel(counts);
-    if (entry.advisories && entry.advisories.length > 0) {
-      entry.advisories.sort((a, b) => {
-        const order = { critical: 4, high: 3, moderate: 2, low: 1 };
-        const diff = order[b.severity] - order[a.severity];
-        if (diff !== 0) return diff;
-        return a.title.localeCompare(b.title);
-      });
-    }
+  map.forEach((entry, name) => {
+    map.set(name, summarizeAdvisories(entry.advisories || []));
   });
 
-  return map;
+  const byNodePath = new Map<string, VulnerabilitySummary>();
+  for (const [nodePath, advisories] of advisoriesByNodePath) {
+    byNodePath.set(nodePath, summarizeAdvisories(advisories));
+  }
+  const byPackageId = new Map<string, VulnerabilitySummary>();
+  for (const [packageId, advisories] of advisoriesByPackageId) {
+    byPackageId.set(packageId, summarizeAdvisories(advisories));
+  }
+
+  return {
+    byName: map,
+    byNodePath,
+    byPackageId,
+    namesWithNodePaths: new Set(nodePathsByName.keys()),
+    namesWithPackageIds: new Set(Array.from(advisoriesByPackageId.keys()).map((id) => id.slice(0, id.lastIndexOf('@')))),
+  };
 }
 
 function normalizeSeverity(sev: any): Severity {
@@ -1304,7 +1406,7 @@ function buildLicenseInfo(declaredRaw?: string, licenseText?: string): LicenseBu
 
   if (hasDeclared && declaredValidation && !declaredValidation.valid) {
     record.status = 'invalid-spdx';
-  } else if (declaredValidation?.valid && inferred) {
+  } else if (declaredValidation?.valid && inferred && inferred.confidence !== 'low') {
     record.status = declaredValidation.normalized === inferred.spdxId ? 'match' : 'mismatch';
   } else if (declaredValidation?.valid) {
     record.status = 'declared-only';
@@ -1814,8 +1916,15 @@ function normalizeUrl(raw: string): string | undefined {
   const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
   const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
   const cleaned = base.endsWith('.git') ? base.slice(0, -4) : base;
-
-  return cleaned + hash;
+  try {
+    const parsed = new URL(cleaned + hash);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
+    parsed.username = '';
+    parsed.password = '';
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeLinkValue(value: any): string | undefined {

@@ -109,7 +109,10 @@ export async function resolveRegistryBaseUrl(projectPath?: string, timeoutMs = 1
     });
     const url = result.stdout?.trim();
     if (url && /^https?:\/\//i.test(url)) {
-      return url.replace(/\/+$/, '');
+      const parsed = new URL(url);
+      parsed.username = '';
+      parsed.password = '';
+      return parsed.toString().replace(/\/+$/, '');
     }
   } catch {
     // fall through to the default

@@ -1,16 +1,16 @@
-export const REPORT_SCHEMA_VERSION = '1.5';
+export const REPORT_SCHEMA_VERSION = '1.6';
 
 // Baseline reports accepted by `compare`. Schema changes since 1.2 have been
 // purely additive, and every consumer of baseline data optional-chains the
 // newer fields, so older baselines remain valid comparison inputs.
-export const COMPATIBLE_BASELINE_SCHEMA_VERSIONS: readonly string[] = ['1.2', '1.3', '1.4', REPORT_SCHEMA_VERSION];
+export const COMPATIBLE_BASELINE_SCHEMA_VERSIONS: readonly string[] = ['1.2', '1.3', '1.4', '1.5', REPORT_SCHEMA_VERSION];
 
 export const REPORT_JSON_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://dependency-radar.com/schemas/dependency-radar-1.5.schema.json',
+  $id: 'https://dependency-radar.com/schemas/dependency-radar-1.6.schema.json',
   title: 'Dependency Radar Report',
   type: 'object',
-  required: ['schemaVersion', 'generatedAt', 'dependencyRadarVersion', 'project', 'environment', 'workspaces', 'summary', 'dependencies'],
+  required: ['schemaVersion', 'generatedAt', 'dependencyRadarVersion', 'project', 'environment', 'workspaces', 'summary', 'scanStatus', 'dependencies'],
   properties: {
     schemaVersion: { const: REPORT_SCHEMA_VERSION },
     generatedAt: { type: 'string', format: 'date-time' },
@@ -33,6 +33,28 @@ export const REPORT_JSON_SCHEMA = {
         findingCount: { type: 'number' }
       },
       additionalProperties: true
+    },
+    scanStatus: {
+      type: 'object',
+      required: ['complete', 'collectors', 'warnings'],
+      properties: {
+        complete: { type: 'boolean' },
+        collectors: {
+          type: 'object',
+          required: ['dependencyTree', 'audit', 'imports', 'maintenance', 'registryMetadata', 'supplyChain'],
+          properties: {
+            dependencyTree: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+            audit: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+            imports: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+            maintenance: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+            registryMetadata: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+            supplyChain: { enum: ['available', 'partial', 'unavailable', 'skipped'] }
+          },
+          additionalProperties: false
+        },
+        warnings: { type: 'array', items: { type: 'string' } }
+      },
+      additionalProperties: false
     },
     supplyChain: {
       type: 'object',

@@ -174,7 +174,7 @@ function makeDependency(options: {
 function makeAggregatedData(dependencies: Record<string, DependencyRecord>): AggregatedData {
   const count = Object.keys(dependencies).length;
   return {
-    schemaVersion: '1.5',
+    schemaVersion: '1.6',
     generatedAt: '2026-03-01T00:00:00.000Z',
     dependencyRadarVersion: 'test',
     git: {
@@ -391,6 +391,27 @@ describe('evaluateComparePolicyViolations', () => {
 });
 
 describe('evaluatePolicyViolations', () => {
+  it('only triggers directly-imported-vuln when import usage is present', () => {
+    const aggregated = makeAggregatedData({
+      imported: makeDependency({ name: 'imported', importFileCount: 1, high: 1 }),
+      unimported: makeDependency({ name: 'unimported', high: 1 })
+    });
+
+    expect(evaluatePolicyViolations(aggregated, new Set(['directly-imported-vuln']))).toEqual([
+      expect.objectContaining({ rule: 'directly-imported-vuln', count: 1 })
+    ]);
+  });
+
+  it('uses reachable-vuln as the legacy rule name for directly imported vulnerabilities', () => {
+    const aggregated = makeAggregatedData({
+      imported: makeDependency({ name: 'imported', importFileCount: 2, moderate: 1 })
+    });
+
+    expect(evaluatePolicyViolations(aggregated, new Set(['reachable-vuln']))).toEqual([
+      expect.objectContaining({ rule: 'reachable-vuln', count: 1 })
+    ]);
+  });
+
   it('returns all selected triggered rules with counts', () => {
     const aggregated = makeAggregatedData({
       'runtime-reachable-high': makeDependency({

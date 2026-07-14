@@ -156,7 +156,7 @@ export function validateSpdxExpression(input: string): SpdxValidationResult {
 
   return {
     valid: true,
-    expression: normalizedTokens.includes('AND') || normalizedTokens.includes('OR'),
+    expression: normalizedTokens.includes('AND') || normalizedTokens.includes('OR') || normalizedTokens.includes('WITH'),
     deprecated,
     normalized: normalizedTokens.join(' '),
     licenseIds,
@@ -172,8 +172,7 @@ function normalizeTextForMatch(text: string): string {
     .filter((line) => !/^copyright\b/i.test(line.trim()))
     .join('\n')
     .toLowerCase()
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n+/g, '\n')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -257,10 +256,10 @@ export function inferLicenseFromText(rawText: string): InferenceMatch | undefine
   const apacheConfidence = confidenceFromScore(apacheScore, APACHE_PHRASES.length);
   if (apacheConfidence) candidates.push({ spdxId: 'Apache-2.0', confidence: apacheConfidence });
 
-  const bsd3Score = scoreMatch(text, BSD_3_CLAUSE);
-  const bsd3Confidence = confidenceFromScore(bsd3Score, BSD_3_CLAUSE.length);
-  if (bsd3Confidence) {
-    candidates.push({ spdxId: 'BSD-3-Clause', confidence: bsd3Confidence });
+  if (text.includes(BSD_3_CLAUSE[BSD_3_CLAUSE.length - 1])) {
+    const bsd3Score = scoreMatch(text, BSD_3_CLAUSE);
+    const bsd3Confidence = confidenceFromScore(bsd3Score, BSD_3_CLAUSE.length);
+    if (bsd3Confidence) candidates.push({ spdxId: 'BSD-3-Clause', confidence: bsd3Confidence });
   } else {
     const bsd2Score = scoreMatch(text, BSD_2_CLAUSE);
     const bsd2Confidence = confidenceFromScore(bsd2Score, BSD_2_CLAUSE.length);
