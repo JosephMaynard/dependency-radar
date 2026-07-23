@@ -192,7 +192,7 @@ ${lines.join(',\n')}
 `;
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content, 'utf8');
-  console.log(`Wrote ${entries.size} module replacement entries to ${filePath}`);
+  console.log(`Wrote ${Number(entries.size)} module replacement entries to src/generated/replacements.ts`);
 }
 
 main().catch((err) => {
