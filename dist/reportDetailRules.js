@@ -35,7 +35,7 @@ function maxRisk(risks) {
 function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supplyChainSignals) {
     var _a, _b, _c, _d, _e, _f, _g;
     const installRisk = ((_a = dep.execution) === null || _a === void 0 ? void 0 : _a.risk) || 'green';
-    const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep.package.name, supplyChainSignals));
+    const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep, supplyChainSignals));
     const comboRisk = combos.some((combo) => combo.severity === 'error')
         ? 'red'
         : combos.length > 0
@@ -66,13 +66,13 @@ function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supply
     ]);
 }
 /**
- * Build the supply-chain signal type set for one package name, for use with
- * detectSupplyChainCombos.
+ * Build the supply-chain signal type set for one dependency instance, for
+ * use with detectSupplyChainCombos.
  */
-function supplyChainSignalTypesForDep(packageName, signals) {
+function supplyChainSignalTypesForDep(dep, signals) {
     if (!signals || signals.length === 0)
         return undefined;
-    return (0, supplyChainCombos_1.supplyChainSignalTypesByPackageName)(signals).get(packageName);
+    return (0, supplyChainCombos_1.signalTypesForDependency)((0, supplyChainCombos_1.indexSupplyChainSignalTypes)(signals), dep);
 }
 function titleCaseValue(value) {
     return value
@@ -165,7 +165,7 @@ function buildReportKeyPoints(dep, summary, supplyChainSignals) {
     if ((_g = dep.upgrade.blockers) === null || _g === void 0 ? void 0 : _g.length) {
         points.push(`${dep.upgrade.blockers.length} upgrade ${dep.upgrade.blockers.length === 1 ? 'blocker' : 'blockers'} detected`);
     }
-    (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep.package.name, supplyChainSignals)).forEach((combo) => points.push(combo.title));
+    (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep, supplyChainSignals)).forEach((combo) => points.push(combo.title));
     if (dep.replacement) {
         points.push('Community-suggested replacement available (e18e)');
     }

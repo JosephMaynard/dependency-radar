@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.supplyChainSignalTypesByPackageName = supplyChainSignalTypesByPackageName;
+exports.indexSupplyChainSignalTypes = indexSupplyChainSignalTypes;
+exports.signalTypesForDependency = signalTypesForDependency;
 exports.detectSupplyChainCombos = detectSupplyChainCombos;
 const COMBO_RULES = [
     {
@@ -33,27 +34,48 @@ const COMBO_RULES = [
     }
 ];
 /**
- * Index project-level supply-chain signal types by package name.
+ * Index project-level supply-chain signal types by package identity.
+ *
+ * Signals with a version-qualified identity (packageId, or packageName +
+ * packageVersion) are keyed by it, so a source signal on one installed
+ * version never implicates a different version of the same package. Signals
+ * carrying only a bare package name are keyed by name as a best-effort
+ * fallback and match every version.
  *
  * @param signals - The report's lockfile supply-chain signals, if any
- * @returns Map from package name to the set of signal types observed for it
+ * @returns Map from package identity to the set of signal types observed
  */
-function supplyChainSignalTypesByPackageName(signals) {
-    const byName = new Map();
+function indexSupplyChainSignalTypes(signals) {
+    const index = new Map();
     for (const signal of signals || []) {
-        let name = signal.packageName;
-        if (!name && signal.packageId) {
-            const at = signal.packageId.lastIndexOf('@');
-            if (at > 0)
-                name = signal.packageId.slice(0, at);
-        }
-        if (!name)
+        const key = signal.packageId ||
+            (signal.packageName && signal.packageVersion
+                ? `${signal.packageName}@${signal.packageVersion}`
+                : signal.packageName);
+        if (!key)
             continue;
-        const types = byName.get(name) || new Set();
+        const types = index.get(key) || new Set();
         types.add(signal.type);
-        byName.set(name, types);
+        index.set(key, types);
     }
-    return byName;
+    return index;
+}
+/**
+ * Collect the signal types attributable to one dependency instance: exact
+ * packageId first, then name@version, then version-less name-only signals.
+ */
+function signalTypesForDependency(index, dep) {
+    var _a;
+    const keys = new Set([
+        dep.package.id,
+        `${dep.package.name}@${dep.package.version}`,
+        dep.package.name
+    ]);
+    const merged = new Set();
+    for (const key of keys) {
+        (_a = index.get(key)) === null || _a === void 0 ? void 0 : _a.forEach((type) => merged.add(type));
+    }
+    return merged.size > 0 ? merged : undefined;
 }
 /**
  * Detect install-script × source-signal combinations for one dependency.

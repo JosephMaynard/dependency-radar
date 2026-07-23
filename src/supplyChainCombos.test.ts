@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectSupplyChainCombos, supplyChainSignalTypesByPackageName } from './supplyChainCombos';
+import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 import type { DependencyRecord, SupplyChainSignal, SupplyChainSignalType } from './types';
 
 function dependency(overrides: Partial<DependencyRecord> = {}): DependencyRecord {
@@ -42,20 +42,40 @@ function signal(type: SupplyChainSignalType, packageName = 'hooked'): SupplyChai
   return { type, packageName, packageVersion: '1.0.0', source: 'package-lock.json', detail: `${type} detail` };
 }
 
-describe('supplyChainSignalTypesByPackageName', () => {
-  it('indexes signals by package name, deriving names from packageId when needed', () => {
-    const index = supplyChainSignalTypesByPackageName([
+describe('indexSupplyChainSignalTypes / signalTypesForDependency', () => {
+  it('keys signals by version-qualified identity, with a name-only fallback', () => {
+    const index = indexSupplyChainSignalTypes([
       signal('git-dependency'),
       { type: 'missing-integrity', packageId: '@scope/pkg@2.0.0', source: 'lock', detail: 'x' },
-      { type: 'non-registry-tarball', source: 'lock', detail: 'unattributed' }
+      { type: 'non-registry-tarball', packageName: 'bare-name', source: 'lock', detail: 'no version' },
+      { type: 'unexpected-registry-host', source: 'lock', detail: 'unattributed' }
     ]);
-    expect(index.get('hooked')).toEqual(new Set(['git-dependency']));
-    expect(index.get('@scope/pkg')).toEqual(new Set(['missing-integrity']));
-    expect(index.size).toBe(2);
+    expect(index.get('hooked@1.0.0')).toEqual(new Set(['git-dependency']));
+    expect(index.get('@scope/pkg@2.0.0')).toEqual(new Set(['missing-integrity']));
+    expect(index.get('bare-name')).toEqual(new Set(['non-registry-tarball']));
+    expect(index.size).toBe(3);
+  });
+
+  it('resolves a dependency to its own version-qualified signals plus name-only fallbacks', () => {
+    const index = indexSupplyChainSignalTypes([
+      signal('git-dependency'),
+      { type: 'missing-integrity', packageName: 'hooked', source: 'lock', detail: 'no version' }
+    ]);
+    expect(signalTypesForDependency(index, dependency())).toEqual(
+      new Set(['git-dependency', 'missing-integrity'])
+    );
+  });
+
+  it('does not attribute a signal on one version to a different installed version', () => {
+    const index = indexSupplyChainSignalTypes([
+      { type: 'git-dependency', packageName: 'hooked', packageVersion: '2.0.0', packageId: 'hooked@2.0.0', source: 'lock', detail: 'v2 from git' }
+    ]);
+    // The dependency fixture is hooked@1.0.0.
+    expect(signalTypesForDependency(index, dependency())).toBeUndefined();
   });
 
   it('returns an empty index for missing input', () => {
-    expect(supplyChainSignalTypesByPackageName(undefined).size).toBe(0);
+    expect(indexSupplyChainSignalTypes(undefined).size).toBe(0);
   });
 });
 

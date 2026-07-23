@@ -1,6 +1,6 @@
 import type { AggregatedData, DependencyFinding, DependencyRecord, SupplyChainSignal } from './types';
 import { isNodeEngineTargetCompatible } from './nodeEngine';
-import { detectSupplyChainCombos, supplyChainSignalTypesByPackageName } from './supplyChainCombos';
+import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 
 function vulnerabilityTotal(dep: DependencyRecord): number {
   const summary = dep.security.summary;
@@ -82,7 +82,7 @@ export function buildDependencyFindings(
   options: { targetNodeMajor?: number } = {}
 ): DependencyFinding[] {
   const findings: DependencyFinding[] = [];
-  const signalTypesByName = supplyChainSignalTypesByPackageName(data.supplyChain?.signals);
+  const signalTypeIndex = indexSupplyChainSignalTypes(data.supplyChain?.signals);
 
   for (const dep of Object.values(data.dependencies || {})) {
     const vulnCount = vulnerabilityTotal(dep);
@@ -203,7 +203,7 @@ export function buildDependencyFindings(
       }));
     }
 
-    for (const combo of detectSupplyChainCombos(dep, signalTypesByName.get(dep.package.name))) {
+    for (const combo of detectSupplyChainCombos(dep, signalTypesForDependency(signalTypeIndex, dep))) {
       findings.push(baseFinding(dep, combo.type, {
         category: 'supply-chain',
         severity: combo.severity,

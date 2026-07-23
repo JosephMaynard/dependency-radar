@@ -443,10 +443,10 @@ function evaluatePolicyViolations(aggregated, rules) {
         });
     }
     if (rules.has('supply-chain-combo')) {
-        const signalTypesByName = (0, supplyChainCombos_1.supplyChainSignalTypesByPackageName)((_e = aggregated.supplyChain) === null || _e === void 0 ? void 0 : _e.signals);
+        const signalTypeIndex = (0, supplyChainCombos_1.indexSupplyChainSignalTypes)((_e = aggregated.supplyChain) === null || _e === void 0 ? void 0 : _e.signals);
         const details = [];
         for (const dep of Object.values(aggregated.dependencies || {})) {
-            const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, signalTypesByName.get(dep.package.name));
+            const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, (0, supplyChainCombos_1.signalTypesForDependency)(signalTypeIndex, dep));
             for (const combo of combos) {
                 details.push(`${formatPackage(dep)}: ${combo.title.toLowerCase()}`);
             }

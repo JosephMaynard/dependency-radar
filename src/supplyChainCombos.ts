@@ -59,27 +59,53 @@ const COMBO_RULES: Array<{
 ];
 
 /**
- * Index project-level supply-chain signal types by package name.
+ * Index project-level supply-chain signal types by package identity.
+ *
+ * Signals with a version-qualified identity (packageId, or packageName +
+ * packageVersion) are keyed by it, so a source signal on one installed
+ * version never implicates a different version of the same package. Signals
+ * carrying only a bare package name are keyed by name as a best-effort
+ * fallback and match every version.
  *
  * @param signals - The report's lockfile supply-chain signals, if any
- * @returns Map from package name to the set of signal types observed for it
+ * @returns Map from package identity to the set of signal types observed
  */
-export function supplyChainSignalTypesByPackageName(
+export function indexSupplyChainSignalTypes(
   signals: SupplyChainSignal[] | undefined
 ): Map<string, Set<SupplyChainSignalType>> {
-  const byName = new Map<string, Set<SupplyChainSignalType>>();
+  const index = new Map<string, Set<SupplyChainSignalType>>();
   for (const signal of signals || []) {
-    let name = signal.packageName;
-    if (!name && signal.packageId) {
-      const at = signal.packageId.lastIndexOf('@');
-      if (at > 0) name = signal.packageId.slice(0, at);
-    }
-    if (!name) continue;
-    const types = byName.get(name) || new Set<SupplyChainSignalType>();
+    const key =
+      signal.packageId ||
+      (signal.packageName && signal.packageVersion
+        ? `${signal.packageName}@${signal.packageVersion}`
+        : signal.packageName);
+    if (!key) continue;
+    const types = index.get(key) || new Set<SupplyChainSignalType>();
     types.add(signal.type);
-    byName.set(name, types);
+    index.set(key, types);
   }
-  return byName;
+  return index;
+}
+
+/**
+ * Collect the signal types attributable to one dependency instance: exact
+ * packageId first, then name@version, then version-less name-only signals.
+ */
+export function signalTypesForDependency(
+  index: Map<string, Set<SupplyChainSignalType>>,
+  dep: DependencyRecord
+): Set<SupplyChainSignalType> | undefined {
+  const keys = new Set([
+    dep.package.id,
+    `${dep.package.name}@${dep.package.version}`,
+    dep.package.name
+  ]);
+  const merged = new Set<SupplyChainSignalType>();
+  for (const key of keys) {
+    index.get(key)?.forEach((type) => merged.add(type));
+  }
+  return merged.size > 0 ? merged : undefined;
 }
 
 /**

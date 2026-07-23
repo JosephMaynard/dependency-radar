@@ -1,5 +1,5 @@
 import type { DependencyRecord, ExecutionSignal, Severity, SupplyChainSignal, SupplyChainSignalType } from './types';
-import { detectSupplyChainCombos, supplyChainSignalTypesByPackageName } from './supplyChainCombos';
+import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 
 export type SecuritySummary = {
   critical: number;
@@ -49,7 +49,7 @@ export function buildReportOverallRisk(
   const installRisk = dep.execution?.risk || 'green';
   const combos = detectSupplyChainCombos(
     dep,
-    supplyChainSignalTypesForDep(dep.package.name, supplyChainSignals)
+    supplyChainSignalTypesForDep(dep, supplyChainSignals)
   );
   const comboRisk = combos.some((combo) => combo.severity === 'error')
     ? 'red'
@@ -85,15 +85,15 @@ export function buildReportOverallRisk(
 }
 
 /**
- * Build the supply-chain signal type set for one package name, for use with
- * detectSupplyChainCombos.
+ * Build the supply-chain signal type set for one dependency instance, for
+ * use with detectSupplyChainCombos.
  */
 function supplyChainSignalTypesForDep(
-  packageName: string,
+  dep: DependencyRecord,
   signals: SupplyChainSignal[] | undefined
 ): Set<SupplyChainSignalType> | undefined {
   if (!signals || signals.length === 0) return undefined;
-  return supplyChainSignalTypesByPackageName(signals).get(packageName);
+  return signalTypesForDependency(indexSupplyChainSignalTypes(signals), dep);
 }
 
 function titleCaseValue(value: string): string {
@@ -194,7 +194,7 @@ export function buildReportKeyPoints(
   }
   detectSupplyChainCombos(
     dep,
-    supplyChainSignalTypesForDep(dep.package.name, supplyChainSignals)
+    supplyChainSignalTypesForDep(dep, supplyChainSignals)
   ).forEach((combo) => points.push(combo.title));
   if (dep.replacement) {
     points.push('Community-suggested replacement available (e18e)');

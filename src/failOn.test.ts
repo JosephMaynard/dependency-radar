@@ -539,6 +539,25 @@ describe('evaluatePolicyViolations', () => {
     ]);
   });
 
+  it('does not fire supply-chain-combo when the source signal is on a different version', () => {
+    const aggregated = makeAggregatedData({
+      'git-hooked@1.0.0': makeDependency({ name: 'git-hooked', installHooks: ['postinstall'] })
+    });
+    aggregated.supplyChain = {
+      signals: [
+        {
+          type: 'git-dependency',
+          packageName: 'git-hooked',
+          packageVersion: '2.0.0',
+          packageId: 'git-hooked@2.0.0',
+          source: 'package-lock.json',
+          detail: 'git-hooked@2.0.0 resolves from git'
+        }
+      ]
+    };
+    expect(evaluatePolicyViolations(aggregated, new Set(['supply-chain-combo']))).toEqual([]);
+  });
+
   it('does not fire supply-chain-combo when hooks and signals never coincide', () => {
     const aggregated = makeAggregatedData({
       'hooks-only@1.0.0': makeDependency({ name: 'hooks-only', installHooks: ['postinstall'] })

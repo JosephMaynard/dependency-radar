@@ -71,7 +71,7 @@ const REGISTRY_SIGNAL_TITLES = {
 function buildDependencyFindings(data, options = {}) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
     const findings = [];
-    const signalTypesByName = (0, supplyChainCombos_1.supplyChainSignalTypesByPackageName)((_a = data.supplyChain) === null || _a === void 0 ? void 0 : _a.signals);
+    const signalTypeIndex = (0, supplyChainCombos_1.indexSupplyChainSignalTypes)((_a = data.supplyChain) === null || _a === void 0 ? void 0 : _a.signals);
     for (const dep of Object.values(data.dependencies || {})) {
         const vulnCount = vulnerabilityTotal(dep);
         if (vulnCount > 0) {
@@ -183,7 +183,7 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Check whether the package is finished or abandoned, and review alternatives if it matters at runtime.'
             }));
         }
-        for (const combo of (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, signalTypesByName.get(dep.package.name))) {
+        for (const combo of (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, (0, supplyChainCombos_1.signalTypesForDependency)(signalTypeIndex, dep))) {
             findings.push(baseFinding(dep, combo.type, {
                 category: 'supply-chain',
                 severity: combo.severity,

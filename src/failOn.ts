@@ -1,5 +1,5 @@
 import { validateSpdxExpression } from './license';
-import { detectSupplyChainCombos, supplyChainSignalTypesByPackageName } from './supplyChainCombos';
+import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, RegistryRiskSignal, SupplyChainSignal } from './types';
 
 export type FailOnRule =
@@ -540,10 +540,10 @@ export function evaluatePolicyViolations(
     });
   }
   if (rules.has('supply-chain-combo')) {
-    const signalTypesByName = supplyChainSignalTypesByPackageName(aggregated.supplyChain?.signals);
+    const signalTypeIndex = indexSupplyChainSignalTypes(aggregated.supplyChain?.signals);
     const details: string[] = [];
     for (const dep of Object.values(aggregated.dependencies || {})) {
-      const combos = detectSupplyChainCombos(dep, signalTypesByName.get(dep.package.name));
+      const combos = detectSupplyChainCombos(dep, signalTypesForDependency(signalTypeIndex, dep));
       for (const combo of combos) {
         details.push(`${formatPackage(dep)}: ${combo.title.toLowerCase()}`);
       }
