@@ -5,7 +5,7 @@ import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import type { AggregatedData, DependencyRecord } from '../src/types';
 import { renderCycloneDx, renderSarif, renderSpdx } from '../src/outputFormats';
-import { REPORT_JSON_SCHEMA } from '../src/schema';
+import { REPORT_JSON_SCHEMA, REPORT_SCHEMA_VERSION } from '../src/schema';
 
 const CYCLONEDX_COMMIT = 'c320fc0f0b46873864927d9d5684eea7ba439728';
 const SPDX_COMMIT = 'aadf3b0b8dbbabdb4d880b0fc714255fea436ff7';
@@ -135,7 +135,7 @@ const child: DependencyRecord = {
 };
 
 const data = {
-  schemaVersion: '1.6',
+  schemaVersion: REPORT_SCHEMA_VERSION,
   generatedAt: '2026-01-01T00:00:00.000Z',
   dependencyRadarVersion: '0.0.0-test',
   git: { branch: 'test' },
