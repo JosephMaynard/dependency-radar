@@ -196,6 +196,9 @@ ${lines.join(',\n')}
 }
 
 main().catch((err) => {
-  console.error(err);
+  // Error text can embed fetched-response fragments; strip line breaks so a
+  // hostile payload cannot forge extra log lines (CodeQL js/log-injection).
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(message.replace(/[\r\n]/g, ' '));
   process.exit(1);
 });
