@@ -186,6 +186,15 @@ export function formatExplainOutput(
       lines.push('  none');
     }
 
+    if (dep.replacement) {
+      lines.push('');
+      lines.push('Replacement suggestion (e18e module-replacements):');
+      lines.push(`  ${dep.replacement.replacements.join(', ')}`);
+      if (dep.replacement.docUrl) {
+        lines.push(`  docs: ${dep.replacement.docUrl}`);
+      }
+    }
+
     lines.push('');
     lines.push('Packaging signals:');
     if (dep.packaging?.signals?.length) {

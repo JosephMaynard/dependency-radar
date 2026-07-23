@@ -1,4 +1,5 @@
 import { validateSpdxExpression } from './license';
+import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, RegistryRiskSignal, SupplyChainSignal } from './types';
 
 export type FailOnRule =
@@ -10,6 +11,7 @@ export type FailOnRule =
   | 'copyleft-detected'
   | 'unknown-licence'
   | 'supply-chain-source'
+  | 'supply-chain-combo'
   | 'deprecated-dependency'
   | 'unmaintained-dependency'
   | 'new-deprecated'
@@ -48,6 +50,7 @@ export const SUPPORTED_FAIL_ON_RULES = [
   'copyleft-detected',
   'unknown-licence',
   'supply-chain-source',
+  'supply-chain-combo',
   'deprecated-dependency',
   'unmaintained-dependency',
   'new-deprecated',
@@ -536,6 +539,26 @@ export function evaluatePolicyViolations(
       )}`
     });
   }
+  if (rules.has('supply-chain-combo')) {
+    const signalTypeIndex = indexSupplyChainSignalTypes(aggregated.supplyChain?.signals);
+    const details: string[] = [];
+    for (const dep of Object.values(aggregated.dependencies || {})) {
+      const combos = detectSupplyChainCombos(dep, signalTypesForDependency(signalTypeIndex, dep));
+      for (const combo of combos) {
+        details.push(`${formatPackage(dep)}: ${combo.title.toLowerCase()}`);
+      }
+    }
+    details.sort();
+    if (details.length > 0) {
+      violations.push({
+        rule: 'supply-chain-combo',
+        count: details.length,
+        message: `${details.length} install-script supply-chain ${pluralize(details.length, 'combination', 'combinations')}`,
+        details
+      });
+    }
+  }
+
   if (rules.has('supply-chain-source') && supplyChainSourceCount > 0) {
     violations.push({
       rule: 'supply-chain-source',

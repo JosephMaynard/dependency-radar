@@ -362,6 +362,7 @@ const MAINTENANCE_STATUS_LABELS: Record<string, string> = {
   archived: "Archived",
   unmaintained: "Unmaintained",
   stale: "Stale",
+  slowing: "Slowing",
   active: "Active",
   unknown: "—",
 };
@@ -373,17 +374,19 @@ function getMaintenanceStatusLabel(status?: string): string {
 
 function getMaintenanceStatusTone(status?: string): string {
   if (status === "deprecated" || status === "archived") return "red";
-  if (status === "unmaintained" || status === "stale") return "amber";
+  if (status === "unmaintained" || status === "stale" || status === "slowing")
+    return "amber";
   if (status === "active") return "green";
   return "gray";
 }
 
 function maintenanceStatusOrder(status?: string): number {
   const order: Record<string, number> = {
-    deprecated: 5,
-    archived: 4,
-    unmaintained: 3,
-    stale: 2,
+    deprecated: 6,
+    archived: 5,
+    unmaintained: 4,
+    stale: 3,
+    slowing: 2,
     active: 1,
   };
   return status ? order[status] || 0 : 0;
@@ -395,8 +398,13 @@ function hasMaintenanceConcern(dep: DependencyRecord): boolean {
     status === "deprecated" ||
     status === "archived" ||
     status === "unmaintained" ||
-    status === "stale"
+    status === "stale" ||
+    status === "slowing"
   );
+}
+
+function hasReplacementSuggestion(dep: DependencyRecord): boolean {
+  return Boolean(dep.replacement?.replacements?.length);
 }
 
 function hasLicenseIssue(dep: DependencyRecord): boolean {
@@ -1604,6 +1612,17 @@ function renderMaintenanceSection(
       ),
     );
   }
+  if (maintenance.repoPushedAt) {
+    items.push(
+      renderKvItem(
+        "Last repository push",
+        maintenance.repoPushedAt,
+        typeof maintenance.monthsSinceRepoPush === "number"
+          ? `~${maintenance.monthsSinceRepoPush} months ago`
+          : undefined,
+      ),
+    );
+  }
   if (maintenance.latestVersion) {
     items.push(renderKvItem("Latest version", maintenance.latestVersion));
   }
@@ -1624,12 +1643,52 @@ function renderMaintenanceSection(
       : undefined;
   return renderSubsection(
     "Maintenance",
-    '<div class="section-note">Conservative registry heuristics: "last registry activity" updates on any packument write, so age-based statuses under-flag rather than over-flag. Review cues, not verdicts.</div>' +
+    '<div class="section-note">Conservative registry heuristics: "last registry activity" updates on any packument write, so age-based statuses under-flag rather than over-flag. When a repository push timestamp is also known, both surfaces must be quiet before a package escalates past "slowing". Review cues, not verdicts.</div>' +
       '<div class="kv-grid">' +
       items.join("") +
       "</div>",
     undefined,
     tone,
+  );
+}
+
+const REPLACEMENT_TYPE_LABELS: Record<string, string> = {
+  native: "Native platform functionality",
+  documented: "Lighter community alternative",
+  simple: "Small inline snippet",
+};
+
+/**
+ * Render a "Replacement available" subsection for a dependency with a
+ * community-suggested replacement. Returns an empty string when the
+ * dependency has no suggestion, so reports without recommendations show
+ * nothing.
+ */
+function renderReplacementSection(
+  replacement: DependencyRecord["replacement"] | undefined,
+): string {
+  if (!replacement?.replacements?.length) return "";
+  const items = [
+    renderKvItem("Suggested", replacement.replacements.join(", ")),
+    renderKvItem(
+      "Replacement type",
+      REPLACEMENT_TYPE_LABELS[replacement.type] || replacement.type,
+    ),
+  ];
+  const docLink = replacement.docUrl
+    ? '<div class="section-note"><a href="' +
+      escapeHtml(replacement.docUrl) +
+      '" target="_blank" rel="noopener noreferrer">Migration guidance for this replacement</a></div>'
+    : "";
+  const credit =
+    '<div class="section-note">Suggestion from the community-maintained ' +
+    '<a href="https://github.com/es-tooling/module-replacements" target="_blank" rel="noopener noreferrer">module-replacements</a> catalogue, ' +
+    'part of the <a href="https://e18e.dev" target="_blank" rel="noopener noreferrer">e18e</a> ecosystem performance initiative. ' +
+    "Guidance to review, not a drop-in instruction.</div>";
+  return renderSubsection(
+    "Replacement available",
+    '<div class="kv-grid">' + items.join("") + "</div>" + docLink + credit,
+    "Community-suggested lighter or native alternative",
   );
 }
 
@@ -1902,6 +1961,7 @@ function renderDep(
     dep as any,
     securitySummary,
     supplyChainSignals?.length || 0,
+    supplyChainSignals as any,
   );
   const depKey = getDepKey(dep.package.name, dep.package.version);
   const domId = getDepDomId(depKey);
@@ -2176,6 +2236,15 @@ function renderDepDetails(
       renderKvItem("Latest version", dep.upgrade.latestVersion),
     );
   }
+  if (dep.upgrade.risk) {
+    currencyItems.push(
+      renderKvItem(
+        "Upgrade risk",
+        getColumnCapitalize(dep.upgrade.risk),
+        "Derived from outdated status and known blockers",
+      ),
+    );
+  }
   const currencyBlock = renderSubsection(
     "Version",
     '<div class="section-note">Based on npm outdated findings and registry metadata.</div>' +
@@ -2244,10 +2313,12 @@ function renderDepDetails(
       : '<div class="status-row">No upgrade blockers detected</div>') +
     "</div>";
 
+  const replacementBlock = renderReplacementSection(dep.replacement);
   const upgradeSection = renderSection(
     "Upgrade & Change Impact",
     "Currency, constraints, and blast radius",
-    currencyBlock +
+    replacementBlock +
+      currencyBlock +
       deprecatedBlock +
       constraintBlock +
       blastRadiusBlock +
@@ -2263,7 +2334,9 @@ function renderDepDetails(
     renderPackageLinks(links),
     descriptionHtml,
     buildStatusChips(dep, securitySummary, licenseText),
-    renderKeyPoints(buildReportKeyPoints(dep as any, securitySummary)),
+    renderKeyPoints(
+      buildReportKeyPoints(dep as any, securitySummary, supplyChainSignals as any),
+    ),
     overviewSection,
     riskSection,
     upgradeSection,
@@ -2397,6 +2470,12 @@ async function init(): Promise<void> {
     upgradeBlockers: document.getElementById(
       "upgrade-blockers",
     ) as HTMLInputElement | null,
+    hasReplacement: document.getElementById(
+      "has-replacement",
+    ) as HTMLInputElement | null,
+    hasReplacementWrap: document.getElementById(
+      "has-replacement-wrap",
+    ) as HTMLElement | null,
     themeSwitch: document.getElementById("theme-switch") as HTMLButtonElement,
     licenseToggle: document.getElementById(
       "license-toggle",
@@ -2461,6 +2540,9 @@ async function init(): Promise<void> {
     ) as HTMLElement | null,
     upgradeBlockersLabel: document.getElementById(
       "upgrade-blockers-label",
+    ) as HTMLElement | null,
+    hasReplacementLabel: document.getElementById(
+      "has-replacement-label",
     ) as HTMLElement | null,
     columnHeadersContainer: document.getElementById(
       "column-headers-container",
@@ -2813,6 +2895,17 @@ async function init(): Promise<void> {
         "Upgrade blockers",
         countBy(hasUpgradeBlocker),
       );
+    // The replacement filter only exists in the UI when the scan actually
+    // matched something against the e18e catalogue.
+    const replacementCount = countBy(hasReplacementSuggestion);
+    if (controls.hasReplacementWrap) {
+      controls.hasReplacementWrap.hidden = replacementCount === 0;
+    }
+    if (controls.hasReplacementLabel && replacementCount > 0)
+      controls.hasReplacementLabel.textContent = formatCount(
+        "Has replacement suggestion",
+        replacementCount,
+      );
   }
   if (controls.workspace && controls.workspaceWrap && workspaceNames.length > 1) {
     controls.workspace.textContent = "";
@@ -2852,8 +2945,10 @@ async function init(): Promise<void> {
     let maintenanceDataSeen = false;
     let licenseIssues = 0;
     let blockers = 0;
+    let replacements = 0;
     allDependencies.forEach((dep) => {
       if (hasVulnerabilities(dep)) vulnerable += 1;
+      if (hasReplacementSuggestion(dep)) replacements += 1;
       if (dep.maintenance?.attempted) maintenanceDataSeen = true;
       if (hasMaintenanceConcern(dep)) {
         maintenanceConcernCount += 1;
@@ -2919,6 +3014,24 @@ async function init(): Promise<void> {
       "amber",
       "Dependencies with upgrade blockers — click to filter",
     );
+    // Only surfaced when the scan matched at least one dependency against
+    // the e18e module-replacements catalogue.
+    const replacementsChip = document.getElementById(
+      "stat-replacements",
+    ) as HTMLButtonElement | null;
+    if (replacementsChip) {
+      if (replacements === 0) {
+        replacementsChip.hidden = true;
+      } else {
+        replacementsChip.hidden = false;
+        setChip(
+          "stat-replacements",
+          replacements,
+          undefined,
+          "Dependencies with community-suggested replacements (e18e) — click to filter",
+        );
+      }
+    }
     const maintenanceChip = document.getElementById("stat-maintenance");
     if (maintenanceChip) {
       const maintenanceStatus = report.scanStatus?.collectors.maintenance;
@@ -2947,6 +3060,7 @@ async function init(): Promise<void> {
         "maintenance-concerns": controls.maintenanceConcerns,
         "license-issues": controls.licenseIssues,
         "upgrade-blockers": controls.upgradeBlockers,
+        "has-replacement": controls.hasReplacement,
       };
       const control = targets[button.dataset.statFilter || ""];
       if (!control) return;
@@ -3073,6 +3187,7 @@ async function init(): Promise<void> {
     const maintenanceConcerns = controls.maintenanceConcerns?.checked ?? false;
     const licenseIssuesOnly = controls.licenseIssues?.checked ?? false;
     const upgradeBlockersOnly = controls.upgradeBlockers?.checked ?? false;
+    const replacementOnly = controls.hasReplacement?.checked ?? false;
 
     const showPermissive = controls.licensePermissive.checked;
     const showWeakCopyleft = controls.licenseWeakCopyleft.checked;
@@ -3116,6 +3231,7 @@ async function init(): Promise<void> {
       if (maintenanceConcerns && !hasMaintenanceConcern(dep)) return false;
       if (licenseIssuesOnly && !hasLicenseIssue(dep)) return false;
       if (upgradeBlockersOnly && !hasUpgradeBlocker(dep)) return false;
+      if (replacementOnly && !hasReplacementSuggestion(dep)) return false;
 
       const licenseCategory = getLicenseCategory(primaryLicense.value);
       if (licenseCategory === "permissive" && !showPermissive) return false;
@@ -3159,6 +3275,7 @@ async function init(): Promise<void> {
     if (controls.maintenanceConcerns) controls.maintenanceConcerns.checked = false;
     if (controls.licenseIssues) controls.licenseIssues.checked = false;
     if (controls.upgradeBlockers) controls.upgradeBlockers.checked = false;
+    if (controls.hasReplacement) controls.hasReplacement.checked = false;
     controls.licensePermissive.checked = true;
     controls.licenseWeakCopyleft.checked = true;
     controls.licenseStrongCopyleft.checked = true;
@@ -3299,6 +3416,15 @@ async function init(): Promise<void> {
         label: "Upgrade blockers",
         remove: () => {
           if (controls.upgradeBlockers) controls.upgradeBlockers.checked = false;
+        },
+      });
+    }
+    if (controls.hasReplacement?.checked) {
+      chips.push({
+        id: "has-replacement",
+        label: "Has replacement suggestion",
+        remove: () => {
+          if (controls.hasReplacement) controls.hasReplacement.checked = false;
         },
       });
     }
@@ -3587,6 +3713,7 @@ async function init(): Promise<void> {
     controls.maintenanceConcerns,
     controls.licenseIssues,
     controls.upgradeBlockers,
+    controls.hasReplacement,
     controls.workspace,
     controls.licensePermissive,
     controls.licenseWeakCopyleft,

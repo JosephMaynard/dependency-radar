@@ -437,7 +437,7 @@ describe('cli summary output', () => {
       );
       expect(reports).toHaveLength(1);
       const report = JSON.parse(await fs.readFile(path.join(projectCopy, reports[0]), 'utf8'));
-      expect(report.schemaVersion).toBe('1.6');
+      expect(report.schemaVersion).toBe('1.7');
       expect(report.scanStatus).toEqual(expect.objectContaining({
         complete: expect.any(Boolean),
         collectors: expect.objectContaining({
@@ -874,7 +874,7 @@ describe('cli summary output', () => {
     expect(result.status).toBe(0);
     const schema = JSON.parse(result.stdout);
     expect(schema.title).toBe('Dependency Radar Report');
-    expect(schema.properties.schemaVersion.const).toBe('1.6');
+    expect(schema.properties.schemaVersion.const).toBe('1.7');
   });
 
   it('writes the JSON schema to --out without scanning', async () => {
@@ -887,7 +887,7 @@ describe('cli summary output', () => {
     expect(result.stdout.trim()).toBe('');
     const schema = JSON.parse(await fs.readFile(outPath, 'utf8'));
     expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
-    expect(schema.properties.schemaVersion.const).toBe('1.6');
+    expect(schema.properties.schemaVersion.const).toBe('1.7');
     expect(schema.required).toContain('scanStatus');
     expect(schema.properties.supplyChain.properties.signals.items.required).toEqual(['type', 'source', 'detail']);
     expect(schema.properties.findings.items.required).toContain('packageId');

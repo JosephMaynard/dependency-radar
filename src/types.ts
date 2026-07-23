@@ -112,11 +112,25 @@ export interface DependencySupplyChainInfo {
   registry?: DependencyRegistryEnrichment;
 }
 
+// Community-suggested replacement from the e18e module-replacements
+// catalogue (https://github.com/es-tooling/module-replacements), matched
+// offline against vendored data. Guidance, not policy.
+export interface DependencyReplacementInfo {
+  source: 'e18e-module-replacements';
+  manifest: 'native' | 'micro-utilities' | 'preferred';
+  type: 'native' | 'documented' | 'simple';
+  replacements: string[];
+  docUrl?: string;
+}
+
+export type UpgradeRisk = 'high' | 'medium' | 'low' | 'unknown';
+
 export type MaintenanceStatus =
   | 'deprecated'
   | 'archived'
   | 'unmaintained'
   | 'stale'
+  | 'slowing'
   | 'active'
   | 'unknown';
 
@@ -135,6 +149,8 @@ export interface DependencyMaintenanceInfo {
   };
   repoArchived?: boolean;
   repoCheckedAt?: string;
+  repoPushedAt?: string;
+  monthsSinceRepoPush?: number;
   packageModifiedAt?: string;
   monthsSinceModified?: number;
   latestVersion?: string;
@@ -214,6 +230,9 @@ export interface DependencyRecord {
     blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
     targetNodeCompatible?: boolean;
+    // Derived from outdated status and blockers; recomputed after registry
+    // enrichment so a registry-discovered deprecation is reflected.
+    risk?: UpgradeRisk;
   };
   // Usage answers why this dependency exists and where it shows up in the project.
   usage: {
@@ -239,6 +258,7 @@ export interface DependencyRecord {
   packaging?: DependencyPackagingInfo;
   supplyChain?: DependencySupplyChainInfo;
   maintenance?: DependencyMaintenanceInfo;
+  replacement?: DependencyReplacementInfo;
 }
 
 export type FindingSeverity = 'info' | 'warning' | 'error';
@@ -247,7 +267,8 @@ export type FindingCategory =
   | 'license'
   | 'execution'
   | 'upgrade'
-  | 'supply-chain';
+  | 'supply-chain'
+  | 'modernization';
 
 export interface DependencyFinding {
   id: string;
@@ -337,7 +358,7 @@ export interface ProjectDependencyPolicySummary {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.6';
+  schemaVersion: '1.7';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

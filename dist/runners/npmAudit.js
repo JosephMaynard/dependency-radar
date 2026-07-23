@@ -85,7 +85,12 @@ async function runPackageAudit(projectPath, tempDir, tool, yarnVersion, options 
             if (persistToDisk) {
                 await (0, utils_1.writeJsonFile)(targetFile, normalized);
             }
-            return { ok: true, data: normalized, ...(persistToDisk ? { file: targetFile } : {}) };
+            return {
+                ok: true,
+                data: normalized,
+                contextPath: cwd,
+                ...(persistToDisk ? { file: targetFile } : {})
+            };
         }
         if (persistToDisk) {
             await (0, utils_1.writeJsonFile)(targetFile, {
@@ -97,6 +102,7 @@ async function runPackageAudit(projectPath, tempDir, tool, yarnVersion, options 
         return {
             ok: false,
             error: `Failed to parse ${tool} audit output`,
+            contextPath: cwd,
             ...(persistToDisk ? { file: targetFile } : {}),
         };
     }

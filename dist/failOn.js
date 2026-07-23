@@ -5,7 +5,9 @@ exports.parseFailOnRules = parseFailOnRules;
 exports.evaluatePolicyViolations = evaluatePolicyViolations;
 exports.evaluateComparePolicyViolations = evaluateComparePolicyViolations;
 const license_1 = require("./license");
+const supplyChainCombos_1 = require("./supplyChainCombos");
 exports.SUPPORTED_FAIL_ON_RULES = [
+    'directly-imported-vuln',
     'reachable-vuln',
     'production-vuln',
     'high-severity-vuln',
@@ -13,6 +15,7 @@ exports.SUPPORTED_FAIL_ON_RULES = [
     'copyleft-detected',
     'unknown-licence',
     'supply-chain-source',
+    'supply-chain-combo',
     'deprecated-dependency',
     'unmaintained-dependency',
     'new-deprecated',
@@ -344,10 +347,10 @@ function parseFailOnRules(value) {
  * @returns An array of PolicyViolation objects for each rule that has one or more matching issues; returns an empty array if no violations are found
  */
 function evaluatePolicyViolations(aggregated, rules) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     if (rules.size === 0)
         return [];
-    let reachableProductionVulnCount = 0;
+    let directlyImportedProductionVulnCount = 0;
     let productionVulnCount = 0;
     let highSeverityVulnCount = 0;
     let licenceMismatchCount = 0;
@@ -359,10 +362,10 @@ function evaluatePolicyViolations(aggregated, rules) {
     for (const dep of Object.values(aggregated.dependencies || {})) {
         const isRuntime = dep.usage.scope === 'runtime';
         const hasVuln = vulnerabilityCount(dep) > 0;
-        const isReachable = (((_a = dep.usage.importUsage) === null || _a === void 0 ? void 0 : _a.fileCount) || 0) > 0;
+        const isDirectlyImported = (((_a = dep.usage.importUsage) === null || _a === void 0 ? void 0 : _a.fileCount) || 0) > 0;
         const hasHighSeverityVuln = (dep.security.summary.high || 0) + (dep.security.summary.critical || 0) > 0;
-        if (isRuntime && hasVuln && isReachable) {
-            reachableProductionVulnCount += 1;
+        if (isRuntime && hasVuln && isDirectlyImported) {
+            directlyImportedProductionVulnCount += 1;
         }
         if (isRuntime && hasVuln) {
             productionVulnCount += 1;
@@ -392,11 +395,16 @@ function evaluatePolicyViolations(aggregated, rules) {
         signal.type === 'missing-integrity' ||
         signal.type === 'unexpected-registry-host').length;
     const violations = [];
-    if (rules.has('reachable-vuln') && reachableProductionVulnCount > 0) {
+    const directlyImportedRule = rules.has('directly-imported-vuln')
+        ? 'directly-imported-vuln'
+        : rules.has('reachable-vuln')
+            ? 'reachable-vuln'
+            : undefined;
+    if (directlyImportedRule && directlyImportedProductionVulnCount > 0) {
         violations.push({
-            rule: 'reachable-vuln',
-            count: reachableProductionVulnCount,
-            message: `${reachableProductionVulnCount} reachable production ${pluralize(reachableProductionVulnCount, 'vulnerability', 'vulnerabilities')}`
+            rule: directlyImportedRule,
+            count: directlyImportedProductionVulnCount,
+            message: `${directlyImportedProductionVulnCount} directly imported production ${pluralize(directlyImportedProductionVulnCount, 'vulnerability', 'vulnerabilities')}`
         });
     }
     if (rules.has('production-vuln') && productionVulnCount > 0) {
@@ -433,6 +441,25 @@ function evaluatePolicyViolations(aggregated, rules) {
             count: unknownLicenceCount,
             message: `${unknownLicenceCount} ${pluralize(unknownLicenceCount, 'dependency with unknown licence', 'dependencies with unknown licence')}`
         });
+    }
+    if (rules.has('supply-chain-combo')) {
+        const signalTypeIndex = (0, supplyChainCombos_1.indexSupplyChainSignalTypes)((_e = aggregated.supplyChain) === null || _e === void 0 ? void 0 : _e.signals);
+        const details = [];
+        for (const dep of Object.values(aggregated.dependencies || {})) {
+            const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, (0, supplyChainCombos_1.signalTypesForDependency)(signalTypeIndex, dep));
+            for (const combo of combos) {
+                details.push(`${formatPackage(dep)}: ${combo.title.toLowerCase()}`);
+            }
+        }
+        details.sort();
+        if (details.length > 0) {
+            violations.push({
+                rule: 'supply-chain-combo',
+                count: details.length,
+                message: `${details.length} install-script supply-chain ${pluralize(details.length, 'combination', 'combinations')}`,
+                details
+            });
+        }
     }
     if (rules.has('supply-chain-source') && supplyChainSourceCount > 0) {
         violations.push({

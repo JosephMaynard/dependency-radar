@@ -13,6 +13,8 @@ export interface MaintenanceCacheEntry {
   repo?: {
     checkedAt: string;
     archived: boolean;
+    // Last source push reported by ecosyste.ms; absent on older cache entries.
+    pushedAt?: string;
   };
 }
 
@@ -96,9 +98,9 @@ export class MaintenanceCache {
   }
 
   /** Record a repo-archived check on an existing (or new) entry. */
-  setRepoCheck(name: string, archived: boolean, now: Date = new Date()): void {
+  setRepoCheck(name: string, archived: boolean, now: Date = new Date(), pushedAt?: string): void {
     const existing = this.entries[name] || { fetchedAt: now.toISOString() };
-    existing.repo = { checkedAt: now.toISOString(), archived };
+    existing.repo = { checkedAt: now.toISOString(), archived, ...(pushedAt ? { pushedAt } : {}) };
     this.entries[name] = existing;
   }
 

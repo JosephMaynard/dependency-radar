@@ -129,14 +129,38 @@ describe('parseAbbreviatedPackument', () => {
 });
 
 describe('deriveMaintenanceStatus', () => {
-  it('applies the documented precedence and thresholds', () => {
+  it('applies the documented precedence and single-signal thresholds', () => {
     expect(deriveMaintenanceStatus({ deprecated: true, repoArchived: true })).toBe('deprecated');
     expect(deriveMaintenanceStatus({ deprecated: false, repoArchived: true, monthsSinceModified: 40 })).toBe('archived');
-    expect(deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 17 })).toBe('active');
+    expect(deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 11 })).toBe('active');
+    expect(deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 17 })).toBe('slowing');
     expect(deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 19 })).toBe('stale');
     expect(deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 35 })).toBe('stale');
     expect(deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 37 })).toBe('unmaintained');
     expect(deriveMaintenanceStatus({ deprecated: false })).toBe('active');
+  });
+
+  it('requires both surfaces to be quiet before escalating when repo push data exists', () => {
+    // Registry quiet for 3+ years but the repo is actively pushed: slowing, not unmaintained.
+    expect(
+      deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 40, monthsSinceRepoPush: 2 })
+    ).toBe('slowing');
+    // Both quiet long enough for the dual unmaintained tier (24/12).
+    expect(
+      deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 25, monthsSinceRepoPush: 13 })
+    ).toBe('unmaintained');
+    // Both moderately quiet (12/6) -> stale.
+    expect(
+      deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 13, monthsSinceRepoPush: 7 })
+    ).toBe('stale');
+    // Registry quiet but repo pushed recently -> slowing.
+    expect(
+      deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 13, monthsSinceRepoPush: 1 })
+    ).toBe('slowing');
+    // Registry active -> active regardless of repo cadence.
+    expect(
+      deriveMaintenanceStatus({ deprecated: false, monthsSinceModified: 3, monthsSinceRepoPush: 20 })
+    ).toBe('active');
   });
 });
 

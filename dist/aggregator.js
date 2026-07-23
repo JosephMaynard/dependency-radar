@@ -10,6 +10,8 @@ const utils_1 = require("./utils");
 const license_1 = require("./license");
 const findings_1 = require("./findings");
 const nodeEngine_1 = require("./nodeEngine");
+const upgradeRisk_1 = require("./upgradeRisk");
+const replacements_1 = require("./generated/replacements");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
@@ -319,7 +321,7 @@ async function aggregateData(input) {
     for (const node of nodeMap.values()) {
         node.isDirect = node.importerChild && isDirectDependency(node.name, pkg);
     }
-    const vulnMap = parseVulnerabilities((_b = input.auditResult) === null || _b === void 0 ? void 0 : _b.data);
+    const vulnerabilityIndex = parseVulnerabilities((_b = input.auditResult) === null || _b === void 0 ? void 0 : _b.data);
     const importGraph = normalizeImportGraph((_c = input.importGraphResult) === null || _c === void 0 ? void 0 : _c.data);
     const usageResult = buildUsageSummary(importGraph, input.projectPath);
     const outdatedById = buildOutdatedMap(input.outdatedResult);
@@ -351,7 +353,7 @@ async function aggregateData(input) {
         if (!licenseCache.has(cacheKey)) {
             licenseCache.set(cacheKey, licenseSource);
         }
-        const vulnerabilities = vulnMap.get(node.name) || emptyVulnSummary();
+        const vulnerabilities = vulnerabilitiesForNode(vulnerabilityIndex, node);
         const licenseInfo = buildLicenseInfo(licenseSource.license, licenseSource.licenseText);
         const licenseRisk = resolveLicenseRisk(licenseInfo);
         // Calculate root causes (direct dependencies that cause this to be installed)
@@ -434,6 +436,17 @@ async function aggregateData(input) {
             ...(execution ? { execution } : {}),
             ...(packaging ? { packaging } : {})
         };
+        // Offline lookup against the vendored e18e module-replacements catalogue.
+        const replacementEntry = replacements_1.MODULE_REPLACEMENTS[node.name];
+        if (replacementEntry) {
+            dependencies[id].replacement = {
+                source: 'e18e-module-replacements',
+                manifest: replacementEntry.manifest,
+                type: replacementEntry.type,
+                replacements: replacementEntry.replacements,
+                ...(replacementEntry.docUrl ? { docUrl: replacementEntry.docUrl } : {})
+            };
+        }
     }
     const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
     const runtimeVersion = process.version;
@@ -441,7 +454,7 @@ async function aggregateData(input) {
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
     const aggregated = {
-        schemaVersion: '1.5',
+        schemaVersion: '1.7',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
@@ -477,6 +490,7 @@ async function aggregateData(input) {
         ...(supplyChain ? { supplyChain } : {}),
         dependencies
     };
+    (0, upgradeRisk_1.applyUpgradeRisk)(aggregated);
     const findings = (0, findings_1.buildDependencyFindings)(aggregated, { targetNodeMajor: input.targetNodeMajor });
     aggregated.findings = findings;
     aggregated.summary.findingCount = findings.length;
@@ -762,10 +776,54 @@ function buildAdvisoryFromLegacy(adv) {
         url: url || ''
     };
 }
+function summarizeAdvisories(advisories) {
+    const sorted = [...advisories].sort((a, b) => {
+        const order = { critical: 4, high: 3, moderate: 2, low: 1 };
+        const diff = order[b.severity] - order[a.severity];
+        if (diff !== 0)
+            return diff;
+        return a.title.localeCompare(b.title);
+    });
+    const counts = { low: 0, moderate: 0, high: 0, critical: 0 };
+    for (const advisory of sorted)
+        counts[advisory.severity] += 1;
+    return {
+        counts,
+        highestSeverity: computeHighestSeverity(counts),
+        risk: (0, utils_1.vulnRiskLevel)(counts),
+        ...(sorted.length > 0 ? { advisories: sorted } : {})
+    };
+}
+function vulnerabilitiesForNode(index, node) {
+    if (node.path) {
+        const pathMatch = index.byNodePath.get(path_1.default.resolve(node.path));
+        if (pathMatch)
+            return pathMatch;
+        if (index.namesWithNodePaths.has(node.name))
+            return emptyVulnSummary();
+    }
+    const packageIdMatch = index.byPackageId.get(node.key);
+    if (packageIdMatch)
+        return packageIdMatch;
+    if (index.namesWithPackageIds.has(node.name))
+        return emptyVulnSummary();
+    return index.byName.get(node.name) || emptyVulnSummary();
+}
 function parseVulnerabilities(auditData) {
     const map = new Map();
-    if (!auditData)
-        return map;
+    const nodePathsByName = new Map();
+    const advisoriesByAuditKey = new Map();
+    const advisoriesByNodePath = new Map();
+    const advisoriesByPackageId = new Map();
+    if (!auditData) {
+        return {
+            byName: map,
+            byNodePath: new Map(),
+            byPackageId: new Map(),
+            namesWithNodePaths: new Set(),
+            namesWithPackageIds: new Set(),
+        };
+    }
     const ensureEntry = (name) => {
         if (!map.has(name)) {
             map.set(name, emptyVulnSummary());
@@ -774,6 +832,13 @@ function parseVulnerabilities(auditData) {
     };
     const advisoryKeys = new Map();
     const deferredViaStrings = [];
+    const addAdvisoryToList = (target, key, advisory) => {
+        const advisories = target.get(key) || [];
+        if (!advisories.some((entry) => entry.id === advisory.id && entry.vulnerableRange === advisory.vulnerableRange)) {
+            advisories.push(advisory);
+        }
+        target.set(key, advisories);
+    };
     const addAdvisory = (name, advisory) => {
         const entry = ensureEntry(name);
         const key = `${advisory.id}|${advisory.vulnerableRange}`;
@@ -792,27 +857,48 @@ function parseVulnerabilities(auditData) {
     // Advisories are disclosed findings from npm audit (not malware detection).
     // Summary-only output loses evidence and is a data loss bug.
     if (auditData.vulnerabilities) {
-        Object.values(auditData.vulnerabilities).forEach((item) => {
+        Object.entries(auditData.vulnerabilities).forEach(([auditKey, item]) => {
             const name = item.name || 'unknown';
+            const nodePaths = Array.isArray(item.nodes)
+                ? item.nodes
+                    .filter((node) => typeof node === 'string' && node.trim().length > 0)
+                    .map((node) => path_1.default.resolve(node))
+                : [];
+            if (nodePaths.length > 0) {
+                const paths = nodePathsByName.get(name) || new Set();
+                for (const nodePath of nodePaths)
+                    paths.add(nodePath);
+                nodePathsByName.set(name, paths);
+            }
             const viaList = Array.isArray(item.via) ? item.via : [];
+            const itemAdvisories = [];
             let added = false;
             for (const via of viaList) {
                 if (via && typeof via === 'object') {
                     const advisory = buildAdvisoryFromVia(via, item);
                     if (advisory) {
                         addAdvisory(name, advisory);
+                        itemAdvisories.push(advisory);
                         added = true;
                     }
                 }
             }
             const viaStrings = viaList.filter((via) => typeof via === 'string');
             if (viaStrings.length > 0) {
-                deferredViaStrings.push({ name, via: viaStrings });
+                deferredViaStrings.push({ auditKey, name, nodePaths, via: viaStrings });
             }
             if (!added) {
                 const fallback = buildAdvisoryFromVia(item, item);
-                if (fallback)
+                if (fallback) {
                     addAdvisory(name, fallback);
+                    itemAdvisories.push(fallback);
+                }
+            }
+            for (const advisory of itemAdvisories) {
+                addAdvisoryToList(advisoriesByAuditKey, auditKey, advisory);
+                for (const nodePath of nodePaths) {
+                    addAdvisoryToList(advisoriesByNodePath, nodePath, advisory);
+                }
             }
         });
     }
@@ -820,42 +906,56 @@ function parseVulnerabilities(auditData) {
         Object.values(auditData.advisories).forEach((adv) => {
             const name = adv.module_name || adv.module || 'unknown';
             const advisory = buildAdvisoryFromLegacy(adv);
-            if (advisory)
+            if (advisory) {
                 addAdvisory(name, advisory);
+                const findings = Array.isArray(adv.findings) ? adv.findings : [];
+                for (const finding of findings) {
+                    const version = typeof (finding === null || finding === void 0 ? void 0 : finding.version) === 'string' ? finding.version.trim() : '';
+                    if (!version)
+                        continue;
+                    const packageId = `${name}@${version}`;
+                    const advisories = advisoriesByPackageId.get(packageId) || [];
+                    if (!advisories.some((entry) => entry.id === advisory.id && entry.vulnerableRange === advisory.vulnerableRange)) {
+                        advisories.push(advisory);
+                    }
+                    advisoriesByPackageId.set(packageId, advisories);
+                }
+            }
         });
     }
-    // One-level expansion: map string "via" references to their advisories without storing paths.
+    // One-level expansion: map string "via" references to their advisories while preserving paths.
     for (const entry of deferredViaStrings) {
         for (const refName of entry.via) {
-            const referenced = map.get(refName);
-            if (referenced === null || referenced === void 0 ? void 0 : referenced.advisories) {
-                for (const advisory of referenced.advisories) {
+            const referenced = advisoriesByAuditKey.get(refName);
+            if (referenced) {
+                for (const advisory of referenced) {
                     addAdvisory(entry.name, advisory);
+                    addAdvisoryToList(advisoriesByAuditKey, entry.auditKey, advisory);
+                    for (const nodePath of entry.nodePaths) {
+                        addAdvisoryToList(advisoriesByNodePath, nodePath, advisory);
+                    }
                 }
             }
         }
     }
-    map.forEach((entry) => {
-        const counts = { low: 0, moderate: 0, high: 0, critical: 0 };
-        if (entry.advisories) {
-            for (const advisory of entry.advisories) {
-                counts[advisory.severity] += 1;
-            }
-        }
-        entry.counts = counts;
-        entry.highestSeverity = computeHighestSeverity(counts);
-        entry.risk = (0, utils_1.vulnRiskLevel)(counts);
-        if (entry.advisories && entry.advisories.length > 0) {
-            entry.advisories.sort((a, b) => {
-                const order = { critical: 4, high: 3, moderate: 2, low: 1 };
-                const diff = order[b.severity] - order[a.severity];
-                if (diff !== 0)
-                    return diff;
-                return a.title.localeCompare(b.title);
-            });
-        }
+    map.forEach((entry, name) => {
+        map.set(name, summarizeAdvisories(entry.advisories || []));
     });
-    return map;
+    const byNodePath = new Map();
+    for (const [nodePath, advisories] of advisoriesByNodePath) {
+        byNodePath.set(nodePath, summarizeAdvisories(advisories));
+    }
+    const byPackageId = new Map();
+    for (const [packageId, advisories] of advisoriesByPackageId) {
+        byPackageId.set(packageId, summarizeAdvisories(advisories));
+    }
+    return {
+        byName: map,
+        byNodePath,
+        byPackageId,
+        namesWithNodePaths: new Set(nodePathsByName.keys()),
+        namesWithPackageIds: new Set(Array.from(advisoriesByPackageId.keys()).map((id) => id.slice(0, id.lastIndexOf('@')))),
+    };
 }
 function normalizeSeverity(sev) {
     const s = typeof sev === 'string' ? sev.toLowerCase() : 'low';
@@ -1125,7 +1225,7 @@ function buildLicenseInfo(declaredRaw, licenseText) {
     if (hasDeclared && declaredValidation && !declaredValidation.valid) {
         record.status = 'invalid-spdx';
     }
-    else if ((declaredValidation === null || declaredValidation === void 0 ? void 0 : declaredValidation.valid) && inferred) {
+    else if ((declaredValidation === null || declaredValidation === void 0 ? void 0 : declaredValidation.valid) && inferred && inferred.confidence !== 'low') {
         record.status = declaredValidation.normalized === inferred.spdxId ? 'match' : 'mismatch';
     }
     else if (declaredValidation === null || declaredValidation === void 0 ? void 0 : declaredValidation.valid) {
@@ -1575,7 +1675,17 @@ function normalizeUrl(raw) {
     const hash = hashIndex === -1 ? '' : url.slice(hashIndex);
     const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
     const cleaned = base.endsWith('.git') ? base.slice(0, -4) : base;
-    return cleaned + hash;
+    try {
+        const parsed = new URL(cleaned + hash);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+            return undefined;
+        parsed.username = '';
+        parsed.password = '';
+        return parsed.toString();
+    }
+    catch {
+        return undefined;
+    }
 }
 function normalizeLinkValue(value) {
     if (!value)

@@ -4,6 +4,7 @@ exports.reportVulnerabilityTotal = reportVulnerabilityTotal;
 exports.reportAllExecutionSignals = reportAllExecutionSignals;
 exports.buildReportOverallRisk = buildReportOverallRisk;
 exports.buildReportKeyPoints = buildReportKeyPoints;
+const supplyChainCombos_1 = require("./supplyChainCombos");
 const EXECUTION_SIGNAL_LABELS = {
     'network-access': 'Accesses network during install',
     'dynamic-exec': 'Uses dynamic execution',
@@ -31,9 +32,15 @@ function maxRisk(risks) {
         return 'amber';
     return 'green';
 }
-function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0) {
+function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supplyChainSignals) {
     var _a, _b, _c, _d, _e, _f, _g;
     const installRisk = ((_a = dep.execution) === null || _a === void 0 ? void 0 : _a.risk) || 'green';
+    const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep, supplyChainSignals));
+    const comboRisk = combos.some((combo) => combo.severity === 'error')
+        ? 'red'
+        : combos.length > 0
+            ? 'amber'
+            : 'green';
     const supplyChainRisk = supplyChainSignalCount > 0 || (((_c = (_b = dep.packaging) === null || _b === void 0 ? void 0 : _b.signals) === null || _c === void 0 ? void 0 : _c.length) || 0) > 0
         ? 'amber'
         : 'green';
@@ -53,9 +60,19 @@ function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0) {
         dep.compliance.licenseRisk,
         installRisk,
         supplyChainRisk,
+        comboRisk,
         registryRisk,
         maintenanceRisk
     ]);
+}
+/**
+ * Build the supply-chain signal type set for one dependency instance, for
+ * use with detectSupplyChainCombos.
+ */
+function supplyChainSignalTypesForDep(dep, signals) {
+    if (!signals || signals.length === 0)
+        return undefined;
+    return (0, supplyChainCombos_1.signalTypesForDependency)((0, supplyChainCombos_1.indexSupplyChainSignalTypes)(signals), dep);
 }
 function titleCaseValue(value) {
     return value
@@ -106,8 +123,8 @@ function formatModerateLow(summary) {
         parts.push(`${summary.low} low`);
     return parts.join(', ');
 }
-function buildReportKeyPoints(dep, summary) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+function buildReportKeyPoints(dep, summary, supplyChainSignals) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s;
     const points = [];
     const vulnTotal = reportVulnerabilityTotal(summary);
     const hasFix = (_a = dep.security.advisories) === null || _a === void 0 ? void 0 : _a.some((adv) => adv.fixAvailable);
@@ -128,23 +145,34 @@ function buildReportKeyPoints(dep, summary) {
         points.push('Source repository is archived');
     }
     else if (((_d = dep.maintenance) === null || _d === void 0 ? void 0 : _d.status) === 'unmaintained') {
-        points.push('No registry activity for 3+ years');
+        points.push(dep.maintenance.monthsSinceRepoPush !== undefined
+            ? 'Registry and source repository have both gone quiet'
+            : 'No registry activity for 3+ years');
     }
     else if (((_e = dep.maintenance) === null || _e === void 0 ? void 0 : _e.status) === 'stale') {
-        points.push('No registry activity for 18+ months');
+        points.push(dep.maintenance.monthsSinceRepoPush !== undefined
+            ? 'Publishing and source activity have slowed to a trickle'
+            : 'No registry activity for 18+ months');
+    }
+    else if (((_f = dep.maintenance) === null || _f === void 0 ? void 0 : _f.status) === 'slowing') {
+        points.push('No registry publishes for 12+ months');
     }
     if (dep.compliance.licenseRisk !== 'green') {
         points.push('Licence status: ' + formatLicenseStatus(dep.compliance.license.status));
     }
     if (dep.upgrade.blocksNodeMajor)
         points.push('Blocks Node major upgrade');
-    if ((_f = dep.upgrade.blockers) === null || _f === void 0 ? void 0 : _f.length) {
+    if ((_g = dep.upgrade.blockers) === null || _g === void 0 ? void 0 : _g.length) {
         points.push(`${dep.upgrade.blockers.length} upgrade ${dep.upgrade.blockers.length === 1 ? 'blocker' : 'blockers'} detected`);
     }
-    const executionRisk = ((_g = dep.execution) === null || _g === void 0 ? void 0 : _g.risk) || 'green';
+    (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep, supplyChainSignals)).forEach((combo) => points.push(combo.title));
+    if (dep.replacement) {
+        points.push('Community-suggested replacement available (e18e)');
+    }
+    const executionRisk = ((_h = dep.execution) === null || _h === void 0 ? void 0 : _h.risk) || 'green';
     if (executionRisk !== 'green')
         points.push(`${toneLabel(executionRisk)} install-time execution risk`);
-    if ((_k = (_j = (_h = dep.execution) === null || _h === void 0 ? void 0 : _h.scripts) === null || _j === void 0 ? void 0 : _j.hooks) === null || _k === void 0 ? void 0 : _k.length) {
+    if ((_l = (_k = (_j = dep.execution) === null || _j === void 0 ? void 0 : _j.scripts) === null || _k === void 0 ? void 0 : _k.hooks) === null || _l === void 0 ? void 0 : _l.length) {
         points.push('Runs ' +
             dep.execution.scripts.hooks.slice(0, 2).join(', ') +
             ' lifecycle script' +
@@ -153,17 +181,17 @@ function buildReportKeyPoints(dep, summary) {
     reportAllExecutionSignals(dep)
         .slice(0, 3)
         .forEach((signal) => points.push(EXECUTION_SIGNAL_LABELS[signal]));
-    if ((_m = (_l = dep.packaging) === null || _l === void 0 ? void 0 : _l.signals) === null || _m === void 0 ? void 0 : _m.length) {
+    if ((_o = (_m = dep.packaging) === null || _m === void 0 ? void 0 : _m.signals) === null || _o === void 0 ? void 0 : _o.length) {
         points.push(`${dep.packaging.signals.length} package content ${dep.packaging.signals.length === 1 ? 'signal' : 'signals'}`);
     }
-    if ((_q = (_p = (_o = dep.supplyChain) === null || _o === void 0 ? void 0 : _o.registry) === null || _p === void 0 ? void 0 : _p.signals) === null || _q === void 0 ? void 0 : _q.length) {
+    if ((_r = (_q = (_p = dep.supplyChain) === null || _p === void 0 ? void 0 : _p.registry) === null || _q === void 0 ? void 0 : _q.signals) === null || _r === void 0 ? void 0 : _r.length) {
         points.push(`${dep.supplyChain.registry.signals.length} registry metadata ${dep.supplyChain.registry.signals.length === 1 ? 'signal' : 'signals'}`);
     }
     if (dep.usage.direct) {
         points.push(`Direct ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`);
     }
     else {
-        const intro = ((_r = dep.usage.origins.topParentPackages) === null || _r === void 0 ? void 0 : _r[0])
+        const intro = ((_s = dep.usage.origins.topParentPackages) === null || _s === void 0 ? void 0 : _s[0])
             ? ` introduced by ${dep.usage.origins.topParentPackages[0]}`
             : '';
         points.push(`Transitive ${scopeLabel(dep.usage.scope).toLowerCase()} dependency${intro}`);

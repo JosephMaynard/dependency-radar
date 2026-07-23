@@ -506,6 +506,75 @@ describe('evaluatePolicyViolations', () => {
     ]);
   });
 
+  it('fails on install-script supply-chain combinations, listing the pairing', () => {
+    const aggregated = makeAggregatedData({
+      'git-hooked@1.0.0': makeDependency({ name: 'git-hooked', installHooks: ['postinstall'] }),
+      'git-plain@1.0.0': makeDependency({ name: 'git-plain' })
+    });
+    aggregated.supplyChain = {
+      signals: [
+        {
+          type: 'git-dependency',
+          packageName: 'git-hooked',
+          source: 'package-lock.json',
+          detail: 'git-hooked resolves from git'
+        },
+        {
+          type: 'git-dependency',
+          packageName: 'git-plain',
+          source: 'package-lock.json',
+          detail: 'git-plain resolves from git'
+        }
+      ]
+    };
+
+    const violations = evaluatePolicyViolations(aggregated, new Set(['supply-chain-combo']));
+    expect(violations).toEqual([
+      {
+        rule: 'supply-chain-combo',
+        count: 1,
+        message: '1 install-script supply-chain combination',
+        details: ['git-hooked@1.0.0: install scripts from a git-sourced package']
+      }
+    ]);
+  });
+
+  it('does not fire supply-chain-combo when the source signal is on a different version', () => {
+    const aggregated = makeAggregatedData({
+      'git-hooked@1.0.0': makeDependency({ name: 'git-hooked', installHooks: ['postinstall'] })
+    });
+    aggregated.supplyChain = {
+      signals: [
+        {
+          type: 'git-dependency',
+          packageName: 'git-hooked',
+          packageVersion: '2.0.0',
+          packageId: 'git-hooked@2.0.0',
+          source: 'package-lock.json',
+          detail: 'git-hooked@2.0.0 resolves from git'
+        }
+      ]
+    };
+    expect(evaluatePolicyViolations(aggregated, new Set(['supply-chain-combo']))).toEqual([]);
+  });
+
+  it('does not fire supply-chain-combo when hooks and signals never coincide', () => {
+    const aggregated = makeAggregatedData({
+      'hooks-only@1.0.0': makeDependency({ name: 'hooks-only', installHooks: ['postinstall'] })
+    });
+    aggregated.supplyChain = {
+      signals: [
+        {
+          type: 'missing-integrity',
+          packageName: 'other-pkg',
+          source: 'package-lock.json',
+          detail: 'other-pkg has no integrity hash'
+        }
+      ]
+    };
+    expect(evaluatePolicyViolations(aggregated, new Set(['supply-chain-combo']))).toEqual([]);
+  });
+
   it('fails on deprecated and unmaintained dependencies', () => {
     const aggregated = makeAggregatedData({
       'deprecated-lib@1.0.0': makeDependency({ name: 'deprecated-lib', deprecated: true, maintenanceStatus: 'deprecated' }),

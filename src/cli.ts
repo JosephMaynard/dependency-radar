@@ -18,6 +18,7 @@ import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
 import { compareReports, formatCompareOutput } from "./compare";
 import { buildDependencyFindings } from "./findings";
+import { applyUpgradeRisk } from "./upgradeRisk";
 import {
   defaultOutputName,
   renderCycloneDx,
@@ -1391,8 +1392,8 @@ Options:
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
                      Scan rules: directly-imported-vuln, production-vuln, high-severity-vuln,
                                  licence-mismatch, copyleft-detected, unknown-licence,
-                                 supply-chain-source, deprecated-dependency,
-                                 unmaintained-dependency
+                                 supply-chain-source, supply-chain-combo,
+                                 deprecated-dependency, unmaintained-dependency
                      Alias: reachable-vuln (deprecated; means directly-imported-vuln)
                      Compare rules: new-deprecated, new-supply-chain-signal,
                                     new-install-script, new-native-binding, new-bin,
@@ -1815,6 +1816,11 @@ function requiredCollectorsForRule(rule: FailOnRule): ScanCollectorName[] {
   }
   if (rule === "supply-chain-source" || rule === "new-supply-chain-signal") {
     return ["supplyChain"];
+  }
+  if (rule === "supply-chain-combo") {
+    // Needs both the lockfile source signals and the dependency records that
+    // carry install-hook evidence.
+    return ["dependencyTree", "supplyChain"];
   }
   if (rule === "deprecated-dependency" || rule === "unmaintained-dependency" || rule === "new-deprecated") {
     return ["dependencyTree", "maintenance"];
@@ -2327,6 +2333,7 @@ async function executeAnalysis(
     }
 
     if (enrichmentTouchedData) {
+      applyUpgradeRisk(aggregated);
       const findings = buildDependencyFindings(aggregated, { targetNodeMajor: opts.targetNodeMajor });
       aggregated.findings = findings;
       aggregated.summary.findingCount = findings.length;

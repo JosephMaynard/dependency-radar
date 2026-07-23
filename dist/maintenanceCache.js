@@ -80,9 +80,9 @@ class MaintenanceCache {
         this.entries[name] = entry;
     }
     /** Record a repo-archived check on an existing (or new) entry. */
-    setRepoCheck(name, archived, now = new Date()) {
+    setRepoCheck(name, archived, now = new Date(), pushedAt) {
         const existing = this.entries[name] || { fetchedAt: now.toISOString() };
-        existing.repo = { checkedAt: now.toISOString(), archived };
+        existing.repo = { checkedAt: now.toISOString(), archived, ...(pushedAt ? { pushedAt } : {}) };
         this.entries[name] = existing;
     }
     /**

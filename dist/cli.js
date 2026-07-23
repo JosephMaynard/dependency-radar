@@ -19,12 +19,15 @@ const lockfileSignals_1 = require("./runners/lockfileSignals");
 const report_1 = require("./report");
 const compare_1 = require("./compare");
 const findings_1 = require("./findings");
+const upgradeRisk_1 = require("./upgradeRisk");
 const outputFormats_1 = require("./outputFormats");
 const why_1 = require("./why");
 const schema_1 = require("./schema");
 const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
+const EXIT_POLICY_VIOLATION = 1;
+const EXIT_USAGE_OR_INCOMPLETE = 2;
 const skippedToolResult = {
     ok: true,
     status: "skipped",
@@ -494,9 +497,7 @@ function isWorkspaceLocalSpecifier(value) {
     if (typeof value !== "string")
         return false;
     const trimmed = value.trim().toLowerCase();
-    return (trimmed.startsWith("workspace:") ||
-        trimmed.startsWith("link:") ||
-        trimmed.startsWith("file:"));
+    return trimmed.startsWith("workspace:");
 }
 function normalizeRelativePath(rootPath, packagePath) {
     const relative = path_1.default.relative(rootPath, packagePath);
@@ -608,24 +609,38 @@ function mergeDepsFromWorkspace(pkgs, workspacePackageNames, localDependencyName
     return merged;
 }
 function mergeAuditResults(results) {
-    const defined = results.filter(Boolean);
+    const defined = results.filter((entry) => Boolean(entry));
     if (defined.length === 0)
         return undefined;
     const base = {};
-    for (const r of defined) {
+    const absoluteAuditNodes = (nodes, contextPath) => {
+        if (!Array.isArray(nodes))
+            return [];
+        return Array.from(new Set(nodes
+            .filter((node) => typeof node === "string" && node.trim().length > 0)
+            .map((node) => path_1.default.resolve(contextPath, node.trim()))));
+    };
+    for (const [resultIndex, entry] of defined.entries()) {
+        const r = entry.data;
         if (!r || typeof r !== "object")
             continue;
         // npm audit v7+ shape: { vulnerabilities: {..} }
         if (r.vulnerabilities && typeof r.vulnerabilities === "object") {
             base.vulnerabilities = base.vulnerabilities || {};
+            const vulnerabilityEntries = Object.entries(r.vulnerabilities);
+            const mergedKeys = new Map(vulnerabilityEntries.map(([key]) => [key, `${resultIndex}:${key}`]));
             for (const [k, v] of Object.entries(r.vulnerabilities)) {
-                if (!base.vulnerabilities[k])
-                    base.vulnerabilities[k] = v;
-                else {
-                    // merge counts best-effort
-                    const existing = base.vulnerabilities[k];
-                    base.vulnerabilities[k] = { ...existing, ...v };
-                }
+                const mergedKey = mergedKeys.get(k);
+                const normalized = {
+                    ...v,
+                    nodes: absoluteAuditNodes(v === null || v === void 0 ? void 0 : v.nodes, entry.contextPath),
+                    ...(Array.isArray(v === null || v === void 0 ? void 0 : v.via)
+                        ? {
+                            via: v.via.map((via) => typeof via === "string" ? mergedKeys.get(via) || via : via),
+                        }
+                        : {}),
+                };
+                base.vulnerabilities[mergedKey] = normalized;
             }
         }
         // legacy shape
@@ -965,6 +980,7 @@ function parseArgs(argv) {
         schema: false,
         outProvided: false,
         timestamp: false,
+        strict: false,
     };
     const args = [...argv];
     if (args[0] && !args[0].startsWith("-")) {
@@ -990,7 +1006,7 @@ function parseArgs(argv) {
         }
         else if (!arg.startsWith("-")) {
             console.error(`Unexpected argument: "${arg}".`);
-            process.exit(1);
+            process.exit(EXIT_USAGE_OR_INCOMPLETE);
         }
         else if (arg === "--project")
             opts.project = takeOptionValue(args, arg, true);
@@ -1017,7 +1033,7 @@ function parseArgs(argv) {
             const format = takeOptionValue(args, arg);
             if (!isReportFormat(format)) {
                 console.error(`Unknown --format: "${format}". Supported formats: html, json, sarif, cyclonedx, spdx.`);
-                process.exit(1);
+                process.exit(EXIT_USAGE_OR_INCOMPLETE);
             }
             opts.format = format;
             opts.json = format === "json";
@@ -1026,7 +1042,7 @@ function parseArgs(argv) {
             const format = takeOptionValue(args, arg);
             if (format !== "cyclonedx" && format !== "spdx") {
                 console.error('Unknown --sbom format. Supported formats: cyclonedx, spdx.');
-                process.exit(1);
+                process.exit(EXIT_USAGE_OR_INCOMPLETE);
             }
             opts.format = format;
         }
@@ -1034,7 +1050,7 @@ function parseArgs(argv) {
             const value = Number.parseInt(takeOptionValue(args, arg), 10);
             if (!Number.isFinite(value) || value <= 0) {
                 console.error("--target-node must be a positive Node.js major version.");
-                process.exit(1);
+                process.exit(EXIT_USAGE_OR_INCOMPLETE);
             }
             opts.targetNodeMajor = value;
         }
@@ -1044,6 +1060,12 @@ function parseArgs(argv) {
             opts.schema = true;
         else if (arg === "--timestamp")
             opts.timestamp = true;
+        else if (arg === "--strict")
+            opts.strict = true;
+        else if (arg === "--version" || arg === "-V") {
+            console.log((0, utils_1.getDependencyRadarVersion)());
+            process.exit(0);
+        }
         else if (arg === "--open")
             opts.open = true;
         else if (arg === "--no-report")
@@ -1052,7 +1074,7 @@ function parseArgs(argv) {
             const value = args.shift();
             if (!value) {
                 console.error("Missing value for --fail-on. Provide a comma-separated list of rules.");
-                process.exit(1);
+                process.exit(EXIT_USAGE_OR_INCOMPLETE);
             }
             let rules;
             try {
@@ -1060,7 +1082,7 @@ function parseArgs(argv) {
             }
             catch (err) {
                 console.error(err instanceof Error ? err.message : "Invalid --fail-on rules.");
-                process.exit(1);
+                process.exit(EXIT_USAGE_OR_INCOMPLETE);
                 return opts;
             }
             for (const rule of rules) {
@@ -1073,7 +1095,7 @@ function parseArgs(argv) {
         }
         else {
             console.error(`Unknown option: "${arg}".`);
-            process.exit(1);
+            process.exit(EXIT_USAGE_OR_INCOMPLETE);
         }
     }
     return opts;
@@ -1091,7 +1113,7 @@ function takeOptionValue(args, option, allowLeadingDash = false) {
     const value = args[0];
     if (!value || (!allowLeadingDash && value.startsWith("-"))) {
         console.error(`Missing value for ${option}.`);
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
     }
     return args.shift();
 }
@@ -1181,16 +1203,19 @@ Options:
   --schema           Print JSON schema, or write it when --out is provided
   --json             Write aggregated data to JSON (default filename: dependency-radar.json)
   --timestamp        Add a local timestamp to generated report filenames
+  --strict           Exit 2 when an enabled collector is incomplete or unavailable
+  --version, -V      Print the Dependency Radar version
   --no-report        Do not write HTML/JSON report files or temp artifacts to disk
   --keep-temp        Keep .dependency-radar folder
   --offline          Skip registry-backed checks (audit, outdated, signatures, maintenance signals, targeted registry enrichment)
   --no-maintenance   Skip registry maintenance signals (deprecated/unmaintained/archived checks)
   --open             Open the generated report using the system default application
   --fail-on <rules>  Fail with exit code 1 when selected rules are violated
-                     Scan rules: reachable-vuln, production-vuln, high-severity-vuln,
+                     Scan rules: directly-imported-vuln, production-vuln, high-severity-vuln,
                                  licence-mismatch, copyleft-detected, unknown-licence,
-                                 supply-chain-source, deprecated-dependency,
-                                 unmaintained-dependency
+                                 supply-chain-source, supply-chain-combo,
+                                 deprecated-dependency, unmaintained-dependency
+                     Alias: reachable-vuln (deprecated; means directly-imported-vuln)
                      Compare rules: new-deprecated, new-supply-chain-signal,
                                     new-install-script, new-native-binding, new-bin,
                                     new-direct-dependency, new-child-process,
@@ -1392,7 +1417,7 @@ function printPolicyViolations(violations) {
  * - `directDeps`: number of direct dependencies in the workspace
  * - `transitiveDeps`: number of transitive dependencies in the workspace
  * - `vulnerablePackages`: count of dependencies with at least one reported vulnerability
- * - `reachableVulnerablePackages`: count of vulnerable dependencies that are reachable according to import usage
+ * - `directlyImportedVulnerablePackages`: count of vulnerable dependencies referenced by direct static imports
  * - `unusedInstalledDeps`: count of direct runtime dependencies that appear unused (only when `importGraphComplete` is `true`)
  * - `licenseMismatches`: count of dependencies whose license status is `mismatch`
  * - `majorUpgradeBlockers`: count of dependencies that have one or more upgrade blockers
@@ -1401,7 +1426,7 @@ function printPolicyViolations(violations) {
 function buildCliSummary(aggregated, options) {
     var _a;
     let vulnerablePackages = 0;
-    let reachableVulnerablePackages = 0;
+    let directlyImportedVulnerablePackages = 0;
     let unusedInstalledDeps = 0;
     let licenseMismatches = 0;
     let majorUpgradeBlockers = 0;
@@ -1421,7 +1446,7 @@ function buildCliSummary(aggregated, options) {
         if (vulnTotal > 0) {
             vulnerablePackages += 1;
             if ((((_a = dep.usage.importUsage) === null || _a === void 0 ? void 0 : _a.fileCount) || 0) > 0) {
-                reachableVulnerablePackages += 1;
+                directlyImportedVulnerablePackages += 1;
             }
         }
         // Count "unused" only when import graph collection succeeded for all packages.
@@ -1460,7 +1485,7 @@ function buildCliSummary(aggregated, options) {
         directDeps: aggregated.summary.directCount,
         transitiveDeps: aggregated.summary.transitiveCount,
         vulnerablePackages,
-        reachableVulnerablePackages,
+        directlyImportedVulnerablePackages,
         unusedInstalledDeps,
         licenseMismatches,
         majorUpgradeBlockers,
@@ -1489,7 +1514,7 @@ function printCliSummary(summary) {
     console.log("Summary:");
     console.log(`${bullet} Direct dependencies scanned: ${summary.directDeps}`);
     console.log(`${bullet} Transitive dependencies scanned: ${summary.transitiveDeps}`);
-    console.log(`${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.reachableVulnerablePackages} reachable)`);
+    console.log(`${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.directlyImportedVulnerablePackages} directly imported)`);
     console.log(`${bullet} Dependencies with no static import reference: ${summary.unusedInstalledDeps}`);
     console.log(`${bullet} License mismatches: ${summary.licenseMismatches}`);
     console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
@@ -1525,6 +1550,70 @@ function formatLabel(format) {
         return "CycloneDX SBOM";
     return "SPDX SBOM";
 }
+function collectorStatusFromResults(results, enabled) {
+    if (!enabled)
+        return "skipped";
+    const present = results.filter((result) => Boolean(result));
+    if (present.length === 0 || present.every((result) => result.status === "skipped"))
+        return "skipped";
+    const available = present.filter((result) => result.ok && result.status !== "skipped").length;
+    if (available === present.length)
+        return "available";
+    return available > 0 ? "partial" : "unavailable";
+}
+function requiredCollectorsForRule(rule) {
+    if (rule === "directly-imported-vuln" || rule === "reachable-vuln") {
+        return ["dependencyTree", "audit", "imports"];
+    }
+    if (rule === "production-vuln" || rule === "high-severity-vuln") {
+        return ["dependencyTree", "audit"];
+    }
+    if (rule === "supply-chain-source" || rule === "new-supply-chain-signal") {
+        return ["supplyChain"];
+    }
+    if (rule === "supply-chain-combo") {
+        // Needs both the lockfile source signals and the dependency records that
+        // carry install-hook evidence.
+        return ["dependencyTree", "supplyChain"];
+    }
+    if (rule === "deprecated-dependency" || rule === "unmaintained-dependency" || rule === "new-deprecated") {
+        return ["dependencyTree", "maintenance"];
+    }
+    if (rule === "new-recent-package" ||
+        rule === "new-recent-version" ||
+        rule === "new-low-release-history" ||
+        rule === "new-reactivated-package" ||
+        rule === "new-old-major-patch") {
+        return ["dependencyTree", "registryMetadata"];
+    }
+    return ["dependencyTree"];
+}
+function incompleteEvidenceReasons(scanStatus, rules, strict) {
+    const reasons = new Set();
+    for (const rule of rules) {
+        for (const collector of requiredCollectorsForRule(rule)) {
+            const status = scanStatus.collectors[collector];
+            if (status !== "available") {
+                reasons.add(`${collector} evidence is ${status} but is required by --fail-on ${rule}`);
+            }
+        }
+    }
+    if (strict) {
+        for (const [collector, status] of Object.entries(scanStatus.collectors)) {
+            if (status === "partial" || status === "unavailable") {
+                reasons.add(`${collector} collection is ${status} (--strict)`);
+            }
+        }
+    }
+    return Array.from(reasons);
+}
+function printIncompleteEvidence(reasons) {
+    if (reasons.length === 0)
+        return;
+    console.error("\nScan evidence is incomplete:");
+    for (const reason of reasons)
+        console.error(`  - ${reason}`);
+}
 /**
  * Run a full dependency analysis for a project/workspace and return the aggregated results.
  *
@@ -1537,7 +1626,7 @@ function formatLabel(format) {
  * @returns An AnalysisExecutionResult containing the aggregated report, CLI summary, policy violations, dependency counts, timing, output path/creation status, collector availability, and workspace metadata.
  */
 async function executeAnalysis(opts, options) {
-    var _a, _b;
+    var _a, _b, _c, _d;
     const shouldWriteArtifacts = options.shouldWriteArtifacts;
     const projectPath = path_1.default.resolve(opts.project);
     let outputPath = opts.outProvided
@@ -1645,10 +1734,19 @@ async function executeAnalysis(opts, options) {
         const perPackageLs = [];
         const perPackageImportGraph = [];
         const perPackageOutdated = [];
+        const configuredRegistry = await (0, maintenanceSignals_1.resolveRegistryBaseUrl)(projectPath);
+        let configuredRegistryHost;
+        try {
+            configuredRegistryHost = new URL(configuredRegistry).host.toLowerCase();
+        }
+        catch {
+            configuredRegistryHost = undefined;
+        }
         const supplyChainResult = await (0, lockfileSignals_1.runLockfileSupplyChainSignals)(projectPath, tempDir, {
             persistToDisk: shouldWriteArtifacts,
             auditSignatures: opts.auditSignatures,
-            offline: !opts.audit
+            offline: !opts.audit,
+            ...(configuredRegistryHost ? { expectedRegistryHosts: [configuredRegistryHost] } : {}),
         }).catch((err) => ({ ok: false, error: String(err) }));
         for (const meta of packageMetas) {
             spinner.update(`Scanning ${workspaceLabel} (${perPackageLs.length + 1}/${packageMetas.length}) at ${projectPath}`);
@@ -1703,7 +1801,12 @@ async function executeAnalysis(opts, options) {
                 spinner.log(statusLine(outdatedSkipped ? "ℹ" : outdatedOk ? "✔" : "✖", `${scanManager.toUpperCase()} outdated data ${outdatedSkipped ? "skipped" : outdatedOk ? "collected" : "unavailable"}`));
             }
         }
-        const mergedAuditData = mergeAuditResults(perPackageAudit.map((r) => (r && r.ok ? r.data : undefined)));
+        const mergedAuditData = mergeAuditResults(perPackageAudit.map((r, index) => (r && r.ok && r.data
+            ? {
+                data: r.data,
+                contextPath: r.contextPath || packageMetas[index].path,
+            }
+            : undefined)));
         const mergedGraphData = workspace.type === "none"
             ? perPackageLs[0] && perPackageLs[0].ok
                 ? perPackageLs[0].data
@@ -1725,13 +1828,21 @@ async function executeAnalysis(opts, options) {
             .map((result, index) => ({ result, meta: packageMetas[index] }))
             .filter((entry) => entry.result && !entry.result.ok);
         const importFailures = perPackageImportGraph.filter((r) => r && !r.ok);
+        const auditCollectorStatus = collectorStatusFromResults(perPackageAudit, opts.audit);
+        let dependencyTreeCollectorStatus = collectorStatusFromResults(perPackageLs, true);
+        const importCollectorStatus = collectorStatusFromResults(perPackageImportGraph, true);
+        const signatureAuditOk = !opts.auditSignatures
+            || (supplyChainResult.ok && ((_c = (_b = supplyChainResult.data) === null || _b === void 0 ? void 0 : _b.signatureAudit) === null || _c === void 0 ? void 0 : _c.ok) === true);
+        const supplyChainCollectorStatus = supplyChainResult.ok && signatureAuditOk
+            ? "available"
+            : "unavailable";
         if (auditFailure) {
             spinner.log(`Audit warning: ${auditFailure.error || "Audit failed"}`);
         }
         if (lsFailures.length > 0) {
             const packageList = lsFailures.map((entry) => { var _a; return (_a = entry.meta) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean);
             spinner.log(`Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${packageList.join(", ")}).`);
-            spinner.log(`First dependency tree error: ${((_b = lsFailures[0].result) === null || _b === void 0 ? void 0 : _b.error) || "pnpm ls failed"}`);
+            spinner.log(`First dependency tree error: ${((_d = lsFailures[0].result) === null || _d === void 0 ? void 0 : _d.error) || "pnpm ls failed"}`);
         }
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);
@@ -1773,6 +1884,7 @@ async function executeAnalysis(opts, options) {
             ...(typeof opts.targetNodeMajor === "number" ? { targetNodeMajor: opts.targetNodeMajor } : {}),
         });
         let enrichmentTouchedData = false;
+        let registryMetadataCollectorStatus = opts.outdated ? "available" : "skipped";
         if (opts.outdated) {
             let registryEnrichment = { attempted: 0, succeeded: 0 };
             try {
@@ -1781,10 +1893,14 @@ async function executeAnalysis(opts, options) {
                 });
             }
             catch (err) {
+                registryMetadataCollectorStatus = "unavailable";
                 if (!opts.quiet) {
                     const message = err instanceof Error ? err.message : String(err);
                     spinner.log(statusLine("⚠", `Targeted registry metadata unavailable (${message})`));
                 }
+            }
+            if (registryMetadataCollectorStatus === "available" && registryEnrichment.succeeded < registryEnrichment.attempted) {
+                registryMetadataCollectorStatus = "partial";
             }
             if (!opts.quiet && registryEnrichment.succeeded > 0) {
                 spinner.log(statusLine("✔", `Targeted registry metadata collected for ${registryEnrichment.succeeded} suspicious package${registryEnrichment.succeeded === 1 ? "" : "s"}`));
@@ -1792,6 +1908,7 @@ async function executeAnalysis(opts, options) {
             if (registryEnrichment.attempted > 0)
                 enrichmentTouchedData = true;
         }
+        let maintenanceCollectorStatus = opts.maintenance ? "available" : "skipped";
         if (opts.maintenance) {
             try {
                 const budgetOverride = Number.parseInt(process.env.DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS || "", 10);
@@ -1799,6 +1916,10 @@ async function executeAnalysis(opts, options) {
                     projectPath,
                     ...(Number.isFinite(budgetOverride) ? { budgetMs: budgetOverride } : {}),
                 });
+                if (maintenance.truncatedNames > 0 ||
+                    maintenance.succeeded + maintenance.fromCache < maintenance.checkedNames) {
+                    maintenanceCollectorStatus = "partial";
+                }
                 if (maintenance.checkedNames > 0) {
                     enrichmentTouchedData = true;
                     if (!opts.quiet) {
@@ -1816,6 +1937,7 @@ async function executeAnalysis(opts, options) {
                 }
             }
             catch (err) {
+                maintenanceCollectorStatus = "unavailable";
                 if (!opts.quiet) {
                     const message = err instanceof Error ? err.message : String(err);
                     spinner.log(statusLine("⚠", `Maintenance signals unavailable (${message})`));
@@ -1823,20 +1945,51 @@ async function executeAnalysis(opts, options) {
             }
         }
         if (enrichmentTouchedData) {
+            (0, upgradeRisk_1.applyUpgradeRisk)(aggregated);
             const findings = (0, findings_1.buildDependencyFindings)(aggregated, { targetNodeMajor: opts.targetNodeMajor });
             aggregated.findings = findings;
             aggregated.summary.findingCount = findings.length;
         }
         dependencyCount = Object.keys(aggregated.dependencies).length;
-        const importGraphComplete = perPackageImportGraph.every((result) => result.ok);
+        if (!hasProjectNodeModules && !yarnPnP && dependencyTreeCollectorStatus === "available") {
+            dependencyTreeCollectorStatus = "partial";
+        }
+        const collectors = {
+            dependencyTree: dependencyTreeCollectorStatus,
+            audit: auditCollectorStatus,
+            imports: importCollectorStatus,
+            maintenance: maintenanceCollectorStatus,
+            registryMetadata: registryMetadataCollectorStatus,
+            supplyChain: supplyChainCollectorStatus,
+        };
+        const scanWarnings = [];
+        const addCollectorWarning = (collector, label, consequence) => {
+            const status = collectors[collector];
+            if (status !== "available")
+                scanWarnings.push(`${label} is ${status}; ${consequence}`);
+        };
+        addCollectorWarning("dependencyTree", "Dependency tree collection", "dependency coverage and classification may be incomplete.");
+        addCollectorWarning("audit", "Vulnerability audit", "vulnerability status is unknown.");
+        addCollectorWarning("imports", "Static import collection", "direct-import evidence may be incomplete.");
+        addCollectorWarning("maintenance", "Maintenance collection", "maintenance status may be incomplete.");
+        addCollectorWarning("registryMetadata", "Targeted registry metadata", "registry risk signals may be incomplete.");
+        addCollectorWarning("supplyChain", "Lockfile supply-chain collection", "source and integrity signals may be incomplete.");
+        const scanStatus = {
+            complete: Object.values(collectors).every((status) => status !== "partial" && status !== "unavailable"),
+            collectors,
+            warnings: scanWarnings,
+        };
+        aggregated.scanStatus = scanStatus;
+        const importGraphComplete = importCollectorStatus === "available";
         const summary = buildCliSummary(aggregated, {
             importGraphComplete,
         });
         const policyViolations = (0, failOn_1.evaluatePolicyViolations)(aggregated, opts.failOn);
+        const incompleteReasons = incompleteEvidenceReasons(scanStatus, opts.failOn, opts.strict);
         if (!opts.quiet && options.emitWorkspacePackageSummary && workspace.type !== "none") {
             console.log(`Detected ${workspace.type.toUpperCase()} workspace with ${packagePaths.length} package${packagePaths.length === 1 ? "" : "s"}.`);
         }
-        if (dependencyCount > 0 && shouldWriteArtifacts) {
+        if (shouldWriteArtifacts && (dependencyCount > 0 || scanStatus.warnings.length > 0)) {
             if (opts.format === "json") {
                 await promises_1.default.mkdir(path_1.default.dirname(outputPath), { recursive: true });
                 await promises_1.default.writeFile(outputPath, JSON.stringify(aggregated, null, 2), "utf8");
@@ -1884,13 +2037,14 @@ async function executeAnalysis(opts, options) {
             outputPath,
             shouldWriteArtifacts,
             collectorAvailability: {
-                audit: !opts.audit
-                    ? "skipped"
-                    : perPackageAudit.every((result) => result && result.ok)
-                        ? "available"
+                audit: auditCollectorStatus === "available"
+                    ? "available"
+                    : auditCollectorStatus === "skipped"
+                        ? "skipped"
                         : "unavailable",
                 importGraphComplete,
             },
+            incompleteReasons,
             workspace,
             packagePaths,
         };
@@ -1930,11 +2084,15 @@ async function runScanCommand(opts) {
     }
     printCliSummary(result.summary);
     printPolicyViolations(result.policyViolations);
+    printIncompleteEvidence(result.incompleteReasons);
     if (!opts.quiet) {
         console.log(`Docs, examples, and issue reporting: ${formatTerminalLink("https://github.com/JosephMaynard/dependency-radar", "https://github.com/JosephMaynard/dependency-radar")}`);
     }
+    if (result.incompleteReasons.length > 0) {
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
+    }
     if (result.policyViolations.length > 0) {
-        process.exit(1);
+        process.exit(EXIT_POLICY_VIOLATION);
     }
 }
 async function runExplainCommand(opts) {
@@ -1942,7 +2100,7 @@ async function runExplainCommand(opts) {
     const packageName = (_a = opts.packageName) === null || _a === void 0 ? void 0 : _a.trim();
     if (!packageName) {
         console.error("Missing package name for explain. Usage: dependency-radar explain <package-name>");
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
         return;
     }
     const result = await executeAnalysis(opts, {
@@ -1956,8 +2114,12 @@ async function runExplainCommand(opts) {
         audit: result.collectorAvailability.audit,
         importGraphComplete: result.collectorAvailability.importGraphComplete,
     }));
+    printIncompleteEvidence(result.incompleteReasons);
+    if (result.incompleteReasons.length > 0) {
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
+    }
     if (matches.length === 0) {
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
     }
 }
 async function runWhyCommand(opts) {
@@ -1965,7 +2127,7 @@ async function runWhyCommand(opts) {
     const packageName = (_a = opts.packageName) === null || _a === void 0 ? void 0 : _a.trim();
     if (!packageName) {
         console.error("Missing package name for why. Usage: dependency-radar why <package-name>");
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
         return;
     }
     const result = await executeAnalysis(opts, {
@@ -1976,8 +2138,12 @@ async function runWhyCommand(opts) {
     console.log("");
     const output = (0, why_1.formatWhyOutput)(result.aggregated, packageName);
     console.log(output);
+    printIncompleteEvidence(result.incompleteReasons);
+    if (result.incompleteReasons.length > 0) {
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
+    }
     if (output.startsWith("Package not found")) {
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
     }
 }
 /**
@@ -1995,7 +2161,7 @@ async function runCompareCommand(opts) {
     const previousPath = (_a = opts.comparePath) === null || _a === void 0 ? void 0 : _a.trim();
     if (!previousPath) {
         console.error("Missing previous report path. Usage: dependency-radar compare <previous dependency-radar.json>");
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
         return;
     }
     let previous;
@@ -2010,14 +2176,14 @@ async function runCompareCommand(opts) {
             !parsed.dependencies ||
             typeof parsed.dependencies !== "object") {
             console.error(`Previous report schema mismatch: expected schemaVersion ${schema_1.COMPATIBLE_BASELINE_SCHEMA_VERSIONS.join(", ")} (found ${schemaVersion !== null && schemaVersion !== void 0 ? schemaVersion : "missing"}).`);
-            process.exit(1);
+            process.exit(EXIT_USAGE_OR_INCOMPLETE);
             return;
         }
         previous = parsed;
     }
     catch (err) {
         console.error(`Could not read previous report at ${previousPath}: ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
         return;
     }
     const result = await executeAnalysis(opts, {
@@ -2033,8 +2199,12 @@ async function runCompareCommand(opts) {
     console.log("");
     console.log((0, compare_1.formatCompareOutput)(comparison));
     printPolicyViolations(policyViolations);
+    printIncompleteEvidence(result.incompleteReasons);
+    if (result.incompleteReasons.length > 0) {
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
+    }
     if (policyViolations.length > 0) {
-        process.exit(1);
+        process.exit(EXIT_POLICY_VIOLATION);
     }
 }
 /**
@@ -2044,7 +2214,7 @@ async function run() {
     const opts = parseArgs(process.argv.slice(2));
     if (opts.invalidCommand) {
         printHelp();
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
         return;
     }
     try {
@@ -2068,7 +2238,7 @@ async function run() {
     }
     catch (err) {
         console.error("Failed to generate report:", err);
-        process.exit(1);
+        process.exit(EXIT_USAGE_OR_INCOMPLETE);
     }
 }
 async function runSchemaCommand(opts) {

@@ -293,7 +293,11 @@ body {
 /* Header "scan at a glance" stat tiles */
 .header-stats {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* Column auto-flow gives every visible chip an equal track on one row, so
+     the optional Replacements chip becomes a sixth column instead of
+     wrapping onto a second row. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 8px;
   justify-content: flex-end;
   align-self: center;
@@ -2629,6 +2633,7 @@ details[open] > summary .expand-icon {
 
   .header-stats {
     width: 100%;
+    grid-auto-flow: row;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

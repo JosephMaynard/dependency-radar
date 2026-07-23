@@ -236,6 +236,15 @@
           >
             <span class="meta-label">Upgrade blockers</span> <strong>–</strong>
           </button>
+          <button
+            type="button"
+            class="stat-chip"
+            id="stat-replacements"
+            data-stat-filter="has-replacement"
+            hidden
+          >
+            <span class="meta-label">Replacements</span> <strong>–</strong>
+          </button>
         </div>
       </div>
     </header>
@@ -449,6 +458,13 @@
                 <label class="checkbox-filter">
                   <input type="checkbox" id="upgrade-blockers" />
                   <span id="upgrade-blockers-label">Upgrade blockers</span>
+                </label>
+
+                <label class="checkbox-filter" id="has-replacement-wrap" hidden>
+                  <input type="checkbox" id="has-replacement" />
+                  <span id="has-replacement-label"
+                    >Has replacement suggestion</span
+                  >
                 </label>
               </div>
 

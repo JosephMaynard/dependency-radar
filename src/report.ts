@@ -180,6 +180,7 @@ ${safeCssContent}
         <button type="button" class="stat-chip" id="stat-maintenance" data-stat-filter="maintenance-concerns"><span class="meta-label">Maintenance</span> <strong>–</strong></button>
         <button type="button" class="stat-chip" id="stat-license" data-stat-filter="license-issues"><span class="meta-label">Licence issues</span> <strong>–</strong></button>
         <button type="button" class="stat-chip" id="stat-blockers" data-stat-filter="upgrade-blockers"><span class="meta-label">Upgrade blockers</span> <strong>–</strong></button>
+        <button type="button" class="stat-chip" id="stat-replacements" data-stat-filter="has-replacement" hidden><span class="meta-label">Replacements</span> <strong>–</strong></button>
       </div>
     </div>
   </header>
@@ -328,6 +329,11 @@ ${safeCssContent}
               <label class="checkbox-filter">
                 <input type="checkbox" id="upgrade-blockers" />
                 <span id="upgrade-blockers-label">Upgrade blockers</span>
+              </label>
+
+              <label class="checkbox-filter" id="has-replacement-wrap" hidden>
+                <input type="checkbox" id="has-replacement" />
+                <span id="has-replacement-label">Has replacement suggestion</span>
               </label>
             </div>
 
