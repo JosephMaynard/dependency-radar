@@ -34,9 +34,17 @@ const ECOSYSTEMS_REPOS_BASE = 'https://repos.ecosyste.ms/api/v1/hosts/GitHub/rep
 
 // `modified` updates on ANY packument write, so these age thresholds strictly
 // under-flag: a package past them has had zero registry writes of any kind.
+const SLOWING_MONTHS = 12;
 const STALE_MONTHS = 18;
 const UNMAINTAINED_MONTHS = 36;
 const ARCHIVED_CANDIDATE_MONTHS = 24;
+// Dual-signal tiers used when a repo push timestamp is also available: the
+// registry and the source repo must both be quiet before escalating, so an
+// actively developed package that simply stopped publishing stays 'slowing'.
+const DUAL_UNMAINTAINED_REGISTRY_MONTHS = 24;
+const DUAL_UNMAINTAINED_PUSH_MONTHS = 12;
+const DUAL_STALE_REGISTRY_MONTHS = 12;
+const DUAL_STALE_PUSH_MONTHS = 6;
 const MS_PER_MONTH = 30.44 * 24 * 60 * 60 * 1000;
 
 const DEPRECATION_MESSAGE_MAX_LENGTH = 300;
@@ -190,20 +198,45 @@ function monthsSince(timestamp: string | undefined, now: Date): number | undefin
 
 /**
  * Derive the maintenance status from observed facts, first match wins:
- * deprecated → archived → unmaintained (36+ months without any registry
- * write) → stale (18+ months) → active.
+ * deprecated → archived → drift tiers → active.
+ *
+ * With only registry data, the single-signal thresholds apply: unmaintained
+ * (36+ months without any registry write), stale (18+), slowing (12+).
+ * When a repo push timestamp is also known, dual-signal tiers apply instead:
+ * both surfaces must be quiet (no registry write for 24+ months AND no push
+ * for 12+ → unmaintained; 12+/6+ → stale), while a recently pushed repo with
+ * a quiet registry is reported as 'slowing' rather than escalated.
  */
 export function deriveMaintenanceStatus(facts: {
   deprecated: boolean;
   repoArchived?: boolean;
   monthsSinceModified?: number;
+  monthsSinceRepoPush?: number;
 }): MaintenanceStatus {
   if (facts.deprecated) return 'deprecated';
   if (facts.repoArchived === true) return 'archived';
-  if (facts.monthsSinceModified !== undefined) {
-    if (facts.monthsSinceModified >= UNMAINTAINED_MONTHS) return 'unmaintained';
-    if (facts.monthsSinceModified >= STALE_MONTHS) return 'stale';
+  if (facts.monthsSinceModified === undefined) return 'active';
+
+  if (facts.monthsSinceRepoPush !== undefined) {
+    if (
+      facts.monthsSinceModified >= DUAL_UNMAINTAINED_REGISTRY_MONTHS &&
+      facts.monthsSinceRepoPush >= DUAL_UNMAINTAINED_PUSH_MONTHS
+    ) {
+      return 'unmaintained';
+    }
+    if (
+      facts.monthsSinceModified >= DUAL_STALE_REGISTRY_MONTHS &&
+      facts.monthsSinceRepoPush >= DUAL_STALE_PUSH_MONTHS
+    ) {
+      return 'stale';
+    }
+    if (facts.monthsSinceModified >= SLOWING_MONTHS) return 'slowing';
+    return 'active';
   }
+
+  if (facts.monthsSinceModified >= UNMAINTAINED_MONTHS) return 'unmaintained';
+  if (facts.monthsSinceModified >= STALE_MONTHS) return 'stale';
+  if (facts.monthsSinceModified >= SLOWING_MONTHS) return 'slowing';
   return 'active';
 }
 
@@ -314,6 +347,7 @@ function buildMaintenanceInfo(
       (entry.latestVersion ? entry.deprecatedVersions[entry.latestVersion] : undefined)
     : undefined;
   const months = monthsSince(entry.modified, now);
+  const pushMonths = monthsSince(entry.repo?.pushedAt, now);
 
   const info: DependencyMaintenanceInfo = {
     attempted: true,
@@ -321,7 +355,8 @@ function buildMaintenanceInfo(
     status: deriveMaintenanceStatus({
       deprecated: installedDeprecated || latestDeprecated,
       repoArchived: entry.repo?.archived,
-      monthsSinceModified: months
+      monthsSinceModified: months,
+      monthsSinceRepoPush: pushMonths
     }),
     fetchedAt: entry.fetchedAt
   };
@@ -335,6 +370,8 @@ function buildMaintenanceInfo(
   if (entry.repo) {
     info.repoArchived = entry.repo.archived;
     info.repoCheckedAt = entry.repo.checkedAt;
+    if (entry.repo.pushedAt) info.repoPushedAt = entry.repo.pushedAt;
+    if (pushMonths !== undefined) info.monthsSinceRepoPush = pushMonths;
   }
   if (entry.modified) info.packageModifiedAt = entry.modified;
   if (months !== undefined) info.monthsSinceModified = months;
@@ -482,10 +519,15 @@ export async function enrichAggregatedWithMaintenanceSignals(
         }
         consecutiveFailures = 0;
         const archived = Boolean((result.data as any).archived);
-        cache.setRepoCheck(candidate.name, archived, now);
+        const rawPushedAt = (result.data as any).pushed_at;
+        const pushedAt =
+          typeof rawPushedAt === 'string' && !Number.isNaN(Date.parse(rawPushedAt))
+            ? rawPushedAt
+            : undefined;
+        cache.setRepoCheck(candidate.name, archived, now, pushedAt);
         const lookup = lookupByName.get(candidate.name);
         if (lookup?.entry) {
-          lookup.entry.repo = { checkedAt: now.toISOString(), archived };
+          lookup.entry.repo = { checkedAt: now.toISOString(), archived, ...(pushedAt ? { pushedAt } : {}) };
         }
         return undefined;
       });

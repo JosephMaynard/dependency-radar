@@ -138,6 +138,14 @@ function formatExplainOutput(packageName, matches, context) {
         else {
             lines.push('  none');
         }
+        if (dep.replacement) {
+            lines.push('');
+            lines.push('Replacement suggestion (e18e module-replacements):');
+            lines.push(`  ${dep.replacement.replacements.join(', ')}`);
+            if (dep.replacement.docUrl) {
+                lines.push(`  docs: ${dep.replacement.docUrl}`);
+            }
+        }
         lines.push('');
         lines.push('Packaging signals:');
         if ((_j = (_h = dep.packaging) === null || _h === void 0 ? void 0 : _h.signals) === null || _j === void 0 ? void 0 : _j.length) {

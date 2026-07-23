@@ -75,7 +75,10 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 - **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
 - **Interactive dependency graph** — explore your full dependency tree visually, including direct, dev, and transitive relationships
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
-- **Maintenance signals** — flags deprecated, repo-archived, unmaintained, and stale dependencies from npm registry metadata, with a local 7-day cache
+- **Maintenance signals** — flags deprecated, repo-archived, unmaintained, stale, and slowing dependencies from npm registry metadata (plus repository push activity when available), with a local 7-day cache
+- **Replacement suggestions** — matches your dependencies against the community-maintained [e18e](https://e18e.dev) [module-replacements](https://github.com/es-tooling/module-replacements) catalogue and suggests native or lighter alternatives, fully offline
+- **Supply-chain combination flags** — escalates the pairing of install lifecycle scripts with mutable or unverifiable package sources (git dependencies, non-registry tarballs, unexpected registry hosts, missing lockfile integrity)
+- **Upgrade risk banding** — derives a coarse `high`/`medium`/`low` upgrade-risk label per dependency from outdated status and known blockers
 - **Import usage heuristics** — classifies each dependency's runtime impact (`runtime`, `build`, `testing`, `tooling`, `mixed`) based on where it's imported in your source
 - **Full transitive tree** — shows depth, parent relationships, fan-in/fan-out, and dependency origins
 - **Workspace support** — works across npm, pnpm, and Yarn workspaces
@@ -126,9 +129,12 @@ Dependency Radar checks the npm registry for maintenance signals on every online
 
 - **Deprecated** — the installed version (or the latest version) carries a registry deprecation notice, shown with the author's message
 - **Archived** — the package's GitHub repository is archived (best-effort lookup via the public ecosyste.ms API)
-- **Unmaintained** — no npm registry activity of any kind for 36+ months
-- **Stale** — no npm registry activity for 18+ months
+- **Unmaintained** — no npm registry activity of any kind for 36+ months; when repository push data is also available, 24+ months of registry silence combined with 12+ months without a push
+- **Stale** — no npm registry activity for 18+ months; with repository push data, 12+ months of registry silence combined with 6+ months without a push
+- **Slowing** — no npm registry activity for 12+ months, but not (yet) meeting the stale criteria — including the case where the repository is still actively pushed but nothing has shipped
 - **Active** — none of the above
+
+When a repository push timestamp is available (collected during the same bounded ecosyste.ms lookups used for archived checks), both the registry *and* the repository must be quiet before a package escalates past **Slowing**. This stops actively developed packages that simply publish rarely from being labelled unmaintained.
 
 How it works, and its limits:
 
@@ -140,6 +146,53 @@ How it works, and its limits:
 - Custom registries: the default registry from `npm config get registry` is respected; per-scope registries are not resolved, so private scoped packages simply report an `unknown` maintenance status.
 
 Maintenance data appears in the HTML report (Maintenance column, filter, and per-dependency detail), the JSON model (`dependencies[id].maintenance`), findings, and the `deprecated-dependency` / `unmaintained-dependency` / `new-deprecated` CI rules.
+
+---
+
+## Replacement suggestions (e18e)
+
+Dependency Radar matches every scanned package against the community-maintained [module-replacements](https://github.com/es-tooling/module-replacements) catalogue — part of the [e18e](https://e18e.dev) (ecosystem performance) initiative — and surfaces suggestions such as:
+
+- **Native** — the package can be replaced by platform functionality (e.g. `node-fetch` → `fetch`, `rimraf` → `fs.promises.rm`)
+- **Documented** — a lighter, actively maintained alternative exists (e.g. `globby` → `tinyglobby`), with migration guidance on the e18e site
+- **Simple** — the package is small enough to replace with a short inline snippet
+
+How it works:
+
+- The catalogue is vendored into the published package at build time (pinned to a specific upstream release, currently v3.0.0), so matching is **fully offline** — nothing is sent anywhere, and `--offline` scans get the same suggestions.
+- Matches appear in the JSON model (`dependencies[id].replacement`), the per-dependency detail panel in the HTML report, and `explain <package>` output. Direct dependencies additionally get an info-level `modernization` finding.
+- The report header shows a **Replacements** stat and the filter panel gains a **Has replacement suggestion** toggle — both appear only when the scan actually matched something.
+- These are community suggestions to review, not policy: they never affect risk levels or `--fail-on` rules.
+
+Credit: replacement data is from the MIT-licensed [es-tooling/module-replacements](https://github.com/es-tooling/module-replacements) project. Refresh the vendored copy with `npm run update:replacements`.
+
+---
+
+## Supply-chain combination flags
+
+Install lifecycle scripts and unusual package sources are each individually worth a look, but the *combination* is materially riskier: a package that runs code at install time and whose content can change without a registry publish (or cannot be integrity-checked) deserves a louder callout. Dependency Radar flags these pairings as dedicated findings:
+
+| Combination | Severity |
+| --- | --- |
+| Install scripts + git dependency source | error |
+| Install scripts + non-registry tarball source | error |
+| Install scripts + unexpected registry host | error |
+| Install scripts + missing lockfile integrity | warning |
+
+Each finding explains why the pairing matters and feeds the per-dependency overall risk in the HTML report. The opt-in `supply-chain-combo` CI rule (see `--fail-on`) fails the scan when any combination is present.
+
+---
+
+## Upgrade risk
+
+Each dependency gets a derived `upgrade.risk` band so reports and tooling can sort on one field:
+
+- **high** — behind by a major version, blocks a Node major upgrade, or has two or more upgrade blockers
+- **medium** — behind by a minor version, or has one upgrade blocker
+- **low** — current, patch-level behind, or no known friction
+- **unknown** — outdated data was unavailable for this package
+
+It is recomputed after registry enrichment so a registry-discovered deprecation (which adds a blocker) is reflected.
 
 ---
 
@@ -290,6 +343,7 @@ Supported rules:
 | `copyleft-detected` | Fail if strong copyleft (GPL/AGPL) appears in runtime dependencies |
 | `unknown-licence` | Fail if at least one dependency has neither declared nor inferred licence data |
 | `supply-chain-source` | Fail if lockfile source signals detect git/local/tarball sources, missing integrity, or unexpected registry hosts |
+| `supply-chain-combo` | Fail if any dependency pairs install lifecycle scripts with a mutable or unverifiable source (git dependency, non-registry tarball, unexpected registry host, or missing lockfile integrity) |
 | `deprecated-dependency` | Fail if at least one dependency is marked deprecated (registry or local metadata) |
 | `unmaintained-dependency` | Fail if at least one dependency has an `unmaintained` or `archived` maintenance status |
 

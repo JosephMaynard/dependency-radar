@@ -2,17 +2,17 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.REPORT_JSON_SCHEMA = exports.COMPATIBLE_BASELINE_SCHEMA_VERSIONS = exports.REPORT_SCHEMA_VERSION = void 0;
 exports.renderReportJsonSchema = renderReportJsonSchema;
-exports.REPORT_SCHEMA_VERSION = '1.5';
+exports.REPORT_SCHEMA_VERSION = '1.7';
 // Baseline reports accepted by `compare`. Schema changes since 1.2 have been
 // purely additive, and every consumer of baseline data optional-chains the
 // newer fields, so older baselines remain valid comparison inputs.
-exports.COMPATIBLE_BASELINE_SCHEMA_VERSIONS = ['1.2', '1.3', '1.4', exports.REPORT_SCHEMA_VERSION];
+exports.COMPATIBLE_BASELINE_SCHEMA_VERSIONS = ['1.2', '1.3', '1.4', '1.5', '1.6', exports.REPORT_SCHEMA_VERSION];
 exports.REPORT_JSON_SCHEMA = {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
-    $id: 'https://dependency-radar.com/schemas/dependency-radar-1.5.schema.json',
+    $id: 'https://dependency-radar.com/schemas/dependency-radar-1.7.schema.json',
     title: 'Dependency Radar Report',
     type: 'object',
-    required: ['schemaVersion', 'generatedAt', 'dependencyRadarVersion', 'project', 'environment', 'workspaces', 'summary', 'dependencies'],
+    required: ['schemaVersion', 'generatedAt', 'dependencyRadarVersion', 'project', 'environment', 'workspaces', 'summary', 'scanStatus', 'dependencies'],
     properties: {
         schemaVersion: { const: exports.REPORT_SCHEMA_VERSION },
         generatedAt: { type: 'string', format: 'date-time' },
@@ -35,6 +35,28 @@ exports.REPORT_JSON_SCHEMA = {
                 findingCount: { type: 'number' }
             },
             additionalProperties: true
+        },
+        scanStatus: {
+            type: 'object',
+            required: ['complete', 'collectors', 'warnings'],
+            properties: {
+                complete: { type: 'boolean' },
+                collectors: {
+                    type: 'object',
+                    required: ['dependencyTree', 'audit', 'imports', 'maintenance', 'registryMetadata', 'supplyChain'],
+                    properties: {
+                        dependencyTree: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+                        audit: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+                        imports: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+                        maintenance: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+                        registryMetadata: { enum: ['available', 'partial', 'unavailable', 'skipped'] },
+                        supplyChain: { enum: ['available', 'partial', 'unavailable', 'skipped'] }
+                    },
+                    additionalProperties: false
+                },
+                warnings: { type: 'array', items: { type: 'string' } }
+            },
+            additionalProperties: false
         },
         supplyChain: {
             type: 'object',
@@ -86,7 +108,7 @@ exports.REPORT_JSON_SCHEMA = {
                 required: ['id', 'category', 'severity', 'packageId', 'packageName', 'packageVersion', 'title', 'message'],
                 properties: {
                     id: { type: 'string' },
-                    category: { enum: ['security', 'license', 'execution', 'upgrade', 'supply-chain'] },
+                    category: { enum: ['security', 'license', 'execution', 'upgrade', 'supply-chain', 'modernization'] },
                     severity: { enum: ['info', 'warning', 'error'] },
                     packageId: { type: 'string' },
                     packageName: { type: 'string' },

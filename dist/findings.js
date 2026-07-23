@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDependencyFindings = buildDependencyFindings;
 const nodeEngine_1 = require("./nodeEngine");
+const supplyChainCombos_1 = require("./supplyChainCombos");
 function vulnerabilityTotal(dep) {
     const summary = dep.security.summary;
     return ((summary.critical || 0) +
@@ -68,8 +69,9 @@ const REGISTRY_SIGNAL_TITLES = {
  * @returns A list of DependencyFinding objects sorted by severity (error, warning, info), then by `packageId`, then by `id`.
  */
 function buildDependencyFindings(data, options = {}) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v;
     const findings = [];
+    const signalTypesByName = (0, supplyChainCombos_1.supplyChainSignalTypesByPackageName)((_a = data.supplyChain) === null || _a === void 0 ? void 0 : _a.signals);
     for (const dep of Object.values(data.dependencies || {})) {
         const vulnCount = vulnerabilityTotal(dep);
         if (vulnCount > 0) {
@@ -79,7 +81,7 @@ function buildDependencyFindings(data, options = {}) {
                 severity: highest === 'critical' || highest === 'high' ? 'error' : 'warning',
                 title: `${vulnCount} known ${vulnCount === 1 ? 'vulnerability' : 'vulnerabilities'}`,
                 message: `${dep.package.id} has audit advisories; highest severity is ${highest}.`,
-                evidence: (_a = dep.security.advisories) === null || _a === void 0 ? void 0 : _a.map((advisory) => advisory.id).join(', '),
+                evidence: (_b = dep.security.advisories) === null || _b === void 0 ? void 0 : _b.map((advisory) => advisory.id).join(', '),
                 recommendation: dep.upgrade.latestVersion
                     ? `Review and upgrade toward ${dep.upgrade.latestVersion}.`
                     : 'Review the advisory and upgrade path.'
@@ -90,7 +92,7 @@ function buildDependencyFindings(data, options = {}) {
                 category: 'license',
                 severity: 'warning',
                 title: 'Declared and inferred licenses differ',
-                message: `${dep.package.id} declares ${((_b = dep.compliance.license.declared) === null || _b === void 0 ? void 0 : _b.spdxId) || 'unknown'} but the local license file looks like ${((_c = dep.compliance.license.inferred) === null || _c === void 0 ? void 0 : _c.spdxId) || 'unknown'}.`,
+                message: `${dep.package.id} declares ${((_c = dep.compliance.license.declared) === null || _c === void 0 ? void 0 : _c.spdxId) || 'unknown'} but the local license file looks like ${((_d = dep.compliance.license.inferred) === null || _d === void 0 ? void 0 : _d.spdxId) || 'unknown'}.`,
                 recommendation: 'Verify the installed package license before release or compliance sign-off.'
             }));
         }
@@ -100,7 +102,7 @@ function buildDependencyFindings(data, options = {}) {
                 severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
                 title: dep.compliance.license.status === 'unknown' ? 'License is unknown' : 'License declaration is invalid SPDX',
                 message: `${dep.package.id} needs license review.`,
-                evidence: (_d = dep.compliance.license.declared) === null || _d === void 0 ? void 0 : _d.spdxId,
+                evidence: (_e = dep.compliance.license.declared) === null || _e === void 0 ? void 0 : _e.spdxId,
                 recommendation: 'Check package metadata and LICENSE files.'
             }));
         }
@@ -113,13 +115,13 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Review legal/compliance acceptability or replace the package.'
             }));
         }
-        if ((_g = (_f = (_e = dep.execution) === null || _e === void 0 ? void 0 : _e.scripts) === null || _f === void 0 ? void 0 : _f.hooks) === null || _g === void 0 ? void 0 : _g.length) {
+        if ((_h = (_g = (_f = dep.execution) === null || _f === void 0 ? void 0 : _f.scripts) === null || _g === void 0 ? void 0 : _g.hooks) === null || _h === void 0 ? void 0 : _h.length) {
             findings.push(baseFinding(dep, 'install-scripts', {
                 category: 'execution',
                 severity: dep.execution.risk === 'red' ? 'error' : 'warning',
                 title: 'Install lifecycle script',
                 message: `${dep.package.id} runs ${dep.execution.scripts.hooks.join(', ')} during install.`,
-                evidence: (_h = dep.execution.scripts.signals) === null || _h === void 0 ? void 0 : _h.join(', '),
+                evidence: (_j = dep.execution.scripts.signals) === null || _j === void 0 ? void 0 : _j.join(', '),
                 recommendation: 'Review install-time behavior, especially in CI and release environments.'
             }));
         }
@@ -134,7 +136,7 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Review the referenced package entrypoints or executables and confirm this behavior is expected.'
             }));
         }
-        if ((_j = dep.execution) === null || _j === void 0 ? void 0 : _j.native) {
+        if ((_k = dep.execution) === null || _k === void 0 ? void 0 : _k.native) {
             findings.push(baseFinding(dep, 'native-bindings', {
                 category: 'upgrade',
                 severity: 'warning',
@@ -144,7 +146,7 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
         if (dep.package.deprecated) {
-            const registryDeprecation = (_k = dep.maintenance) === null || _k === void 0 ? void 0 : _k.deprecated;
+            const registryDeprecation = (_l = dep.maintenance) === null || _l === void 0 ? void 0 : _l.deprecated;
             findings.push(baseFinding(dep, 'deprecated', {
                 category: 'supply-chain',
                 severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
@@ -158,7 +160,7 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Plan migration to a maintained replacement.'
             }));
         }
-        if (((_l = dep.maintenance) === null || _l === void 0 ? void 0 : _l.status) === 'archived') {
+        if (((_m = dep.maintenance) === null || _m === void 0 ? void 0 : _m.status) === 'archived') {
             findings.push(baseFinding(dep, 'maintenance-archived', {
                 category: 'supply-chain',
                 severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
@@ -168,7 +170,7 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Plan migration to a maintained replacement, or accept the risk explicitly.'
             }));
         }
-        if (((_m = dep.maintenance) === null || _m === void 0 ? void 0 : _m.status) === 'unmaintained') {
+        if (((_o = dep.maintenance) === null || _o === void 0 ? void 0 : _o.status) === 'unmaintained') {
             const monthsSinceModified = dep.maintenance.monthsSinceModified;
             findings.push(baseFinding(dep, 'maintenance-unmaintained', {
                 category: 'supply-chain',
@@ -181,7 +183,29 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Check whether the package is finished or abandoned, and review alternatives if it matters at runtime.'
             }));
         }
-        if ((_p = (_o = dep.packaging) === null || _o === void 0 ? void 0 : _o.signals) === null || _p === void 0 ? void 0 : _p.length) {
+        for (const combo of (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, signalTypesByName.get(dep.package.name))) {
+            findings.push(baseFinding(dep, combo.type, {
+                category: 'supply-chain',
+                severity: combo.severity,
+                title: combo.title,
+                message: `${dep.package.id}: ${combo.detail}`,
+                evidence: `hooks=${combo.hooks.join(', ')}; signal=${combo.signalType}`,
+                recommendation: 'Verify the dependency source and its install-time behavior, or move it to a registry-published, integrity-checked release.'
+            }));
+        }
+        // Replacement suggestions stay informational and direct-only: a transitive
+        // dependency is not directly actionable by the project maintainer.
+        if (dep.replacement && dep.usage.direct) {
+            findings.push(baseFinding(dep, 'replacement-available', {
+                category: 'modernization',
+                severity: 'info',
+                title: 'Community-suggested replacement available',
+                message: `${dep.package.id} could ${dep.replacement.type === 'native' ? 'be replaced by native functionality' : dep.replacement.type === 'simple' ? 'be replaced by a small inline snippet' : 'be replaced by a lighter alternative'}: ${dep.replacement.replacements.join(', ')}.`,
+                evidence: dep.replacement.docUrl,
+                recommendation: 'Suggestion from the e18e module-replacements catalogue; review fit before migrating.'
+            }));
+        }
+        if ((_q = (_p = dep.packaging) === null || _p === void 0 ? void 0 : _p.signals) === null || _q === void 0 ? void 0 : _q.length) {
             findings.push(baseFinding(dep, 'packaging-signals', {
                 category: 'supply-chain',
                 severity: 'info',
@@ -191,8 +215,8 @@ function buildDependencyFindings(data, options = {}) {
                 recommendation: 'Review package contents and confirm the packaging pattern is expected.'
             }));
         }
-        for (const signal of ((_r = (_q = dep.supplyChain) === null || _q === void 0 ? void 0 : _q.registry) === null || _r === void 0 ? void 0 : _r.signals) || []) {
-            const registry = (_s = dep.supplyChain) === null || _s === void 0 ? void 0 : _s.registry;
+        for (const signal of ((_s = (_r = dep.supplyChain) === null || _r === void 0 ? void 0 : _r.registry) === null || _s === void 0 ? void 0 : _s.signals) || []) {
+            const registry = (_t = dep.supplyChain) === null || _t === void 0 ? void 0 : _t.registry;
             findings.push(baseFinding(dep, `registry-${signal}`, {
                 category: 'supply-chain',
                 severity: 'info',
@@ -218,10 +242,10 @@ function buildDependencyFindings(data, options = {}) {
             }));
         }
     }
-    for (const signal of ((_t = data.supplyChain) === null || _t === void 0 ? void 0 : _t.signals) || []) {
+    for (const signal of ((_u = data.supplyChain) === null || _u === void 0 ? void 0 : _u.signals) || []) {
         findings.push(buildSupplyChainFinding(signal));
     }
-    const signatureAudit = (_u = data.supplyChain) === null || _u === void 0 ? void 0 : _u.signatureAudit;
+    const signatureAudit = (_v = data.supplyChain) === null || _v === void 0 ? void 0 : _v.signatureAudit;
     if ((signatureAudit === null || signatureAudit === void 0 ? void 0 : signatureAudit.attempted) && !signatureAudit.ok) {
         findings.push({
             id: 'supply-chain:signature-verification-failed',

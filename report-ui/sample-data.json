@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.5",
+  "schemaVersion": "1.7",
   "generatedAt": "2026-01-28T00:00:00.000Z",
   "dependencyRadarVersion": "0.0.0",
   "git": {
@@ -94,7 +94,8 @@
       },
       "upgrade": {
         "nodeEngine": ">=14.0.0",
-        "latestVersion": "5.6.0"
+        "latestVersion": "5.6.0",
+        "risk": "low"
       },
       "usage": {
         "direct": true,
@@ -131,6 +132,17 @@
         "latestVersion": "5.6.0",
         "fetchedAt": "2026-07-01T09:00:00.000Z",
         "fromCache": true
+      },
+      "replacement": {
+        "source": "e18e-module-replacements",
+        "manifest": "preferred",
+        "type": "native",
+        "replacements": [
+          "util.styleText",
+          "picocolors",
+          "ansis"
+        ],
+        "docUrl": "https://e18e.dev/docs/replacements/chalk"
       }
     },
     "ansi-styles@6.2.1": {
@@ -596,11 +608,15 @@
       "maintenance": {
         "attempted": true,
         "ok": true,
-        "status": "active",
-        "packageModifiedAt": "2026-06-20T08:00:00.000Z",
-        "monthsSinceModified": 0,
+        "status": "slowing",
+        "packageModifiedAt": "2025-05-02T10:00:00.000Z",
+        "monthsSinceModified": 14,
         "latestVersion": "7.3.2",
-        "fetchedAt": "2026-07-01T09:00:00.000Z"
+        "fetchedAt": "2026-07-01T09:00:00.000Z",
+        "repoPushedAt": "2026-06-20T18:00:00.000Z",
+        "monthsSinceRepoPush": 1,
+        "repoArchived": false,
+        "repoCheckedAt": "2026-07-01T09:00:00.000Z"
       }
     },
     "esbuild@0.21.5": {

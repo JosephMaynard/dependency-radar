@@ -1,4 +1,5 @@
-import type { DependencyRecord, ExecutionSignal, Severity } from './types';
+import type { DependencyRecord, ExecutionSignal, Severity, SupplyChainSignal, SupplyChainSignalType } from './types';
+import { detectSupplyChainCombos, supplyChainSignalTypesByPackageName } from './supplyChainCombos';
 
 export type SecuritySummary = {
   critical: number;
@@ -42,9 +43,19 @@ function maxRisk(risks: Array<'green' | 'amber' | 'red' | undefined>): 'green' |
 export function buildReportOverallRisk(
   dep: DependencyRecord,
   summary: SecuritySummary,
-  supplyChainSignalCount = 0
+  supplyChainSignalCount = 0,
+  supplyChainSignals?: SupplyChainSignal[]
 ): 'green' | 'amber' | 'red' {
   const installRisk = dep.execution?.risk || 'green';
+  const combos = detectSupplyChainCombos(
+    dep,
+    supplyChainSignalTypesForDep(dep.package.name, supplyChainSignals)
+  );
+  const comboRisk = combos.some((combo) => combo.severity === 'error')
+    ? 'red'
+    : combos.length > 0
+      ? 'amber'
+      : 'green';
   const supplyChainRisk =
     supplyChainSignalCount > 0 || (dep.packaging?.signals?.length || 0) > 0
       ? 'amber'
@@ -67,9 +78,22 @@ export function buildReportOverallRisk(
     dep.compliance.licenseRisk,
     installRisk,
     supplyChainRisk,
+    comboRisk,
     registryRisk,
     maintenanceRisk
   ]);
+}
+
+/**
+ * Build the supply-chain signal type set for one package name, for use with
+ * detectSupplyChainCombos.
+ */
+function supplyChainSignalTypesForDep(
+  packageName: string,
+  signals: SupplyChainSignal[] | undefined
+): Set<SupplyChainSignalType> | undefined {
+  if (!signals || signals.length === 0) return undefined;
+  return supplyChainSignalTypesByPackageName(signals).get(packageName);
 }
 
 function titleCaseValue(value: string): string {
@@ -118,7 +142,11 @@ function formatModerateLow(summary: SecuritySummary): string {
   return parts.join(', ');
 }
 
-export function buildReportKeyPoints(dep: DependencyRecord, summary: SecuritySummary): string[] {
+export function buildReportKeyPoints(
+  dep: DependencyRecord,
+  summary: SecuritySummary,
+  supplyChainSignals?: SupplyChainSignal[]
+): string[] {
   const points: string[] = [];
   const vulnTotal = reportVulnerabilityTotal(summary);
   const hasFix = dep.security.advisories?.some((adv) => adv.fixAvailable);
@@ -143,9 +171,19 @@ export function buildReportKeyPoints(dep: DependencyRecord, summary: SecuritySum
   } else if (dep.maintenance?.status === 'archived') {
     points.push('Source repository is archived');
   } else if (dep.maintenance?.status === 'unmaintained') {
-    points.push('No registry activity for 3+ years');
+    points.push(
+      dep.maintenance.monthsSinceRepoPush !== undefined
+        ? 'Registry and source repository have both gone quiet'
+        : 'No registry activity for 3+ years'
+    );
   } else if (dep.maintenance?.status === 'stale') {
-    points.push('No registry activity for 18+ months');
+    points.push(
+      dep.maintenance.monthsSinceRepoPush !== undefined
+        ? 'Publishing and source activity have slowed to a trickle'
+        : 'No registry activity for 18+ months'
+    );
+  } else if (dep.maintenance?.status === 'slowing') {
+    points.push('No registry publishes for 12+ months');
   }
   if (dep.compliance.licenseRisk !== 'green') {
     points.push('Licence status: ' + formatLicenseStatus(dep.compliance.license.status));
@@ -153,6 +191,13 @@ export function buildReportKeyPoints(dep: DependencyRecord, summary: SecuritySum
   if (dep.upgrade.blocksNodeMajor) points.push('Blocks Node major upgrade');
   if (dep.upgrade.blockers?.length) {
     points.push(`${dep.upgrade.blockers.length} upgrade ${dep.upgrade.blockers.length === 1 ? 'blocker' : 'blockers'} detected`);
+  }
+  detectSupplyChainCombos(
+    dep,
+    supplyChainSignalTypesForDep(dep.package.name, supplyChainSignals)
+  ).forEach((combo) => points.push(combo.title));
+  if (dep.replacement) {
+    points.push('Community-suggested replacement available (e18e)');
   }
   const executionRisk = dep.execution?.risk || 'green';
   if (executionRisk !== 'green') points.push(`${toneLabel(executionRisk)} install-time execution risk`);

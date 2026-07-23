@@ -100,6 +100,7 @@ export interface DependencyRecord {
     blockers?: Array<'nodeEngine' | 'peerDependency' | 'nativeBindings' | 'installScripts' | 'deprecated'>;
     blocksNodeMajor?: boolean;
     targetNodeCompatible?: boolean;
+    risk?: 'high' | 'medium' | 'low' | 'unknown';
   };
   usage: {
     direct: boolean;
@@ -172,12 +173,21 @@ export interface DependencyRecord {
     };
     repoArchived?: boolean;
     repoCheckedAt?: string;
+    repoPushedAt?: string;
+    monthsSinceRepoPush?: number;
     packageModifiedAt?: string;
     monthsSinceModified?: number;
     latestVersion?: string;
     fetchedAt?: string;
     fromCache?: true;
     error?: string;
+  };
+  replacement?: {
+    source: 'e18e-module-replacements';
+    manifest: 'native' | 'micro-utilities' | 'preferred';
+    type: 'native' | 'documented' | 'simple';
+    replacements: string[];
+    docUrl?: string;
   };
 }
 
@@ -186,6 +196,7 @@ export type MaintenanceStatus =
   | 'archived'
   | 'unmaintained'
   | 'stale'
+  | 'slowing'
   | 'active'
   | 'unknown';
 

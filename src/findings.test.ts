@@ -182,4 +182,104 @@ describe('buildDependencyFindings maintenance signals', () => {
     // Stale produces no finding by design.
     expect(findings.some((finding) => finding.packageId === 'stale-lib@1.0.0')).toBe(false);
   });
+
+  it('produces no finding for the slowing tier', () => {
+    const findings = buildDependencyFindings({
+      dependencies: {
+        'quiet-lib@1.0.0': makeDependency({
+          name: 'quiet-lib',
+          maintenance: { attempted: true, ok: true, status: 'slowing', monthsSinceModified: 14 }
+        })
+      }
+    });
+    expect(findings).toEqual([]);
+  });
+});
+
+describe('buildDependencyFindings supply-chain combos', () => {
+  it('escalates install hooks combined with a git source into an error finding', () => {
+    const dep = makeDependency({ name: 'git-dep' });
+    dep.execution = { risk: 'amber', scripts: { hooks: ['postinstall'] } };
+    const findings = buildDependencyFindings({
+      dependencies: { 'git-dep@1.0.0': dep },
+      supplyChain: {
+        ok: true,
+        signals: [
+          {
+            type: 'git-dependency',
+            packageName: 'git-dep',
+            packageVersion: '1.0.0',
+            packageId: 'git-dep@1.0.0',
+            source: 'package-lock.json',
+            detail: 'git-dep@1.0.0 resolves from git+https://github.com/example/git-dep.git'
+          }
+        ]
+      }
+    });
+
+    const combo = findings.find((finding) => finding.id.includes('install-scripts-git-source'));
+    expect(combo).toMatchObject({
+      category: 'supply-chain',
+      severity: 'error',
+      packageId: 'git-dep@1.0.0',
+      title: 'Install scripts from a git-sourced package',
+      evidence: 'hooks=postinstall; signal=git-dependency'
+    });
+  });
+
+  it('does not create combo findings when hooks or source signals are absent', () => {
+    const hooksOnly = makeDependency({ name: 'hooks-only' });
+    hooksOnly.execution = { risk: 'amber', scripts: { hooks: ['postinstall'] } };
+    const signalOnly = makeDependency({ name: 'signal-only' });
+    const findings = buildDependencyFindings({
+      dependencies: { 'hooks-only@1.0.0': hooksOnly, 'signal-only@1.0.0': signalOnly },
+      supplyChain: {
+        ok: true,
+        signals: [
+          {
+            type: 'git-dependency',
+            packageName: 'signal-only',
+            packageVersion: '1.0.0',
+            packageId: 'signal-only@1.0.0',
+            source: 'package-lock.json',
+            detail: 'signal-only@1.0.0 resolves from git'
+          }
+        ]
+      }
+    });
+    expect(findings.some((finding) => finding.id.includes('install-scripts-'))).toBe(false);
+  });
+});
+
+describe('buildDependencyFindings replacement suggestions', () => {
+  const replacement = {
+    source: 'e18e-module-replacements' as const,
+    manifest: 'preferred' as const,
+    type: 'documented' as const,
+    replacements: ['tinyexec'],
+    docUrl: 'https://e18e.dev/docs/replacements/execa'
+  };
+
+  it('adds an info modernization finding for direct dependencies', () => {
+    const dep = makeDependency({ name: 'execa' });
+    dep.replacement = replacement;
+    const findings = buildDependencyFindings({ dependencies: { 'execa@1.0.0': dep } });
+    expect(findings).toMatchObject([
+      {
+        category: 'modernization',
+        severity: 'info',
+        title: 'Community-suggested replacement available',
+        message: 'execa@1.0.0 could be replaced by a lighter alternative: tinyexec.',
+        evidence: 'https://e18e.dev/docs/replacements/execa'
+      }
+    ]);
+  });
+
+  it('stays silent for transitive dependencies', () => {
+    const dep = makeDependency({ name: 'execa' });
+    dep.usage.direct = false;
+    dep.replacement = replacement;
+    const findings = buildDependencyFindings({ dependencies: { 'execa@1.0.0': dep } });
+    expect(findings).toEqual([]);
+  });
 });

@@ -1,5 +1,6 @@
 import type { AggregatedData, DependencyFinding, DependencyRecord, SupplyChainSignal } from './types';
 import { isNodeEngineTargetCompatible } from './nodeEngine';
+import { detectSupplyChainCombos, supplyChainSignalTypesByPackageName } from './supplyChainCombos';
 
 function vulnerabilityTotal(dep: DependencyRecord): number {
   const summary = dep.security.summary;
@@ -81,6 +82,7 @@ export function buildDependencyFindings(
   options: { targetNodeMajor?: number } = {}
 ): DependencyFinding[] {
   const findings: DependencyFinding[] = [];
+  const signalTypesByName = supplyChainSignalTypesByPackageName(data.supplyChain?.signals);
 
   for (const dep of Object.values(data.dependencies || {})) {
     const vulnCount = vulnerabilityTotal(dep);
@@ -198,6 +200,30 @@ export function buildDependencyFindings(
           : `${dep.package.id} has had no recent npm registry activity.`,
         evidence: dep.maintenance.packageModifiedAt ? `lastRegistryActivity=${dep.maintenance.packageModifiedAt}` : undefined,
         recommendation: 'Check whether the package is finished or abandoned, and review alternatives if it matters at runtime.'
+      }));
+    }
+
+    for (const combo of detectSupplyChainCombos(dep, signalTypesByName.get(dep.package.name))) {
+      findings.push(baseFinding(dep, combo.type, {
+        category: 'supply-chain',
+        severity: combo.severity,
+        title: combo.title,
+        message: `${dep.package.id}: ${combo.detail}`,
+        evidence: `hooks=${combo.hooks.join(', ')}; signal=${combo.signalType}`,
+        recommendation: 'Verify the dependency source and its install-time behavior, or move it to a registry-published, integrity-checked release.'
+      }));
+    }
+
+    // Replacement suggestions stay informational and direct-only: a transitive
+    // dependency is not directly actionable by the project maintainer.
+    if (dep.replacement && dep.usage.direct) {
+      findings.push(baseFinding(dep, 'replacement-available', {
+        category: 'modernization',
+        severity: 'info',
+        title: 'Community-suggested replacement available',
+        message: `${dep.package.id} could ${dep.replacement.type === 'native' ? 'be replaced by native functionality' : dep.replacement.type === 'simple' ? 'be replaced by a small inline snippet' : 'be replaced by a lighter alternative'}: ${dep.replacement.replacements.join(', ')}.`,
+        evidence: dep.replacement.docUrl,
+        recommendation: 'Suggestion from the e18e module-replacements catalogue; review fit before migrating.'
       }));
     }
 

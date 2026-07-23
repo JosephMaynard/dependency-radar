@@ -31,6 +31,8 @@ import {
 } from './license';
 import { buildDependencyFindings } from './findings';
 import { isNodeEngineTargetCompatible } from './nodeEngine';
+import { applyUpgradeRisk } from './upgradeRisk';
+import { MODULE_REPLACEMENTS } from './generated/replacements';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -583,6 +585,17 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
       ...(packaging ? { packaging } : {})
     };
 
+    // Offline lookup against the vendored e18e module-replacements catalogue.
+    const replacementEntry = MODULE_REPLACEMENTS[node.name];
+    if (replacementEntry) {
+      dependencies[id].replacement = {
+        source: 'e18e-module-replacements',
+        manifest: replacementEntry.manifest,
+        type: replacementEntry.type,
+        replacements: replacementEntry.replacements,
+        ...(replacementEntry.docUrl ? { docUrl: replacementEntry.docUrl } : {})
+      };
+    }
   }
 
   const minRequiredMajor = deriveMinRequiredMajor(nodeEngineRanges);
@@ -592,7 +605,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const transitiveCount = dependencyCount - directCount;
 
   const aggregated: AggregatedData = {
-    schemaVersion: '1.6',
+    schemaVersion: '1.7',
     generatedAt: new Date().toISOString(),
     dependencyRadarVersion,
     git: {
@@ -628,6 +641,7 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     ...(supplyChain ? { supplyChain } : {}),
     dependencies
   };
+  applyUpgradeRisk(aggregated);
   const findings = buildDependencyFindings(aggregated, { targetNodeMajor: input.targetNodeMajor });
   aggregated.findings = findings;
   aggregated.summary.findingCount = findings.length;
