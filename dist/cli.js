@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
 const os_1 = require("os");
+const url_1 = require("url");
 const aggregator_1 = require("./aggregator");
 const explain_1 = require("./explain");
 const importGraphRunner_1 = require("./runners/importGraphRunner");
@@ -1253,8 +1254,9 @@ function openInBrowser(filePath) {
             // Avoid `cmd /c start`: cmd re-parses its arguments, so metacharacters
             // in the report path (&, ^, %VAR%) would be interpreted as shell
             // syntax. rundll32's FileProtocolHandler opens the default handler
-            // without any shell parsing.
-            child = (0, child_process_1.spawn)("rundll32", ["url.dll,FileProtocolHandler", normalizedPath], {
+            // without any shell parsing; pass a file:// URL so spaces, special
+            // characters, and UNC paths survive rundll32's naive argument split.
+            child = (0, child_process_1.spawn)("rundll32", ["url.dll,FileProtocolHandler", (0, url_1.pathToFileURL)(path_1.default.resolve(filePath)).href], {
                 stdio: "ignore",
                 shell: false,
                 detached: true,

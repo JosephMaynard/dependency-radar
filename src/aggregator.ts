@@ -2168,13 +2168,34 @@ async function readInstallScriptFile(
     handle = await fs.open(resolvedPath, 'r');
     const stat = await handle.stat();
     if (!stat.isFile()) return undefined;
-    if (stat.size > INSTALL_SCRIPT_MAX_BYTES) return undefined;
-    return await handle.readFile({ encoding: 'utf8' });
+    return await readHandleCapped(handle, INSTALL_SCRIPT_MAX_BYTES);
   } catch {
     return undefined;
   } finally {
     await handle?.close().catch(() => undefined);
   }
+}
+
+/**
+ * Read at most `maxBytes` from an open handle, enforcing the cap during the
+ * read itself so a file that grows after being stat'ed cannot exceed it.
+ *
+ * @returns The UTF-8 content, or `undefined` when the file exceeds `maxBytes`.
+ */
+async function readHandleCapped(
+  handle: import('fs/promises').FileHandle,
+  maxBytes: number
+): Promise<string | undefined> {
+  const cap = maxBytes + 1;
+  const buffer = Buffer.alloc(cap);
+  let offset = 0;
+  while (offset < cap) {
+    const { bytesRead } = await handle.read(buffer, offset, cap - offset, offset);
+    if (bytesRead === 0) break;
+    offset += bytesRead;
+  }
+  if (offset > maxBytes) return undefined;
+  return buffer.subarray(0, offset).toString('utf8');
 }
 
 /**
@@ -2266,8 +2287,8 @@ async function readInspectablePackageFile(
     handle = await fs.open(resolvedPath, 'r');
     const stat = await handle.stat();
     if (!stat.isFile()) return undefined;
-    if (stat.size > maxBytes) return undefined;
-    const text = await handle.readFile({ encoding: 'utf8' });
+    const text = await readHandleCapped(handle, maxBytes);
+    if (text === undefined) return undefined;
     if (!looksTextLike(text)) return undefined;
     if (path.extname(resolvedPath) === '' && !looksJavaScriptLike(text)) return undefined;
     if (looksMinified(resolvedPath, text)) return undefined;

@@ -49,12 +49,17 @@ function main(): void {
 
   // Read the built CSS file. Read directly and treat a missing file as the
   // empty case rather than checking existence first (check-then-read races).
+  // Only ENOENT means "not built yet"; anything else is a real failure.
+  const isMissingFile = (err: unknown): boolean =>
+    (err as NodeJS.ErrnoException)?.code === 'ENOENT';
+
   const cssPath = path.join(REPORT_UI_DIST, 'report.css');
   let cssContent = '';
   try {
     cssContent = fs.readFileSync(cssPath, 'utf8');
     console.log(`✓ Read CSS: ${cssPath} (${cssContent.length} bytes)`);
-  } catch {
+  } catch (err) {
+    if (!isMissingFile(err)) throw err;
     console.warn('Warning: report.css not found, CSS will be empty');
   }
 
@@ -66,7 +71,8 @@ function main(): void {
     jsContent = sanitizeMinifiedJs(jsContent);
     fs.writeFileSync(jsPath, jsContent, 'utf8');
     console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
-  } catch {
+  } catch (err) {
+    if (!isMissingFile(err)) throw err;
     console.warn('Warning: report.iife.js not found, JS will be empty');
   }
 
