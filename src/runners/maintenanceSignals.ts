@@ -24,6 +24,10 @@ export const DEFAULT_MAINTENANCE_BUDGET_MS = 20_000;
 export const DEFAULT_MAINTENANCE_NAME_LIMIT = 1_500;
 const PACKUMENT_CONCURRENCY = 8;
 const PACKUMENT_TIMEOUT_MS = 10_000;
+// Abbreviated packuments for long-lived packages are large: typescript's is
+// ~9 MiB, well over the 4 MiB httpGetJson default, and a failed lookup for a
+// package that common marks the whole maintenance collector partial.
+const PACKUMENT_MAX_BYTES = 16 * 1024 * 1024;
 const ARCHIVED_CHECK_CAP = 50;
 const ARCHIVED_CHECK_CONCURRENCY = 4;
 const ARCHIVED_CHECK_TIMEOUT_MS = 8_000;
@@ -446,6 +450,7 @@ export async function enrichAggregatedWithMaintenanceSignals(
         return httpGetJson(`${registry}/${encodePackageName(name)}`, {
           headers: { Accept: 'application/vnd.npm.install-v1+json' },
           timeoutMs,
+          maxBytes: PACKUMENT_MAX_BYTES,
           agent: registryAgent
         });
       };

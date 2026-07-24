@@ -47,26 +47,36 @@ function main(): void {
     process.exit(1);
   }
 
-  // Read the built CSS file
+  // Read the built CSS file. Read directly and treat a missing file as the
+  // empty case rather than checking existence first (check-then-read races).
+  // Only ENOENT means "not built yet"; anything else is a real failure.
+  const isMissingFile = (err: unknown): boolean =>
+    (err as NodeJS.ErrnoException)?.code === 'ENOENT';
+
   const cssPath = path.join(REPORT_UI_DIST, 'report.css');
   let cssContent = '';
-  if (fs.existsSync(cssPath)) {
+  try {
     cssContent = fs.readFileSync(cssPath, 'utf8');
     console.log(`✓ Read CSS: ${cssPath} (${cssContent.length} bytes)`);
-  } else {
+  } catch (err) {
+    if (!isMissingFile(err)) throw err;
     console.warn('Warning: report.css not found, CSS will be empty');
   }
 
-  // Read the built JS file (IIFE format)
+  // Read the built JS file (IIFE format). Only the read gets the ENOENT
+  // allowance; sanitize/write failures must propagate.
   const jsPath = path.join(REPORT_UI_DIST, 'report.iife.js');
   let jsContent = '';
-  if (fs.existsSync(jsPath)) {
+  try {
     jsContent = fs.readFileSync(jsPath, 'utf8');
+  } catch (err) {
+    if (!isMissingFile(err)) throw err;
+    console.warn('Warning: report.iife.js not found, JS will be empty');
+  }
+  if (jsContent) {
     jsContent = sanitizeMinifiedJs(jsContent);
     fs.writeFileSync(jsPath, jsContent, 'utf8');
     console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
-  } else {
-    console.warn('Warning: report.iife.js not found, JS will be empty');
   }
 
   // Escape the content for embedding as template literals

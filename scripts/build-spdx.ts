@@ -66,7 +66,17 @@ async function fetchJson<T>(url: string): Promise<T> {
   });
 }
 
+// SPDX identifiers are limited to letters, digits, '.', '-', and '+'. Reject
+// anything else outright so a compromised upstream list cannot smuggle
+// arbitrary text into the generated TypeScript file.
+const SPDX_ID_PATTERN = /^[A-Za-z0-9.+-]+$/;
+
 function toSortedUnique(values: string[]): string[] {
+  for (const value of values) {
+    if (!SPDX_ID_PATTERN.test(value)) {
+      throw new Error(`Refusing to vendor invalid SPDX identifier: ${JSON.stringify(value)}`);
+    }
+  }
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
 }
 
@@ -132,6 +142,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(err);
+  // Error text can embed fetched-response fragments; strip line breaks so a
+  // hostile payload cannot forge extra log lines (CodeQL js/log-injection).
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(message.replace(/\n/g, '').replace(/\r/g, ''));
   process.exit(1);
 });

@@ -13,6 +13,7 @@
     "dev:report": "cd report-ui && npx vite",
     "update:spdx": "tsx scripts/build-spdx.ts",
     "update:replacements": "tsx scripts/build-replacements.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p report-ui/tsconfig.json",
     "build:report-ui": "cd report-ui && npx vite build",
     "build:report": "npm run build:report-ui && tsx scripts/build-report.ts",
     "build": "npm run clean && npm run build:report && tsc && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",

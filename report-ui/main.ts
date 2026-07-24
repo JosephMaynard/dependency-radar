@@ -3507,15 +3507,17 @@ async function init(): Promise<void> {
 
     const totalCount =
       report.summary?.dependencyCount || allDependencies.length;
-    summaryEl.innerHTML =
-      "Showing <strong>" +
-      deps.length +
-      "</strong> of <strong>" +
-      totalCount +
-      "</strong> dependencies";
+    // Built with DOM nodes rather than innerHTML so no report- or
+    // control-derived text is ever parsed as markup.
+    const shownEl = document.createElement("strong");
+    shownEl.textContent = String(deps.length);
+    const totalEl = document.createElement("strong");
+    totalEl.textContent = String(totalCount);
+    summaryEl.replaceChildren("Showing ", shownEl, " of ", totalEl, " dependencies");
     if ((controls.workspace?.value || "all") !== "all") {
-      summaryEl.innerHTML +=
-        ' in <strong>' + escapeHtml(controls.workspace.value) + '</strong>';
+      const workspaceEl = document.createElement("strong");
+      workspaceEl.textContent = controls.workspace.value;
+      summaryEl.append(" in ", workspaceEl);
     }
 
     if (deps.length === 0) {

@@ -1899,17 +1899,42 @@ async function readInstallScriptFile(scriptPath, packageDir) {
     const resolvedPath = path_1.default.resolve(resolvedDir, scriptPath);
     if (!resolvedPath.startsWith(resolvedDir + path_1.default.sep))
         return undefined;
+    // Stat and read through one handle so the checked file and the read file
+    // cannot differ (avoids a check-then-use race on the path).
+    let handle;
     try {
-        const stat = await promises_1.default.stat(resolvedPath);
+        handle = await promises_1.default.open(resolvedPath, 'r');
+        const stat = await handle.stat();
         if (!stat.isFile())
             return undefined;
-        if (stat.size > INSTALL_SCRIPT_MAX_BYTES)
-            return undefined;
-        return await promises_1.default.readFile(resolvedPath, 'utf8');
+        return await readHandleCapped(handle, INSTALL_SCRIPT_MAX_BYTES);
     }
     catch {
         return undefined;
     }
+    finally {
+        await (handle === null || handle === void 0 ? void 0 : handle.close().catch(() => undefined));
+    }
+}
+/**
+ * Read at most `maxBytes` from an open handle, enforcing the cap during the
+ * read itself so a file that grows after being stat'ed cannot exceed it.
+ *
+ * @returns The UTF-8 content, or `undefined` when the file exceeds `maxBytes`.
+ */
+async function readHandleCapped(handle, maxBytes) {
+    const cap = maxBytes + 1;
+    const buffer = Buffer.alloc(cap);
+    let offset = 0;
+    while (offset < cap) {
+        const { bytesRead } = await handle.read(buffer, offset, cap - offset, offset);
+        if (bytesRead === 0)
+            break;
+        offset += bytesRead;
+    }
+    if (offset > maxBytes)
+        return undefined;
+    return buffer.subarray(0, offset).toString('utf8');
 }
 /**
  * Checks whether a file path refers to an inspectable source file used for static analysis.
@@ -1989,13 +2014,17 @@ async function readInspectablePackageFile(filePath, packageDir, maxBytes = LOCAL
         return undefined;
     if (!isInspectableSourcePath(resolvedPath))
         return undefined;
+    // Stat and read through one handle so the checked file and the read file
+    // cannot differ (avoids a check-then-use race on the path).
+    let handle;
     try {
-        const stat = await promises_1.default.stat(resolvedPath);
+        handle = await promises_1.default.open(resolvedPath, 'r');
+        const stat = await handle.stat();
         if (!stat.isFile())
             return undefined;
-        if (stat.size > maxBytes)
+        const text = await readHandleCapped(handle, maxBytes);
+        if (text === undefined)
             return undefined;
-        const text = await promises_1.default.readFile(resolvedPath, 'utf8');
         if (!looksTextLike(text))
             return undefined;
         if (path_1.default.extname(resolvedPath) === '' && !looksJavaScriptLike(text))
@@ -2006,6 +2035,9 @@ async function readInspectablePackageFile(filePath, packageDir, maxBytes = LOCAL
     }
     catch {
         return undefined;
+    }
+    finally {
+        await (handle === null || handle === void 0 ? void 0 : handle.close().catch(() => undefined));
     }
 }
 /**

@@ -2,6 +2,7 @@
 import path from "path";
 import { ChildProcess, spawn } from "child_process";
 import { platform } from "os";
+import { pathToFileURL } from "url";
 import { aggregateData } from "./aggregator";
 import {
   findDependenciesByPackageName,
@@ -1431,11 +1432,20 @@ function openInBrowser(filePath: string): void {
       });
       break;
     case "win32":
-      child = spawn("cmd", ["/c", "start", "", normalizedPath], {
-        stdio: "ignore",
-        shell: false,
-        detached: true,
-      });
+      // Avoid `cmd /c start`: cmd re-parses its arguments, so metacharacters
+      // in the report path (&, ^, %VAR%) would be interpreted as shell
+      // syntax. rundll32's FileProtocolHandler opens the default handler
+      // without any shell parsing; pass a file:// URL so spaces, special
+      // characters, and UNC paths survive rundll32's naive argument split.
+      child = spawn(
+        "rundll32",
+        ["url.dll,FileProtocolHandler", pathToFileURL(path.resolve(filePath)).href],
+        {
+          stdio: "ignore",
+          shell: false,
+          detached: true,
+        }
+      );
       break;
     default:
       child = spawn("xdg-open", [normalizedPath], {

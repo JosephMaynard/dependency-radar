@@ -2006,7 +2006,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const firstFocus = focusCenterX === null || focusCenterY === null;
     const previousFocusStillConnected =
-      !firstFocus && Boolean(popoverSlug) && focusNodes.has(popoverSlug);
+      !firstFocus && popoverSlug !== null && focusNodes.has(popoverSlug);
     if (firstFocus || !previousFocusStillConnected) {
       focusCenterX = selected.renderX;
       focusCenterY = selected.renderY;
