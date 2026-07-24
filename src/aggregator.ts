@@ -2161,13 +2161,19 @@ async function readInstallScriptFile(
   const resolvedDir = path.resolve(packageDir);
   const resolvedPath = path.resolve(resolvedDir, scriptPath);
   if (!resolvedPath.startsWith(resolvedDir + path.sep)) return undefined;
+  // Stat and read through one handle so the checked file and the read file
+  // cannot differ (avoids a check-then-use race on the path).
+  let handle: import('fs/promises').FileHandle | undefined;
   try {
-    const stat = await fs.stat(resolvedPath);
+    handle = await fs.open(resolvedPath, 'r');
+    const stat = await handle.stat();
     if (!stat.isFile()) return undefined;
     if (stat.size > INSTALL_SCRIPT_MAX_BYTES) return undefined;
-    return await fs.readFile(resolvedPath, 'utf8');
+    return await handle.readFile({ encoding: 'utf8' });
   } catch {
     return undefined;
+  } finally {
+    await handle?.close().catch(() => undefined);
   }
 }
 
@@ -2253,17 +2259,23 @@ async function readInspectablePackageFile(
   const resolvedPath = path.resolve(resolvedDir, filePath);
   if (!resolvedPath.startsWith(resolvedDir + path.sep)) return undefined;
   if (!isInspectableSourcePath(resolvedPath)) return undefined;
+  // Stat and read through one handle so the checked file and the read file
+  // cannot differ (avoids a check-then-use race on the path).
+  let handle: import('fs/promises').FileHandle | undefined;
   try {
-    const stat = await fs.stat(resolvedPath);
+    handle = await fs.open(resolvedPath, 'r');
+    const stat = await handle.stat();
     if (!stat.isFile()) return undefined;
     if (stat.size > maxBytes) return undefined;
-    const text = await fs.readFile(resolvedPath, 'utf8');
+    const text = await handle.readFile({ encoding: 'utf8' });
     if (!looksTextLike(text)) return undefined;
     if (path.extname(resolvedPath) === '' && !looksJavaScriptLike(text)) return undefined;
     if (looksMinified(resolvedPath, text)) return undefined;
     return text;
   } catch {
     return undefined;
+  } finally {
+    await handle?.close().catch(() => undefined);
   }
 }
 

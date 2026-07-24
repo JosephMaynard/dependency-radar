@@ -1,7 +1,19 @@
-import type { AggregatedData } from './types';
+// Structural view of the report fields this module actually reads, so both
+// the CLI's AggregatedData and the report UI's mirrored type satisfy it
+// without casts.
+export interface WorkspaceFilterReport {
+  workspaces: {
+    enabled: boolean;
+    workspacePackages?: Array<{ name?: string }>;
+  };
+  dependencies?: Record<
+    string,
+    { usage: { origins: { workspaces?: string[] } } }
+  >;
+}
 
 export function buildWorkspaceFilterOptions(
-  report: Pick<AggregatedData, 'workspaces' | 'dependencies'>
+  report: WorkspaceFilterReport
 ): string[] {
   if (!report.workspaces.enabled) return [];
 

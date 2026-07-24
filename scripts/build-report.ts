@@ -47,25 +47,26 @@ function main(): void {
     process.exit(1);
   }
 
-  // Read the built CSS file
+  // Read the built CSS file. Read directly and treat a missing file as the
+  // empty case rather than checking existence first (check-then-read races).
   const cssPath = path.join(REPORT_UI_DIST, 'report.css');
   let cssContent = '';
-  if (fs.existsSync(cssPath)) {
+  try {
     cssContent = fs.readFileSync(cssPath, 'utf8');
     console.log(`✓ Read CSS: ${cssPath} (${cssContent.length} bytes)`);
-  } else {
+  } catch {
     console.warn('Warning: report.css not found, CSS will be empty');
   }
 
   // Read the built JS file (IIFE format)
   const jsPath = path.join(REPORT_UI_DIST, 'report.iife.js');
   let jsContent = '';
-  if (fs.existsSync(jsPath)) {
+  try {
     jsContent = fs.readFileSync(jsPath, 'utf8');
     jsContent = sanitizeMinifiedJs(jsContent);
     fs.writeFileSync(jsPath, jsContent, 'utf8');
     console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
-  } else {
+  } catch {
     console.warn('Warning: report.iife.js not found, JS will be empty');
   }
 

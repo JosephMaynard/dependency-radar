@@ -1899,16 +1899,23 @@ async function readInstallScriptFile(scriptPath, packageDir) {
     const resolvedPath = path_1.default.resolve(resolvedDir, scriptPath);
     if (!resolvedPath.startsWith(resolvedDir + path_1.default.sep))
         return undefined;
+    // Stat and read through one handle so the checked file and the read file
+    // cannot differ (avoids a check-then-use race on the path).
+    let handle;
     try {
-        const stat = await promises_1.default.stat(resolvedPath);
+        handle = await promises_1.default.open(resolvedPath, 'r');
+        const stat = await handle.stat();
         if (!stat.isFile())
             return undefined;
         if (stat.size > INSTALL_SCRIPT_MAX_BYTES)
             return undefined;
-        return await promises_1.default.readFile(resolvedPath, 'utf8');
+        return await handle.readFile({ encoding: 'utf8' });
     }
     catch {
         return undefined;
+    }
+    finally {
+        await (handle === null || handle === void 0 ? void 0 : handle.close().catch(() => undefined));
     }
 }
 /**
@@ -1989,13 +1996,17 @@ async function readInspectablePackageFile(filePath, packageDir, maxBytes = LOCAL
         return undefined;
     if (!isInspectableSourcePath(resolvedPath))
         return undefined;
+    // Stat and read through one handle so the checked file and the read file
+    // cannot differ (avoids a check-then-use race on the path).
+    let handle;
     try {
-        const stat = await promises_1.default.stat(resolvedPath);
+        handle = await promises_1.default.open(resolvedPath, 'r');
+        const stat = await handle.stat();
         if (!stat.isFile())
             return undefined;
         if (stat.size > maxBytes)
             return undefined;
-        const text = await promises_1.default.readFile(resolvedPath, 'utf8');
+        const text = await handle.readFile({ encoding: 'utf8' });
         if (!looksTextLike(text))
             return undefined;
         if (path_1.default.extname(resolvedPath) === '' && !looksJavaScriptLike(text))
@@ -2006,6 +2017,9 @@ async function readInspectablePackageFile(filePath, packageDir, maxBytes = LOCAL
     }
     catch {
         return undefined;
+    }
+    finally {
+        await (handle === null || handle === void 0 ? void 0 : handle.close().catch(() => undefined));
     }
 }
 /**

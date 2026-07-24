@@ -1431,7 +1431,11 @@ function openInBrowser(filePath: string): void {
       });
       break;
     case "win32":
-      child = spawn("cmd", ["/c", "start", "", normalizedPath], {
+      // Avoid `cmd /c start`: cmd re-parses its arguments, so metacharacters
+      // in the report path (&, ^, %VAR%) would be interpreted as shell
+      // syntax. rundll32's FileProtocolHandler opens the default handler
+      // without any shell parsing.
+      child = spawn("rundll32", ["url.dll,FileProtocolHandler", normalizedPath], {
         stdio: "ignore",
         shell: false,
         detached: true,
