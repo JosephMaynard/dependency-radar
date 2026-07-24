@@ -63,17 +63,20 @@ function main(): void {
     console.warn('Warning: report.css not found, CSS will be empty');
   }
 
-  // Read the built JS file (IIFE format)
+  // Read the built JS file (IIFE format). Only the read gets the ENOENT
+  // allowance; sanitize/write failures must propagate.
   const jsPath = path.join(REPORT_UI_DIST, 'report.iife.js');
   let jsContent = '';
   try {
     jsContent = fs.readFileSync(jsPath, 'utf8');
-    jsContent = sanitizeMinifiedJs(jsContent);
-    fs.writeFileSync(jsPath, jsContent, 'utf8');
-    console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
   } catch (err) {
     if (!isMissingFile(err)) throw err;
     console.warn('Warning: report.iife.js not found, JS will be empty');
+  }
+  if (jsContent) {
+    jsContent = sanitizeMinifiedJs(jsContent);
+    fs.writeFileSync(jsPath, jsContent, 'utf8');
+    console.log(`✓ Read JS: ${jsPath} (${jsContent.length} bytes)`);
   }
 
   // Escape the content for embedding as template literals
