@@ -51,13 +51,21 @@ export function mountHyperbolicView(
   function placeSubtree(id: number, wedgeMid: number, wedge: number): void {
     const kids = children[id];
     if (!kids.length) return;
-    const rho = Math.min(0.82, 0.42 + 0.05 * Math.sqrt(kids.length));
+    const rhoBase = Math.min(0.82, 0.42 + 0.05 * Math.sqrt(kids.length));
     const total = kids.reduce((s, c) => s + leaves[c], 0);
     let start = wedgeMid - wedge / 2;
+    let kidIndex = 0;
     for (const kid of kids) {
       const share = (leaves[kid] / total) * wedge;
       const ang = start + share / 2;
       start += share;
+      // Large fans of equal-weight leaves crush onto one arc; staggering
+      // siblings across three shells triples their angular breathing room.
+      const rho =
+        kids.length > 6
+          ? Math.min(0.9, rhoBase + ((kidIndex % 3) - 1) * 0.09)
+          : rhoBase;
+      kidIndex += 1;
       const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
       const g = mobius(pos[id], local);
       pos[kid] = g;
@@ -110,7 +118,9 @@ export function mountHyperbolicView(
   const conformal = (z: C): number => Math.max(0, 1 - cAbs2(z));
   const nodeRadius = (id: number): number => {
     const base = 2.2 + Math.min(6, Math.sqrt(leaves[id]) * 0.7) + (model.isRoot[id] ? 1.2 : 0);
-    return Math.max(0.35, base * conformal(pos[id]) * (effR() / 460));
+    // Cap the on-screen size: zooming should separate nodes, not inflate
+    // them into each other.
+    return Math.min(22, Math.max(0.35, base * conformal(pos[id]) * (effR() / 460)));
   };
 
   /** Geodesic between two disk points: arc orthogonal to the rim. */
@@ -255,14 +265,31 @@ export function mountHyperbolicView(
     ctx.textBaseline = "middle";
     const labelled = orderDraw
       .filter((id) => nodeRadius(id) > 3.4 || focusSet.has(id) || id === hovered)
-      .slice(-70);
+      .slice(-70)
+      .reverse(); // biggest first, so collision pruning keeps the important ones
+    const placed: Array<[number, number, number, number]> = [];
     for (const id of labelled) {
       const r = nodeRadius(id);
       if (r < 1.4 && !focusSet.has(id) && id !== hovered) continue;
       const p = toScreen(pos[id]);
+      const name = model.refs[id].name;
+      const w = ctx.measureText(name).width;
+      const x0 = p.x + r + 4;
+      const y0 = p.y - 8;
+      const x1 = x0 + w;
+      const y1 = p.y + 8;
+      let collides = false;
+      for (const [ax0, ay0, ax1, ay1] of placed) {
+        if (x0 < ax1 && x1 > ax0 && y0 < ay1 && y1 > ay0) {
+          collides = true;
+          break;
+        }
+      }
+      if (collides && id !== selected && id !== hovered) continue;
+      placed.push([x0, y0, x1, y1]);
       ctx.globalAlpha = selected >= 0 && !focusSet.has(id) && id !== hovered ? 0.3 : 0.9;
       ctx.fillStyle = id === selected ? theme.accent : theme.muted;
-      ctx.fillText(model.refs[id].name, p.x + r + 4, p.y);
+      ctx.fillText(name, x0, p.y);
     }
     ctx.globalAlpha = 1;
     if (hubR > 1.8) {
