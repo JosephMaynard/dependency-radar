@@ -1,12 +1,12 @@
 import type { AggregatedData, DependencyRecord } from "./types";
 
-type GraphWorkspace = {
+export type GraphWorkspace = {
   name: string;
   directDependencies: string[];
   directDevDependencies: string[];
 };
 
-type GraphDependency = {
+export type GraphDependency = {
   slug: string;
   name: string;
   version: string;
@@ -18,7 +18,7 @@ type GraphDependency = {
   workspaceOrigins: string[];
 };
 
-type GraphDataset = {
+export type GraphDataset = {
   workspaces: GraphWorkspace[];
   dependencies: Record<string, GraphDependency>;
 };
@@ -87,6 +87,9 @@ export type GraphViewOptions = {
   popoverAmplification: HTMLElement;
   popoverOpenButton: HTMLButtonElement;
   onOpenList: (slug: string) => void;
+  // Fired whenever the selected node changes (null on deselect), so the
+  // docked side panel can render its dossier for the classic graph view too.
+  onSelect?: (slug: string | null) => void;
 };
 
 export type GraphViewHandle = {
@@ -788,7 +791,7 @@ function collectDirectedDistances(
  * @param resolveDepKey - A callback that maps a raw dependency key from the report to a normalized dependency key, or returns `null` if it cannot be resolved
  * @returns A GraphDataset containing `workspaces` and a `dependencies` map with normalized GraphDependency records
  */
-function adaptDataset(
+export function adaptDataset(
   report: AggregatedData,
   knownDepKeys: Set<string>,
   resolveDepKey: (depKey: string) => string | null,
@@ -2191,11 +2194,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
     options.popover.hidden = false;
     updatePopoverPosition();
+    options.onSelect?.(slug);
   }
 
   function hidePopover(): void {
+    const hadSelection = popoverSlug !== null;
     popoverSlug = null;
     options.popover.hidden = true;
+    if (hadSelection) options.onSelect?.(null);
   }
 
   function updatePopoverPosition(): void {

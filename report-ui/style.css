@@ -1280,6 +1280,314 @@ select.graph-workspace-select:focus {
   right: 12px;
 }
 
+.graph-controls.hidden,
+.graph-key.hidden {
+  display: none;
+}
+
+/* ---- multi-mode layout: canvas stage + docked side panel ---- */
+
+.graph-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  min-width: 0;
+}
+
+.graph-layout .graph-canvas-shell {
+  flex: 1;
+  min-width: 0;
+}
+
+.graph-side-panel {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 74vh;
+  min-height: 420px;
+  max-height: 980px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.graph-mode .graph-side-panel {
+  height: calc(100dvh - 48px);
+  min-height: 520px;
+  max-height: none;
+}
+
+.graph-side-search {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.graph-side-search input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+}
+
+.graph-side-search input:focus {
+  border-color: var(--graph-highlight, #22d3ee);
+}
+
+.graph-search-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.graph-search-results:empty {
+  margin: 0;
+}
+
+.graph-search-results li button {
+  all: unset;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-search-results li button:hover,
+.graph-search-results li button:focus-visible {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.graph-dossier {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-dossier-empty {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.graph-dossier-name {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 14px;
+  font-weight: 700;
+  word-break: break-all;
+  color: var(--text-primary);
+}
+
+.graph-dossier-meta {
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+}
+
+.graph-dossier-vuln {
+  color: var(--graph-vuln-high, #ef4444);
+}
+
+.graph-dossier-block {
+  margin-top: 16px;
+}
+
+.graph-dossier-subtitle {
+  margin: 0 0 6px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.graph-dossier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.graph-dossier-chip {
+  all: unset;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.graph-dossier-chip:hover,
+.graph-dossier-chip:focus-visible {
+  color: var(--graph-highlight, #22d3ee);
+  border-color: var(--graph-highlight, #22d3ee);
+}
+
+.graph-dossier-more {
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: center;
+}
+
+.graph-dossier-open {
+  all: unset;
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.graph-dossier-open:hover,
+.graph-dossier-open:focus-visible {
+  border-color: var(--graph-highlight, #22d3ee);
+  color: var(--graph-highlight, #22d3ee);
+}
+
+.graph-mode-switch {
+  position: relative;
+  z-index: 8;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .graph-mode-switch {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(100, 116, 139, 0.15);
+}
+
+.graph-mode-btn {
+  all: unset;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.graph-mode-btn:hover,
+.graph-mode-btn:focus-visible {
+  color: var(--text-primary);
+}
+
+.graph-mode-btn.active {
+  color: var(--text-primary);
+  background: rgba(100, 116, 139, 0.25);
+}
+
+[data-theme="light"] .graph-mode-btn.active {
+  background: rgba(100, 116, 139, 0.15);
+}
+
+.graph-alt-host {
+  position: absolute;
+  top: calc(var(--graph-toolbar-height, 50px) + 10px);
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  z-index: 2;
+  /* Opaque: the classic graph canvas underneath must not ghost through. */
+  background: var(--bg-primary);
+}
+
+.graph-alt-host[hidden] {
+  display: none;
+}
+
+/* While an alternative view is active, the paused classic canvas must not
+   show its last frame around the alt stage. */
+.graph-canvas-shell.alt-active > #graph-canvas {
+  visibility: hidden;
+}
+
+.graph-alt-canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.graph-alt-canvas.dragging {
+  cursor: grabbing !important;
+}
+
+.graph-status-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  padding: 7px 14px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  border-top: 1px solid var(--border-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.graph-status-line.dim {
+  color: var(--text-secondary);
+}
+
+/* The floating popover is superseded by the docked side panel. */
+.graph-popover {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .graph-layout {
+    flex-direction: column;
+  }
+
+  .graph-side-panel {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    max-height: 42vh;
+  }
+
+  .graph-mode .graph-side-panel {
+    height: auto;
+    min-height: 0;
+  }
+}
+
 .zoom-controls {
   display: grid;
   grid-template-columns: repeat(2, 52px);

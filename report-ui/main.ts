@@ -10,7 +10,8 @@ import {
   reportVulnerabilityTotal,
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
-import { initGraphView, type GraphViewHandle } from "./graphView";
+import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
+import { initGraphModes, type GraphModesHandle } from "./graphModes";
 import type {
   AggregatedData,
   DependencyRecord,
@@ -2594,6 +2595,25 @@ async function init(): Promise<void> {
     graphOpenList: document.getElementById(
       "graph-open-list",
     ) as HTMLButtonElement | null,
+    graphModeSwitch: document.getElementById(
+      "graph-mode-switch",
+    ) as HTMLElement | null,
+    graphAltHost: document.getElementById(
+      "graph-alt-host",
+    ) as HTMLElement | null,
+    graphStatusLine: document.getElementById(
+      "graph-status-line",
+    ) as HTMLElement | null,
+    graphKey: document.getElementById("graph-key") as HTMLElement | null,
+    graphSearch: document.getElementById(
+      "graph-search",
+    ) as HTMLInputElement | null,
+    graphSearchResults: document.getElementById(
+      "graph-search-results",
+    ) as HTMLElement | null,
+    graphDossier: document.getElementById(
+      "graph-dossier",
+    ) as HTMLElement | null,
     reportFooter: document.querySelector(
       ".report-footer",
     ) as HTMLElement | null,
@@ -2604,6 +2624,7 @@ async function init(): Promise<void> {
   let sortAscending = true;
   let graphView: GraphViewHandle | null = null;
   let graphInitialized = false;
+  let graphModes: GraphModesHandle | null = null;
 
   // Theme handling
   document.documentElement.setAttribute("data-theme", "dark");
@@ -3640,12 +3661,51 @@ async function init(): Promise<void> {
         onOpenList: (slug: string) => {
           openListFromGraph(slug);
         },
+        onSelect: (slug: string | null) => {
+          graphModes?.handleClassicSelect(slug);
+        },
       });
       graphView.initGraphView();
       graphInitialized = true;
+      if (
+        controls.graphModeSwitch &&
+        controls.graphAltHost &&
+        controls.graphStatusLine &&
+        controls.graphSearch &&
+        controls.graphSearchResults &&
+        controls.graphDossier &&
+        controls.graphWorkspaceSelect
+      ) {
+        graphModes = initGraphModes({
+          dataset: adaptDataset(report, knownDepKeys, resolveDepKey),
+          projectName:
+            (report.project as { name?: string } | undefined)?.name ||
+            report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+            "project",
+          altHost: controls.graphAltHost,
+          modeSwitch: controls.graphModeSwitch,
+          statusLine: controls.graphStatusLine,
+          searchInput: controls.graphSearch,
+          searchResults: controls.graphSearchResults,
+          dossier: controls.graphDossier,
+          workspaceSelect: controls.graphWorkspaceSelect,
+          classicOnly: [
+            controls.graphControls,
+            controls.graphKey,
+          ].filter((node): node is HTMLElement => Boolean(node)),
+          getClassicHandle: () => graphView,
+          onOpenList: (slug: string) => {
+            openListFromGraph(slug);
+          },
+        });
+      }
     }
-    graphView?.setActive(true);
-    graphView?.requestRender();
+    if (!graphModes || graphModes.mode() === "graph") {
+      graphView?.setActive(true);
+      graphView?.requestRender();
+    } else {
+      graphModes.refresh();
+    }
   }
 
   function getStickyFilterBarOffset(): number {
