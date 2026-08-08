@@ -116,6 +116,7 @@ export function mountHyperbolicView(
     return m > 0.985 ? { x: (z.x / m) * 0.985, y: (z.y / m) * 0.985 } : z;
   };
   const conformal = (z: C): number => Math.max(0, 1 - cAbs2(z));
+  const DRAW_MIN_R = 0.4;
   const nodeRadius = (id: number): number => {
     const base = 2.2 + Math.min(6, Math.sqrt(leaves[id]) * 0.7) + (model.isRoot[id] ? 1.2 : 0);
     // Cap the on-screen size: zooming should separate nodes, not inflate
@@ -223,7 +224,7 @@ export function mountHyperbolicView(
     );
     for (const id of orderDraw) {
       const r = nodeRadius(id);
-      if (r < 0.4) continue;
+      if (r < DRAW_MIN_R) continue;
       const p = toScreen(pos[id]);
       const vuln = model.refs[id].vulnerabilitySeverity;
       let fill = model.isRoot[id]
@@ -263,10 +264,15 @@ export function mountHyperbolicView(
     // Labels: whatever is currently big enough to matter.
     ctx.font = '10.5px ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
     ctx.textBaseline = "middle";
-    const labelled = orderDraw
-      .filter((id) => nodeRadius(id) > 3.4 || focusSet.has(id) || id === hovered)
-      .slice(-70)
-      .reverse(); // biggest first, so collision pruning keeps the important ones
+    const forced = orderDraw.filter(
+      (id) => focusSet.has(id) || id === hovered || id === selected,
+    );
+    const sized = orderDraw.filter(
+      (id) => nodeRadius(id) > 3.4 && !focusSet.has(id) && id !== hovered && id !== selected,
+    );
+    // Cap applies to size-qualified labels only; focus/hover/selection always
+    // stay in, and lead so collision pruning favours them.
+    const labelled = [...forced.reverse(), ...sized.slice(-70).reverse()];
     const placed: Array<[number, number, number, number]> = [];
     for (const id of labelled) {
       const r = nodeRadius(id);
@@ -306,8 +312,15 @@ export function mountHyperbolicView(
     hubPos = fn(hubPos);
   }
 
+  function cancelAnim(): void {
+    if (!animating) return;
+    cancelAnimationFrame(animFrame);
+    animating = false;
+  }
+
   function focusOn(target: number): void {
-    if (animating) return;
+    // Retarget any in-flight focus animation rather than dropping the request.
+    cancelAnim();
     const a = { ...pos[target] };
     // The Mobius translation lands the target at disk coordinate (0,0),
     // which is only the VIEWPORT centre when the Euclidean magnification
@@ -346,6 +359,7 @@ export function mountHyperbolicView(
     let best = -1;
     let bestD = 12;
     for (let id = 0; id < N; id += 1) {
+      if (nodeRadius(id) < DRAW_MIN_R) continue; // invisible => unpickable
       const p = toScreen(pos[id]);
       const d = Math.hypot(p.x - mx, p.y - my) - nodeRadius(id);
       if (d < bestD) {
@@ -371,11 +385,16 @@ export function mountHyperbolicView(
   let dragging = false;
   let movedInDrag = false;
   let last: C | null = null;
+  let downX = 0;
+  let downY = 0;
   canvas.addEventListener(
     "pointerdown",
     (e) => {
+      cancelAnim();
       dragging = true;
       movedInDrag = false;
+      downX = e.offsetX;
+      downY = e.offsetY;
       last = toDisk(e.offsetX, e.offsetY);
       canvas.classList.add("dragging");
       canvas.setPointerCapture(e.pointerId);
@@ -397,7 +416,8 @@ export function mountHyperbolicView(
       }
       if (!last) return;
       const now = toDisk(e.offsetX, e.offsetY);
-      if (Math.hypot(now.x - last.x, now.y - last.y) > 0.002) movedInDrag = true;
+      // Cumulative screen-space threshold: slow drags must not read as clicks.
+      if (Math.hypot(e.offsetX - downX, e.offsetY - downY) > 3) movedInDrag = true;
       const from = last;
       applyToAll((z) => mobius(now, mobiusNeg(from, z)));
       last = now;
@@ -416,6 +436,17 @@ export function mountHyperbolicView(
       cb.onSelect(id);
       if (id >= 0) focusOn(id);
       else draw();
+    },
+    { signal },
+  );
+  canvas.addEventListener(
+    "pointerleave",
+    () => {
+      if (hovered < 0) return;
+      hovered = -1;
+      canvas.style.cursor = "grab";
+      cb.onHoverTrail(null);
+      draw();
     },
     { signal },
   );
@@ -440,6 +471,7 @@ export function mountHyperbolicView(
     "dblclick",
     (e) => {
       if (pick(e.offsetX, e.offsetY) >= 0) return;
+      cancelAnim();
       selected = -1;
       cb.onSelect(-1);
       viewScale = 1;
@@ -479,10 +511,12 @@ export function mountHyperbolicView(
     },
     resize,
     focusIndex(index: number) {
+      if (index < 0 || index >= N) return;
       selected = index;
       focusOn(index);
     },
     resetView() {
+      cancelAnim();
       viewScale = 1;
       offX = 0;
       offY = 0;

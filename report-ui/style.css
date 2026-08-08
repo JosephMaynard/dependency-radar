@@ -376,6 +376,18 @@ body {
   padding: 0;
 }
 
+/* In graph mode the docked side panel owns the bottom-right corner. */
+.graph-mode .scan-status-banner {
+  right: 340px;
+}
+
+@media (max-width: 900px) {
+  .graph-mode .scan-status-banner {
+    right: 16px;
+    bottom: 44%;
+  }
+}
+
 .scan-status-dismiss {
   all: unset;
   position: absolute;

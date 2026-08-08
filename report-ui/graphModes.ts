@@ -322,7 +322,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       .forEach((btn) => {
         const active = btn.dataset.graphMode === mode;
         btn.classList.toggle("active", active);
-        btn.setAttribute("aria-selected", String(active));
+        btn.setAttribute("aria-pressed", String(active));
       });
     options.altHost.hidden = classic;
     options.altHost.parentElement?.classList.toggle("alt-active", !classic);
@@ -353,6 +353,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   options.workspaceSelect.addEventListener("change", () => {
     model = null;
+    // Stale results hold closures over the previous model's indices.
+    options.searchInput.value = "";
+    options.searchResults.textContent = "";
     if (mode !== "graph") {
       destroyActive();
       mountActive();

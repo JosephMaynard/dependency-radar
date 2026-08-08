@@ -20,7 +20,7 @@ export function mountBalloonView(
   canvas.className = "graph-alt-canvas";
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
   const signal = aborter.signal;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -98,6 +98,9 @@ export function mountBalloonView(
       const share = (2 * SHRINK * encMemo[kid] * 1.12 * unit) / dist;
       const ang = a + share / 2;
       a += share;
+      // Bound materialisation: skip subtrees whose whole balloon stays below
+      // half a pixel even at the wheel's maximum zoom (600x).
+      if (SHRINK * unit * encMemo[kid] * 600 < 0.5) continue;
       place(
         kid,
         x + Math.cos(ang) * dist,
@@ -163,9 +166,14 @@ export function mountBalloonView(
     grid.set(key, list);
   }
   const firstIdxOf = new Map<number, number>();
+  let maxBodyR = 0;
   for (let i = 0; i < COUNT; i += 1) {
     if (!firstIdxOf.has(pid[i])) firstIdxOf.set(pid[i], i);
+    if (pr[i] > maxBodyR) maxBodyR = pr[i];
   }
+  // Grid cells to scan so even the largest body is reachable from any cursor
+  // cell (bodies index only the cell containing their centre).
+  const PICK_REACH = Math.max(1, Math.ceil(maxBodyR / CELL));
 
   // With hundreds of direct deps the 9 px hub floor forces ring overlap at
   // fit zoom; relax it as root count grows (still never invisible).
@@ -187,22 +195,18 @@ export function mountBalloonView(
   let flyFrame = 0;
   let destroyed = false;
 
+  let minScale = 0.05;
   function fitView(): void {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
+    // Seed with the central project body so it is always in frame.
+    let minX = -CENTER_R;
+    let minY = -CENTER_R;
+    let maxX = CENTER_R;
+    let maxY = CENTER_R;
     for (let i = 0; i < COUNT; i += 1) {
       minX = Math.min(minX, px[i] - pr[i]);
       maxX = Math.max(maxX, px[i] + pr[i]);
       minY = Math.min(minY, py[i] - pr[i]);
       maxY = Math.max(maxY, py[i] + pr[i]);
-    }
-    if (!Number.isFinite(minX)) {
-      vx = 0;
-      vy = 0;
-      scale = 1;
-      return;
     }
     vx = (minX + maxX) / 2;
     vy = (minY + maxY) / 2;
@@ -210,6 +214,7 @@ export function mountBalloonView(
       1e-4,
       Math.min(usableW() / Math.max(1, maxX - minX), usableH() / Math.max(1, maxY - minY)) * 0.94,
     );
+    minScale = Math.min(0.05, scale);
   }
   const sx = (x: number): number => (x - vx) * scale + usableW() / 2;
   const sy = (y: number): number => (y - vy) * scale + centreY();
@@ -370,9 +375,9 @@ export function mountBalloonView(
     const cx = Math.floor(wx / CELL);
     const cyy = Math.floor(wy / CELL);
     let best = -1;
-    let bestD = 10 / scale;
-    for (let gx = cx - 1; gx <= cx + 1; gx += 1) {
-      for (let gy = cyy - 1; gy <= cyy + 1; gy += 1) {
+    let bestD = Math.min(10 / scale, CELL);
+    for (let gx = cx - PICK_REACH; gx <= cx + PICK_REACH; gx += 1) {
+      for (let gy = cyy - PICK_REACH; gy <= cyy + PICK_REACH; gy += 1) {
         const list = grid.get(`${gx},${gy}`);
         if (!list) continue;
         for (const i of list) {
@@ -410,6 +415,8 @@ export function mountBalloonView(
   let movedInDrag = false;
   let lastX = 0;
   let lastY = 0;
+  let downX = 0;
+  let downY = 0;
   canvas.addEventListener(
     "pointerdown",
     (e) => {
@@ -417,6 +424,8 @@ export function mountBalloonView(
       movedInDrag = false;
       lastX = e.offsetX;
       lastY = e.offsetY;
+      downX = e.offsetX;
+      downY = e.offsetY;
       canvas.classList.add("dragging");
       canvas.setPointerCapture(e.pointerId);
     },
@@ -428,7 +437,8 @@ export function mountBalloonView(
       if (dragging) {
         const dx = e.offsetX - lastX;
         const dy = e.offsetY - lastY;
-        if (Math.abs(dx) + Math.abs(dy) > 2) movedInDrag = true;
+        // Cumulative from pointerdown: slow pans must not read as clicks.
+        if (Math.abs(e.offsetX - downX) + Math.abs(e.offsetY - downY) > 3) movedInDrag = true;
         vx -= dx / scale;
         vy -= dy / scale;
         lastX = e.offsetX;
@@ -468,7 +478,7 @@ export function mountBalloonView(
       const f = Math.exp(-e.deltaY * 0.0016);
       const wx = (e.offsetX - usableW() / 2) / scale + vx;
       const wy = (e.offsetY - centreY()) / scale + vy;
-      scale = Math.min(600, Math.max(0.05, scale * f));
+      scale = Math.min(600, Math.max(minScale, scale * f));
       vx = wx - (e.offsetX - usableW() / 2) / scale;
       vy = wy - (e.offsetY - centreY()) / scale;
       poke();
@@ -489,6 +499,7 @@ export function mountBalloonView(
   );
 
   function flyTo(idx: number): void {
+    cancelAnimationFrame(flyFrame);
     // Zoom in far enough to see the body, but never zoom OUT on selection.
     const targetScale = Math.max(scale, Math.min(24, Math.max(1.2, 42 / pr[idx])));
     const fromS = scale;
@@ -516,13 +527,18 @@ export function mountBalloonView(
   }
 
   function resize(): void {
-    W = host.clientWidth;
-    H = host.clientHeight;
+    const w = host.clientWidth;
+    const h = host.clientHeight;
+    const dimsChanged = w !== W || h !== H;
+    W = w;
+    H = h;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;
     canvas.style.height = `${H}px`;
-    fitView();
+    // Pure repaints (theme flips, tab re-entry) must not wipe pan/zoom.
+    if (dimsChanged) fitView();
     draw();
   }
   window.addEventListener("resize", resize, { signal });

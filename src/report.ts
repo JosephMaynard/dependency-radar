@@ -395,11 +395,11 @@ ${safeCssContent}
         <div class="graph-status-line dim" id="graph-status-line"></div>
         <div class="graph-overlay-top">
           <button type="button" class="graph-back-btn" id="graph-back-btn">Back to List View</button>
-          <div class="graph-mode-switch" id="graph-mode-switch" role="tablist" aria-label="Graph layout">
-            <button type="button" class="graph-mode-btn active" data-graph-mode="graph" role="tab" aria-selected="true">Graph</button>
-            <button type="button" class="graph-mode-btn" data-graph-mode="flame" role="tab" aria-selected="false">Flame</button>
-            <button type="button" class="graph-mode-btn" data-graph-mode="balloon" role="tab" aria-selected="false">Balloon</button>
-            <button type="button" class="graph-mode-btn" data-graph-mode="hyperbolic" role="tab" aria-selected="false">Hyperbolic</button>
+          <div class="graph-mode-switch" id="graph-mode-switch" role="group" aria-label="Graph layout">
+            <button type="button" class="graph-mode-btn active" data-graph-mode="graph" aria-pressed="true">Graph</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="flame" aria-pressed="false">Flame</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="balloon" aria-pressed="false">Balloon</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="hyperbolic" aria-pressed="false">Hyperbolic</button>
           </div>
           <div class="graph-key" id="graph-key" aria-label="Graph key">
             <span class="graph-workspace-label">Key</span>

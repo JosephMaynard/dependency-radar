@@ -55,15 +55,19 @@ export function buildVizModel(
   const workspace =
     dataset.workspaces.find((w) => w.name === workspaceName) ||
     dataset.workspaces[0];
-  let rootSlugs = workspace
-    ? [...workspace.directDependencies, ...workspace.directDevDependencies]
-    : [];
+  let rootSlugs = (
+    workspace
+      ? [...workspace.directDependencies, ...workspace.directDevDependencies]
+      : []
+  ).filter((slug) => Boolean(dataset.dependencies[slug]));
   if (rootSlugs.length === 0) {
     // Parity with the classic graph view: a workspace with no direct deps
     // (e.g. a hoisting-only monorepo root) falls back to parentless packages.
     const hasParent = new Set<string>();
     for (const dep of Object.values(dataset.dependencies)) {
-      for (const child of dep.dependencies || []) hasParent.add(child);
+      for (const child of dep.dependencies || []) {
+        if (child !== dep.slug) hasParent.add(child);
+      }
     }
     rootSlugs = Object.keys(dataset.dependencies)
       .filter((slug) => !hasParent.has(slug))
@@ -135,12 +139,10 @@ export function buildVizModel(
   const occOf = (id: number, path: Set<number>): number => {
     if (occ[id] > 0) return occ[id];
     if (path.has(id)) return 0;
-    if (isRoot[id]) {
-      occ[id] = 1;
-      return 1;
-    }
     path.add(id);
-    let n = 0;
+    // A root appears once at top level PLUS once per path through each
+    // dependent — direct deps that are also transitive deps are common.
+    let n = isRoot[id] ? 1 : 0;
     for (const from of depsIn[id]) n += occOf(from, path) || 0;
     path.delete(id);
     occ[id] = Math.max(n, 1);

@@ -79,7 +79,7 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 
 - **Vulnerability scanning** — runs `npm audit` / `pnpm audit` / `yarn audit` and surfaces advisories with severity, fix availability, installed-version matching, and direct static-import evidence
 - **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
-- **Four interactive graph layouts** — the classic dependency graph plus flame (profiler-style icicle), balloon (orbital constellation), and hyperbolic (Poincaré-disk focus+context) views, switchable from the graph toolbar, with a shared docked side panel, package search, and hover path trail
+- **Four interactive graph layouts** — the classic dependency graph plus flame (profiler-style icicle), balloon (orbital constellation), and hyperbolic (Poincaré-disk focus+context) views, switchable from the graph toolbar, with a shared docked side panel and package search, plus a hover path trail in the flame, balloon, and hyperbolic views
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
 - **Maintenance signals** — flags deprecated, repo-archived, unmaintained, stale, and slowing dependencies from npm registry metadata (plus repository push activity when available), with a local 7-day cache
 - **Replacement suggestions** — matches your dependencies against the community-maintained [e18e](https://e18e.dev) [module-replacements](https://github.com/es-tooling/module-replacements) catalogue and suggests native or lighter alternatives, fully offline
@@ -214,7 +214,7 @@ The report's Graph View offers four switchable layouts (toolbar buttons), all sh
 Shared behaviour:
 
 - **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, subtree size, "appears in N places", and clickable *depends-on* / *required-by* chips that refocus the current view. Search results fly to the package in whichever layout you're using.
-- **Status line** — hovering shows the full path trail (`project › a › b › c`) along the bottom of the canvas instead of a tooltip covering the visualization.
+- **Status line** — in the flame, balloon, and hyperbolic views, hovering shows the full path trail (`project › a › b › c`) along the bottom of the canvas instead of a tooltip covering the visualization.
 - **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar key explains each layout's colours.
 - **Workspaces** — all layouts respect the workspace selector, scoping the tree to that workspace's direct dependencies.
 

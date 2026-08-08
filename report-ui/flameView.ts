@@ -41,7 +41,7 @@ export function mountFlameView(
   canvas.className = "graph-alt-canvas";
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
   const signal = aborter.signal;
 
@@ -200,10 +200,10 @@ export function mountFlameView(
   function pathOfBlock(i: number): number[] {
     const path: number[] = [];
     let cur = i;
+    // Parent indices strictly decrease, so this always terminates.
     while (cur > 0 && blocks[cur]) {
       if (blocks[cur].id >= 0) path.unshift(blocks[cur].id);
       cur = blocks[cur].parent;
-      if (path.length > 64) break;
     }
     return path;
   }
@@ -232,9 +232,12 @@ export function mountFlameView(
   canvas.addEventListener(
     "click",
     (e) => {
+      if (e.detail > 1) return; // the dblclick handler owns repeat clicks
       const i = pick(e.offsetX, e.offsetY);
       if (i < 0) return;
       const b = blocks[i];
+      hoveredBlock = -1; // relayout invalidates positional hover indices
+      cb.onHoverTrail(null);
       if (b.id < 0) {
         focusPath = [];
         selectedId = -1;
@@ -258,6 +261,8 @@ export function mountFlameView(
     () => {
       focusPath = [];
       selectedId = -1;
+      hoveredBlock = -1;
+      cb.onHoverTrail(null);
       cb.onSelect(-1);
       draw();
     },
@@ -293,6 +298,7 @@ export function mountFlameView(
   function resize(): void {
     W = host.clientWidth;
     H = host.clientHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;
@@ -314,6 +320,7 @@ export function mountFlameView(
       if (!path) return;
       focusPath = path;
       selectedId = index;
+      hoveredBlock = -1;
       draw();
     },
   };
