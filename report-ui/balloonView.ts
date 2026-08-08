@@ -491,18 +491,24 @@ export function mountBalloonView(
   function flyTo(idx: number): void {
     // Zoom in far enough to see the body, but never zoom OUT on selection.
     const targetScale = Math.max(scale, Math.min(24, Math.max(1.2, 42 / pr[idx])));
-    const fromX = vx;
-    const fromY = vy;
     const fromS = scale;
+    // Animate the TARGET'S SCREEN POSITION on a straight path to centre while
+    // the scale eases; interpolating pan and zoom independently can throw the
+    // target off screen mid-flight, which reads as a jarring detour.
+    const startSX = sx(px[idx]);
+    const startSY = sy(py[idx]);
     const t0 = performance.now();
     const dur = reduced ? 0 : 500;
     const step = (t: number): void => {
       if (destroyed) return;
       const u = dur ? Math.min(1, (t - t0) / dur) : 1;
       const e2 = 1 - Math.pow(1 - u, 3);
-      vx = fromX + (px[idx] - fromX) * e2;
-      vy = fromY + (py[idx] - fromY) * e2;
-      scale = fromS + (targetScale - fromS) * e2;
+      const sNow = fromS + (targetScale - fromS) * e2;
+      const sxNow = startSX + (usableW() / 2 - startSX) * e2;
+      const syNow = startSY + (centreY() - startSY) * e2;
+      scale = sNow;
+      vx = px[idx] - (sxNow - usableW() / 2) / sNow;
+      vy = py[idx] - (syNow - centreY()) / sNow;
       draw();
       if (u < 1) flyFrame = requestAnimationFrame(step);
     };

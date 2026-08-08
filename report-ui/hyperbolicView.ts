@@ -89,22 +89,28 @@ export function mountHyperbolicView(
   let CX = 0;
   let CY = 0;
   let R = 0;
+  // Euclidean magnification of the disk on top of the Möbius navigation:
+  // the circle simply gets bigger, anchored at the cursor.
+  let viewScale = 1;
+  let offX = 0;
+  let offY = 0;
   let selected = -1;
   let hovered = -1;
   let animating = false;
   let animFrame = 0;
   let destroyed = false;
 
-  const toScreen = (z: C): C => ({ x: CX + z.x * R, y: CY + z.y * R });
+  const effR = (): number => R * viewScale;
+  const toScreen = (z: C): C => ({ x: CX + offX + z.x * effR(), y: CY + offY + z.y * effR() });
   const toDisk = (mx: number, my: number): C => {
-    const z = { x: (mx - CX) / R, y: (my - CY) / R };
+    const z = { x: (mx - CX - offX) / effR(), y: (my - CY - offY) / effR() };
     const m = Math.sqrt(cAbs2(z));
     return m > 0.985 ? { x: (z.x / m) * 0.985, y: (z.y / m) * 0.985 } : z;
   };
   const conformal = (z: C): number => Math.max(0, 1 - cAbs2(z));
   const nodeRadius = (id: number): number => {
     const base = 2.2 + Math.min(6, Math.sqrt(leaves[id]) * 0.7) + (model.isRoot[id] ? 1.2 : 0);
-    return Math.max(0.35, base * conformal(pos[id]) * (R / 460));
+    return Math.max(0.35, base * conformal(pos[id]) * (effR() / 460));
   };
 
   /** Geodesic between two disk points: arc orthogonal to the rim. */
@@ -131,7 +137,7 @@ export function mountHyperbolicView(
     while (delta < -Math.PI) delta += Math.PI * 2;
     const sc = toScreen(c);
     ctx.moveTo(p1.x, p1.y);
-    ctx.arc(sc.x, sc.y, rad * R, a1, a1 + delta, delta < 0);
+    ctx.arc(sc.x, sc.y, rad * effR(), a1, a1 + delta, delta < 0);
   }
 
   function draw(): void {
@@ -141,8 +147,10 @@ export function mountHyperbolicView(
     ctx.clearRect(0, 0, W, H);
 
     // Disk face + range rings at equal hyperbolic distance (d_h = 2 atanh r).
+    const dcx = CX + offX;
+    const dcy = CY + offY;
     ctx.beginPath();
-    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.arc(dcx, dcy, effR(), 0, Math.PI * 2);
     ctx.fillStyle = theme.isDark ? "#0a1219" : "#f6f9fc";
     ctx.fill();
     ctx.strokeStyle = theme.line;
@@ -152,7 +160,7 @@ export function mountHyperbolicView(
     ctx.lineWidth = 1;
     for (let d = 1; d <= 5; d += 1) {
       ctx.beginPath();
-      ctx.arc(CX, CY, Math.tanh(d * 0.55) * R, 0, Math.PI * 2);
+      ctx.arc(dcx, dcy, Math.tanh(d * 0.55) * effR(), 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -376,11 +384,31 @@ export function mountHyperbolicView(
     { signal },
   );
   canvas.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      const f = Math.exp(-e.deltaY * 0.0016);
+      const next = Math.min(12, Math.max(1, viewScale * f));
+      if (next === viewScale) return;
+      // Keep the disk point under the cursor fixed on screen.
+      const pxd = (e.offsetX - CX - offX) / effR();
+      const pyd = (e.offsetY - CY - offY) / effR();
+      viewScale = next;
+      offX = e.offsetX - CX - pxd * effR();
+      offY = e.offsetY - CY - pyd * effR();
+      draw();
+    },
+    { signal, passive: false },
+  );
+  canvas.addEventListener(
     "dblclick",
     (e) => {
       if (pick(e.offsetX, e.offsetY) >= 0) return;
       selected = -1;
       cb.onSelect(-1);
+      viewScale = 1;
+      offX = 0;
+      offY = 0;
       rebuildPositions();
       draw();
     },
@@ -419,6 +447,9 @@ export function mountHyperbolicView(
       focusOn(index);
     },
     resetView() {
+      viewScale = 1;
+      offX = 0;
+      offY = 0;
       rebuildPositions();
       draw();
     },

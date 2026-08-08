@@ -18,7 +18,7 @@ const MODE_HINTS: Record<GraphMode, string> = {
   flame:
     "hover a bar · click to zoom in · click a pinned ancestor to climb back out · double-click to reset",
   balloon: "drag to pan · scroll to zoom · click a body · double-click space to fit",
-  hyperbolic: "drag to warp the disk · click a blip to focus · double-click space to reset",
+  hyperbolic: "drag to warp · scroll to zoom · click a blip to focus · double-click space to reset",
 };
 
 export interface GraphModesOptions {
