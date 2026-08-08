@@ -282,8 +282,15 @@ export function mountHyperbolicView(
   function focusOn(target: number): void {
     if (animating) return;
     const a = { ...pos[target] };
-    if (Math.sqrt(cAbs2(a)) < 0.01 || reduced) {
+    // The Mobius translation lands the target at disk coordinate (0,0),
+    // which is only the VIEWPORT centre when the Euclidean magnification
+    // offsets are zero — so they animate home alongside the translation.
+    const fromOffX = offX;
+    const fromOffY = offY;
+    if ((Math.sqrt(cAbs2(a)) < 0.01 && fromOffX === 0 && fromOffY === 0) || reduced) {
       applyToAll((z) => mobiusNeg(a, z));
+      offX = 0;
+      offY = 0;
       draw();
       return;
     }
@@ -299,6 +306,8 @@ export function mountHyperbolicView(
       const at = { x: a.x * e, y: a.y * e };
       for (let i = 0; i < N; i += 1) pos[i] = mobiusNeg(at, base[i]);
       hubPos = mobiusNeg(at, baseHub);
+      offX = fromOffX * (1 - e);
+      offY = fromOffY * (1 - e);
       draw();
       if (u < 1) animFrame = requestAnimationFrame(step);
       else animating = false;

@@ -1359,9 +1359,10 @@ select.graph-workspace-select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* Classic-graph floating controls slide left of the panel. */
+/* Classic-graph floating controls slide left of the panel; the reserved
+   space already includes a 12px gap, matching the toolbar gap above. */
 .graph-controls {
-  right: calc(var(--graph-panel-space, 0px) + 12px);
+  right: max(var(--graph-panel-space, 0px), 12px);
 }
 
 .graph-side-search {
@@ -1778,7 +1779,7 @@ select.graph-workspace-select:focus {
   position: absolute;
   z-index: 8;
   top: calc(var(--graph-toolbar-height, 50px) + 12px);
-  right: calc(var(--graph-panel-space, 0px) + 12px);
+  right: max(var(--graph-panel-space, 0px), 12px);
   border: 1px solid rgba(100, 116, 139, 0.25);
   background: rgba(15, 23, 42, 0.92);
   color: var(--text-secondary);
