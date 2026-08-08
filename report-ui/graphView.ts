@@ -1943,9 +1943,40 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    */
   function focusViewportOn(centerX: number, centerY: number): void {
     if (!currentGraph) return;
-    const desiredZoom = clamp(Math.max(zoom, fitZoom * 1.35), minZoom, MAX_ZOOM);
-    zoom += (desiredZoom - zoom) * (reducedMotionQuery?.matches ? 1 : 0.35);
-    setViewportTarget(width * 0.46 - centerX * zoom, height * 0.5 - centerY * zoom);
+    // Fit the highlighted subtree: zoom so the focus layout's bounding box
+    // fills the region not covered by the toolbar or the side panel.
+    let minX = centerX;
+    let maxX = centerX;
+    let minY = centerY;
+    let maxY = centerY;
+    focusLayoutTargets.forEach((pt) => {
+      minX = Math.min(minX, pt.x);
+      maxX = Math.max(maxX, pt.x);
+      minY = Math.min(minY, pt.y);
+      maxY = Math.max(maxY, pt.y);
+    });
+    const panelSpace =
+      parseFloat(
+        getComputedStyle(options.canvasHost).getPropertyValue(
+          "--graph-panel-space",
+        ),
+      ) || 0;
+    const usableW = Math.max(160, width - panelSpace - 48);
+    const usableH = Math.max(160, height - toolbarHeight - 64);
+    const spanX = Math.max(160, maxX - minX + 120);
+    const spanY = Math.max(160, maxY - minY + 90);
+    const desiredZoom = clamp(
+      Math.min(usableW / spanX, usableH / spanY),
+      minZoom,
+      MAX_ZOOM,
+    );
+    zoom = desiredZoom;
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    setViewportTarget(
+      24 + usableW / 2 - cx * zoom,
+      toolbarHeight + 16 + usableH / 2 - cy * zoom,
+    );
   }
 
   /**

@@ -1242,6 +1242,7 @@ select.graph-workspace-select:focus {
 .graph-overlay-top {
   align-items: center;
   position: absolute;
+  z-index: 8;
   top: 0;
   left: 0;
   right: 0;
@@ -1307,10 +1308,11 @@ select.graph-workspace-select:focus {
 .graph-controls {
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px;
   top: calc(var(--graph-toolbar-height, 50px) + 12px);
   right: 12px;
+  width: 96px;
 }
 
 .graph-controls.hidden,
@@ -1681,24 +1683,25 @@ select.graph-workspace-select:focus {
 
 .zoom-controls {
   display: grid;
-  grid-template-columns: repeat(2, 52px);
-  gap: 6px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  width: 100%;
 }
 
 .zoom-controls > .graph-control-btn {
-  font-size: 18px;
+  font-size: 14px;
   width: 100%;
 }
 
 .dpad {
   display: grid;
-  grid-template-columns: 34px 34px 34px;
-  grid-template-rows: 34px 34px 34px;
+  grid-template-columns: 26px 26px 26px;
+  grid-template-rows: 26px 26px 26px;
   grid-template-areas:
     ". up ."
     "left . right"
     ". down .";
-  gap: 2px;
+  gap: 3px;
 }
 
 .dpad .up {
@@ -1720,22 +1723,25 @@ select.graph-workspace-select:focus {
 .center-spacer {
   grid-column: 2;
   grid-row: 2;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border: none;
   background: transparent;
 }
 
 .graph-control-btn {
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-  font-size: 12px;
-  width: 34px;
-  height: 30px;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   cursor: pointer;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition:
     transform var(--transition),
     background var(--transition),
@@ -1745,10 +1751,8 @@ select.graph-workspace-select:focus {
 }
 
 .graph-control-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(100, 116, 139, 0.4);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
 }
 
 [data-theme="light"] .graph-control-btn {
@@ -1763,9 +1767,41 @@ select.graph-workspace-select:focus {
 }
 
 .reset-btn {
-  width: 112px;
-  text-transform: lowercase;
-  letter-spacing: 0.2px;
+  width: 100%;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Floating reset for the alternative views (balloon / hyperbolic). */
+.graph-alt-reset {
+  position: absolute;
+  z-index: 8;
+  top: calc(var(--graph-toolbar-height, 50px) + 12px);
+  right: calc(var(--graph-panel-space, 0px) + 12px);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: rgba(15, 23, 42, 0.92);
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.graph-alt-reset:hover {
+  color: var(--text-primary);
+  border-color: rgba(100, 116, 139, 0.45);
+}
+
+[data-theme="light"] .graph-alt-reset {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(100, 116, 139, 0.15);
+}
+
+.graph-alt-reset[hidden] {
+  display: none;
 }
 
 .graph-popover {

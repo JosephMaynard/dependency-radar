@@ -55,9 +55,20 @@ export function buildVizModel(
   const workspace =
     dataset.workspaces.find((w) => w.name === workspaceName) ||
     dataset.workspaces[0];
-  const rootSlugs = workspace
+  let rootSlugs = workspace
     ? [...workspace.directDependencies, ...workspace.directDevDependencies]
     : [];
+  if (rootSlugs.length === 0) {
+    // Parity with the classic graph view: a workspace with no direct deps
+    // (e.g. a hoisting-only monorepo root) falls back to parentless packages.
+    const hasParent = new Set<string>();
+    for (const dep of Object.values(dataset.dependencies)) {
+      for (const child of dep.dependencies || []) hasParent.add(child);
+    }
+    rootSlugs = Object.keys(dataset.dependencies)
+      .filter((slug) => !hasParent.has(slug))
+      .slice(0, 40);
+  }
   const rootSet = new Set(rootSlugs);
 
   // Reachability sweep gives the index space.
@@ -252,6 +263,8 @@ export interface VizHandle {
   resize(): void;
   /** Bring a package into view / focus it (search + dossier chips). */
   focusIndex(index: number): void;
+  /** Reset the viewport/layout to its initial fitted state, if supported. */
+  resetView?(): void;
 }
 
 export interface VizCallbacks {

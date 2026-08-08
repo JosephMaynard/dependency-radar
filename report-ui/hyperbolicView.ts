@@ -418,5 +418,9 @@ export function mountHyperbolicView(
       selected = index;
       focusOn(index);
     },
+    resetView() {
+      rebuildPositions();
+      draw();
+    },
   };
 }

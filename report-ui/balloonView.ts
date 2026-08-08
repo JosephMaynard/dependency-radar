@@ -153,10 +153,10 @@ export function mountBalloonView(
   }
   const COUNT = px.length;
 
-  // Spatial grid for hover/click (bodies big enough to touch).
+  // Spatial grid for hover/click. Every body is pickable — leaves have tiny
+  // WORLD radii but are perfectly clickable once zoomed in.
   const grid = new Map<string, number[]>();
   for (let i = 0; i < COUNT; i += 1) {
-    if (pr[i] < 1.6) continue;
     const key = `${Math.floor(px[i] / CELL)},${Math.floor(py[i] / CELL)}`;
     const list = grid.get(key) ?? [];
     list.push(i);
@@ -456,7 +456,8 @@ export function mountBalloonView(
       const i = pickAt(e.offsetX, e.offsetY);
       selectedIdx = i;
       cb.onSelect(i >= 0 ? pid[i] : -1);
-      draw();
+      if (i >= 0) flyTo(i);
+      else draw();
     },
     { signal },
   );
@@ -488,7 +489,8 @@ export function mountBalloonView(
   );
 
   function flyTo(idx: number): void {
-    const targetScale = Math.min(24, Math.max(1.2, 42 / pr[idx]));
+    // Zoom in far enough to see the body, but never zoom OUT on selection.
+    const targetScale = Math.max(scale, Math.min(24, Math.max(1.2, 42 / pr[idx])));
     const fromX = vx;
     const fromY = vy;
     const fromS = scale;
@@ -534,6 +536,10 @@ export function mountBalloonView(
       if (idx === undefined) return;
       selectedIdx = idx;
       flyTo(idx);
+    },
+    resetView() {
+      fitView();
+      draw();
     },
   };
 }

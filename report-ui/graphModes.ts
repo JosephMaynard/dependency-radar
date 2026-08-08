@@ -76,6 +76,18 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     ? Array.from(options.keyEl.childNodes)
     : [];
 
+  // Floating reset for the alternative views (flame resets via double-click
+  // and its pinned ancestors, so it opts out).
+  const resetBtn = document.createElement("button");
+  resetBtn.type = "button";
+  resetBtn.className = "graph-alt-reset";
+  resetBtn.textContent = "Reset view";
+  resetBtn.hidden = true;
+  resetBtn.addEventListener("click", () => {
+    activeView?.resetView?.();
+  });
+  shell?.appendChild(resetBtn);
+
   function keyItem(color: string, label: string): HTMLElement {
     const item = document.createElement("span");
     item.className = "graph-key-item";
@@ -314,6 +326,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       });
     options.altHost.hidden = classic;
     options.altHost.parentElement?.classList.toggle("alt-active", !classic);
+    resetBtn.hidden = classic || mode === "flame";
     for (const elc of options.classicOnly) elc.classList.toggle("hidden", !classic);
     const handle = options.getClassicHandle();
     if (classic) {
