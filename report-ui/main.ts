@@ -2370,6 +2370,15 @@ async function init(): Promise<void> {
   const scanStatusBanner = document.getElementById("scan-status-banner");
   if (scanStatusBanner && report.scanStatus?.warnings.length) {
     scanStatusBanner.hidden = false;
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.className = "scan-status-dismiss";
+    dismiss.setAttribute("aria-label", "Dismiss scan status notice");
+    dismiss.textContent = "×";
+    dismiss.addEventListener("click", () => {
+      scanStatusBanner.hidden = true;
+    });
+    scanStatusBanner.appendChild(dismiss);
     const heading = document.createElement("strong");
     heading.textContent = report.scanStatus.complete
       ? "Some analysis was intentionally skipped"

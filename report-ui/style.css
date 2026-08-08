@@ -347,25 +347,56 @@ body {
   opacity: 0.8;
 }
 
+/* Scan-evidence notice: a dismissible toast floating over the content, never
+   part of the document flow. */
 .scan-status-banner {
-  margin: 12px auto 0;
-  width: min(1100px, calc(100% - 32px));
-  padding: 12px 14px;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  width: min(380px, calc(100vw - 32px));
+  padding: 12px 36px 12px 14px;
   border: 1px solid var(--amber);
   border-radius: 10px;
-  background: var(--amber-bg);
+  background: var(--bg-card);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .scan-status-banner strong {
   color: var(--text-primary);
+  display: block;
+  padding-right: 4px;
 }
 
 .scan-status-banner ul {
   margin: 6px 0 0 18px;
   padding: 0;
+}
+
+.scan-status-dismiss {
+  all: unset;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.scan-status-dismiss:hover,
+.scan-status-dismiss:focus-visible {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
 }
 
 button.stat-chip {
