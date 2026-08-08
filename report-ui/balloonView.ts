@@ -133,7 +133,14 @@ export function mountBalloonView(
       a += share;
       place(r, Math.cos(ang) * dist, Math.sin(ang) * dist, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
     }
-    const minorDist = majors.length ? Math.max(dist * 0.34, CENTER_R + 120) : CENTER_R + 120;
+    // Arc-pack the minor orbit too: with many light roots a fixed-radius
+    // orbit piles them into an overlapping donut (seen on real monorepos).
+    const minorArc = minors.reduce((s2, r) => s2 + 2 * Math.max(encMemo[r], 34) * 1.15, 0);
+    const minorDist = Math.max(
+      majors.length ? dist * 0.34 : 0,
+      CENTER_R + 120,
+      minorArc / (Math.PI * 2),
+    );
     minors.forEach((r, i) => {
       const ang = -Math.PI / 2 + ((i + 0.5) / Math.max(1, minors.length)) * Math.PI * 2;
       place(r, Math.cos(ang) * minorDist, Math.sin(ang) * minorDist, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
@@ -157,6 +164,8 @@ export function mountBalloonView(
 
   let W = 0;
   let H = 0;
+  /** Usable width: canvas width minus the floating panel's cover. */
+  const usableW = (): number => Math.max(120, W - cb.insetRight());
   let vx = 0;
   let vy = 0;
   let scale = 1;
@@ -188,10 +197,10 @@ export function mountBalloonView(
     vy = (minY + maxY) / 2;
     scale = Math.max(
       1e-4,
-      Math.min(W / Math.max(1, maxX - minX), H / Math.max(1, maxY - minY)) * 0.94,
+      Math.min(usableW() / Math.max(1, maxX - minX), H / Math.max(1, maxY - minY)) * 0.94,
     );
   }
-  const sx = (x: number): number => (x - vx) * scale + W / 2;
+  const sx = (x: number): number => (x - vx) * scale + usableW() / 2;
   const sy = (y: number): number => (y - vy) * scale + H / 2;
 
   function draw(): void {
@@ -229,9 +238,11 @@ export function mountBalloonView(
       ctx.stroke();
     }
 
-    // Bodies — hubs keep a minimum screen size like cities on a map.
+    // Bodies — hubs keep a minimum screen size like cities on a map, and at
+    // idle every node keeps at least a visible dot so the fitted overview
+    // shows the whole tree.
     for (let i = 0; i < COUNT; i += 1) {
-      const minR = pdepth[i] === 0 ? 9 : pdepth[i] === 1 ? 2.4 : 0;
+      const minR = pdepth[i] === 0 ? 9 : pdepth[i] === 1 ? 2.4 : interacting ? 0 : 0.85;
       const r = Math.max(pr[i] * scale, minR);
       if (r < lodMin) continue;
       const x = sx(px[i]);
@@ -320,7 +331,7 @@ export function mountBalloonView(
   }
 
   function pickAt(mx: number, my: number): number {
-    const wx = (mx - W / 2) / scale + vx;
+    const wx = (mx - usableW() / 2) / scale + vx;
     const wy = (my - H / 2) / scale + vy;
     const cx = Math.floor(wx / CELL);
     const cyy = Math.floor(wy / CELL);
@@ -420,10 +431,10 @@ export function mountBalloonView(
     (e) => {
       e.preventDefault();
       const f = Math.exp(-e.deltaY * 0.0016);
-      const wx = (e.offsetX - W / 2) / scale + vx;
+      const wx = (e.offsetX - usableW() / 2) / scale + vx;
       const wy = (e.offsetY - H / 2) / scale + vy;
       scale = Math.min(600, Math.max(0.05, scale * f));
-      vx = wx - (e.offsetX - W / 2) / scale;
+      vx = wx - (e.offsetX - usableW() / 2) / scale;
       vy = wy - (e.offsetY - H / 2) / scale;
       poke();
       draw();

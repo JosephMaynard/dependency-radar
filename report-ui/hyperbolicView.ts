@@ -394,9 +394,11 @@ export function mountHyperbolicView(
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;
     canvas.style.height = `${H}px`;
-    CX = W / 2;
+    // Centre the disk in the region not covered by the floating side panel.
+    const usable = Math.max(160, W - cb.insetRight());
+    CX = usable / 2;
     CY = H / 2;
-    R = Math.min(W, H) / 2 - 30;
+    R = Math.min(usable, H) / 2 - 30;
     draw();
   }
   window.addEventListener("resize", resize, { signal });

@@ -260,6 +260,8 @@ export interface VizCallbacks {
   /** Selection changed; -1 = cleared. */
   onSelect(index: number): void;
   theme(): VizTheme;
+  /** Horizontal space covered by the floating side panel; keep fit clear of it. */
+  insetRight(): number;
 }
 
 /** Node fill hue/lightness helper shared by views: dev deps render dimmer. */

@@ -1448,7 +1448,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
     const horizontalPadding = 32;
     const verticalPadding = 24;
-    const usableWidth = Math.max(1, width - horizontalPadding);
+    // Space reserved by the floating side panel, so fit-to-view centres the
+    // graph within the uncovered region.
+    const panelSpace =
+      parseFloat(
+        getComputedStyle(options.canvasHost).getPropertyValue(
+          "--graph-panel-space",
+        ),
+      ) || 0;
+    const usableWidth = Math.max(1, width - horizontalPadding - panelSpace);
     const usableHeight = Math.max(1, height - toolbarHeight - verticalPadding);
     const fitZoomX = usableWidth / Math.max(1, contentMaxX - bounds.minX);
     const fitZoomY = usableHeight / graphHeight;

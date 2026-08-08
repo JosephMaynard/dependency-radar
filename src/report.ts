@@ -389,8 +389,7 @@ ${safeCssContent}
       <div id="dependency-list" class="dependency-grid"></div>
     </section>
     <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
-      <div class="graph-layout">
-      <div class="graph-canvas-shell" id="graph-canvas-shell">
+            <div class="graph-canvas-shell" id="graph-canvas-shell">
         <canvas id="graph-canvas"></canvas>
         <div class="graph-alt-host" id="graph-alt-host" hidden></div>
         <div class="graph-status-line dim" id="graph-status-line"></div>
@@ -446,14 +445,13 @@ ${safeCssContent}
           <div class="graph-popover-meta" id="graph-popover-amplification"></div>
           <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
         </div>
-      </div>
-      <aside class="graph-side-panel" id="graph-side-panel" aria-label="Selection details">
-        <div class="graph-side-search">
-          <input id="graph-search" type="search" placeholder="Find a package…" autocomplete="off" aria-label="Find a package" />
-          <ul id="graph-search-results" class="graph-search-results"></ul>
-        </div>
-        <div class="graph-dossier" id="graph-dossier"></div>
-      </aside>
+        <aside class="graph-side-panel" id="graph-side-panel" aria-label="Selection details">
+          <div class="graph-side-search">
+            <input id="graph-search" type="search" placeholder="Find a package…" autocomplete="off" aria-label="Find a package" />
+            <ul id="graph-search-results" class="graph-search-results"></ul>
+          </div>
+          <div class="graph-dossier" id="graph-dossier"></div>
+        </aside>
       </div>
     </section>
   </main>

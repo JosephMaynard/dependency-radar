@@ -1316,39 +1316,46 @@ select.graph-workspace-select:focus {
   display: none;
 }
 
-/* ---- multi-mode layout: canvas stage + docked side panel ---- */
+/* ---- multi-mode layout: side panel floats over the canvas stage ---- */
 
-.graph-layout {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-  min-width: 0;
-}
-
-.graph-layout .graph-canvas-shell {
-  flex: 1;
-  min-width: 0;
+.graph-canvas-shell {
+  /* Horizontal space the floating side panel occupies; fit-to-view logic in
+     every mode subtracts this so content centres in the uncovered area. */
+  --graph-panel-space: 324px;
 }
 
 .graph-side-panel {
+  position: absolute;
+  z-index: 9;
+  top: calc(var(--graph-toolbar-height, 50px) + 12px);
+  right: 12px;
+  bottom: 40px;
   width: 300px;
-  flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 74vh;
-  min-height: 420px;
-  max-height: 980px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   overflow: hidden;
 }
 
-.graph-mode .graph-side-panel {
-  height: calc(100dvh - 48px);
-  min-height: 520px;
-  max-height: none;
+[data-theme="light"] .graph-side-panel {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(100, 116, 139, 0.15);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Classic-graph floating controls slide left of the panel. */
+.graph-controls {
+  right: calc(var(--graph-panel-space, 0px) + 12px);
 }
 
 .graph-side-search {
@@ -1434,8 +1441,61 @@ select.graph-workspace-select:focus {
   margin: 6px 0 0;
 }
 
-.graph-dossier-vuln {
+/* Skimmable header facts: coloured icon chips instead of plain meta lines. */
+.graph-dossier-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.graph-dossier-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 3px 8px;
+  line-height: 1.4;
+}
+
+.graph-dossier-fact .fact-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.graph-dossier-fact.fact-runtime {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: var(--graph-direct-runtime, #10b981);
+}
+
+.graph-dossier-fact.fact-dev {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--graph-direct-dev, #f59e0b);
+}
+
+.graph-dossier-fact.fact-sub {
+  border-color: rgba(6, 182, 212, 0.4);
+  color: var(--graph-transitive, #06b6d4);
+}
+
+.graph-dossier-fact.fact-ok .fact-icon {
+  color: var(--graph-direct-runtime, #10b981);
+}
+
+.graph-dossier-fact.fact-bad {
+  border-color: rgba(239, 68, 68, 0.5);
   color: var(--graph-vuln-high, #ef4444);
+}
+
+.graph-dossier-fact .fact-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
 }
 
 .graph-dossier-block {
@@ -1602,20 +1662,18 @@ select.graph-workspace-select:focus {
 }
 
 @media (max-width: 900px) {
-  .graph-layout {
-    flex-direction: column;
+  /* Bottom-sheet panel on small screens; no horizontal fit inset. */
+  .graph-canvas-shell {
+    --graph-panel-space: 0px;
   }
 
   .graph-side-panel {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 36px;
     width: auto;
-    height: auto;
-    min-height: 0;
-    max-height: 42vh;
-  }
-
-  .graph-mode .graph-side-panel {
-    height: auto;
-    min-height: 0;
+    max-height: 42%;
   }
 }
 

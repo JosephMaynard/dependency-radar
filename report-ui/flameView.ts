@@ -47,6 +47,8 @@ export function mountFlameView(
 
   let W = 0;
   let H = 0;
+  /** Usable width: canvas width minus the floating panel's cover. */
+  const usableW = (): number => Math.max(120, W - cb.insetRight());
   let focusPath: number[] = [];
   let hoveredBlock = -1;
   let selectedId = -1;
@@ -147,11 +149,12 @@ export function mountFlameView(
     let y = 0;
 
     // Pinned lineage: project bar, then each ancestor of the focus, full width.
-    blocks.push({ id: -1, parent: -1, x: 0, y, w: W, h: focusPath.length ? ANC : ROW });
+    const UW = usableW();
+    blocks.push({ id: -1, parent: -1, x: 0, y, w: UW, h: focusPath.length ? ANC : ROW });
     drawBar(
       0,
       y,
-      W,
+      UW,
       focusPath.length ? ANC : ROW,
       theme.isDark ? "#1c2836" : "#dbe4ef",
       `${model.projectName}  —  ${Math.round(model.totalSize).toLocaleString()} blocks`,
@@ -162,27 +165,27 @@ export function mountFlameView(
     const rootId = focusPath[0];
     for (let i = 0; i < Math.max(0, focusPath.length - 1); i += 1) {
       const id = focusPath[i];
-      blocks.push({ id, parent: blocks.length - 1, x: 0, y, w: W, h: ANC, anc: i });
-      drawBar(0, y, W, ANC, fillFor(id, rootId, 1, false), `${model.refs[id].name}  ↩`, 0.7);
+      blocks.push({ id, parent: blocks.length - 1, x: 0, y, w: UW, h: ANC, anc: i });
+      drawBar(0, y, UW, ANC, fillFor(id, rootId, 1, false), `${model.refs[id].name}  ↩`, 0.7);
       y += ANC;
     }
 
     const chain = new Set(focusPath.slice(0, -1));
     if (focusPath.length === 0) {
-      drawLevel(model.rootsSorted, null, 0, W, y, 0, 0, chain);
+      drawLevel(model.rootsSorted, null, 0, UW, y, 0, 0, chain);
     } else {
       const focus = focusPath[focusPath.length - 1];
       const idx = blocks.length;
-      blocks.push({ id: focus, parent: idx - 1, x: 0, y, w: W, h: ROW });
+      blocks.push({ id: focus, parent: idx - 1, x: 0, y, w: UW, h: ROW });
       const hl = focus === selectedId;
-      drawBar(0, y, W, ROW, fillFor(focus, rootId, 1, true), model.refs[focus].name, 1);
+      drawBar(0, y, UW, ROW, fillFor(focus, rootId, 1, true), model.refs[focus].name, 1);
       if (hl) {
         ctx.strokeStyle = theme.accent;
         ctx.lineWidth = 1.2;
-        ctx.strokeRect(0.5, y + 0.5, W - 1, ROW - 2.5);
+        ctx.strokeRect(0.5, y + 0.5, UW - 1, ROW - 2.5);
       }
       chain.add(focus);
-      drawLevel(model.kidsOf[focus], rootId, 0, W, y + ROW, 2, idx, chain);
+      drawLevel(model.kidsOf[focus], rootId, 0, UW, y + ROW, 2, idx, chain);
     }
   }
 

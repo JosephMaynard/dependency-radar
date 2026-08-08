@@ -30,6 +30,9 @@ export interface GraphModesOptions {
   searchInput: HTMLInputElement;
   searchResults: HTMLElement;
   dossier: HTMLElement;
+  sidePanel: HTMLElement;
+  /** The toolbar key/legend; its content switches per mode. */
+  keyEl: HTMLElement | null;
   workspaceSelect: HTMLSelectElement;
   /** Elements only meaningful for the classic graph (dpad, zoom, key). */
   classicOnly: HTMLElement[];
@@ -53,6 +56,59 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   let modelWorkspace = "";
 
   const theme = resolveVizTheme;
+  const shell = options.altHost.parentElement as HTMLElement | null;
+  const insetRight = (): number => {
+    if (!shell) return 0;
+    return (
+      parseFloat(
+        getComputedStyle(shell).getPropertyValue("--graph-panel-space"),
+      ) || 0
+    );
+  };
+  const classicKeyNodes = options.keyEl
+    ? Array.from(options.keyEl.childNodes)
+    : [];
+
+  function keyItem(color: string, label: string): HTMLElement {
+    const item = document.createElement("span");
+    item.className = "graph-key-item";
+    const dot = document.createElement("span");
+    dot.className = "graph-key-dot";
+    dot.style.background = color;
+    dot.setAttribute("aria-hidden", "true");
+    item.appendChild(dot);
+    const text = document.createElement("span");
+    text.textContent = label;
+    item.appendChild(text);
+    return item;
+  }
+
+  function updateKey(): void {
+    const keyEl = options.keyEl;
+    if (!keyEl) return;
+    if (mode === "graph") {
+      keyEl.replaceChildren(...classicKeyNodes);
+      return;
+    }
+    const label = document.createElement("span");
+    label.className = "graph-workspace-label";
+    label.textContent = "Key";
+    const items = document.createElement("div");
+    items.className = "graph-key-items";
+    if (mode === "hyperbolic") {
+      items.appendChild(keyItem("#ff9a58", "Direct dependency"));
+      items.appendChild(keyItem("#5b7186", "Sub-dependency"));
+    } else {
+      items.appendChild(
+        keyItem(
+          "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))",
+          "One colour per direct dependency's subtree",
+        ),
+      );
+    }
+    items.appendChild(keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable"));
+    keyEl.replaceChildren(label, items);
+  }
 
   function ensureModel(): VizModel {
     const workspace = options.workspaceSelect.value || "";
@@ -140,32 +196,54 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     options.dossier.textContent = "";
 
     options.dossier.appendChild(el("h2", "graph-dossier-name", ref.name));
-    const kind = m.isRoot[index]
-      ? m.isDev[index]
-        ? "direct dev dependency"
-        : "direct dependency"
-      : "sub-dependency";
-    options.dossier.appendChild(
-      el("p", "graph-dossier-meta", `${ref.version || "version unknown"} · ${kind}`),
+
+    // Skimmable coloured fact chips instead of plain meta lines.
+    const facts = el("div", "graph-dossier-facts");
+    const fact = (
+      className: string,
+      icon: string | null,
+      text: string,
+      dotColor?: string,
+    ): void => {
+      const chip = el("span", `graph-dossier-fact ${className}`.trim());
+      if (dotColor) {
+        const dot = el("span", "fact-dot");
+        dot.style.background = dotColor;
+        chip.appendChild(dot);
+      } else if (icon) {
+        chip.appendChild(el("span", "fact-icon", icon));
+      }
+      chip.appendChild(el("span", "", text));
+      facts.appendChild(chip);
+    };
+
+    fact("", null, ref.version ? `v${ref.version}` : "version unknown");
+    if (m.isRoot[index]) {
+      if (m.isDev[index]) {
+        fact("fact-dev", null, "direct dev dependency", "var(--graph-direct-dev, #f59e0b)");
+      } else {
+        fact("fact-runtime", null, "direct dependency", "var(--graph-direct-runtime, #10b981)");
+      }
+    } else {
+      fact("fact-sub", null, "sub-dependency", "var(--graph-transitive, #06b6d4)");
+    }
+    fact("", "\u00a7", ref.license || "Unknown licence");
+    if (ref.vulnerabilityCount > 0) {
+      fact(
+        "fact-bad",
+        "\u26a0\ufe0e",
+        `${ref.vulnerabilityCount} ${ref.vulnerabilitySeverity === "high" ? "high-severity " : ""}vulnerabilit${ref.vulnerabilityCount === 1 ? "y" : "ies"}`,
+      );
+    } else {
+      fact("fact-ok", "\u2713", "no known vulnerabilities");
+    }
+    fact("", "\u03a3", `${Math.round(m.subSize[index]).toLocaleString()} in subtree`);
+    fact(
+      "",
+      "\u2295",
+      `appears in ${Math.round(m.occ[index]).toLocaleString()} place${m.occ[index] === 1 ? "" : "s"}`,
     );
-    const vulnText =
-      ref.vulnerabilityCount > 0
-        ? `${ref.vulnerabilityCount} ${ref.vulnerabilitySeverity === "high" ? "high-severity " : ""}vulnerabilit${ref.vulnerabilityCount === 1 ? "y" : "ies"}`
-        : "no known vulnerabilities";
-    const licenseLine = el(
-      "p",
-      "graph-dossier-meta",
-      `${ref.license || "Unknown licence"} · ${vulnText}`,
-    );
-    if (ref.vulnerabilityCount > 0) licenseLine.classList.add("graph-dossier-vuln");
-    options.dossier.appendChild(licenseLine);
-    options.dossier.appendChild(
-      el(
-        "p",
-        "graph-dossier-meta",
-        `${Math.round(m.subSize[index]).toLocaleString()} in subtree · appears in ${Math.round(m.occ[index]).toLocaleString()} place${m.occ[index] === 1 ? "" : "s"}`,
-      ),
-    );
+    options.dossier.appendChild(facts);
 
     chipRow(options.dossier, "Depends on", m.kidsOf[index]);
     chipRow(options.dossier, "Required by", m.depsIn[index]);
@@ -205,6 +283,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         else renderDossierEmpty();
       },
       theme,
+      insetRight,
     };
     if (mode === "flame") activeView = mountFlameView(options.altHost, m, callbacks);
     else if (mode === "balloon") activeView = mountBalloonView(options.altHost, m, callbacks);
@@ -237,6 +316,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       handle?.setActive(false);
       mountActive();
     }
+    updateKey();
     statusHint();
     renderDossierEmpty();
   }

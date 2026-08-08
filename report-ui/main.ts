@@ -2623,6 +2623,9 @@ async function init(): Promise<void> {
     graphDossier: document.getElementById(
       "graph-dossier",
     ) as HTMLElement | null,
+    graphSidePanel: document.getElementById(
+      "graph-side-panel",
+    ) as HTMLElement | null,
     reportFooter: document.querySelector(
       ".report-footer",
     ) as HTMLElement | null,
@@ -3683,6 +3686,7 @@ async function init(): Promise<void> {
         controls.graphSearch &&
         controls.graphSearchResults &&
         controls.graphDossier &&
+        controls.graphSidePanel &&
         controls.graphWorkspaceSelect
       ) {
         graphModes = initGraphModes({
@@ -3697,11 +3701,12 @@ async function init(): Promise<void> {
           searchInput: controls.graphSearch,
           searchResults: controls.graphSearchResults,
           dossier: controls.graphDossier,
+          sidePanel: controls.graphSidePanel,
+          keyEl: controls.graphKey,
           workspaceSelect: controls.graphWorkspaceSelect,
-          classicOnly: [
-            controls.graphControls,
-            controls.graphKey,
-          ].filter((node): node is HTMLElement => Boolean(node)),
+          classicOnly: [controls.graphControls].filter(
+            (node): node is HTMLElement => Boolean(node),
+          ),
           getClassicHandle: () => graphView,
           onOpenList: (slug: string) => {
             openListFromGraph(slug);
