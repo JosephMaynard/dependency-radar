@@ -1136,7 +1136,9 @@ select.graph-workspace-select:focus {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  /* backdrop-filter cannot blur composited canvas layers in Chromium, so the
+     background carries enough opacity to stay readable on its own. */
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(100, 116, 139, 0.25);
   border-radius: 12px;
   backdrop-filter: blur(12px);
@@ -1233,7 +1235,7 @@ select.graph-workspace-select:focus {
 }
 
 [data-theme="light"] .graph-overlay-top {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
 }
 
@@ -1247,7 +1249,7 @@ select.graph-workspace-select:focus {
   flex-wrap: wrap;
   column-gap: 24px;
   row-gap: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.92);
   border-bottom: 1px solid rgba(100, 116, 139, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1257,7 +1259,7 @@ select.graph-workspace-select:focus {
 
 .graph-back-btn {
   gap: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(100, 116, 139, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1295,7 +1297,7 @@ select.graph-workspace-select:focus {
 }
 
 [data-theme="light"] .graph-back-btn {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.06),
@@ -1336,7 +1338,9 @@ select.graph-workspace-select:focus {
   min-height: 0;
   border: 1px solid rgba(100, 116, 139, 0.25);
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.7);
+  /* backdrop-filter cannot blur composited canvas layers in Chromium, so the
+     background carries enough opacity to stay readable on its own. */
+  background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow:
@@ -1346,7 +1350,7 @@ select.graph-workspace-select:focus {
 }
 
 [data-theme="light"] .graph-side-panel {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.06),
@@ -1567,14 +1571,14 @@ select.graph-workspace-select:focus {
   gap: 2px;
   padding: 3px;
   border-radius: 10px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(100, 116, 139, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 [data-theme="light"] .graph-mode-switch {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
 }
 
@@ -1603,14 +1607,12 @@ select.graph-workspace-select:focus {
 }
 
 .graph-alt-host {
+  /* Full bleed: the canvas runs underneath the translucent toolbar and
+     status line; views inset their CONTENT instead, so there is no seam. */
   position: absolute;
-  top: calc(var(--graph-toolbar-height, 50px) + 10px);
-  left: 0;
-  right: 0;
-  bottom: 30px;
+  inset: 0;
   z-index: 2;
-  /* Opaque: the classic graph canvas underneath must not ghost through. */
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 .graph-alt-host[hidden] {

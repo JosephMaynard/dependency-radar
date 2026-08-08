@@ -146,7 +146,7 @@ export function mountFlameView(
     ctx.font = monoFont();
     ctx.textBaseline = "middle";
     blocks = [];
-    let y = 0;
+    let y = cb.insetTop();
 
     // Pinned lineage: project bar, then each ancestor of the focus, full width.
     const UW = usableW();

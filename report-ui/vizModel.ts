@@ -262,6 +262,8 @@ export interface VizCallbacks {
   theme(): VizTheme;
   /** Horizontal space covered by the floating side panel; keep fit clear of it. */
   insetRight(): number;
+  /** Vertical space covered by the floating toolbar at the top. */
+  insetTop(): number;
 }
 
 /** Node fill hue/lightness helper shared by views: dev deps render dimmer. */

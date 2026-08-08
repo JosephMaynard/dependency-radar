@@ -133,18 +133,23 @@ export function mountBalloonView(
       a += share;
       place(r, Math.cos(ang) * dist, Math.sin(ang) * dist, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
     }
-    // Arc-pack the minor orbit too: with many light roots a fixed-radius
-    // orbit piles them into an overlapping donut (seen on real monorepos).
-    const minorArc = minors.reduce((s2, r) => s2 + 2 * Math.max(encMemo[r], 34) * 1.15, 0);
+    // Arc-pack the minor orbit too: each root gets angular share proportional
+    // to its enclosing radius (even-by-count spacing let larger minors overlap
+    // their neighbours into a solid rope on real monorepos).
+    const minorShare = (r: number): number => 2 * Math.max(encMemo[r], 34) * 1.15;
+    const minorArc = minors.reduce((s2, r) => s2 + minorShare(r), 0);
     const minorDist = Math.max(
       majors.length ? dist * 0.34 : 0,
       CENTER_R + 120,
       minorArc / (Math.PI * 2),
     );
-    minors.forEach((r, i) => {
-      const ang = -Math.PI / 2 + ((i + 0.5) / Math.max(1, minors.length)) * Math.PI * 2;
+    let am = -Math.PI / 2;
+    for (const r of minors) {
+      const share = minorShare(r) / minorDist;
+      const ang = am + share / 2;
+      am += share;
       place(r, Math.cos(ang) * minorDist, Math.sin(ang) * minorDist, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
-    });
+    }
   }
   const COUNT = px.length;
 
@@ -162,10 +167,16 @@ export function mountBalloonView(
     if (!firstIdxOf.has(pid[i])) firstIdxOf.set(pid[i], i);
   }
 
+  // With hundreds of direct deps the 9 px hub floor forces ring overlap at
+  // fit zoom; relax it as root count grows (still never invisible).
+  const hubFloor = model.roots.length > 120 ? 5 : model.roots.length > 60 ? 7 : 9;
   let W = 0;
   let H = 0;
   /** Usable width: canvas width minus the floating panel's cover. */
   const usableW = (): number => Math.max(120, W - cb.insetRight());
+  /** Usable height: below the floating toolbar, above the status line. */
+  const usableH = (): number => Math.max(120, H - cb.insetTop() - 30);
+  const centreY = (): number => cb.insetTop() + usableH() / 2;
   let vx = 0;
   let vy = 0;
   let scale = 1;
@@ -197,11 +208,11 @@ export function mountBalloonView(
     vy = (minY + maxY) / 2;
     scale = Math.max(
       1e-4,
-      Math.min(usableW() / Math.max(1, maxX - minX), H / Math.max(1, maxY - minY)) * 0.94,
+      Math.min(usableW() / Math.max(1, maxX - minX), usableH() / Math.max(1, maxY - minY)) * 0.94,
     );
   }
   const sx = (x: number): number => (x - vx) * scale + usableW() / 2;
-  const sy = (y: number): number => (y - vy) * scale + H / 2;
+  const sy = (y: number): number => (y - vy) * scale + centreY();
 
   function draw(): void {
     if (!ctx || destroyed) return;
@@ -216,7 +227,7 @@ export function mountBalloonView(
     // Edges first — always visible, satellite style.
     ctx.lineWidth = 0.6;
     for (let i = 0; i < COUNT; i += 1) {
-      const r = Math.max(pr[i] * scale, pdepth[i] <= 1 ? 2.4 : 0);
+      const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? Math.min(hubFloor, 2.4) : pdepth[i] === 1 ? 2.4 : 0);
       if (r < 1.1) continue;
       const x = sx(px[i]);
       const y = sy(py[i]);
@@ -242,7 +253,7 @@ export function mountBalloonView(
     // idle every node keeps at least a visible dot so the fitted overview
     // shows the whole tree.
     for (let i = 0; i < COUNT; i += 1) {
-      const minR = pdepth[i] === 0 ? 9 : pdepth[i] === 1 ? 2.4 : interacting ? 0 : 0.85;
+      const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : interacting ? 0 : 0.85;
       const r = Math.max(pr[i] * scale, minR);
       if (r < lodMin) continue;
       const x = sx(px[i]);
@@ -303,18 +314,41 @@ export function mountBalloonView(
       ctx.textBaseline = "middle";
       const candidates: Array<{ i: number; r: number }> = [];
       for (let i = 0; i < COUNT; i += 1) {
-        const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? 9 : 0);
-        if (r < 7.5) continue;
+        const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? hubFloor : 0);
+        // Roots stay label-eligible even when the adaptive floor dips below
+        // the general threshold; collision pruning keeps the count sane.
+        if (r < (pdepth[i] === 0 ? Math.min(7.5, hubFloor) : 7.5)) continue;
         const x = sx(px[i]);
         const y = sy(py[i]);
         if (x < -220 || x > W + 40 || y < -40 || y > H + 40) continue;
         candidates.push({ i, r });
       }
       candidates.sort((a, b) => b.r - a.r);
-      const budget = candidates.slice(0, 110);
-      for (const { i, r } of budget) {
+      const placed: Array<[number, number, number, number]> = [];
+      let labelsDrawn = 0;
+      ctx.font = `600 10.5px ${mono}`;
+      for (const { i, r } of candidates) {
+        if (labelsDrawn >= 110) break;
         const x = sx(px[i]);
         const y = sy(py[i]);
+        const name = model.refs[pid[i]].name;
+        const w = ctx.measureText(name).width;
+        const x0 = x + r + 5;
+        const y0 = y - 14;
+        const x1 = x0 + w;
+        const y1 = y + 14;
+        // Skip labels that would collide with one already placed — the
+        // biggest-first order means the important ones win.
+        let collides = false;
+        for (const [ax0, ay0, ax1, ay1] of placed) {
+          if (x0 < ax1 && x1 > ax0 && y0 < ay1 && y1 > ay0) {
+            collides = true;
+            break;
+          }
+        }
+        if (collides && i !== hovered && i !== selectedIdx) continue;
+        placed.push([x0, y0, x1, y1]);
+        labelsDrawn += 1;
         ctx.font = `600 10.5px ${mono}`;
         ctx.fillStyle =
           i === hovered || i === selectedIdx
@@ -322,17 +356,17 @@ export function mountBalloonView(
             : theme.isDark
               ? "#aabdd0"
               : "#3f5266";
-        ctx.fillText(model.refs[pid[i]].name, x + r + 5, y - 6);
+        ctx.fillText(name, x0, y - 6);
         ctx.font = `10px ${mono}`;
         ctx.fillStyle = theme.muted;
-        ctx.fillText(Math.round(model.subSize[pid[i]]).toLocaleString(), x + r + 5, y + 7);
+        ctx.fillText(Math.round(model.subSize[pid[i]]).toLocaleString(), x0, y + 7);
       }
     }
   }
 
   function pickAt(mx: number, my: number): number {
     const wx = (mx - usableW() / 2) / scale + vx;
-    const wy = (my - H / 2) / scale + vy;
+    const wy = (my - centreY()) / scale + vy;
     const cx = Math.floor(wx / CELL);
     const cyy = Math.floor(wy / CELL);
     let best = -1;
@@ -432,10 +466,10 @@ export function mountBalloonView(
       e.preventDefault();
       const f = Math.exp(-e.deltaY * 0.0016);
       const wx = (e.offsetX - usableW() / 2) / scale + vx;
-      const wy = (e.offsetY - H / 2) / scale + vy;
+      const wy = (e.offsetY - centreY()) / scale + vy;
       scale = Math.min(600, Math.max(0.05, scale * f));
       vx = wx - (e.offsetX - usableW() / 2) / scale;
-      vy = wy - (e.offsetY - H / 2) / scale;
+      vy = wy - (e.offsetY - centreY()) / scale;
       poke();
       draw();
     },

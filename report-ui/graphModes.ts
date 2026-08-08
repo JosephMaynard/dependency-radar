@@ -65,6 +65,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       ) || 0
     );
   };
+  const insetTop = (): number => {
+    if (!shell) return 60;
+    const toolbar = parseFloat(
+      getComputedStyle(shell).getPropertyValue("--graph-toolbar-height"),
+    );
+    return (Number.isFinite(toolbar) && toolbar > 0 ? toolbar : 50) + 10;
+  };
   const classicKeyNodes = options.keyEl
     ? Array.from(options.keyEl.childNodes)
     : [];
@@ -284,6 +291,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       },
       theme,
       insetRight,
+      insetTop,
     };
     if (mode === "flame") activeView = mountFlameView(options.altHost, m, callbacks);
     else if (mode === "balloon") activeView = mountBalloonView(options.altHost, m, callbacks);
