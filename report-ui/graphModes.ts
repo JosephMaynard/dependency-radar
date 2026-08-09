@@ -356,11 +356,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     // Stale results hold closures over the previous model's indices.
     options.searchInput.value = "";
     options.searchResults.textContent = "";
+    renderDossierEmpty();
     if (mode !== "graph") {
       destroyActive();
       mountActive();
       statusHint();
-      renderDossierEmpty();
     }
   });
 
@@ -374,14 +374,21 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   });
 
   // Search: incremental results over the current workspace's packages.
+  options.searchResults.setAttribute("aria-live", "polite");
+  let lowerNames: string[] = [];
+  let lowerNamesFor: VizModel | null = null;
   options.searchInput.addEventListener("input", () => {
     const q = options.searchInput.value.trim().toLowerCase();
     options.searchResults.textContent = "";
     if (q.length < 2) return;
     const m = ensureModel();
+    if (lowerNamesFor !== m) {
+      lowerNames = m.refs.map((ref) => ref.name.toLowerCase());
+      lowerNamesFor = m;
+    }
     const matches: number[] = [];
     for (let i = 0; i < m.count && matches.length < 12; i += 1) {
-      if (m.refs[i].name.toLowerCase().includes(q)) matches.push(i);
+      if (lowerNames[i].includes(q)) matches.push(i);
     }
     for (const index of matches) {
       const li = document.createElement("li");

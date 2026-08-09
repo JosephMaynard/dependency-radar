@@ -33,7 +33,7 @@ export function mountHyperbolicView(
   canvas.className = "graph-alt-canvas";
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
   const signal = aborter.signal;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -218,12 +218,16 @@ export function mountHyperbolicView(
       ctx.stroke();
     }
 
-    // Nodes, small first so big blips sit on top.
+    // Nodes, small first so big blips sit on top. Radii cached once per
+    // frame: nodeRadius is otherwise recomputed across sorting, rendering,
+    // and both label filters.
+    const radii = new Float32Array(N);
+    for (let i = 0; i < N; i += 1) radii[i] = nodeRadius(i);
     const orderDraw = Array.from({ length: N }, (_, i) => i).sort(
-      (a, b) => nodeRadius(a) - nodeRadius(b),
+      (a, b) => radii[a] - radii[b],
     );
     for (const id of orderDraw) {
-      const r = nodeRadius(id);
+      const r = radii[id];
       if (r < DRAW_MIN_R) continue;
       const p = toScreen(pos[id]);
       const vuln = model.refs[id].vulnerabilitySeverity;
@@ -268,14 +272,14 @@ export function mountHyperbolicView(
       (id) => focusSet.has(id) || id === hovered || id === selected,
     );
     const sized = orderDraw.filter(
-      (id) => nodeRadius(id) > 3.4 && !focusSet.has(id) && id !== hovered && id !== selected,
+      (id) => radii[id] > 3.4 && !focusSet.has(id) && id !== hovered && id !== selected,
     );
     // Cap applies to size-qualified labels only; focus/hover/selection always
     // stay in, and lead so collision pruning favours them.
     const labelled = [...forced.reverse(), ...sized.slice(-70).reverse()];
     const placed: Array<[number, number, number, number]> = [];
     for (const id of labelled) {
-      const r = nodeRadius(id);
+      const r = radii[id];
       if (r < 1.4 && !focusSet.has(id) && id !== hovered) continue;
       const p = toScreen(pos[id]);
       const name = model.refs[id].name;
@@ -440,6 +444,16 @@ export function mountHyperbolicView(
     { signal },
   );
   canvas.addEventListener(
+    "pointercancel",
+    () => {
+      dragging = false;
+      movedInDrag = false;
+      last = null;
+      canvas.classList.remove("dragging");
+    },
+    { signal },
+  );
+  canvas.addEventListener(
     "pointerleave",
     () => {
       if (hovered < 0) return;
@@ -486,6 +500,7 @@ export function mountHyperbolicView(
   function resize(): void {
     W = host.clientWidth;
     H = host.clientHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;

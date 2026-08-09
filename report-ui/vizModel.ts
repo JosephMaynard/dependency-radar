@@ -243,10 +243,13 @@ function cssVar(name: string, fallback: string): string {
   return value || fallback;
 }
 
+let themeCache: { key: string; value: VizTheme } | null = null;
+
 export function resolveVizTheme(): VizTheme {
-  const isDark =
-    document.documentElement.getAttribute("data-theme") !== "light";
-  return {
+  const key = document.documentElement.getAttribute("data-theme") || "dark";
+  if (themeCache && themeCache.key === key) return themeCache.value;
+  const isDark = key !== "light";
+  const value: VizTheme = {
     isDark,
     ink: cssVar("--text-primary", isDark ? "#c9d6e2" : "#1e293b"),
     muted: cssVar("--text-secondary", isDark ? "#6c7f92" : "#64748b"),
@@ -257,6 +260,8 @@ export function resolveVizTheme(): VizTheme {
     vulnModerate: cssVar("--graph-vuln-medium", "#f59e0b"),
     panelText: cssVar("--text-primary", isDark ? "#e6eef8" : "#0f172a"),
   };
+  themeCache = { key, value };
+  return value;
 }
 
 /** Shared handle every alternative view implements. */

@@ -378,7 +378,7 @@ body {
 
 /* In graph mode the docked side panel owns the bottom-right corner. */
 .graph-mode .scan-status-banner {
-  right: 340px;
+  right: calc(var(--graph-panel-space, 324px) + 16px);
 }
 
 @media (max-width: 900px) {
@@ -1334,9 +1334,10 @@ select.graph-workspace-select:focus {
 
 /* ---- multi-mode layout: side panel floats over the canvas stage ---- */
 
-.graph-canvas-shell {
-  /* Horizontal space the floating side panel occupies; fit-to-view logic in
-     every mode subtracts this so content centres in the uncovered area. */
+:root {
+  /* Horizontal space the floating graph side panel occupies; fit-to-view
+     logic in every mode subtracts this so content centres in the uncovered
+     area, and the fixed scan-status toast dodges it in graph mode. */
   --graph-panel-space: 324px;
 }
 
@@ -1428,6 +1429,15 @@ select.graph-workspace-select:focus {
 .graph-search-results li button:focus-visible {
   background: var(--bg-secondary);
   color: var(--text-primary);
+}
+
+.graph-search-results li button:focus-visible,
+.graph-dossier-chip:focus-visible,
+.graph-dossier-open:focus-visible,
+.graph-mode-btn:focus-visible,
+.scan-status-dismiss:focus-visible {
+  outline: 2px solid var(--graph-highlight, #22d3ee);
+  outline-offset: 1px;
 }
 
 .graph-dossier {
@@ -1680,7 +1690,7 @@ select.graph-workspace-select:focus {
 
 @media (max-width: 900px) {
   /* Bottom-sheet panel on small screens; no horizontal fit inset. */
-  .graph-canvas-shell {
+  :root {
     --graph-panel-space: 0px;
   }
 

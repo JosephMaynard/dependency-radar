@@ -6,6 +6,7 @@ import type { VizCallbacks, VizHandle, VizModel } from "./vizModel";
 // constant here fixed a real failure — see docs/VIZ-VIEWS-HANDOFF.md §5.2.
 
 const FAN = 3.6; // radians of arc a hub's children may occupy
+const MAX_PLACEMENTS = 250_000; // hard budget: beyond this, subtrees become leaves
 const SHRINK = 0.52; // each level is a scaled-down copy: series must converge
 const CENTER_R = 64;
 const CELL = 64; // spatial hash cell, world units
@@ -83,7 +84,7 @@ export function mountBalloonView(
     phue.push(hue);
     if (path.has(id)) return idx;
     const kids = model.kidsOf[id];
-    if (!kids.length) return idx;
+    if (!kids.length || px.length >= MAX_PLACEMENTS) return idx;
     path.add(id);
     let arc = 0;
     let maxKid = 0;
@@ -458,6 +459,15 @@ export function mountBalloonView(
     { signal },
   );
   canvas.addEventListener(
+    "pointercancel",
+    () => {
+      dragging = false;
+      movedInDrag = false;
+      canvas.classList.remove("dragging");
+    },
+    { signal },
+  );
+  canvas.addEventListener(
     "pointerup",
     (e) => {
       dragging = false;
@@ -554,7 +564,15 @@ export function mountBalloonView(
     },
     resize,
     focusIndex(index: number) {
-      const idx = firstIdxOf.get(index);
+      // Pruned/budgeted packages have no placement; fly to the nearest
+      // placed spanning-tree ancestor instead of ignoring the request.
+      let target = index;
+      let guard = 0;
+      while (!firstIdxOf.has(target) && model.parent[target] >= 0 && guard < 128) {
+        target = model.parent[target];
+        guard += 1;
+      }
+      const idx = firstIdxOf.get(target);
       if (idx === undefined) return;
       selectedIdx = idx;
       flyTo(idx);

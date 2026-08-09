@@ -1941,6 +1941,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    * @param centerX - World-space x coordinate to center in the viewport
    * @param centerY - World-space y coordinate to center in the viewport
    */
+  /**
+   * Fit the focused subtree into view: computes the bounding box of the
+   * focus layout targets, assigns the zoom that fits it within the viewport
+   * region not covered by the toolbar or side panel, and animates the pan
+   * toward the box centre.
+   */
   function focusViewportOn(centerX: number, centerY: number): void {
     if (!currentGraph) return;
     // Fit the highlighted subtree: zoom so the focus layout's bounding box
@@ -1986,7 +1992,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    * focused edges (ancestor and descendant edge chains), and focus push nodes (focused set plus direct
    * neighbors). Preserves the existing focus center when the previously opened popover node remains
    * within the new focus set; otherwise centers on the selected node. Computes focus layout targets,
-   * requests a viewport pan/zoom toward the focus center, marks the view dirty, and requests a render.
+   * fits the viewport to the focused subtree's bounding box, marks the view dirty, and requests a render.
    *
    * @param slug - The dependency node slug to focus; if the current graph is missing or the slug is not present, this function is a no-op.
    */
@@ -2244,7 +2250,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function updatePopoverPosition(): void {
+    // The popover element is retained (though CSS-hidden) because showPopover
+    // drives options.onSelect for the docked dossier; skip layout work when
+    // it is not actually rendered.
     if (!currentGraph || !popoverSlug || options.popover.hidden) return;
+    if (options.popover.offsetParent === null) return;
     const node = currentGraph.nodes.get(popoverSlug);
     if (!node) {
       hidePopover();
