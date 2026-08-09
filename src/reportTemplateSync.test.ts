@@ -9,14 +9,18 @@ import path from 'path';
 
 function graphSectionIds(source: string): string[] {
   const start = source.indexOf('id="graph-view"');
-  if (start === -1) return [];
+  expect(start, 'graph-view section missing').toBeGreaterThanOrEqual(0);
   const end = source.indexOf('</section>', start);
-  const section = source.slice(start, end === -1 ? undefined : end);
-  const ids = new Set<string>();
+  expect(end, 'graph-view section is unterminated').toBeGreaterThan(start);
+  const section = source.slice(start, end);
+  const ids: string[] = [];
   for (const match of section.matchAll(/id="([^"]+)"/g)) {
-    ids.add(match[1]);
+    ids.push(match[1]);
   }
-  return [...ids].sort();
+  // Duplicate DOM ids within one template are their own bug; a Set here
+  // would silently mask them.
+  expect(new Set(ids).size, 'duplicate ids within the graph section').toBe(ids.length);
+  return ids.sort();
 }
 
 describe('graph template synchronisation', () => {
