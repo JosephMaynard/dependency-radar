@@ -347,25 +347,68 @@ body {
   opacity: 0.8;
 }
 
+/* Scan-evidence notice: a dismissible toast floating over the content, never
+   part of the document flow. */
 .scan-status-banner {
-  margin: 12px auto 0;
-  width: min(1100px, calc(100% - 32px));
-  padding: 12px 14px;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  width: min(380px, calc(100vw - 32px));
+  padding: 12px 36px 12px 14px;
   border: 1px solid var(--amber);
   border-radius: 10px;
-  background: var(--amber-bg);
+  background: var(--bg-card);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .scan-status-banner strong {
   color: var(--text-primary);
+  display: block;
+  padding-right: 4px;
 }
 
 .scan-status-banner ul {
   margin: 6px 0 0 18px;
   padding: 0;
+}
+
+/* In graph mode the docked side panel owns the bottom-right corner. */
+.graph-mode .scan-status-banner {
+  right: calc(var(--graph-panel-space, 324px) + 16px);
+}
+
+@media (max-width: 900px) {
+  .graph-mode .scan-status-banner {
+    right: 16px;
+    bottom: 44%;
+  }
+}
+
+.scan-status-dismiss {
+  all: unset;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.scan-status-dismiss:hover,
+.scan-status-dismiss:focus-visible {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
 }
 
 button.stat-chip {
@@ -1105,7 +1148,9 @@ select.graph-workspace-select:focus {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  /* backdrop-filter cannot blur composited canvas layers in Chromium, so the
+     background carries enough opacity to stay readable on its own. */
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(100, 116, 139, 0.25);
   border-radius: 12px;
   backdrop-filter: blur(12px);
@@ -1202,13 +1247,14 @@ select.graph-workspace-select:focus {
 }
 
 [data-theme="light"] .graph-overlay-top {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
 }
 
 .graph-overlay-top {
   align-items: center;
   position: absolute;
+  z-index: 8;
   top: 0;
   left: 0;
   right: 0;
@@ -1216,7 +1262,7 @@ select.graph-workspace-select:focus {
   flex-wrap: wrap;
   column-gap: 24px;
   row-gap: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.92);
   border-bottom: 1px solid rgba(100, 116, 139, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1226,7 +1272,7 @@ select.graph-workspace-select:focus {
 
 .graph-back-btn {
   gap: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid rgba(100, 116, 139, 0.25);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1264,7 +1310,7 @@ select.graph-workspace-select:focus {
 }
 
 [data-theme="light"] .graph-back-btn {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.06),
@@ -1274,32 +1320,411 @@ select.graph-workspace-select:focus {
 .graph-controls {
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px;
   top: calc(var(--graph-toolbar-height, 50px) + 12px);
   right: 12px;
+  width: 96px;
+}
+
+.graph-controls.hidden,
+.graph-key.hidden {
+  display: none;
+}
+
+/* ---- multi-mode layout: side panel floats over the canvas stage ---- */
+
+:root {
+  /* Horizontal space the floating graph side panel occupies; fit-to-view
+     logic in every mode subtracts this so content centres in the uncovered
+     area, and the fixed scan-status toast dodges it in graph mode. */
+  --graph-panel-space: 324px;
+}
+
+.graph-side-panel {
+  position: absolute;
+  z-index: 9;
+  top: calc(var(--graph-toolbar-height, 50px) + 12px);
+  right: 12px;
+  bottom: 40px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 12px;
+  /* backdrop-filter cannot blur composited canvas layers in Chromium, so the
+     background carries enough opacity to stay readable on its own. */
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+[data-theme="light"] .graph-side-panel {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(100, 116, 139, 0.15);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Classic-graph floating controls slide left of the panel; the reserved
+   space already includes a 12px gap, matching the toolbar gap above. */
+.graph-controls {
+  right: max(var(--graph-panel-space, 0px), 12px);
+}
+
+.graph-side-search {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.graph-side-search input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+}
+
+.graph-side-search input:focus {
+  border-color: var(--graph-highlight, #22d3ee);
+}
+
+.graph-search-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.graph-search-results:empty {
+  margin: 0;
+}
+
+.graph-search-results li button {
+  all: unset;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.graph-search-results li button:hover,
+.graph-search-results li button:focus-visible {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.graph-search-results li button:focus-visible,
+.graph-dossier-chip:focus-visible,
+.graph-dossier-open:focus-visible,
+.graph-mode-btn:focus-visible,
+.scan-status-dismiss:focus-visible {
+  outline: 2px solid var(--graph-highlight, #22d3ee);
+  outline-offset: 1px;
+}
+
+.graph-dossier {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-dossier-empty {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.graph-dossier-name {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 14px;
+  font-weight: 700;
+  word-break: break-all;
+  color: var(--text-primary);
+}
+
+.graph-dossier-meta {
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+}
+
+/* Skimmable header facts: coloured icon chips instead of plain meta lines. */
+.graph-dossier-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.graph-dossier-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 3px 8px;
+  line-height: 1.4;
+}
+
+.graph-dossier-fact .fact-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.graph-dossier-fact.fact-runtime {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: var(--graph-direct-runtime, #10b981);
+}
+
+.graph-dossier-fact.fact-dev {
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--graph-direct-dev, #f59e0b);
+}
+
+.graph-dossier-fact.fact-sub {
+  border-color: rgba(6, 182, 212, 0.4);
+  color: var(--graph-transitive, #06b6d4);
+}
+
+.graph-dossier-fact.fact-ok .fact-icon {
+  color: var(--graph-direct-runtime, #10b981);
+}
+
+.graph-dossier-fact.fact-bad {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: var(--graph-vuln-high, #ef4444);
+}
+
+.graph-dossier-fact .fact-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.graph-dossier-block {
+  margin-top: 16px;
+}
+
+.graph-dossier-subtitle {
+  margin: 0 0 6px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.graph-dossier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.graph-dossier-chip {
+  all: unset;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+
+.graph-dossier-chip:hover,
+.graph-dossier-chip:focus-visible {
+  color: var(--graph-highlight, #22d3ee);
+  border-color: var(--graph-highlight, #22d3ee);
+}
+
+.graph-dossier-more {
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: center;
+}
+
+.graph-dossier-open {
+  all: unset;
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.graph-dossier-open:hover,
+.graph-dossier-open:focus-visible {
+  border-color: var(--graph-highlight, #22d3ee);
+  color: var(--graph-highlight, #22d3ee);
+}
+
+.graph-mode-switch {
+  position: relative;
+  z-index: 8;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .graph-mode-switch {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(100, 116, 139, 0.15);
+}
+
+.graph-mode-btn {
+  all: unset;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.graph-mode-btn:hover,
+.graph-mode-btn:focus-visible {
+  color: var(--text-primary);
+}
+
+.graph-mode-btn.active {
+  color: var(--text-primary);
+  background: rgba(100, 116, 139, 0.25);
+}
+
+[data-theme="light"] .graph-mode-btn.active {
+  background: rgba(100, 116, 139, 0.15);
+}
+
+.graph-alt-host {
+  /* Full bleed: the canvas runs underneath the translucent toolbar and
+     status line; views inset their CONTENT instead, so there is no seam. */
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: transparent;
+}
+
+.graph-alt-host[hidden] {
+  display: none;
+}
+
+/* While an alternative view is active, the paused classic canvas must not
+   show its last frame around the alt stage. */
+.graph-canvas-shell.alt-active > #graph-canvas {
+  visibility: hidden;
+}
+
+.graph-alt-canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.graph-alt-canvas.dragging {
+  cursor: grabbing !important;
+}
+
+.graph-status-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  padding: 7px 14px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  border-top: 1px solid var(--border-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.graph-status-line.dim {
+  color: var(--text-secondary);
+}
+
+/* The floating popover is superseded by the docked side panel. */
+.graph-popover {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  /* Bottom-sheet panel on small screens; no horizontal fit inset. */
+  :root {
+    --graph-panel-space: 0px;
+  }
+
+  .graph-side-panel {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 36px;
+    width: auto;
+    max-height: 42%;
+  }
 }
 
 .zoom-controls {
   display: grid;
-  grid-template-columns: repeat(2, 52px);
-  gap: 6px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  width: 100%;
 }
 
 .zoom-controls > .graph-control-btn {
-  font-size: 18px;
+  font-size: 14px;
   width: 100%;
 }
 
 .dpad {
   display: grid;
-  grid-template-columns: 34px 34px 34px;
-  grid-template-rows: 34px 34px 34px;
+  grid-template-columns: 26px 26px 26px;
+  grid-template-rows: 26px 26px 26px;
   grid-template-areas:
     ". up ."
     "left . right"
     ". down .";
-  gap: 2px;
+  gap: 3px;
 }
 
 .dpad .up {
@@ -1321,22 +1746,25 @@ select.graph-workspace-select:focus {
 .center-spacer {
   grid-column: 2;
   grid-row: 2;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border: none;
   background: transparent;
 }
 
 .graph-control-btn {
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-  font-size: 12px;
-  width: 34px;
-  height: 30px;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   cursor: pointer;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition:
     transform var(--transition),
     background var(--transition),
@@ -1346,10 +1774,8 @@ select.graph-workspace-select:focus {
 }
 
 .graph-control-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(100, 116, 139, 0.4);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
 }
 
 [data-theme="light"] .graph-control-btn {
@@ -1364,9 +1790,41 @@ select.graph-workspace-select:focus {
 }
 
 .reset-btn {
-  width: 112px;
-  text-transform: lowercase;
-  letter-spacing: 0.2px;
+  width: 100%;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Floating reset for the alternative views (balloon / hyperbolic). */
+.graph-alt-reset {
+  position: absolute;
+  z-index: 8;
+  top: calc(var(--graph-toolbar-height, 50px) + 12px);
+  right: max(var(--graph-panel-space, 0px), 12px);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: rgba(15, 23, 42, 0.92);
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.graph-alt-reset:hover {
+  color: var(--text-primary);
+  border-color: rgba(100, 116, 139, 0.45);
+}
+
+[data-theme="light"] .graph-alt-reset {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(100, 116, 139, 0.15);
+}
+
+.graph-alt-reset[hidden] {
+  display: none;
 }
 
 .graph-popover {

@@ -1,12 +1,12 @@
 import type { AggregatedData, DependencyRecord } from "./types";
 
-type GraphWorkspace = {
+export type GraphWorkspace = {
   name: string;
   directDependencies: string[];
   directDevDependencies: string[];
 };
 
-type GraphDependency = {
+export type GraphDependency = {
   slug: string;
   name: string;
   version: string;
@@ -18,7 +18,7 @@ type GraphDependency = {
   workspaceOrigins: string[];
 };
 
-type GraphDataset = {
+export type GraphDataset = {
   workspaces: GraphWorkspace[];
   dependencies: Record<string, GraphDependency>;
 };
@@ -87,6 +87,9 @@ export type GraphViewOptions = {
   popoverAmplification: HTMLElement;
   popoverOpenButton: HTMLButtonElement;
   onOpenList: (slug: string) => void;
+  // Fired whenever the selected node changes (null on deselect), so the
+  // docked side panel can render its dossier for the classic graph view too.
+  onSelect?: (slug: string | null) => void;
 };
 
 export type GraphViewHandle = {
@@ -788,7 +791,7 @@ function collectDirectedDistances(
  * @param resolveDepKey - A callback that maps a raw dependency key from the report to a normalized dependency key, or returns `null` if it cannot be resolved
  * @returns A GraphDataset containing `workspaces` and a `dependencies` map with normalized GraphDependency records
  */
-function adaptDataset(
+export function adaptDataset(
   report: AggregatedData,
   knownDepKeys: Set<string>,
   resolveDepKey: (depKey: string) => string | null,
@@ -1445,7 +1448,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const graphHeight = Math.max(1, bounds.maxY - bounds.minY);
     const horizontalPadding = 32;
     const verticalPadding = 24;
-    const usableWidth = Math.max(1, width - horizontalPadding);
+    // Space reserved by the floating side panel, so fit-to-view centres the
+    // graph within the uncovered region.
+    const panelSpace =
+      parseFloat(
+        getComputedStyle(options.canvasHost).getPropertyValue(
+          "--graph-panel-space",
+        ),
+      ) || 0;
+    const usableWidth = Math.max(1, width - horizontalPadding - panelSpace);
     const usableHeight = Math.max(1, height - toolbarHeight - verticalPadding);
     const fitZoomX = usableWidth / Math.max(1, contentMaxX - bounds.minX);
     const fitZoomY = usableHeight / graphHeight;
@@ -1930,11 +1941,48 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    * @param centerX - World-space x coordinate to center in the viewport
    * @param centerY - World-space y coordinate to center in the viewport
    */
+  /**
+   * Fit the focused subtree into view: computes the bounding box of the
+   * focus layout targets, assigns the zoom that fits it within the viewport
+   * region not covered by the toolbar or side panel, and animates the pan
+   * toward the box centre.
+   */
   function focusViewportOn(centerX: number, centerY: number): void {
     if (!currentGraph) return;
-    const desiredZoom = clamp(Math.max(zoom, fitZoom * 1.35), minZoom, MAX_ZOOM);
-    zoom += (desiredZoom - zoom) * (reducedMotionQuery?.matches ? 1 : 0.35);
-    setViewportTarget(width * 0.46 - centerX * zoom, height * 0.5 - centerY * zoom);
+    // Fit the highlighted subtree: zoom so the focus layout's bounding box
+    // fills the region not covered by the toolbar or the side panel.
+    let minX = centerX;
+    let maxX = centerX;
+    let minY = centerY;
+    let maxY = centerY;
+    focusLayoutTargets.forEach((pt) => {
+      minX = Math.min(minX, pt.x);
+      maxX = Math.max(maxX, pt.x);
+      minY = Math.min(minY, pt.y);
+      maxY = Math.max(maxY, pt.y);
+    });
+    const panelSpace =
+      parseFloat(
+        getComputedStyle(options.canvasHost).getPropertyValue(
+          "--graph-panel-space",
+        ),
+      ) || 0;
+    const usableW = Math.max(160, width - panelSpace - 48);
+    const usableH = Math.max(160, height - toolbarHeight - 64);
+    const spanX = Math.max(160, maxX - minX + 120);
+    const spanY = Math.max(160, maxY - minY + 90);
+    const desiredZoom = clamp(
+      Math.min(usableW / spanX, usableH / spanY),
+      minZoom,
+      MAX_ZOOM,
+    );
+    zoom = desiredZoom;
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    setViewportTarget(
+      24 + usableW / 2 - cx * zoom,
+      toolbarHeight + 16 + usableH / 2 - cy * zoom,
+    );
   }
 
   /**
@@ -1944,7 +1992,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    * focused edges (ancestor and descendant edge chains), and focus push nodes (focused set plus direct
    * neighbors). Preserves the existing focus center when the previously opened popover node remains
    * within the new focus set; otherwise centers on the selected node. Computes focus layout targets,
-   * requests a viewport pan/zoom toward the focus center, marks the view dirty, and requests a render.
+   * fits the viewport to the focused subtree's bounding box, marks the view dirty, and requests a render.
    *
    * @param slug - The dependency node slug to focus; if the current graph is missing or the slug is not present, this function is a no-op.
    */
@@ -2191,15 +2239,22 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
     options.popover.hidden = false;
     updatePopoverPosition();
+    options.onSelect?.(slug);
   }
 
   function hidePopover(): void {
+    const hadSelection = popoverSlug !== null;
     popoverSlug = null;
     options.popover.hidden = true;
+    if (hadSelection) options.onSelect?.(null);
   }
 
   function updatePopoverPosition(): void {
+    // The popover element is retained (though CSS-hidden) because showPopover
+    // drives options.onSelect for the docked dossier; skip layout work when
+    // it is not actually rendered.
     if (!currentGraph || !popoverSlug || options.popover.hidden) return;
+    if (options.popover.offsetParent === null) return;
     const node = currentGraph.nodes.get(popoverSlug);
     if (!node) {
       hidePopover();

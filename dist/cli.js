@@ -967,6 +967,7 @@ function parseArgs(argv) {
         commandProvided: false,
         project: process.cwd(),
         quiet: false,
+        offline: false,
         out: "dependency-radar.html",
         keepTemp: false,
         audit: true,
@@ -1020,6 +1021,7 @@ function parseArgs(argv) {
         else if (arg === "--keep-temp")
             opts.keepTemp = true;
         else if (arg === "--offline") {
+            opts.offline = true;
             opts.audit = false;
             opts.outdated = false;
             opts.maintenance = false;
@@ -1969,16 +1971,25 @@ async function executeAnalysis(opts, options) {
             supplyChain: supplyChainCollectorStatus,
         };
         const scanWarnings = [];
-        const addCollectorWarning = (collector, label, consequence) => {
+        const addCollectorWarning = (collector, label, consequence, skippedBecause) => {
             const status = collectors[collector];
-            if (status !== "available")
-                scanWarnings.push(`${label} is ${status}; ${consequence}`);
+            if (status === "available")
+                return;
+            const cause = status === "skipped" && skippedBecause ? ` (${skippedBecause})` : "";
+            scanWarnings.push(`${label} is ${status}${cause}; ${consequence}`);
         };
+        // Name the flag responsible for a deliberate skip so the report can say
+        // why, not just what.
+        const maintenanceSkipReason = opts.offline
+            ? "scan ran with --offline"
+            : !opts.maintenance
+                ? "scan ran with --no-maintenance"
+                : undefined;
         addCollectorWarning("dependencyTree", "Dependency tree collection", "dependency coverage and classification may be incomplete.");
-        addCollectorWarning("audit", "Vulnerability audit", "vulnerability status is unknown.");
+        addCollectorWarning("audit", "Vulnerability audit", "vulnerability status is unknown.", opts.offline ? "scan ran with --offline" : undefined);
         addCollectorWarning("imports", "Static import collection", "direct-import evidence may be incomplete.");
-        addCollectorWarning("maintenance", "Maintenance collection", "maintenance status may be incomplete.");
-        addCollectorWarning("registryMetadata", "Targeted registry metadata", "registry risk signals may be incomplete.");
+        addCollectorWarning("maintenance", "Maintenance collection", "maintenance status may be incomplete.", maintenanceSkipReason);
+        addCollectorWarning("registryMetadata", "Targeted registry metadata", "registry risk signals may be incomplete.", opts.offline ? "scan ran with --offline" : undefined);
         addCollectorWarning("supplyChain", "Lockfile supply-chain collection", "source and integrity signals may be incomplete.");
         const scanStatus = {
             complete: Object.values(collectors).every((status) => status !== "partial" && status !== "unavailable"),

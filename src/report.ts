@@ -389,11 +389,19 @@ ${safeCssContent}
       <div id="dependency-list" class="dependency-grid"></div>
     </section>
     <section class="view-panel" id="graph-view" data-view="graph" aria-hidden="true">
-      <div class="graph-canvas-shell" id="graph-canvas-shell">
+            <div class="graph-canvas-shell" id="graph-canvas-shell">
         <canvas id="graph-canvas"></canvas>
+        <div class="graph-alt-host" id="graph-alt-host" hidden></div>
+        <div class="graph-status-line dim" id="graph-status-line"></div>
         <div class="graph-overlay-top">
           <button type="button" class="graph-back-btn" id="graph-back-btn">Back to List View</button>
-          <div class="graph-key" aria-label="Graph key">
+          <div class="graph-mode-switch" id="graph-mode-switch" role="group" aria-label="Graph layout">
+            <button type="button" class="graph-mode-btn active" data-graph-mode="graph" aria-pressed="true">Graph</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="flame" aria-pressed="false">Flame</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="balloon" aria-pressed="false">Balloon</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="hyperbolic" aria-pressed="false">Hyperbolic</button>
+          </div>
+          <div class="graph-key" id="graph-key" aria-label="Graph key">
             <span class="graph-workspace-label">Key</span>
             <div class="graph-key-items">
               <span class="graph-key-item">
@@ -437,6 +445,13 @@ ${safeCssContent}
           <div class="graph-popover-meta" id="graph-popover-amplification"></div>
           <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
         </div>
+        <aside class="graph-side-panel" id="graph-side-panel" aria-label="Selection details">
+          <div class="graph-side-search">
+            <input id="graph-search" type="search" placeholder="Find a package…" autocomplete="off" aria-label="Find a package" />
+            <ul id="graph-search-results" class="graph-search-results"></ul>
+          </div>
+          <div class="graph-dossier" id="graph-dossier"></div>
+        </aside>
       </div>
     </section>
   </main>
