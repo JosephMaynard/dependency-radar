@@ -1246,6 +1246,88 @@ select.graph-workspace-select:focus {
   position: relative;
 }
 
+.graph-filter-wrap {
+  display: flex;
+  padding-left: 24px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.graph-filter-wrap:before {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 20px;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background-color: var(--text-secondary);
+}
+
+.graph-filter-items {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.graph-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.graph-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+.graph-filter-chip[aria-pressed="false"] {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.graph-filter-chip[aria-pressed="false"] .graph-key-dot {
+  opacity: 0.3;
+}
+
+[data-theme="light"] .graph-filter-chip {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+[data-theme="light"] .graph-filter-chip:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .graph-filter-chip[aria-pressed="false"] {
+  background: transparent;
+}
+
+select.graph-depth-select {
+  min-width: 0;
+  max-width: 140px;
+}
+
+select.graph-depth-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 [data-theme="light"] .graph-overlay-top {
   background: rgba(255, 255, 255, 0.94);
   border-color: rgba(100, 116, 139, 0.15);
@@ -1435,6 +1517,7 @@ select.graph-workspace-select:focus {
 .graph-dossier-chip:focus-visible,
 .graph-dossier-open:focus-visible,
 .graph-mode-btn:focus-visible,
+.graph-filter-chip:focus-visible,
 .scan-status-dismiss:focus-visible {
   outline: 2px solid var(--graph-highlight, #22d3ee);
   outline-offset: 1px;
@@ -1525,6 +1608,18 @@ select.graph-workspace-select:focus {
   height: 8px;
   border-radius: 50%;
   flex: none;
+}
+
+.graph-dossier-fact.fact-swap {
+  border-color: rgba(167, 139, 250, 0.5);
+  color: var(--accent-purple, #a78bfa);
+  text-decoration: none;
+}
+
+a.graph-dossier-fact.fact-swap:hover,
+a.graph-dossier-fact.fact-swap:focus-visible {
+  border-color: var(--accent-purple, #a78bfa);
+  background: rgba(167, 139, 250, 0.12);
 }
 
 .graph-dossier-block {

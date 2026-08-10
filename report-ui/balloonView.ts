@@ -270,9 +270,12 @@ export function mountBalloonView(
       const dev = model.isDev[id];
       const vuln = model.refs[id].vulnerabilitySeverity;
       const hl = i === hovered || i === selectedIdx;
+      const dim = !hl && cb.isDimmed(id);
+      if (dim) ctx.globalAlpha = 0.16;
       if (r < 1.6) {
         ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev ? 0.35 : 0.55})`;
         ctx.fillRect(x - r / 2, y - r / 2, r, r);
+        ctx.globalAlpha = 1;
         continue;
       }
       ctx.beginPath();
@@ -288,6 +291,7 @@ export function mountBalloonView(
             ? theme.vulnModerate
             : `hsla(${hue} 42% ${strokeL - pdepth[i] * 4}% / 0.9)`;
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
     // Central body.
@@ -324,6 +328,8 @@ export function mountBalloonView(
         // Roots stay label-eligible even when the adaptive floor dips below
         // the general threshold; collision pruning keeps the count sane.
         if (r < (pdepth[i] === 0 ? Math.min(7.5, hubFloor) : 7.5)) continue;
+        // A live name filter hands the label budget to the matches.
+        if (cb.isDimmed(pid[i]) && i !== hovered && i !== selectedIdx) continue;
         const x = sx(px[i]);
         const y = sy(py[i]);
         if (x < -220 || x > W + 40 || y < -40 || y > H + 40) continue;

@@ -76,11 +76,17 @@ export function mountFlameView(
     fill: string,
     label: string,
     labelAlpha: number,
+    dimmed = false,
   ): void {
     if (!ctx) return;
     const theme = cb.theme();
+    if (dimmed) {
+      ctx.globalAlpha = 0.22;
+      labelAlpha *= 0.5;
+    }
     ctx.fillStyle = fill;
     ctx.fillRect(x + PAD / 2, y, Math.max(0.5, w - PAD), h - 1.5);
+    ctx.globalAlpha = 1;
     if (label && w > 34) {
       ctx.save();
       ctx.beginPath();
@@ -119,7 +125,16 @@ export function mountFlameView(
       const idx = blocks.length;
       blocks.push({ id, parent: parentBlock, x, y, w, h: ROW });
       const hl = idx === hoveredBlock || id === selectedId;
-      drawBar(x, y, w, ROW, fillFor(id, rootId, depthIdx, hl), model.refs[id].name, hl ? 1 : 0.82);
+      drawBar(
+        x,
+        y,
+        w,
+        ROW,
+        fillFor(id, rootId, depthIdx, hl),
+        model.refs[id].name,
+        hl ? 1 : 0.82,
+        !hl && cb.isDimmed(id),
+      );
       if (hl) {
         ctx.strokeStyle = cb.theme().accent;
         ctx.lineWidth = 1.2;
@@ -166,7 +181,16 @@ export function mountFlameView(
     for (let i = 0; i < Math.max(0, focusPath.length - 1); i += 1) {
       const id = focusPath[i];
       blocks.push({ id, parent: blocks.length - 1, x: 0, y, w: UW, h: ANC, anc: i });
-      drawBar(0, y, UW, ANC, fillFor(id, rootId, 1, false), `${model.refs[id].name}  ↩`, 0.7);
+      drawBar(
+        0,
+        y,
+        UW,
+        ANC,
+        fillFor(id, rootId, 1, false),
+        `${model.refs[id].name}  ↩`,
+        0.7,
+        cb.isDimmed(id),
+      );
       y += ANC;
     }
 

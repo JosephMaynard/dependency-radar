@@ -90,6 +90,15 @@ export type GraphViewOptions = {
   // Fired whenever the selected node changes (null on deselect), so the
   // docked side panel can render its dossier for the classic graph view too.
   onSelect?: (slug: string | null) => void;
+  /** Display filters shared with the alternative layouts. */
+  getFilters?: () => {
+    runtime: boolean;
+    dev: boolean;
+    sub: boolean;
+    maxDepth: number | null;
+  };
+  /** True when a node should render dimmed (active name filter, no match). */
+  isNodeDimmed?: (slug: string) => boolean;
 };
 
 export type GraphViewHandle = {
@@ -103,6 +112,8 @@ export type GraphViewHandle = {
   showPopover: (slug: string) => void;
   hidePopover: () => void;
   switchWorkspace: (name: string) => void;
+  /** Rebuild the current workspace graph after a filter change. */
+  refreshFilters: () => void;
   setActive: (active: boolean) => void;
   requestRender: () => void;
 };
@@ -1558,19 +1569,27 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const workspace = workspaceByName.get(name);
     if (!workspace) return null;
 
+    const filters = options.getFilters?.() ?? {
+      runtime: true,
+      dev: true,
+      sub: true,
+      maxDepth: null,
+    };
     const directRuntime = new Set(
-      workspace.directDependencies.filter((slug) =>
+      (filters.runtime ? workspace.directDependencies : []).filter((slug) =>
         Boolean(dataset.dependencies[slug]),
       ),
     );
     const directDev = new Set(
-      workspace.directDevDependencies.filter((slug) =>
+      (filters.dev ? workspace.directDevDependencies : []).filter((slug) =>
         Boolean(dataset.dependencies[slug]),
       ),
     );
 
     const roots = new Set<string>([...directRuntime, ...directDev]);
-    if (roots.size === 0) {
+    const unfilteredDirectCount =
+      workspace.directDependencies.length + workspace.directDevDependencies.length;
+    if (roots.size === 0 && unfilteredDirectCount === 0) {
       Object.keys(dataset.dependencies)
         .filter((slug) => (parentsBySlug.get(slug) || []).length === 0)
         .slice(0, 40)
@@ -1579,18 +1598,26 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         });
     }
 
+    const depthCap = filters.sub
+      ? filters.maxDepth === null
+        ? Number.POSITIVE_INFINITY
+        : filters.maxDepth
+      : 0;
     const included = new Set<string>();
-    const queue = [...roots];
+    const queue: Array<{ slug: string; depth: number }> = [...roots].map(
+      (slug) => ({ slug, depth: 0 }),
+    );
     let queueIndex = 0;
     while (queueIndex < queue.length) {
-      const slug = queue[queueIndex++];
-      if (!slug) continue;
-      if (included.has(slug)) continue;
-      if (!dataset.dependencies[slug]) continue;
-      included.add(slug);
-      (childrenBySlug.get(slug) || []).forEach((child) => {
+      const entry = queue[queueIndex++];
+      if (!entry?.slug) continue;
+      if (included.has(entry.slug)) continue;
+      if (!dataset.dependencies[entry.slug]) continue;
+      included.add(entry.slug);
+      if (entry.depth >= depthCap) continue;
+      (childrenBySlug.get(entry.slug) || []).forEach((child) => {
         if (included.has(child)) return;
-        queue.push(child);
+        queue.push({ slug: child, depth: entry.depth + 1 });
       });
     }
 
@@ -2277,9 +2304,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function nodeOpacity(slug: string): number {
-    if (focusSlug) return focusNodes.has(slug) ? 1 : 0.14;
+    const dimmed = options.isNodeDimmed?.(slug) === true;
+    if (focusSlug) return focusNodes.has(slug) ? (dimmed ? 0.45 : 1) : 0.14;
     if (hoverSlug) return hoverNodes.has(slug) ? 1 : 0.16;
-    return 0.95;
+    return dimmed ? 0.18 : 0.95;
   }
 
   function targetNodeRadius(node: GraphNode): number {
@@ -2309,9 +2337,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   function vulnerabilityRingOpacity(slug: string): number {
-    if (focusSlug) return focusNodes.has(slug) ? 0.78 : 0.11;
+    const dimmed = options.isNodeDimmed?.(slug) === true;
+    if (focusSlug) return focusNodes.has(slug) ? (dimmed ? 0.35 : 0.78) : 0.11;
     if (hoverSlug) return hoverNodes.has(slug) ? 0.76 : 0.12;
-    return 0.8;
+    return dimmed ? 0.12 : 0.8;
   }
 
   /**
@@ -2666,6 +2695,15 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     fitGraph();
     dirty = true;
     requestRender();
+  }
+
+  /**
+   * Rebuild the current workspace graph so new filter values take effect.
+   * Keeps the workspace selection; the viewport refits to the filtered graph.
+   */
+  function refreshFilters(): void {
+    if (!currentWorkspace) return;
+    switchWorkspace(currentWorkspace);
   }
 
   /**
@@ -3232,6 +3270,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     showPopover,
     hidePopover,
     switchWorkspace,
+    refreshFilters,
     setActive,
     requestRender,
   };

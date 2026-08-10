@@ -241,6 +241,7 @@ export function mountHyperbolicView(
       if (vuln === "high") fill = theme.vulnHigh;
       let alpha = (model.isRoot[id] ? 0.95 : 0.8) * (model.isDev[id] ? 0.65 : 1);
       if (selected >= 0 && !focusSet.has(id)) alpha *= 0.25;
+      if (cb.isDimmed(id) && id !== selected && id !== hovered) alpha *= 0.2;
       if (id === selected) fill = theme.accent;
       ctx.globalAlpha = alpha;
       ctx.beginPath();
@@ -272,7 +273,13 @@ export function mountHyperbolicView(
       (id) => focusSet.has(id) || id === hovered || id === selected,
     );
     const sized = orderDraw.filter(
-      (id) => radii[id] > 3.4 && !focusSet.has(id) && id !== hovered && id !== selected,
+      (id) =>
+        radii[id] > 3.4 &&
+        !focusSet.has(id) &&
+        id !== hovered &&
+        id !== selected &&
+        // A live name filter hands the label budget to the matches.
+        !cb.isDimmed(id),
     );
     // Cap applies to size-qualified labels only; focus/hover/selection always
     // stay in, and lead so collision pruning favours them.
