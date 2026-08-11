@@ -1,6 +1,10 @@
 import type { GraphDataset, GraphViewHandle } from "./graphView";
-import type { VizHandle, VizModel } from "./vizModel";
-import { buildVizModel, resolveVizTheme } from "./vizModel";
+import type { GraphFilters, VizHandle, VizModel } from "./vizModel";
+import {
+  buildVizModel,
+  DEFAULT_GRAPH_FILTERS,
+  resolveVizTheme,
+} from "./vizModel";
 import { mountFlameView } from "./flameView";
 import { mountBalloonView } from "./balloonView";
 import { mountHyperbolicView } from "./hyperbolicView";
@@ -12,6 +16,16 @@ import { mountHyperbolicView } from "./hyperbolicView";
 // (reset-on-switch is deliberate — see docs/VIZ-VIEWS-HANDOFF.md).
 
 export type GraphMode = "graph" | "flame" | "balloon" | "hyperbolic";
+
+const GRAPH_MODES: GraphMode[] = ["graph", "flame", "balloon", "hyperbolic"];
+
+// Persisted alongside the theme preference (see main.ts).
+const MODE_STORE_KEY = "dependency-radar-graph-mode";
+const FILTER_STORE_KEY = "dependency-radar-graph-filters";
+
+// Largest depth the toolbar select offers; persisted values are clamped so a
+// stored depth always has a matching option.
+const MAX_DEPTH_OPTION = 5;
 
 const MODE_HINTS: Record<GraphMode, string> = {
   graph: "click a node to inspect · drag to pan · scroll to zoom",
@@ -36,6 +50,16 @@ export interface GraphModesOptions {
   workspaceSelect: HTMLSelectElement;
   /** Elements only meaningful for the classic graph (dpad, zoom, key). */
   classicOnly: HTMLElement[];
+  /** Kind-filter chips and the depth-cap select in the toolbar. */
+  filterRuntime: HTMLButtonElement | null;
+  filterDev: HTMLButtonElement | null;
+  filterSub: HTMLButtonElement | null;
+  filterDepth: HTMLSelectElement | null;
+  /** Community replacement suggestion (e18e module-replacements), if any. */
+  getReplacement?: (slug: string) => {
+    replacements: string[];
+    docUrl?: string;
+  } | null;
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
 }
@@ -45,6 +69,10 @@ export interface GraphModesHandle {
   mode(): GraphMode;
   /** Selection relay from the classic graph view. */
   handleClassicSelect(slug: string | null): void;
+  /** Current display filters, shared with the classic graph view. */
+  filters(): GraphFilters;
+  /** True when a name filter is active and this package does not match. */
+  isNameDimmed(slug: string): boolean;
   /** Re-measure the active alternative view (call when the panel shows). */
   refresh(): void;
 }
@@ -54,6 +82,43 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   let activeView: VizHandle | null = null;
   let model: VizModel | null = null;
   let modelWorkspace = "";
+  let modelFilterKey = "";
+  // Active name filter (lower-cased search query); dims non-matching nodes.
+  let dimQuery = "";
+
+  const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
+  try {
+    const raw = localStorage.getItem(FILTER_STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<GraphFilters>;
+      if (typeof parsed.runtime === "boolean") filters.runtime = parsed.runtime;
+      if (typeof parsed.dev === "boolean") filters.dev = parsed.dev;
+      if (typeof parsed.sub === "boolean") filters.sub = parsed.sub;
+      if (
+        typeof parsed.maxDepth === "number" &&
+        Number.isInteger(parsed.maxDepth) &&
+        parsed.maxDepth >= 1 &&
+        parsed.maxDepth <= MAX_DEPTH_OPTION
+      ) {
+        filters.maxDepth = parsed.maxDepth;
+      }
+    }
+  } catch {
+    // Storage unavailable (private mode / file protocol restrictions).
+  }
+  if (!filters.runtime && !filters.dev) {
+    // Never restore into a rootless graph.
+    filters.runtime = true;
+    filters.dev = true;
+  }
+
+  function persistFilters(): void {
+    try {
+      localStorage.setItem(FILTER_STORE_KEY, JSON.stringify(filters));
+    } catch {
+      // Best-effort persistence only.
+    }
+  }
 
   const theme = resolveVizTheme;
   const shell = options.altHost.parentElement as HTMLElement | null;
@@ -131,11 +196,28 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   function ensureModel(): VizModel {
     const workspace = options.workspaceSelect.value || "";
-    if (!model || modelWorkspace !== workspace) {
-      model = buildVizModel(options.dataset, workspace, options.projectName);
+    const filterKey = JSON.stringify(filters);
+    if (!model || modelWorkspace !== workspace || modelFilterKey !== filterKey) {
+      model = buildVizModel(options.dataset, workspace, options.projectName, {
+        ...filters,
+      });
       modelWorkspace = workspace;
+      modelFilterKey = filterKey;
     }
     return model;
+  }
+
+  function isDimmedIndex(index: number): boolean {
+    if (!dimQuery || !model) return false;
+    const name = model.lowerNames[index];
+    return name !== undefined && !name.includes(dimQuery);
+  }
+
+  function isNameDimmed(slug: string): boolean {
+    if (!dimQuery) return false;
+    const ref = options.dataset.dependencies[slug];
+    if (!ref) return false;
+    return !ref.name.toLowerCase().includes(dimQuery);
   }
 
   // ----- status line ---------------------------------------------------
@@ -256,6 +338,29 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     } else {
       fact("fact-ok", "\u2713", "no known vulnerabilities");
     }
+    const rep = options.getReplacement?.(m.slugs[index]);
+    if (rep && rep.replacements.length > 0) {
+      const swapText = `swap for ${rep.replacements.join(" / ")}`;
+      const hint =
+        "Community replacement suggestion from the e18e module-replacements catalogue";
+      if (rep.docUrl) {
+        const chip = document.createElement("a");
+        chip.className = "graph-dossier-fact fact-swap";
+        chip.href = rep.docUrl;
+        chip.target = "_blank";
+        chip.rel = "noopener noreferrer";
+        chip.title = `${hint} — opens migration guidance`;
+        chip.appendChild(el("span", "fact-icon", "\u21c4"));
+        chip.appendChild(el("span", "", swapText));
+        facts.appendChild(chip);
+      } else {
+        const chip = el("span", "graph-dossier-fact fact-swap");
+        chip.title = hint;
+        chip.appendChild(el("span", "fact-icon", "\u21c4"));
+        chip.appendChild(el("span", "", swapText));
+        facts.appendChild(chip);
+      }
+    }
     fact("", "\u03a3", `${Math.round(m.subSize[index]).toLocaleString()} in subtree`);
     fact(
       "",
@@ -304,6 +409,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       theme,
       insetRight,
       insetTop,
+      isDimmed: isDimmedIndex,
     };
     if (mode === "flame") activeView = mountFlameView(options.altHost, m, callbacks);
     else if (mode === "balloon") activeView = mountBalloonView(options.altHost, m, callbacks);
@@ -340,6 +446,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     updateKey();
     statusHint();
     renderDossierEmpty();
+    try {
+      localStorage.setItem(MODE_STORE_KEY, mode);
+    } catch {
+      // Best-effort persistence only.
+    }
   }
 
   // ----- wiring ---------------------------------------------------------
@@ -356,6 +467,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     // Stale results hold closures over the previous model's indices.
     options.searchInput.value = "";
     options.searchResults.textContent = "";
+    dimQuery = "";
     renderDossierEmpty();
     if (mode !== "graph") {
       destroyActive();
@@ -373,40 +485,113 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     attributeFilter: ["data-theme"],
   });
 
-  // Search: incremental results over the current workspace's packages.
+  // Search: incremental results over the current workspace's packages. The
+  // query doubles as a live name filter — non-matching nodes render dimmed.
   options.searchResults.setAttribute("aria-live", "polite");
-  let lowerNames: string[] = [];
-  let lowerNamesFor: VizModel | null = null;
-  options.searchInput.addEventListener("input", () => {
+  function repaintForDim(): void {
+    if (mode === "graph") {
+      options.getClassicHandle()?.requestRender();
+      return;
+    }
+    activeView?.resize();
+  }
+
+  function runSearch(): void {
     const q = options.searchInput.value.trim().toLowerCase();
     options.searchResults.textContent = "";
-    if (q.length < 2) return;
-    const m = ensureModel();
-    if (lowerNamesFor !== m) {
-      lowerNames = m.refs.map((ref) => ref.name.toLowerCase());
-      lowerNamesFor = m;
+    const nextDim = q.length >= 2 ? q : "";
+    const dimChanged = nextDim !== dimQuery;
+    dimQuery = nextDim;
+    if (q.length >= 2) {
+      const m = ensureModel();
+      const matches: number[] = [];
+      for (let i = 0; i < m.count && matches.length < 12; i += 1) {
+        if (m.lowerNames[i].includes(q)) matches.push(i);
+      }
+      for (const index of matches) {
+        const li = document.createElement("li");
+        const btn = el("button", "", `${m.refs[index].name}@${m.refs[index].version}`);
+        btn.type = "button";
+        btn.addEventListener("click", () => {
+          focusPackage(index);
+        });
+        li.appendChild(btn);
+        options.searchResults.appendChild(li);
+      }
     }
-    const matches: number[] = [];
-    for (let i = 0; i < m.count && matches.length < 12; i += 1) {
-      if (lowerNames[i].includes(q)) matches.push(i);
+    if (dimChanged) repaintForDim();
+  }
+  options.searchInput.addEventListener("input", runSearch);
+
+  // ----- display filters ------------------------------------------------
+  function syncFilterControls(): void {
+    options.filterRuntime?.setAttribute("aria-pressed", String(filters.runtime));
+    options.filterDev?.setAttribute("aria-pressed", String(filters.dev));
+    options.filterSub?.setAttribute("aria-pressed", String(filters.sub));
+    if (options.filterDepth) {
+      options.filterDepth.value =
+        filters.maxDepth === null ? "" : String(filters.maxDepth);
+      options.filterDepth.disabled = !filters.sub;
     }
-    for (const index of matches) {
-      const li = document.createElement("li");
-      const btn = el("button", "", `${m.refs[index].name}@${m.refs[index].version}`);
-      btn.type = "button";
-      btn.addEventListener("click", () => {
-        focusPackage(index);
-      });
-      li.appendChild(btn);
-      options.searchResults.appendChild(li);
+  }
+
+  function applyFilters(): void {
+    persistFilters();
+    syncFilterControls();
+    model = null;
+    // The dossier and search results hold indices into the previous model.
+    renderDossierEmpty();
+    options.getClassicHandle()?.refreshFilters();
+    if (mode !== "graph") {
+      destroyActive();
+      mountActive();
+      statusHint();
     }
+    runSearch();
+  }
+
+  function bindKindChip(
+    btn: HTMLButtonElement | null,
+    kind: "runtime" | "dev" | "sub",
+  ): void {
+    btn?.addEventListener("click", () => {
+      const next = { ...filters, [kind]: !filters[kind] };
+      // Keep at least one root kind visible — a rootless graph is empty.
+      if (!next.runtime && !next.dev) return;
+      filters[kind] = next[kind];
+      applyFilters();
+    });
+  }
+  bindKindChip(options.filterRuntime, "runtime");
+  bindKindChip(options.filterDev, "dev");
+  bindKindChip(options.filterSub, "sub");
+
+  options.filterDepth?.addEventListener("change", () => {
+    const value = options.filterDepth ? options.filterDepth.value : "";
+    const parsed = Number.parseInt(value, 10);
+    filters.maxDepth = Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
+    applyFilters();
   });
+
+  syncFilterControls();
 
   statusHint();
   renderDossierEmpty();
 
+  // Restore the last-used layout (persisted in setMode).
+  try {
+    const storedMode = localStorage.getItem(MODE_STORE_KEY);
+    if (storedMode && GRAPH_MODES.includes(storedMode as GraphMode)) {
+      setMode(storedMode as GraphMode);
+    }
+  } catch {
+    // Storage unavailable — stay on the default layout.
+  }
+
   return {
     mode: () => mode,
+    filters: () => filters,
+    isNameDimmed,
     handleClassicSelect(slug: string | null) {
       if (mode !== "graph") return;
       if (!slug) {

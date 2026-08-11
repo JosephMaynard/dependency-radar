@@ -418,6 +418,31 @@ ${safeCssContent}
               </span>
             </div>
           </div>
+          <div class="graph-filter-wrap" id="graph-filter-wrap" role="group" aria-label="Graph filters">
+            <span class="graph-workspace-label">Filters</span>
+            <div class="graph-filter-items">
+              <button type="button" class="graph-filter-chip" id="graph-filter-runtime" aria-pressed="true">
+                <span class="graph-key-dot dependency" aria-hidden="true"></span>
+                Runtime
+              </button>
+              <button type="button" class="graph-filter-chip" id="graph-filter-dev" aria-pressed="true">
+                <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
+                Dev
+              </button>
+              <button type="button" class="graph-filter-chip" id="graph-filter-sub" aria-pressed="true">
+                <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
+                Sub-deps
+              </button>
+              <select id="graph-filter-depth" class="graph-workspace-select graph-depth-select" aria-label="Maximum dependency depth">
+                <option value="">All depths</option>
+                <option value="1">Depth ≤ 1</option>
+                <option value="2">Depth ≤ 2</option>
+                <option value="3">Depth ≤ 3</option>
+                <option value="4">Depth ≤ 4</option>
+                <option value="5">Depth ≤ 5</option>
+              </select>
+            </div>
+          </div>
           <div class="graph-workspace-wrap" id="graph-workspace-wrap">
             <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
             <select id="graph-workspace" class="graph-workspace-select"></select>

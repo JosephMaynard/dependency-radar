@@ -1,5 +1,21 @@
 import type { GraphDataset, GraphDependency } from "./graphView";
 
+/** Display filters shared by all graph layouts. */
+export interface GraphFilters {
+  runtime: boolean;
+  dev: boolean;
+  sub: boolean;
+  /** Max depth below the direct ring; null = unlimited. Ignored when sub=false. */
+  maxDepth: number | null;
+}
+
+export const DEFAULT_GRAPH_FILTERS: GraphFilters = {
+  runtime: true,
+  dev: true,
+  sub: true,
+  maxDepth: null,
+};
+
 // Shared derivation layer for the alternative graph views (flame, balloon,
 // hyperbolic). Everything is index-based over the packages reachable from the
 // selected workspace's direct dependencies, with cycle guards throughout —
@@ -11,6 +27,8 @@ export interface VizModel {
   /** Package index -> dataset slug / record. */
   slugs: string[];
   refs: GraphDependency[];
+  /** Lowercased names, for search and name-filter dimming. */
+  lowerNames: string[];
   indexOfSlug: Map<string, number>;
   count: number;
   depsOut: number[][];
@@ -51,16 +69,23 @@ export function buildVizModel(
   dataset: GraphDataset,
   workspaceName: string,
   projectName: string,
+  filters: GraphFilters = DEFAULT_GRAPH_FILTERS,
 ): VizModel {
   const workspace =
     dataset.workspaces.find((w) => w.name === workspaceName) ||
     dataset.workspaces[0];
   let rootSlugs = (
     workspace
-      ? [...workspace.directDependencies, ...workspace.directDevDependencies]
+      ? [
+          ...(filters.runtime ? workspace.directDependencies : []),
+          ...(filters.dev ? workspace.directDevDependencies : []),
+        ]
       : []
   ).filter((slug) => Boolean(dataset.dependencies[slug]));
-  if (rootSlugs.length === 0) {
+  const unfilteredCount = workspace
+    ? workspace.directDependencies.length + workspace.directDevDependencies.length
+    : 0;
+  if (rootSlugs.length === 0 && unfilteredCount === 0) {
     // Parity with the classic graph view: a workspace with no direct deps
     // (e.g. a hoisting-only monorepo root) falls back to parentless packages.
     const hasParent = new Set<string>();
@@ -75,20 +100,29 @@ export function buildVizModel(
   }
   const rootSet = new Set(rootSlugs);
 
-  // Reachability sweep gives the index space.
+  // Reachability sweep gives the index space; BFS depth enforces the
+  // depth filter (sub=false means the direct ring only).
+  const maxDepth = filters.sub
+    ? filters.maxDepth === null
+      ? Number.POSITIVE_INFINITY
+      : filters.maxDepth
+    : 0;
   const slugs: string[] = [];
   const indexOfSlug = new Map<string, number>();
   const queue: string[] = [];
-  const pushSlug = (slug: string): void => {
+  const sweepDepth: number[] = [];
+  const pushSlug = (slug: string, depthValue: number): void => {
     if (indexOfSlug.has(slug) || !dataset.dependencies[slug]) return;
     indexOfSlug.set(slug, slugs.length);
     slugs.push(slug);
     queue.push(slug);
+    sweepDepth.push(depthValue);
   };
-  rootSlugs.forEach(pushSlug);
+  rootSlugs.forEach((slug) => pushSlug(slug, 0));
   for (let head = 0; head < queue.length; head += 1) {
+    if (sweepDepth[head] >= maxDepth) continue;
     const dep = dataset.dependencies[queue[head]];
-    for (const child of dep.dependencies || []) pushSlug(child);
+    for (const child of dep.dependencies || []) pushSlug(child, sweepDepth[head] + 1);
   }
 
   const count = slugs.length;
@@ -201,6 +235,7 @@ export function buildVizModel(
     workspaceName: workspace ? workspace.name : workspaceName,
     slugs,
     refs,
+    lowerNames: refs.map((ref) => ref.name.toLowerCase()),
     indexOfSlug,
     count,
     depsOut,
@@ -284,6 +319,8 @@ export interface VizCallbacks {
   insetRight(): number;
   /** Vertical space covered by the floating toolbar at the top. */
   insetTop(): number;
+  /** True when the package should render dimmed (name filter active, no match). */
+  isDimmed(index: number): boolean;
 }
 
 /** Node fill hue/lightness helper shared by views: dev deps render dimmer. */

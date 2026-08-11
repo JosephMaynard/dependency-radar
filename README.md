@@ -217,6 +217,10 @@ Shared behaviour:
 - **Status line** — in the flame, balloon, and hyperbolic views, hovering shows the full path trail (`project › a › b › c`) along the bottom of the canvas instead of a tooltip covering the visualization.
 - **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar key explains each layout's colours.
 - **Workspaces** — all layouts respect the workspace selector, scoping the tree to that workspace's direct dependencies.
+- **Filters** — toolbar chips toggle runtime dependencies, dev dependencies, and sub-dependencies on and off, and a depth selector caps how deep the tree is expanded (Depth ≤ 1 shows just your direct dependencies and their children). Filters apply to all four layouts.
+- **Search doubles as a highlight filter** — while a search query is active, packages whose names don't match render dimmed in every layout, so matches stand out across the whole tree.
+- **Replacement suggestions** — if a selected package has a community replacement suggestion (from the [e18e](https://e18e.dev/) [module-replacements](https://github.com/es-tooling/module-replacements) catalogue), the dossier shows a *swap for …* chip, linking to the migration guidance when the catalogue provides it.
+- **Remembered between sessions** — the chosen layout and filters persist in the browser (like the light/dark theme), so the report reopens the way you left it.
 
 ---
 

@@ -12,6 +12,7 @@ import {
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
 import { initGraphModes, type GraphModesHandle } from "./graphModes";
+import { DEFAULT_GRAPH_FILTERS } from "./vizModel";
 import type {
   AggregatedData,
   DependencyRecord,
@@ -2626,6 +2627,18 @@ async function init(): Promise<void> {
     graphSidePanel: document.getElementById(
       "graph-side-panel",
     ) as HTMLElement | null,
+    graphFilterRuntime: document.getElementById(
+      "graph-filter-runtime",
+    ) as HTMLButtonElement | null,
+    graphFilterDev: document.getElementById(
+      "graph-filter-dev",
+    ) as HTMLButtonElement | null,
+    graphFilterSub: document.getElementById(
+      "graph-filter-sub",
+    ) as HTMLButtonElement | null,
+    graphFilterDepth: document.getElementById(
+      "graph-filter-depth",
+    ) as HTMLSelectElement | null,
     reportFooter: document.querySelector(
       ".report-footer",
     ) as HTMLElement | null,
@@ -3676,6 +3689,9 @@ async function init(): Promise<void> {
         onSelect: (slug: string | null) => {
           graphModes?.handleClassicSelect(slug);
         },
+        getFilters: () => graphModes?.filters() ?? DEFAULT_GRAPH_FILTERS,
+        isNodeDimmed: (slug: string) =>
+          graphModes?.isNameDimmed(slug) ?? false,
       });
       graphView.initGraphView();
       graphInitialized = true;
@@ -3708,10 +3724,28 @@ async function init(): Promise<void> {
             (node): node is HTMLElement => Boolean(node),
           ),
           getClassicHandle: () => graphView,
+          filterRuntime: controls.graphFilterRuntime,
+          filterDev: controls.graphFilterDev,
+          filterSub: controls.graphFilterSub,
+          filterDepth: controls.graphFilterDepth,
+          getReplacement: (slug: string) => {
+            const key = resolveDepKey(slug);
+            const dep = key ? depByKey.get(key) : undefined;
+            if (!dep?.replacement?.replacements?.length) return null;
+            return dep.replacement;
+          },
           onOpenList: (slug: string) => {
             openListFromGraph(slug);
           },
         });
+        // The classic graph was built before `graphModes` was assigned, so its
+        // getFilters() saw the defaults; rebuild it if persisted state differs.
+        if (
+          JSON.stringify(graphModes.filters()) !==
+          JSON.stringify(DEFAULT_GRAPH_FILTERS)
+        ) {
+          graphView?.refreshFilters();
+        }
       }
     }
     if (!graphModes || graphModes.mode() === "graph") {
