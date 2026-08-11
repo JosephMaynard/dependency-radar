@@ -3738,6 +3738,14 @@ async function init(): Promise<void> {
             openListFromGraph(slug);
           },
         });
+        // The classic graph was built before `graphModes` was assigned, so its
+        // getFilters() saw the defaults; rebuild it if persisted state differs.
+        if (
+          JSON.stringify(graphModes.filters()) !==
+          JSON.stringify(DEFAULT_GRAPH_FILTERS)
+        ) {
+          graphView?.refreshFilters();
+        }
       }
     }
     if (!graphModes || graphModes.mode() === "graph") {

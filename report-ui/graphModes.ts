@@ -23,6 +23,10 @@ const GRAPH_MODES: GraphMode[] = ["graph", "flame", "balloon", "hyperbolic"];
 const MODE_STORE_KEY = "dependency-radar-graph-mode";
 const FILTER_STORE_KEY = "dependency-radar-graph-filters";
 
+// Largest depth the toolbar select offers; persisted values are clamped so a
+// stored depth always has a matching option.
+const MAX_DEPTH_OPTION = 5;
+
 const MODE_HINTS: Record<GraphMode, string> = {
   graph: "click a node to inspect · drag to pan · scroll to zoom",
   flame:
@@ -93,7 +97,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       if (
         typeof parsed.maxDepth === "number" &&
         Number.isInteger(parsed.maxDepth) &&
-        parsed.maxDepth >= 1
+        parsed.maxDepth >= 1 &&
+        parsed.maxDepth <= MAX_DEPTH_OPTION
       ) {
         filters.maxDepth = parsed.maxDepth;
       }
@@ -569,11 +574,6 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   });
 
   syncFilterControls();
-  // The classic graph was built before this module loaded its persisted
-  // filters; rebuild it if the stored state differs from the defaults.
-  if (JSON.stringify(filters) !== JSON.stringify(DEFAULT_GRAPH_FILTERS)) {
-    options.getClassicHandle()?.refreshFilters();
-  }
 
   statusHint();
   renderDossierEmpty();

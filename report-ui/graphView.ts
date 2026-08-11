@@ -1621,7 +1621,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       });
     }
 
-    if (included.size === 0) return null;
 
     const nodes = new Map<string, GraphNode>();
     included.forEach((slug) => {
