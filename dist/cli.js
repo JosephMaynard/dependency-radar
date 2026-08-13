@@ -486,70 +486,6 @@ function readDependencyEntries(source) {
     }
     return entries;
 }
-// Matches the simple range forms real semver satisfaction is decidable for:
-// 1, 1.2, 1.2.3, ^1.2.3, ~1.2, =1.2.3, v1, 1.x — but not *, compound
-// ranges, prereleases, tags, or URLs.
-const SIMPLE_RANGE = /^([=^~]?)v?(\d+)(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?$/;
-function parsePlainVersion(version) {
-    const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/);
-    if (!match)
-        return undefined;
-    return [Number(match[1]), Number(match[2]), Number(match[3])];
-}
-function compareTriples(a, b) {
-    for (let i = 0; i < 3; i += 1) {
-        if (a[i] !== b[i])
-            return a[i] - b[i];
-    }
-    return 0;
-}
-/**
- * Real semver satisfaction for the simple range forms above; undefined when
- * the specifier (or version) is outside what we can decide confidently.
- * Same-major is NOT assumed compatible: workspace dayjs@1.10.0 does not
- * satisfy ~1.11.0 or ^1.11.0.
- */
-function simpleRangeSatisfies(spec, version) {
-    const v = parsePlainVersion(version);
-    if (!v)
-        return undefined;
-    const match = spec.trim().match(SIMPLE_RANGE);
-    if (!match)
-        return undefined;
-    const op = match[1];
-    const major = Number(match[2]);
-    const minorRaw = match[3];
-    const patchRaw = match[4];
-    const wild = (part) => part === undefined || part === 'x' || part === 'X' || part === '*';
-    const minor = wild(minorRaw) ? undefined : Number(minorRaw);
-    const patch = wild(patchRaw) ? undefined : Number(patchRaw);
-    const lower = [major, minor !== null && minor !== void 0 ? minor : 0, patch !== null && patch !== void 0 ? patch : 0];
-    if (op === '^') {
-        if (compareTriples(v, lower) < 0)
-            return false;
-        if (major > 0)
-            return v[0] === major;
-        // ^0.y.z pins the minor; ^0.0.z pins the patch.
-        if ((minor !== null && minor !== void 0 ? minor : 0) > 0 || patch === undefined) {
-            return v[0] === 0 && v[1] === (minor !== null && minor !== void 0 ? minor : 0);
-        }
-        return v[0] === 0 && v[1] === 0 && v[2] === patch;
-    }
-    if (op === '~') {
-        if (compareTriples(v, lower) < 0)
-            return false;
-        if (minor === undefined)
-            return v[0] === major;
-        return v[0] === major && v[1] === minor;
-    }
-    // Exact or wildcard forms: 1 / 1.x -> same major; 1.2 / 1.2.x -> same
-    // major.minor; 1.2.3 -> exact equality.
-    if (minor === undefined)
-        return v[0] === major;
-    if (patch === undefined)
-        return v[0] === major && v[1] === minor;
-    return compareTriples(v, lower) === 0;
-}
 function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames, workspaceVersionsByName) {
     if (isWorkspaceLocalSpecifier(spec))
         return true;
@@ -563,7 +499,7 @@ function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames,
     const versions = workspaceVersionsByName === null || workspaceVersionsByName === void 0 ? void 0 : workspaceVersionsByName.get(dependencyName);
     if (!versions || versions.length === 0)
         return true;
-    const verdicts = versions.map((version) => simpleRangeSatisfies(spec, version));
+    const verdicts = versions.map((version) => (0, workspaceGlobs_1.rangeSatisfies)(spec, version));
     if (verdicts.some((verdict) => verdict === undefined))
         return true;
     return verdicts.some(Boolean);
@@ -577,7 +513,7 @@ function buildWorkspaceClassification(rootPath, packageMetas) {
         // Prerelease/placeholder versions (0.0.0-development and friends) say
         // nothing reliable about compatibility — leave the name unkeyed so
         // classification stays permissive for it.
-        if (parsePlainVersion(version) === undefined)
+        if ((0, workspaceGlobs_1.parsePlainVersion)(version) === undefined)
             continue;
         const versions = workspaceMajorsByName.get(meta.name) || [];
         if (!versions.includes(version))

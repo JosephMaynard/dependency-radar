@@ -384,15 +384,6 @@ function isWorkspaceLocalVersion(version: string): boolean {
   return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
 }
 
-function isPathWithin(basePath: string, candidatePath: string): boolean {
-  const normalizedBase = path.resolve(basePath);
-  const normalizedCandidate = path.resolve(candidatePath);
-  return (
-    normalizedCandidate === normalizedBase ||
-    normalizedCandidate.startsWith(`${normalizedBase}${path.sep}`)
-  );
-}
-
 /**
  * True when the node's name matches a workspace package whose real version(s)
  * are known and NONE of them equal the node's version — i.e. this node is a
@@ -430,9 +421,11 @@ function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean 
   if (input.workspaceLocalDependencyNames?.has(node.name)) return true;
 
   if (node.path && input.workspacePackagePaths && input.workspacePackagePaths.size > 0) {
-    for (const workspacePath of input.workspacePackagePaths) {
-      if (isPathWithin(workspacePath, node.path)) return true;
-    }
+    // Exact package-directory equality only: the workspace ROOT is one of
+    // these paths, so descendant containment would classify every installed
+    // dependency under the repository (node_modules included) as a
+    // workspace package and empty the whole report.
+    if (input.workspacePackagePaths.has(path.resolve(node.path))) return true;
   }
 
   if (input.workspacePackageNames?.has(node.name) && node.depth <= 1) {
@@ -500,14 +493,88 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
 
   // Import evidence resolves specifiers to a package NAME; when several
-  // versions of that name are installed, the importing file actually gets the
-  // direct/hoisted one. Names that have a direct record keep their evidence
-  // on the direct record(s) only, so a vulnerable transitive duplicate can't
-  // masquerade as directly imported and trip directly-imported-vuln.
-  const namesWithDirectRecord = new Set<string>();
+  // versions of that name are installed, the importing file actually gets
+  // the nearest (hoisted) one. Deeper duplicates never win resolution, so a
+  // vulnerable nested copy must not inherit the evidence and trip
+  // directly-imported-vuln. When several versions tie at the shallowest
+  // depth (different workspaces declaring different majors), evidence is
+  // split per importing file by workspace ownership where possible.
+  const nodesByName = new Map<string, NodeInfo[]>();
   for (const node of nodes) {
-    if (node.isDirect) namesWithDirectRecord.add(node.name);
+    const list = nodesByName.get(node.name) || [];
+    list.push(node);
+    nodesByName.set(node.name, list);
   }
+
+  const workspaceRelByPath = new Map<string, string>();
+  if (input.workspacePackagePaths) {
+    for (const wsPath of input.workspacePackagePaths) {
+      workspaceRelByPath.set(
+        wsPath,
+        path.relative(input.projectPath, wsPath).split(path.sep).join('/'),
+      );
+    }
+  }
+
+  const fileOwnerWorkspace = (file: string): string | undefined => {
+    let best: string | undefined;
+    let bestLen = -1;
+    for (const [wsPath, rel] of workspaceRelByPath) {
+      if (rel === '' || rel === '.') {
+        if (bestLen < 0) {
+          best = wsPath;
+          bestLen = 0;
+        }
+        continue;
+      }
+      if ((file === rel || file.startsWith(`${rel}/`)) && rel.length > bestLen) {
+        best = wsPath;
+        bestLen = rel.length;
+      }
+    }
+    return best;
+  };
+
+  const nodeWorkspaceOwners = (node: NodeInfo): Set<string> => {
+    const owners = new Set<string>();
+    for (const parentKey of node.parents) {
+      const parent = nodeMap.get(parentKey);
+      if (!parent?.path) continue;
+      const resolved = path.resolve(parent.path);
+      if (input.workspacePackagePaths?.has(resolved)) owners.add(resolved);
+    }
+    if (node.importerChild && workspaceRelByPath.size > 0) {
+      const rootPath = path.resolve(input.projectPath);
+      if (input.workspacePackagePaths?.has(rootPath)) owners.add(rootPath);
+    }
+    return owners;
+  };
+
+  const attributeImportUsage = (
+    node: NodeInfo,
+    usage: UsageSummary | undefined,
+  ): UsageSummary | undefined => {
+    if (!usage) return undefined;
+    const siblings = nodesByName.get(node.name) || [];
+    if (siblings.length <= 1) return usage;
+    const minDepth = Math.min(...siblings.map((sibling) => sibling.depth));
+    // Deeper duplicates lose to the hoisted copy outright.
+    if (node.depth > minDepth) return undefined;
+    const tied = siblings.filter((sibling) => sibling.depth === minDepth);
+    if (tied.length <= 1) return usage;
+    // Equal-depth versions (multi-workspace): split evidence per importing
+    // file by workspace ownership. If ownership can't be established for
+    // every tied version, stay permissive and attribute to all of them.
+    const ownersByNode = tied.map((sibling) => nodeWorkspaceOwners(sibling));
+    if (ownersByNode.some((owners) => owners.size === 0)) return usage;
+    const myOwners = nodeWorkspaceOwners(node);
+    const ownedFiles = usage.topFiles.filter((file) => {
+      const owner = fileOwnerWorkspace(file);
+      return owner !== undefined && myOwners.has(owner);
+    });
+    if (ownedFiles.length === 0) return undefined;
+    return { fileCount: ownedFiles.length, topFiles: ownedFiles };
+  };
 
   for (const node of nodes) {
     const direct = node.isDirect;
@@ -542,11 +609,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     }
 
     const scope = determineScope(node.name, direct, rootCauses, pkg);
-    const importUsageByName = usageResult.summary.get(node.name);
-    const importUsage =
-      importUsageByName && (direct || !namesWithDirectRecord.has(node.name))
-        ? importUsageByName
-        : undefined;
+    const importUsage = attributeImportUsage(
+      node,
+      usageResult.summary.get(node.name),
+    );
     const runtimeImpact = usageResult.runtimeImpact.get(node.name);
     const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
     const parentIds = Array.from(node.parents).sort();

@@ -62,7 +62,10 @@ export function matchesWorkspacePatterns(patterns: string[], relPath: string): b
   return !excludes.some((p) => workspacePatternToRegex(p).test(normalized));
 }
 
-const WALK_MAX_DEPTH = 8;
+// Symlinked directories report isDirectory() === false from readdir, so the
+// walk cannot cycle; the cap is only a backstop against pathological trees
+// and sits far above real workspace layouts.
+const WALK_MAX_DEPTH = 32;
 
 async function listDirs(parent: string): Promise<string[]> {
   const entries = await fsp.readdir(parent, { withFileTypes: true }).catch(() => []);
@@ -178,4 +181,116 @@ export async function readWorkspacePatterns(dir: string): Promise<string[] | und
     // No pnpm workspace file.
   }
   return declared ? patterns : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Lightweight semver-range satisfaction for workspace classification. Covers
+// the range grammar package.json files actually use — exact/wildcard forms,
+// ^ and ~, relational comparators, space-separated compounds, `||` unions,
+// and hyphen ranges — without a semver dependency. Returns undefined for
+// anything outside that grammar (tags, prereleases, URLs) so callers can
+// stay permissive.
+
+type VersionTriple = [number, number, number];
+
+export function parsePlainVersion(version: string): VersionTriple | undefined {
+  const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return undefined;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function compareTriples(a: VersionTriple, b: VersionTriple): number {
+  for (let i = 0; i < 3; i += 1) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+}
+
+const RANGE_TOKEN =
+  /^(>=|<=|>|<|=|\^|~)?v?(\d+)(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?$/;
+
+function tokenSatisfies(token: string, v: VersionTriple): boolean | undefined {
+  const match = token.match(RANGE_TOKEN);
+  if (!match) return undefined;
+  const op = match[1] || '';
+  const major = Number(match[2]);
+  const wild = (part: string | undefined): boolean =>
+    part === undefined || part === 'x' || part === 'X' || part === '*';
+  const minor = wild(match[3]) ? undefined : Number(match[3]);
+  const patch = wild(match[4]) ? undefined : Number(match[4]);
+  const lower: VersionTriple = [major, minor ?? 0, patch ?? 0];
+
+  switch (op) {
+    case '>=':
+      return compareTriples(v, lower) >= 0;
+    case '>': {
+      // >1.2 means at least 1.3.0; >1 means at least 2.0.0.
+      const upper: VersionTriple =
+        patch !== undefined
+          ? lower
+          : minor !== undefined
+            ? [major, minor + 1, 0]
+            : [major + 1, 0, 0];
+      return patch !== undefined
+        ? compareTriples(v, lower) > 0
+        : compareTriples(v, upper) >= 0;
+    }
+    case '<':
+      return compareTriples(v, lower) < 0;
+    case '<=': {
+      // <=1.2 permits anything below 1.3.0; <=1 anything below 2.0.0.
+      if (patch !== undefined) return compareTriples(v, lower) <= 0;
+      const upper: VersionTriple =
+        minor !== undefined ? [major, minor + 1, 0] : [major + 1, 0, 0];
+      return compareTriples(v, upper) < 0;
+    }
+    case '^': {
+      if (compareTriples(v, lower) < 0) return false;
+      if (major > 0) return v[0] === major;
+      if ((minor ?? 0) > 0 || patch === undefined) {
+        return v[0] === 0 && v[1] === (minor ?? 0);
+      }
+      return v[0] === 0 && v[1] === 0 && v[2] === patch;
+    }
+    case '~': {
+      if (compareTriples(v, lower) < 0) return false;
+      if (minor === undefined) return v[0] === major;
+      return v[0] === major && v[1] === minor;
+    }
+    default: {
+      if (minor === undefined) return v[0] === major;
+      if (patch === undefined) return v[0] === major && v[1] === minor;
+      return compareTriples(v, lower) === 0;
+    }
+  }
+}
+
+/**
+ * True/false when satisfaction of `spec` by `version` is decidable within
+ * the supported grammar; undefined otherwise.
+ */
+export function rangeSatisfies(spec: string, version: string): boolean | undefined {
+  const v = parsePlainVersion(version);
+  if (!v) return undefined;
+  const trimmed = spec.trim();
+  if (!trimmed || trimmed === '*' || trimmed === 'x' || trimmed === 'X') return true;
+  for (const union of trimmed.split('||')) {
+    const part = union.trim();
+    if (!part) return undefined;
+    // Hyphen range: "1.2.3 - 2.0.0" is inclusive on both ends.
+    const hyphen = part.match(/^(\S+)\s+-\s+(\S+)$/);
+    const tokens = hyphen ? [`>=${hyphen[1]}`, `<=${hyphen[2]}`] : part.split(/\s+/);
+    let all: boolean | undefined = true;
+    for (const token of tokens) {
+      const verdict = tokenSatisfies(token, v);
+      if (verdict === undefined) {
+        all = undefined;
+        break;
+      }
+      if (!verdict) all = false;
+    }
+    if (all === undefined) return undefined;
+    if (all) return true;
+  }
+  return false;
 }

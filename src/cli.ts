@@ -48,7 +48,7 @@ import type {
 } from "./types";
 import fs from "fs/promises";
 import { ensureDir, getDependencyRadarVersion, removeDir, runCommand, pathExists } from "./utils";
-import { expandWorkspacePatterns } from "./workspaceGlobs";
+import { expandWorkspacePatterns, parsePlainVersion, rangeSatisfies } from "./workspaceGlobs";
 
 const EXIT_POLICY_VIOLATION = 1;
 const EXIT_USAGE_OR_INCOMPLETE = 2;
@@ -572,68 +572,6 @@ function readDependencyEntries(source: any): Array<[string, string]> {
   return entries;
 }
 
-// Matches the simple range forms real semver satisfaction is decidable for:
-// 1, 1.2, 1.2.3, ^1.2.3, ~1.2, =1.2.3, v1, 1.x — but not *, compound
-// ranges, prereleases, tags, or URLs.
-const SIMPLE_RANGE =
-  /^([=^~]?)v?(\d+)(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?$/;
-
-type VersionTriple = [number, number, number];
-
-function parsePlainVersion(version: string): VersionTriple | undefined {
-  const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/);
-  if (!match) return undefined;
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
-}
-
-function compareTriples(a: VersionTriple, b: VersionTriple): number {
-  for (let i = 0; i < 3; i += 1) {
-    if (a[i] !== b[i]) return a[i] - b[i];
-  }
-  return 0;
-}
-
-/**
- * Real semver satisfaction for the simple range forms above; undefined when
- * the specifier (or version) is outside what we can decide confidently.
- * Same-major is NOT assumed compatible: workspace dayjs@1.10.0 does not
- * satisfy ~1.11.0 or ^1.11.0.
- */
-function simpleRangeSatisfies(spec: string, version: string): boolean | undefined {
-  const v = parsePlainVersion(version);
-  if (!v) return undefined;
-  const match = spec.trim().match(SIMPLE_RANGE);
-  if (!match) return undefined;
-  const op = match[1];
-  const major = Number(match[2]);
-  const minorRaw = match[3];
-  const patchRaw = match[4];
-  const wild = (part: string | undefined): boolean =>
-    part === undefined || part === 'x' || part === 'X' || part === '*';
-  const minor = wild(minorRaw) ? undefined : Number(minorRaw);
-  const patch = wild(patchRaw) ? undefined : Number(patchRaw);
-  const lower: VersionTriple = [major, minor ?? 0, patch ?? 0];
-
-  if (op === '^') {
-    if (compareTriples(v, lower) < 0) return false;
-    if (major > 0) return v[0] === major;
-    // ^0.y.z pins the minor; ^0.0.z pins the patch.
-    if ((minor ?? 0) > 0 || patch === undefined) {
-      return v[0] === 0 && v[1] === (minor ?? 0);
-    }
-    return v[0] === 0 && v[1] === 0 && v[2] === patch;
-  }
-  if (op === '~') {
-    if (compareTriples(v, lower) < 0) return false;
-    if (minor === undefined) return v[0] === major;
-    return v[0] === major && v[1] === minor;
-  }
-  // Exact or wildcard forms: 1 / 1.x -> same major; 1.2 / 1.2.x -> same
-  // major.minor; 1.2.3 -> exact equality.
-  if (minor === undefined) return v[0] === major;
-  if (patch === undefined) return v[0] === major && v[1] === minor;
-  return compareTriples(v, lower) === 0;
-}
 
 function isWorkspaceLocalDependency(
   dependencyName: string,
@@ -650,7 +588,7 @@ function isWorkspaceLocalDependency(
   // long-standing permissive behaviour).
   const versions = workspaceVersionsByName?.get(dependencyName);
   if (!versions || versions.length === 0) return true;
-  const verdicts = versions.map((version) => simpleRangeSatisfies(spec, version));
+  const verdicts = versions.map((version) => rangeSatisfies(spec, version));
   if (verdicts.some((verdict) => verdict === undefined)) return true;
   return verdicts.some(Boolean);
 }

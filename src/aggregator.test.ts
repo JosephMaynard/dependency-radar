@@ -756,4 +756,185 @@ describe('aggregateData', () => {
     expect(data.dependencies['minimist@0.0.8']).toBeDefined();
     expect(data.dependencies['minimist@0.0.8'].usage.importUsage).toBeUndefined();
   });
+
+  it('keeps external dependencies in npm workspace scans (root path is not a container match)', async () => {
+    const projectPath = await makeTempDir('dr-agg-ws-root');
+    const wsA = path.join(projectPath, 'packages', 'a');
+    await fs.mkdir(wsA, { recursive: true });
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'fixture-root',
+      version: '1.0.0',
+      workspaces: ['packages/*'],
+      dependencies: { minimist: '^1.2.8' }
+    }));
+    await fs.writeFile(path.join(wsA, 'package.json'), JSON.stringify({
+      name: '@ws/a', version: '1.0.0'
+    }));
+    const depDir = path.join(projectPath, 'node_modules', 'minimist');
+    await fs.mkdir(depDir, { recursive: true });
+    await fs.writeFile(path.join(depDir, 'package.json'), JSON.stringify({
+      name: 'minimist', version: '1.2.8', license: 'MIT'
+    }));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { minimist: '^1.2.8' }
+      },
+      projectPackageJson: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { minimist: '^1.2.8' }
+      },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            minimist: {
+              name: 'minimist',
+              version: '1.2.8',
+              path: path.join(projectPath, 'node_modules', 'minimist')
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: true,
+      workspaceType: 'npm',
+      workspacePackageCount: 2,
+      workspacePackageNames: new Set(['fixture-root', '@ws/a']),
+      workspacePackageIds: new Set(['fixture-root@1.0.0', '@ws/a@1.0.0']),
+      // The root itself sits in workspacePackagePaths — exactly the shape
+      // that used to swallow every installed dependency beneath it.
+      workspacePackagePaths: new Set([path.resolve(projectPath), path.resolve(wsA)]),
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['minimist@1.2.8']).toBeDefined();
+    expect(data.summary.dependencyCount).toBeGreaterThan(0);
+  });
+
+  it('gives import evidence to the hoisted copy, not deeper duplicates, even when none is direct', async () => {
+    const projectPath = await makeTempDir('dr-agg-hoisted');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { carrier: '1.0.0' }
+    }));
+    for (const [rel, pkg] of [
+      ['node_modules/minimist', { name: 'minimist', version: '1.2.8', license: 'MIT' }],
+      ['node_modules/carrier', { name: 'carrier', version: '1.0.0', license: 'MIT' }],
+      ['node_modules/carrier/node_modules/minimist', { name: 'minimist', version: '0.0.8', license: 'MIT' }]
+    ] as const) {
+      const dir = path.join(projectPath, rel);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'package.json'), JSON.stringify(pkg));
+    }
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { carrier: '1.0.0' }
+      },
+      projectPackageJson: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { carrier: '1.0.0' }
+      },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            minimist: { name: 'minimist', version: '1.2.8' },
+            carrier: {
+              name: 'carrier',
+              version: '1.0.0',
+              dependencies: {
+                minimist: { name: 'minimist', version: '0.0.8' }
+              }
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: {
+        ok: true,
+        data: { packages: { 'src/index.js': ['minimist'] } }
+      },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['minimist@1.2.8'].usage.importUsage).toBeDefined();
+    expect(data.dependencies['minimist@0.0.8'].usage.importUsage).toBeUndefined();
+  });
+
+  it('splits import evidence between equal-depth workspace versions by owning workspace', async () => {
+    const projectPath = await makeTempDir('dr-agg-ws-split');
+    const wsSafe = path.join(projectPath, 'packages', 'safe');
+    const wsRisky = path.join(projectPath, 'packages', 'risky');
+    for (const [dir, pkg] of [
+      [projectPath, { name: 'fixture-root', version: '1.0.0', workspaces: ['packages/*'] }],
+      [wsSafe, { name: '@ws/safe', version: '1.0.0', dependencies: { foo: '^1.0.0' } }],
+      [wsRisky, { name: '@ws/risky', version: '1.0.0', dependencies: { foo: '^2.0.0' } }]
+    ] as const) {
+      await fs.mkdir(dir as string, { recursive: true });
+      await fs.writeFile(path.join(dir as string, 'package.json'), JSON.stringify(pkg));
+    }
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: { name: 'fixture-root', version: '1.0.0' },
+      projectPackageJson: { name: 'fixture-root', version: '1.0.0' },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            '@ws/safe': {
+              name: '@ws/safe',
+              version: '1.0.0',
+              path: wsSafe,
+              dependencies: { foo: { name: 'foo', version: '1.0.0' } }
+            },
+            '@ws/risky': {
+              name: '@ws/risky',
+              version: '1.0.0',
+              path: wsRisky,
+              dependencies: { foo: { name: 'foo', version: '2.0.0' } }
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: {
+        ok: true,
+        data: { packages: { 'packages/safe/index.js': ['foo'] } }
+      },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: true,
+      workspaceType: 'npm',
+      workspacePackageCount: 3,
+      workspacePackageNames: new Set(['fixture-root', '@ws/safe', '@ws/risky']),
+      workspacePackageIds: new Set(['fixture-root@1.0.0', '@ws/safe@1.0.0', '@ws/risky@1.0.0']),
+      workspacePackagePaths: new Set([
+        path.resolve(projectPath),
+        path.resolve(wsSafe),
+        path.resolve(wsRisky)
+      ]),
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['foo@1.0.0']?.usage.importUsage).toBeDefined();
+    expect(data.dependencies['foo@2.0.0']).toBeDefined();
+    expect(data.dependencies['foo@2.0.0']?.usage.importUsage).toBeUndefined();
+  });
 });
