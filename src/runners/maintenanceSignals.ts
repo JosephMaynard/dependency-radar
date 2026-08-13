@@ -522,11 +522,15 @@ export async function enrichAggregatedWithMaintenanceSignals(
     const invalidExplicitRegistry = Boolean(options.registryUrl) && !explicitRegistry;
     let registryForName: (name: string) => string = () =>
       explicitRegistry || DEFAULT_REGISTRY_URL;
-    if (!fetcher && invalidExplicitRegistry) {
+    if (invalidExplicitRegistry) {
       // A malformed override must not silently fall back to another
-      // registry: fail the lookups instead.
+      // registry — and that holds even when a fetcher was supplied: the
+      // supplied fetcher is never invoked, and the sentinel registry keeps
+      // cache keys from ever matching (or writing) another registry's
+      // entries.
       fetcher = () =>
         Promise.resolve({ ok: false, error: 'invalid registryUrl override' });
+      registryForName = () => 'invalid:registry-url-override';
     }
     if (!fetcher) {
       const defaultRegistry =

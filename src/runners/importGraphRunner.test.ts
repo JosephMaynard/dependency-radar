@@ -93,4 +93,13 @@ describe('extractImports', () => {
     ].join('\n');
     expect(extractImports(source)).toEqual(['real-dynamic']);
   });
+
+  it('keeps slash-after-closer contexts as division while block-context regexes stay masked', () => {
+    const source = [
+      "const a = arr[0] / 2; const m1 = require('pkg-bracket');",
+      "const b = getW() / 2; const m2 = require('pkg-paren');",
+      "if (cond) {} /import fake from 'ghost'/ .test(s); const m3 = require('pkg-block');",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['pkg-bracket', 'pkg-paren', 'pkg-block']);
+  });
 });
