@@ -433,7 +433,7 @@ function evaluatePolicyViolations(aggregated, rules) {
         violations.push({
             rule: 'copyleft-detected',
             count: copyleftDetectedCount,
-            message: `Copyleft licence detected in runtime tree (${copyleftDetectedCount} ${pluralize(copyleftDetectedCount, 'package', 'packages')})`
+            message: `Copyleft licence detected in production tree (${copyleftDetectedCount} ${pluralize(copyleftDetectedCount, 'package', 'packages')})`
         });
     }
     if (rules.has('unknown-licence') && unknownLicenceCount > 0) {

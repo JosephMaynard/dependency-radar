@@ -10,7 +10,9 @@ exports.deriveMaintenanceStatus = deriveMaintenanceStatus;
 exports.parseGitHubRepo = parseGitHubRepo;
 exports.selectArchivedCheckCandidates = selectArchivedCheckCandidates;
 exports.enrichAggregatedWithMaintenanceSignals = enrichAggregatedWithMaintenanceSignals;
+const promises_1 = __importDefault(require("fs/promises"));
 const https_1 = __importDefault(require("https"));
+const path_1 = __importDefault(require("path"));
 const httpClient_1 = require("../httpClient");
 const maintenanceCache_1 = require("../maintenanceCache");
 const utils_1 = require("../utils");
@@ -104,6 +106,37 @@ async function resolveRegistryBaseUrl(projectPath, timeoutMs = 10000) {
  * registry mappings are read — auth material is never extracted or attached.
  * Returns an empty map on any failure.
  */
+function normalizeRegistryUrl(raw) {
+    if (!/^https?:\/\//i.test(raw))
+        return undefined;
+    try {
+        const url = new URL(raw);
+        url.username = '';
+        url.password = '';
+        return url.toString().replace(/\/+$/, '');
+    }
+    catch {
+        return undefined;
+    }
+}
+async function readScopeRegistriesFromNpmrc(scopes, projectPath, out) {
+    if (!projectPath)
+        return;
+    try {
+        const raw = await promises_1.default.readFile(path_1.default.join(projectPath, '.npmrc'), 'utf8');
+        for (const line of raw.split(/\r?\n/)) {
+            const match = line.trim().match(/^(@[^:=\s]+):registry\s*=\s*(\S+)/);
+            if (!match || !scopes.has(match[1]) || out.has(match[1]))
+                continue;
+            const url = normalizeRegistryUrl(match[2]);
+            if (url)
+                out.set(match[1], url);
+        }
+    }
+    catch {
+        // No project .npmrc — nothing to add.
+    }
+}
 async function resolveScopeRegistries(scopes, projectPath, timeoutMs = 10000) {
     const out = new Map();
     if (scopes.size === 0 || timeoutMs <= 0)
@@ -116,17 +149,21 @@ async function resolveScopeRegistries(scopes, projectPath, timeoutMs = 10000) {
         const parsed = JSON.parse(result.stdout || '{}');
         for (const scope of scopes) {
             const raw = parsed[`${scope}:registry`];
-            if (typeof raw === 'string' && /^https?:\/\//i.test(raw)) {
-                const url = new URL(raw);
-                url.username = '';
-                url.password = '';
-                out.set(scope, url.toString().replace(/\/+$/, ''));
+            if (typeof raw === 'string') {
+                const url = normalizeRegistryUrl(raw);
+                if (url)
+                    out.set(scope, url);
             }
         }
     }
     catch {
-        // npm unavailable or non-JSON output — fall back to the default registry.
+        // npm unavailable or non-JSON output — fall back to the .npmrc pass.
     }
+    // npm omits values it considers protected (e.g. registry URLs embedding
+    // credentials) from `config list --json`; the project .npmrc keeps scoped
+    // lookups off the default registry in that case. Only the registry mapping
+    // is read — never auth material.
+    await readScopeRegistriesFromNpmrc(scopes, projectPath, out);
     return out;
 }
 function packageScope(name) {
@@ -388,7 +425,7 @@ function buildMaintenanceInfo(dep, lookup, now) {
  * backfill. Never throws; every failure degrades to `status: 'unknown'`.
  */
 async function enrichAggregatedWithMaintenanceSignals(aggregated, options = {}) {
-    var _a, _b;
+    var _a, _b, _c;
     const summary = emptySummary();
     if (options.offline)
         return summary;
@@ -434,7 +471,13 @@ async function enrichAggregatedWithMaintenanceSignals(aggregated, options = {}) 
                 if (scope)
                     scopes.add(scope);
             }
-            const scopeRegistries = await resolveScopeRegistries(scopes, options.projectPath, timeoutWithinBudget(deadline, 10000));
+            // An explicit registryUrl is a caller decision (tests, mirrors): honor
+            // it for every lookup rather than second-guessing via npm config. The
+            // spawn is also capped so config resolution can never eat more than a
+            // slice of the maintenance budget.
+            const scopeRegistries = options.registryUrl
+                ? new Map()
+                : await resolveScopeRegistries(scopes, options.projectPath, Math.min(4000, Math.floor(((_c = options.budgetMs) !== null && _c !== void 0 ? _c : exports.DEFAULT_MAINTENANCE_BUDGET_MS) / 4), remainingBudgetMs(deadline)));
             registryForName = (name) => {
                 const scope = packageScope(name);
                 return (scope && scopeRegistries.get(scope)) || defaultRegistry;

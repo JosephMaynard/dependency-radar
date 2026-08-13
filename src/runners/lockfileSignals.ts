@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { SupplyChainSignal, ToolResult } from '../types';
-import { pathExists, runCommand, writeJsonFile } from '../utils';
+import { findLockDir, pathExists, runCommand, writeJsonFile } from '../utils';
 
 // registry.yarnpkg.com is Yarn Classic's default alias for the npm registry;
 // treating it as unexpected flags every ordinary Yarn lockfile.
@@ -253,8 +253,12 @@ async function collectLockfileSignals(
   const signals: SupplyChainSignal[] = [];
   let lockfilesFound = 0;
   const candidates = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock'];
+  // Read the same lockfile the audit/outdated collectors use: the project's
+  // own, or a workspace root's (findLockDir bounds the walk so an unrelated
+  // ancestor project is never borrowed).
+  const lockDir = (await findLockDir(projectPath, candidates)) ?? projectPath;
   for (const fileName of candidates) {
-    const filePath = path.join(projectPath, fileName);
+    const filePath = path.join(lockDir, fileName);
     if (!(await pathExists(filePath))) continue;
     lockfilesFound += 1;
     const raw = await fs.readFile(filePath, 'utf8');

@@ -93,16 +93,24 @@ async function collectSourceFiles(rootDir) {
 }
 /**
  * Blank out comments so import-looking text inside them can't register as
- * evidence. String literals are left alone — the import/require patterns
- * already demand the surrounding syntax, and template-literal parsing without
- * a real lexer causes more trouble than it prevents. Positions are preserved
- * (comments become spaces) so no offsets shift.
+ * evidence. Regex literals are recognised with the standard preceding-token
+ * heuristic so `/[/*]/` or `://` inside them are not mistaken for comments;
+ * string literals are left alone (the import patterns demand surrounding
+ * syntax anyway). Positions are preserved (comments become spaces). If a
+ * block comment is unterminated the original content is returned unchanged —
+ * failing open to the old behaviour beats blanking a file to EOF.
  */
 function stripComments(content) {
     let out = '';
     let i = 0;
     let quote;
     let escaped = false;
+    // Last non-whitespace character emitted outside strings/comments; a '/'
+    // after one of these starts a regex literal, not division.
+    let prevSignificant = '';
+    const regexPreceders = new Set([
+        '', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '<', '>', '+', '-', '*', '%', '~', '^',
+    ]);
     while (i < content.length) {
         const ch = content[i];
         const next = content[i + 1];
@@ -112,7 +120,7 @@ function stripComments(content) {
                 escaped = false;
             else if (ch === '\\')
                 escaped = true;
-            else if (ch === quote || (quote === '`' && ch === '`'))
+            else if (ch === quote)
                 quote = undefined;
             i += 1;
             continue;
@@ -120,29 +128,67 @@ function stripComments(content) {
         if (ch === '"' || ch === "'" || ch === '`') {
             quote = ch;
             out += ch;
+            prevSignificant = ch;
             i += 1;
             continue;
         }
-        if (ch === '/' && next === '/') {
-            while (i < content.length && content[i] !== '\n') {
-                out += ' ';
-                i += 1;
+        if (ch === '/' && (next === '/' || next === '*')) {
+            if (next === '/') {
+                while (i < content.length && content[i] !== '\n') {
+                    out += ' ';
+                    i += 1;
+                }
+                continue;
             }
+            const close = content.indexOf('*/', i + 2);
+            if (close === -1)
+                return content; // unterminated — fail open
+            for (let j = i; j < close + 2; j += 1) {
+                out += content[j] === '\n' ? '\n' : ' ';
+            }
+            i = close + 2;
             continue;
         }
-        if (ch === '/' && next === '*') {
-            while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) {
-                out += content[i] === '\n' ? '\n' : ' ';
+        if (ch === '/' && regexPreceders.has(prevSignificant)) {
+            // Consume a regex literal (with character classes) verbatim.
+            out += ch;
+            i += 1;
+            let inClass = false;
+            let regexEscaped = false;
+            while (i < content.length) {
+                const rc = content[i];
+                out += rc;
                 i += 1;
+                if (regexEscaped) {
+                    regexEscaped = false;
+                    continue;
+                }
+                if (rc === '\\') {
+                    regexEscaped = true;
+                    continue;
+                }
+                if (rc === '[')
+                    inClass = true;
+                else if (rc === ']')
+                    inClass = false;
+                else if (rc === '/' && !inClass)
+                    break;
+                else if (rc === '\n')
+                    break; // not actually a regex — bail out
             }
-            out += '  ';
-            i += 2;
+            prevSignificant = '/';
             continue;
         }
         out += ch;
+        if (!/\s/.test(ch))
+            prevSignificant = ch;
         i += 1;
     }
     return out;
+}
+/** True for type-only import/export statements, erased at compile time. */
+function isTypeOnlyStatement(matchedText) {
+    return /^(?:import|export)\s+type[\s{*]/.test(matchedText);
 }
 function extractImports(content) {
     const matches = [];
@@ -153,19 +199,13 @@ function extractImports(content) {
         /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g,
         /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g
     ];
-    // Type-only imports/exports are erased at compile time and never load the
-    // package at runtime; they must not count as runtime import evidence.
-    const typeOnly = /\b(?:import|export)\s+type\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g;
-    const typeOnlySpans = [];
-    let typeMatch;
-    while ((typeMatch = typeOnly.exec(stripped)) !== null) {
-        typeOnlySpans.push([typeMatch.index, typeMatch.index + typeMatch[0].length]);
-    }
-    const inTypeOnly = (index) => typeOnlySpans.some(([start, end]) => index >= start && index < end);
     for (const pattern of patterns) {
         let match;
         while ((match = pattern.exec(stripped)) !== null) {
-            if (match[1] && !inTypeOnly(match.index))
+            // Type-only imports/exports never load the package at runtime; checking
+            // the matched statement itself (not a precomputed span) keeps the
+            // exclusion from bleeding across statement boundaries.
+            if (match[1] && !isTypeOnlyStatement(match[0]))
                 matches.push(match[1]);
         }
     }

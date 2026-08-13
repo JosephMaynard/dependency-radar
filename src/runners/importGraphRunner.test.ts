@@ -37,4 +37,31 @@ describe('extractImports', () => {
     const source = "import { type T, realThing } from 'mixed-pkg';";
     expect(extractImports(source)).toEqual(['mixed-pkg']);
   });
+
+  it('does not let a type-only import suppress the next statement', () => {
+    const source = [
+      "import type { T } from 'types-only';",
+      "import real from 'real-pkg';",
+    ].join(' ');
+    expect(extractImports(source)).toEqual(['real-pkg']);
+  });
+
+  it('is not confused by comment markers inside regex literals', () => {
+    const source = [
+      "const re1 = /https:\\/\\//;",
+      "const re2 = /[/*]/;",
+      "const re3 = /it's got an apostrophe/;",
+      "const re4 = x / y; // real comment with require('commented')",
+      "import real from 'real-pkg';",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['real-pkg']);
+  });
+
+  it('fails open on unterminated block comments instead of blanking the file', () => {
+    const source = [
+      "import real from 'real-pkg';",
+      "const x = 1; /* unterminated block comment",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['real-pkg']);
+  });
 });

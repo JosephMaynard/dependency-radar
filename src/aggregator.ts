@@ -393,10 +393,40 @@ function isPathWithin(basePath: string, candidatePath: string): boolean {
   );
 }
 
+/**
+ * True when the node's name matches a workspace package whose real version(s)
+ * are known and NONE of them equal the node's version — i.e. this node is a
+ * same-name EXTERNAL package that must keep aggregating. False when versions
+ * match, are unknown, or the name isn't a workspace package.
+ */
+function isVersionMismatchedNamesake(node: NodeInfo, input: AggregateInput): boolean {
+  if (!node.version || !input.workspacePackageIds || input.workspacePackageIds.size === 0) {
+    return false;
+  }
+  let sawRealVersion = false;
+  for (const id of input.workspacePackageIds) {
+    const at = id.lastIndexOf('@');
+    if (at <= 0 || id.slice(0, at) !== node.name) continue;
+    const workspaceVersion = id.slice(at + 1);
+    if (workspaceVersion === 'workspace') {
+      // Placeholder for a versionless workspace manifest — stay permissive.
+      return false;
+    }
+    sawRealVersion = true;
+    if (workspaceVersion === node.version) return false;
+  }
+  return sawRealVersion;
+}
+
 function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean {
   if (!input.workspaceEnabled) return false;
   if (input.workspacePackageIds?.has(node.key)) return true;
   if (isWorkspaceLocalVersion(node.version)) return true;
+  // The version-mismatch veto must run before every name-keyed check below:
+  // localDependencyNames collapses per-(name,spec) decisions to bare names,
+  // so a workspace foo@1 with any local dependent would otherwise swallow an
+  // external foo@2 at every depth.
+  if (isVersionMismatchedNamesake(node, input)) return false;
   if (input.workspaceLocalDependencyNames?.has(node.name)) return true;
 
   if (node.path && input.workspacePackagePaths && input.workspacePackagePaths.size > 0) {
@@ -406,25 +436,6 @@ function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean 
   }
 
   if (input.workspacePackageNames?.has(node.name) && node.depth <= 1) {
-    // A same-name external package is not local: when the workspace package's
-    // real version is known and this node carries a different real version,
-    // keep aggregating it instead of dropping it as a workspace member.
-    if (node.version && input.workspacePackageIds && input.workspacePackageIds.size > 0) {
-      let sawRealVersion = false;
-      for (const id of input.workspacePackageIds) {
-        const at = id.lastIndexOf('@');
-        if (at <= 0 || id.slice(0, at) !== node.name) continue;
-        const workspaceVersion = id.slice(at + 1);
-        if (workspaceVersion === 'workspace') {
-          // Placeholder for a versionless workspace manifest — stay permissive.
-          sawRealVersion = false;
-          break;
-        }
-        sawRealVersion = true;
-        if (workspaceVersion === node.version) return true;
-      }
-      if (sawRealVersion) return false;
-    }
     return true;
   }
 
@@ -1275,8 +1286,10 @@ function determineScope(name: string, direct: boolean, rootCauses: RootPackageRe
     if (scope) scopes.add(scope);
   }
   if (scopes.has('runtime')) return 'runtime';
-  if (scopes.has('dev')) return 'dev';
+  // Optional outranks dev: optional deps install and execute in production,
+  // so a package reachable via both paths must keep its production scope.
   if (scopes.has('optional')) return 'optional';
+  if (scopes.has('dev')) return 'dev';
   if (scopes.has('peer')) return 'peer';
   return 'runtime';
 }

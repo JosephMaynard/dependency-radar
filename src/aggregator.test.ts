@@ -642,4 +642,57 @@ describe('aggregateData', () => {
     expect(data.dependencies['hoisted-transitive@2.0.0'].usage.direct).toBe(false);
     expect(data.summary.directCount).toBe(1);
   });
+
+  it('keeps a same-name external package when a workspace package has local dependents', async () => {
+    const projectPath = await makeTempDir('dr-agg-namesake');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { foo: '^2.0.0' }
+    }));
+    const depDir = path.join(projectPath, 'node_modules', 'foo');
+    await fs.mkdir(depDir, { recursive: true });
+    await fs.writeFile(path.join(depDir, 'package.json'), JSON.stringify({
+      name: 'foo',
+      version: '2.3.0',
+      license: 'MIT'
+    }));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { foo: '^2.0.0' }
+      },
+      projectPackageJson: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { foo: '^2.0.0' }
+      },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            foo: { name: 'foo', version: '2.3.0' }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: true,
+      workspaceType: 'npm',
+      workspacePackageCount: 2,
+      // Workspace has its own foo@1.0.0, and a sibling depends on it locally,
+      // so the bare name lands in workspaceLocalDependencyNames — the exact
+      // condition that used to swallow the external foo@2.x.
+      workspacePackageNames: new Set(['foo']),
+      workspacePackageIds: new Set(['foo@1.0.0']),
+      workspaceLocalDependencyNames: new Set(['foo']),
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['foo@2.3.0']).toBeDefined();
+  });
 });

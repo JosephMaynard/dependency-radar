@@ -111,8 +111,8 @@ function buildDependencyFindings(data, options = {}) {
             findings.push(baseFinding(dep, 'runtime-license-risk', {
                 category: 'license',
                 severity: 'error',
-                title: 'High-risk runtime license',
-                message: `${dep.package.id} is in the runtime tree and has red license risk.`,
+                title: 'High-risk production license',
+                message: `${dep.package.id} is in the production tree and has red license risk.`,
                 recommendation: 'Review legal/compliance acceptability or replace the package.'
             }));
         }

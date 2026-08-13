@@ -2876,9 +2876,11 @@ async function init(): Promise<void> {
       countBy((dep) => !dep.usage.direct),
     );
 
+    // "Runtime", not "Production": production policies cover runtime AND
+    // optional scopes, and this filter selects exactly one scope value.
     const scopeLabels: Record<string, string> = {
       all: "All",
-      runtime: "Production",
+      runtime: "Runtime",
       dev: "Development",
       optional: "Optional",
       peer: "Peer",

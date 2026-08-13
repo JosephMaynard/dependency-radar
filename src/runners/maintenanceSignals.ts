@@ -1,4 +1,6 @@
+import fs from 'fs/promises';
 import https from 'https';
+import path from 'path';
 import {
   AggregatedData,
   DependencyMaintenanceInfo,
@@ -140,6 +142,37 @@ export async function resolveRegistryBaseUrl(projectPath?: string, timeoutMs = 1
  * registry mappings are read — auth material is never extracted or attached.
  * Returns an empty map on any failure.
  */
+function normalizeRegistryUrl(raw: string): string | undefined {
+  if (!/^https?:\/\//i.test(raw)) return undefined;
+  try {
+    const url = new URL(raw);
+    url.username = '';
+    url.password = '';
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    return undefined;
+  }
+}
+
+async function readScopeRegistriesFromNpmrc(
+  scopes: Set<string>,
+  projectPath: string | undefined,
+  out: Map<string, string>
+): Promise<void> {
+  if (!projectPath) return;
+  try {
+    const raw = await fs.readFile(path.join(projectPath, '.npmrc'), 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const match = line.trim().match(/^(@[^:=\s]+):registry\s*=\s*(\S+)/);
+      if (!match || !scopes.has(match[1]) || out.has(match[1])) continue;
+      const url = normalizeRegistryUrl(match[2]);
+      if (url) out.set(match[1], url);
+    }
+  } catch {
+    // No project .npmrc — nothing to add.
+  }
+}
+
 async function resolveScopeRegistries(
   scopes: Set<string>,
   projectPath?: string,
@@ -155,16 +188,19 @@ async function resolveScopeRegistries(
     const parsed = JSON.parse(result.stdout || '{}') as Record<string, unknown>;
     for (const scope of scopes) {
       const raw = parsed[`${scope}:registry`];
-      if (typeof raw === 'string' && /^https?:\/\//i.test(raw)) {
-        const url = new URL(raw);
-        url.username = '';
-        url.password = '';
-        out.set(scope, url.toString().replace(/\/+$/, ''));
+      if (typeof raw === 'string') {
+        const url = normalizeRegistryUrl(raw);
+        if (url) out.set(scope, url);
       }
     }
   } catch {
-    // npm unavailable or non-JSON output — fall back to the default registry.
+    // npm unavailable or non-JSON output — fall back to the .npmrc pass.
   }
+  // npm omits values it considers protected (e.g. registry URLs embedding
+  // credentials) from `config list --json`; the project .npmrc keeps scoped
+  // lookups off the default registry in that case. Only the registry mapping
+  // is read — never auth material.
+  await readScopeRegistriesFromNpmrc(scopes, projectPath, out);
   return out;
 }
 
@@ -488,11 +524,17 @@ export async function enrichAggregatedWithMaintenanceSignals(
         const scope = packageScope(name);
         if (scope) scopes.add(scope);
       }
-      const scopeRegistries = await resolveScopeRegistries(
-        scopes,
-        options.projectPath,
-        timeoutWithinBudget(deadline, 10_000)
-      );
+      // An explicit registryUrl is a caller decision (tests, mirrors): honor
+      // it for every lookup rather than second-guessing via npm config. The
+      // spawn is also capped so config resolution can never eat more than a
+      // slice of the maintenance budget.
+      const scopeRegistries = options.registryUrl
+        ? new Map<string, string>()
+        : await resolveScopeRegistries(
+            scopes,
+            options.projectPath,
+            Math.min(4_000, Math.floor((options.budgetMs ?? DEFAULT_MAINTENANCE_BUDGET_MS) / 4), remainingBudgetMs(deadline))
+          );
       registryForName = (name: string) => {
         const scope = packageScope(name);
         return (scope && scopeRegistries.get(scope)) || defaultRegistry;

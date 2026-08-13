@@ -225,11 +225,16 @@ function inspectTextLock(raw, sourceFile, expectedHosts) {
     return signals;
 }
 async function collectLockfileSignals(projectPath, expectedHosts) {
+    var _a;
     const signals = [];
     let lockfilesFound = 0;
     const candidates = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock'];
+    // Read the same lockfile the audit/outdated collectors use: the project's
+    // own, or a workspace root's (findLockDir bounds the walk so an unrelated
+    // ancestor project is never borrowed).
+    const lockDir = (_a = (await (0, utils_1.findLockDir)(projectPath, candidates))) !== null && _a !== void 0 ? _a : projectPath;
     for (const fileName of candidates) {
-        const filePath = path_1.default.join(projectPath, fileName);
+        const filePath = path_1.default.join(lockDir, fileName);
         if (!(await (0, utils_1.pathExists)(filePath)))
             continue;
         lockfilesFound += 1;

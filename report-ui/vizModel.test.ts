@@ -85,4 +85,50 @@ describe('buildVizModel', () => {
     expect(model.subSize[top]).toBe(5);
     expect(model.occ[shared]).toBe(2);
   });
+
+  it('matches the recursive semantics on cyclic graphs', () => {
+    const dependencies: GraphDataset['dependencies'] = {};
+    const add = (name: string, deps: string[]): void => {
+      const slug = `${name}@1.0.0`;
+      dependencies[slug] = {
+        slug,
+        name,
+        version: '1.0.0',
+        dependencies: deps.map((d) => `${d}@1.0.0`),
+        license: 'MIT',
+        vulnerabilityCount: 0,
+        vulnerabilitySeverity: 'none',
+        isDevOnly: false,
+        workspaceOrigins: ['root'],
+      };
+    };
+    // root -> a -> b -> c -> a (cycle), plus b -> leaf.
+    add('entry', ['a']);
+    add('a', ['b']);
+    add('b', ['c', 'leaf']);
+    add('c', ['a']);
+    add('leaf', []);
+    const dataset: GraphDataset = {
+      workspaces: [
+        { name: 'root', directDependencies: ['entry@1.0.0'], directDevDependencies: [] },
+      ],
+      dependencies,
+    };
+
+    const model = buildVizModel(dataset, 'root', 'cyclic');
+    const idx = (n: string): number => model.indexOfSlug.get(`${n}@1.0.0`) as number;
+    // Hand-computed with the original recursive algorithm (memo checked
+    // before the cycle cut): c contributes 1 (a is on the path), so
+    // b = 1 + c(1) + leaf(1) = 3, a = 4, entry = 5.
+    expect(model.subSize[idx('c')]).toBe(1);
+    expect(model.subSize[idx('b')]).toBe(3);
+    expect(model.subSize[idx('a')]).toBe(4);
+    expect(model.subSize[idx('entry')]).toBe(5);
+    expect(model.totalSize).toBe(5);
+    // occ: entry=1; a is reached from entry and from c -> occ(a)=occ(entry)+occ(c);
+    // with the path cut, occ(c)=occ(b), occ(b)=occ(a) computed as 1 at cut time.
+    expect(model.occ[idx('entry')]).toBe(1);
+    expect(model.uniqueCount(idx('entry'))).toBe(5);
+    expect(model.uniqueCount(idx('a'))).toBe(4);
+  });
 });

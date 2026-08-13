@@ -522,7 +522,7 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: 'copyleft-detected',
       count: copyleftDetectedCount,
-      message: `Copyleft licence detected in runtime tree (${copyleftDetectedCount} ${pluralize(
+      message: `Copyleft licence detected in production tree (${copyleftDetectedCount} ${pluralize(
         copyleftDetectedCount,
         'package',
         'packages'
