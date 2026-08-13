@@ -213,7 +213,7 @@ The report's Graph View offers four switchable layouts (toolbar buttons), all sh
 
 Shared behaviour:
 
-- **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, subtree size, "appears in N places", and clickable *depends-on* / *required-by* chips that refocus the current view. Search results fly to the package in whichever layout you're using.
+- **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, unique package and path counts for its subtree, "reached via N paths", and clickable *depends-on* / *required-by* chips that refocus the current view. Search results fly to the package in whichever layout you're using.
 - **Status line** — in the flame, balloon, and hyperbolic views, hovering shows the full path trail (`project › a › b › c`) along the bottom of the canvas instead of a tooltip covering the visualization.
 - **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar key explains each layout's colours.
 - **Workspaces** — all layouts respect the workspace selector, scoping the tree to that workspace's direct dependencies.

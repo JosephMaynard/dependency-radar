@@ -1070,12 +1070,7 @@ select:focus {
   display: none;
 }
 
-.graph-mode .report-footer-vintage {
-  color: var(--text-muted);
-  font-size: 11.5px;
-}
-
-.report-footer {
+.graph-mode .report-footer {
   display: none;
 }
 
@@ -2032,6 +2027,11 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 
 .report-footer p {
   margin: 8px 0 0;
+}
+
+.report-footer-vintage {
+  color: var(--text-muted);
+  font-size: 11.5px;
 }
 
 .report-footer.hidden {
