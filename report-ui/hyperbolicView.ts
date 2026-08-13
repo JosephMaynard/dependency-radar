@@ -48,31 +48,43 @@ export function mountHyperbolicView(
   // don't smear into slivers.
   const rootWeight = (r: number): number => Math.sqrt(leaves[r]) + 1.5;
 
-  function placeSubtree(id: number, wedgeMid: number, wedge: number): void {
-    const kids = children[id];
-    if (!kids.length) return;
-    const rhoBase = Math.min(0.82, 0.42 + 0.05 * Math.sqrt(kids.length));
-    const total = kids.reduce((s, c) => s + leaves[c], 0);
-    let start = wedgeMid - wedge / 2;
-    let kidIndex = 0;
-    for (const kid of kids) {
-      const share = (leaves[kid] / total) * wedge;
-      const ang = start + share / 2;
-      start += share;
-      // Large fans of equal-weight leaves crush onto one arc; staggering
-      // siblings across three shells triples their angular breathing room.
-      const rho =
-        kids.length > 6
-          ? Math.min(0.9, rhoBase + ((kidIndex % 3) - 1) * 0.09)
-          : rhoBase;
-      kidIndex += 1;
-      const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
-      const g = mobius(pos[id], local);
-      pos[kid] = g;
-      // Outward direction in the kid's own frame: away from its parent.
-      const parentLocal = mobiusNeg(g, pos[id]);
-      const out = Math.atan2(parentLocal.y, parentLocal.x) + Math.PI;
-      placeSubtree(kid, out, Math.min(share * 0.92, 2.4));
+  // Iterative with an explicit stack: the spanning tree can be thousands of
+  // levels deep on chain-heavy graphs, which would overflow the call stack
+  // if walked recursively. Each frame only needs its parent's already-set
+  // position, so traversal order doesn't affect the layout.
+  function placeSubtree(startId: number, startMid: number, startWedge: number): void {
+    const stack: Array<{ id: number; mid: number; wedge: number }> = [
+      { id: startId, mid: startMid, wedge: startWedge },
+    ];
+    while (stack.length > 0) {
+      const frame = stack.pop();
+      if (!frame) break;
+      const { id, mid, wedge } = frame;
+      const kids = children[id];
+      if (!kids.length) continue;
+      const rhoBase = Math.min(0.82, 0.42 + 0.05 * Math.sqrt(kids.length));
+      const total = kids.reduce((s, c) => s + leaves[c], 0);
+      let start = mid - wedge / 2;
+      let kidIndex = 0;
+      for (const kid of kids) {
+        const share = (leaves[kid] / total) * wedge;
+        const ang = start + share / 2;
+        start += share;
+        // Large fans of equal-weight leaves crush onto one arc; staggering
+        // siblings across three shells triples their angular breathing room.
+        const rho =
+          kids.length > 6
+            ? Math.min(0.9, rhoBase + ((kidIndex % 3) - 1) * 0.09)
+            : rhoBase;
+        kidIndex += 1;
+        const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
+        const g = mobius(pos[id], local);
+        pos[kid] = g;
+        // Outward direction in the kid's own frame: away from its parent.
+        const parentLocal = mobiusNeg(g, pos[id]);
+        const out = Math.atan2(parentLocal.y, parentLocal.x) + Math.PI;
+        stack.push({ id: kid, mid: out, wedge: Math.min(share * 0.92, 2.4) });
+      }
     }
   }
 

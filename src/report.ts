@@ -344,8 +344,8 @@ ${safeCssContent}
 
             <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
             <div class="filter-group sort-wrapper mobile-only" id="mobile-sort">
-              <span class="filter-label">SORT</span>
-              <select id="sort-by">
+              <label class="filter-label" for="sort-by">SORT</label>
+              <select id="sort-by" aria-label="Sort dependencies by">
                 <option value="name">Name</option>
                 <option value="type">Type</option>
                 <option value="scope">Scope</option>
@@ -355,7 +355,7 @@ ${safeCssContent}
                 <option value="maintenance">Maintenance</option>
                 <option value="depth">Depth</option>
               </select>
-              <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
+              <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction" aria-label="Toggle sort direction">↑</button>
             </div>
 
             <div class="filter-panel-actions">

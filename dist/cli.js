@@ -387,7 +387,20 @@ async function detectWorkspace(projectPath) {
         pnpmWorkspaceOverrides = workspaceFile.overrides;
     }
     if (hasYarnPnp) {
-        return { type: "yarn", packagePaths: [] };
+        if (rootPkg && rootPkg.workspaces) {
+            // PnP installs have no node_modules, but package.json#workspaces still
+            // defines the monorepo layout — enumerate child workspaces like any
+            // other Yarn workspace instead of scanning only the root.
+            type = "yarn";
+            if (Array.isArray(rootPkg.workspaces))
+                patterns = rootPkg.workspaces;
+            else if (Array.isArray(rootPkg.workspaces.packages))
+                patterns = rootPkg.workspaces.packages;
+            pnpmWorkspaceOverrides = undefined;
+        }
+        else {
+            return { type: "yarn", packagePaths: [] };
+        }
     }
     // npm/yarn workspaces
     if (type === "none" && rootPkg && rootPkg.workspaces) {
@@ -1050,12 +1063,14 @@ function parseArgs(argv) {
             opts.format = format;
         }
         else if (arg === "--target-node") {
-            const value = Number.parseInt(takeOptionValue(args, arg), 10);
-            if (!Number.isFinite(value) || value <= 0) {
-                console.error("--target-node must be a positive Node.js major version.");
+            const raw = takeOptionValue(args, arg);
+            // parseInt would accept "20garbage" or "20.9"; a Node target is a bare
+            // major version, so require exactly that.
+            if (!/^\d+$/.test(raw.trim()) || Number.parseInt(raw, 10) <= 0) {
+                console.error("--target-node must be a positive Node.js major version (e.g. 20).");
                 process.exit(EXIT_USAGE_OR_INCOMPLETE);
             }
-            opts.targetNodeMajor = value;
+            opts.targetNodeMajor = Number.parseInt(raw, 10);
         }
         else if (arg === "--audit-signatures")
             opts.auditSignatures = true;

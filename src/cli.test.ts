@@ -1099,4 +1099,54 @@ describe('cli summary output', () => {
       expect(report.dependencies['a@1.0.0']).toBeDefined();
     },
   );
+
+  it(
+    'enumerates package.json workspaces in Yarn PnP monorepos',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-yarn-pnp-ws');
+      const projectPath = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'report.json');
+      await fs.mkdir(path.join(projectPath, 'packages', 'child-a'), { recursive: true });
+      await fs.mkdir(path.join(projectPath, 'packages', 'child-b'), { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'pnp-workspace-root',
+        version: '1.0.0',
+        packageManager: 'yarn@4.0.0',
+        workspaces: ['packages/*']
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'child-a', 'package.json'), JSON.stringify({
+        name: '@fixture/child-a',
+        version: '1.0.0',
+        dependencies: { a: '1.0.0' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'child-b', 'package.json'), JSON.stringify({
+        name: '@fixture/child-b',
+        version: '1.0.0'
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, '.pnp.cjs'), 'module.exports = {};', 'utf8');
+      await fs.writeFile(path.join(projectPath, 'yarn.lock'), [
+        '# yarn lockfile v1',
+        '',
+        'a@1.0.0:',
+        '  version "1.0.0"',
+        '  resolved "https://registry.yarnpkg.com/a/-/a-1.0.0.tgz"',
+        '  integrity sha512-a'
+      ].join('\n'), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      const workspaceNames = (report.workspaces?.workspacePackages || []).map(
+        (ws: { name: string }) => ws.name,
+      );
+      expect(workspaceNames).toContain('@fixture/child-a');
+      expect(workspaceNames).toContain('@fixture/child-b');
+    },
+  );
 });

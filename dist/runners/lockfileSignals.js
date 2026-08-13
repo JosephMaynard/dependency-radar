@@ -7,7 +7,9 @@ exports.runLockfileSupplyChainSignals = runLockfileSupplyChainSignals;
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const utils_1 = require("../utils");
-const DEFAULT_REGISTRY_HOSTS = new Set(['registry.npmjs.org']);
+// registry.yarnpkg.com is Yarn Classic's default alias for the npm registry;
+// treating it as unexpected flags every ordinary Yarn lockfile.
+const DEFAULT_REGISTRY_HOSTS = new Set(['registry.npmjs.org', 'registry.yarnpkg.com']);
 function stripJsonComments(raw) {
     let out = '';
     let quote;

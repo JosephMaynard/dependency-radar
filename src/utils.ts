@@ -366,12 +366,33 @@ async function findLicenseFile(dir: string): Promise<string | undefined> {
   }
 }
 
+/**
+ * True when the directory looks like a workspace/monorepo root whose lockfile
+ * can legitimately cover nested projects.
+ */
+async function isWorkspaceRoot(dir: string): Promise<boolean> {
+  if (await pathExists(path.join(dir, 'pnpm-workspace.yaml'))) return true;
+  try {
+    const raw = await fsp.readFile(path.join(dir, 'package.json'), 'utf8');
+    const pkg = JSON.parse(raw) as { workspaces?: unknown };
+    return Boolean(pkg && typeof pkg === 'object' && pkg.workspaces);
+  } catch {
+    return false;
+  }
+}
+
 export async function findLockDir(startPath: string, lockFiles: string[]): Promise<string | undefined> {
   let current = startPath;
   while (true) {
     for (const file of lockFiles) {
       if (await pathExists(path.join(current, file))) {
-        return current;
+        // The project's own lockfile always applies. An ancestor's lockfile
+        // only applies when that ancestor is a workspace root that can own
+        // nested projects — otherwise it belongs to an unrelated project and
+        // using it would report evidence for the wrong dependency tree.
+        if (current === startPath) return current;
+        if (await isWorkspaceRoot(current)) return current;
+        return undefined;
       }
     }
     const parent = path.dirname(current);

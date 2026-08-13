@@ -149,20 +149,42 @@ export function buildVizModel(
   for (let i = 0; i < count; i += 1) if (isRoot[i]) roots.push(i);
 
   // (a) path-expanded subtree size. Memoisation makes cycle-adjacent counts
-  // approximate — fine for widths.
+  // approximate — fine for widths. Iterative DFS with an explicit stack:
+  // dependency chains can be thousands of packages deep, which overflows the
+  // call stack when done recursively.
   const subSize = new Float64Array(count).fill(0);
-  const sizeOf = (id: number, path: Set<number>): number => {
-    if (subSize[id] > 0) return subSize[id];
-    if (path.has(id)) return 0;
-    path.add(id);
-    let n = 1;
-    for (const dep of depsOut[id]) n += sizeOf(dep, path);
-    path.delete(id);
-    subSize[id] = n;
-    return n;
+  interface SizeFrame {
+    id: number;
+    next: number;
+    acc: number;
+  }
+  const sizeOf = (start: number): void => {
+    if (subSize[start] > 0) return;
+    const onPath = new Set<number>([start]);
+    const stack: SizeFrame[] = [{ id: start, next: 0, acc: 1 }];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const deps = depsOut[frame.id];
+      if (frame.next < deps.length) {
+        const dep = deps[frame.next];
+        frame.next += 1;
+        if (subSize[dep] > 0) {
+          frame.acc += subSize[dep];
+        } else if (!onPath.has(dep)) {
+          onPath.add(dep);
+          stack.push({ id: dep, next: 0, acc: 1 });
+        }
+        continue;
+      }
+      onPath.delete(frame.id);
+      subSize[frame.id] = frame.acc;
+      stack.pop();
+      const parentFrame = stack[stack.length - 1];
+      if (parentFrame) parentFrame.acc += frame.acc;
+    }
   };
-  for (const r of roots) sizeOf(r, new Set());
-  for (let i = 0; i < count; i += 1) if (subSize[i] === 0) sizeOf(i, new Set());
+  for (const r of roots) sizeOf(r);
+  for (let i = 0; i < count; i += 1) if (subSize[i] === 0) sizeOf(i);
   const totalSize = roots.reduce((s, r) => s + subSize[r], 0);
 
   // (b) children heaviest-first.
@@ -173,21 +195,39 @@ export function buildVizModel(
     (a, b) => subSize[b] - subSize[a] || a - b,
   );
 
-  // (d) number of distinct root->package paths.
+  // (d) number of distinct root->package paths. Iterative for the same
+  // deep-chain reason as sizeOf. A root appears once at top level PLUS once
+  // per path through each dependent — direct deps that are also transitive
+  // deps are common.
   const occ = new Float64Array(count).fill(0);
-  const occOf = (id: number, path: Set<number>): number => {
-    if (occ[id] > 0) return occ[id];
-    if (path.has(id)) return 0;
-    path.add(id);
-    // A root appears once at top level PLUS once per path through each
-    // dependent — direct deps that are also transitive deps are common.
-    let n = isRoot[id] ? 1 : 0;
-    for (const from of depsIn[id]) n += occOf(from, path) || 0;
-    path.delete(id);
-    occ[id] = Math.max(n, 1);
-    return occ[id];
+  const occOf = (start: number): void => {
+    if (occ[start] > 0) return;
+    const onPath = new Set<number>([start]);
+    const stack: SizeFrame[] = [
+      { id: start, next: 0, acc: isRoot[start] ? 1 : 0 },
+    ];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const froms = depsIn[frame.id];
+      if (frame.next < froms.length) {
+        const from = froms[frame.next];
+        frame.next += 1;
+        if (occ[from] > 0) {
+          frame.acc += occ[from];
+        } else if (!onPath.has(from)) {
+          onPath.add(from);
+          stack.push({ id: from, next: 0, acc: isRoot[from] ? 1 : 0 });
+        }
+        continue;
+      }
+      onPath.delete(frame.id);
+      occ[frame.id] = Math.max(frame.acc, 1);
+      stack.pop();
+      const parentFrame = stack[stack.length - 1];
+      if (parentFrame) parentFrame.acc += occ[frame.id];
+    }
   };
-  for (let i = 0; i < count; i += 1) occOf(i, new Set());
+  for (let i = 0; i < count; i += 1) occOf(i);
 
   // (c) BFS spanning tree from roots; first claimer wins.
   const parent = new Int32Array(count).fill(-2);

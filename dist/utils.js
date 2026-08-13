@@ -371,12 +371,36 @@ async function findLicenseFile(dir) {
         return undefined;
     }
 }
+/**
+ * True when the directory looks like a workspace/monorepo root whose lockfile
+ * can legitimately cover nested projects.
+ */
+async function isWorkspaceRoot(dir) {
+    if (await pathExists(path_1.default.join(dir, 'pnpm-workspace.yaml')))
+        return true;
+    try {
+        const raw = await promises_1.default.readFile(path_1.default.join(dir, 'package.json'), 'utf8');
+        const pkg = JSON.parse(raw);
+        return Boolean(pkg && typeof pkg === 'object' && pkg.workspaces);
+    }
+    catch {
+        return false;
+    }
+}
 async function findLockDir(startPath, lockFiles) {
     let current = startPath;
     while (true) {
         for (const file of lockFiles) {
             if (await pathExists(path_1.default.join(current, file))) {
-                return current;
+                // The project's own lockfile always applies. An ancestor's lockfile
+                // only applies when that ancestor is a workspace root that can own
+                // nested projects — otherwise it belongs to an unrelated project and
+                // using it would report evidence for the wrong dependency tree.
+                if (current === startPath)
+                    return current;
+                if (await isWorkspaceRoot(current))
+                    return current;
+                return undefined;
             }
         }
         const parent = path_1.default.dirname(current);
