@@ -1149,4 +1149,54 @@ describe('cli summary output', () => {
       expect(workspaceNames).toContain('@fixture/child-b');
     },
   );
+
+  it(
+    'splits import evidence and workspace origins per version in npm workspaces',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-ws-split');
+      const projectPath = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'report.json');
+      await fs.mkdir(path.join(projectPath, 'packages', 'safe'), { recursive: true });
+      await fs.mkdir(path.join(projectPath, 'packages', 'vuln'), { recursive: true });
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'ws-root', version: '1.0.0', workspaces: ['packages/*']
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'safe', 'package.json'), JSON.stringify({
+        name: '@ws/safe', version: '1.0.0', dependencies: { minimist: '^1.2.8' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'vuln', 'package.json'), JSON.stringify({
+        name: '@ws/vuln', version: '1.0.0', dependencies: { minimist: '^0.0.8' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'safe', 'index.js'), "const m = require('minimist');\n", 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'vuln', 'index.js'), "const m = require('minimist');\n", 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        name: 'ws-root', version: '1.0.0', lockfileVersion: 3, requires: true,
+        packages: {
+          '': { name: 'ws-root', version: '1.0.0', workspaces: ['packages/*'] },
+          'packages/safe': { name: '@ws/safe', version: '1.0.0', dependencies: { minimist: '^1.2.8' } },
+          'packages/vuln': { name: '@ws/vuln', version: '1.0.0', dependencies: { minimist: '^0.0.8' } },
+          'node_modules/@ws/safe': { resolved: 'packages/safe', link: true },
+          'node_modules/@ws/vuln': { resolved: 'packages/vuln', link: true },
+          'node_modules/minimist': { version: '1.2.8', resolved: 'https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz', integrity: 'sha512-a' },
+          'packages/vuln/node_modules/minimist': { version: '0.0.8', resolved: 'https://registry.npmjs.org/minimist/-/minimist-0.0.8.tgz', integrity: 'sha512-b' }
+        }
+      }), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      const safe = report.dependencies['minimist@1.2.8'];
+      const vuln = report.dependencies['minimist@0.0.8'];
+      expect(safe.usage.importUsage?.topFiles).toEqual(['packages/safe/index.js']);
+      expect(vuln.usage.importUsage?.topFiles).toEqual(['packages/vuln/index.js']);
+      expect(safe.usage.origins.workspaces).toEqual(['@ws/safe']);
+      expect(vuln.usage.origins.workspaces).toEqual(['@ws/vuln']);
+    },
+  );
 });

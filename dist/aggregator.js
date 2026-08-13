@@ -331,7 +331,8 @@ function isWorkspacePackageNode(node, input) {
  * @returns The assembled AggregatedData containing project metadata, environment info, per-dependency records, findings, and summary counts.
  */
 async function aggregateData(input) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _l;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     let projectPkg = input.projectPackageJson;
     if (!projectPkg) {
@@ -436,19 +437,23 @@ async function aggregateData(input) {
         if (tied.length <= 1)
             return usage;
         // Equal-depth versions (multi-workspace): split evidence per importing
-        // file by workspace ownership. If ownership can't be established for
-        // every tied version, stay permissive and attribute to all of them.
+        // file by workspace ownership, over the COMPLETE importing-file set —
+        // topFiles caps at five and could drop another workspace's evidence.
+        // If ownership can't be established for every tied version, stay
+        // permissive and attribute to all of them: a false extra flag beats a
+        // silent miss in the security gate.
         const ownersByNode = tied.map((sibling) => nodeWorkspaceOwners(sibling));
         if (ownersByNode.some((owners) => owners.size === 0))
             return usage;
         const myOwners = nodeWorkspaceOwners(node);
-        const ownedFiles = usage.topFiles.filter((file) => {
+        const allFiles = usageResult.filesByName.get(node.name) || usage.topFiles;
+        const ownedFiles = allFiles.filter((file) => {
             const owner = fileOwnerWorkspace(file);
             return owner !== undefined && myOwners.has(owner);
         });
         if (ownedFiles.length === 0)
             return undefined;
-        return { fileCount: ownedFiles.length, topFiles: ownedFiles };
+        return { fileCount: ownedFiles.length, topFiles: ownedFiles.slice(0, 5) };
     };
     for (const node of nodes) {
         const direct = node.isDirect;
@@ -478,7 +483,11 @@ async function aggregateData(input) {
         const runtimeImpact = usageResult.runtimeImpact.get(node.name);
         const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
         const parentIds = Array.from(node.parents).sort();
-        const origins = buildOrigins(rootCauses, parentIds, (_f = input.workspaceUsage) === null || _f === void 0 ? void 0 : _f.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES, MAX_TOP_PARENT_PACKAGES);
+        const origins = buildOrigins(rootCauses, parentIds, (_l = 
+        // Prefer the version-scoped usage entry so different installed
+        // versions keep their actual workspace origins; the bare name entry
+        // remains the fallback when the tree carried no resolved versions.
+        (_f = input.workspaceUsage) === null || _f === void 0 ? void 0 : _f.get(node.key)) !== null && _l !== void 0 ? _l : (_g = input.workspaceUsage) === null || _g === void 0 ? void 0 : _g.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES, MAX_TOP_PARENT_PACKAGES);
         const execution = packageInsights.execution;
         const packaging = packageInsights.packaging;
         const id = node.key;
@@ -508,9 +517,9 @@ async function aggregateData(input) {
                 deprecated: packageInsights.deprecated,
                 links: {
                     npm: `https://www.npmjs.com/package/${node.name}`,
-                    ...(((_g = packageInsights.links) === null || _g === void 0 ? void 0 : _g.repository) ? { repository: packageInsights.links.repository } : {}),
-                    ...(((_h = packageInsights.links) === null || _h === void 0 ? void 0 : _h.homepage) ? { homepage: packageInsights.links.homepage } : {}),
-                    ...(((_j = packageInsights.links) === null || _j === void 0 ? void 0 : _j.bugs) ? { bugs: packageInsights.links.bugs } : {})
+                    ...(((_h = packageInsights.links) === null || _h === void 0 ? void 0 : _h.repository) ? { repository: packageInsights.links.repository } : {}),
+                    ...(((_j = packageInsights.links) === null || _j === void 0 ? void 0 : _j.homepage) ? { homepage: packageInsights.links.homepage } : {}),
+                    ...(((_k = packageInsights.links) === null || _k === void 0 ? void 0 : _k.bugs) ? { bugs: packageInsights.links.bugs } : {})
                 }
             },
             compliance: {
@@ -1128,6 +1137,7 @@ function buildUsageSummary(graph, projectPath) {
     var _a;
     const summary = new Map();
     const runtimeImpact = new Map();
+    const filesByName = new Map();
     const byDep = new Map();
     const packages = graph.packages || {};
     for (const [file, deps] of Object.entries(packages)) {
@@ -1169,9 +1179,10 @@ function buildUsageSummary(graph, projectPath) {
             fileCount: fileMap.size,
             topFiles: entries.slice(0, 5).map((entry) => entry.file)
         });
+        filesByName.set(dep, entries.map((entry) => entry.file));
         runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
     }
-    return { summary, runtimeImpact };
+    return { summary, runtimeImpact, filesByName };
 }
 function isDirectDependency(name, pkg) {
     return Boolean((pkg.dependencies && pkg.dependencies[name]) ||

@@ -993,13 +993,21 @@ function buildWorkspaceUsageMap(
 
   // Name-level skip for the tree walk, where no specifier is available. A
   // name is only skipped outright when nothing marked it external — the
-  // declared-deps pass below is specifier-aware and can override.
-  const add = (depName: string, pkgName: string) => {
+  // declared-deps pass below is specifier-aware and can override. When the
+  // tree supplies a resolved version, usage is additionally recorded under
+  // name@version so different installed versions keep their own workspace
+  // origins instead of claiming each other's users.
+  const add = (depName: string, pkgName: string, version?: string) => {
     if (!depName) return;
     if (workspacePackageNames.has(depName)) return;
     if (localDependencyNames.has(depName)) return;
     if (!usage.has(depName)) usage.set(depName, new Set());
     usage.get(depName)!.add(pkgName);
+    if (typeof version === "string" && version.trim()) {
+      const key = `${depName}@${version.trim()}`;
+      if (!usage.has(key)) usage.set(key, new Set());
+      usage.get(key)!.add(pkgName);
+    }
   };
 
   // Specifier-aware variant for declared dependencies: a same-name external
@@ -1039,11 +1047,11 @@ function buildWorkspaceUsageMap(
   const walk = (node: any, pkgName: string): void => {
     if (!node || typeof node !== "object") return;
     const name = node.name;
-    if (typeof name === "string") add(name, pkgName);
+    if (typeof name === "string") add(name, pkgName, node.version);
     const deps = node.dependencies;
     if (deps && typeof deps === "object") {
       for (const [depName, child] of Object.entries<any>(deps)) {
-        add(depName, pkgName);
+        add(depName, pkgName, child?.version);
         walk(child, pkgName);
       }
     }
@@ -1056,7 +1064,7 @@ function buildWorkspaceUsageMap(
     const deps = data.dependencies;
     if (deps && typeof deps === "object") {
       for (const [depName, child] of Object.entries<any>(deps)) {
-        add(depName, meta.name);
+        add(depName, meta.name, child?.version);
         walk(child, meta.name);
       }
     }
@@ -1095,6 +1103,10 @@ function buildCombinedDependencyGraph(
     dependencies[meta.name] = {
       name: meta.name,
       version,
+      // The aggregator identifies workspace parents (and attributes import
+      // evidence per workspace) by this path — without it, equal-depth
+      // versions across workspaces lose their evidence entirely.
+      path: meta.path,
       dependencies: nodeDeps,
     };
   }

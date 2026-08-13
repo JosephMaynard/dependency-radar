@@ -233,9 +233,11 @@ function tokenSatisfies(token, v) {
                 return false;
             if (major > 0)
                 return v[0] === major;
-            if ((minor !== null && minor !== void 0 ? minor : 0) > 0 || patch === undefined) {
-                return v[0] === 0 && v[1] === (minor !== null && minor !== void 0 ? minor : 0);
-            }
+            // ^0 / ^0.x accept any 0.y.z; ^0.y pins the minor; ^0.0.z pins patch.
+            if (minor === undefined)
+                return v[0] === 0;
+            if (minor > 0 || patch === undefined)
+                return v[0] === 0 && v[1] === minor;
             return v[0] === 0 && v[1] === 0 && v[2] === patch;
         }
         case '~': {

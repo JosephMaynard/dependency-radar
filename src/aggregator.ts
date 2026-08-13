@@ -563,17 +563,21 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const tied = siblings.filter((sibling) => sibling.depth === minDepth);
     if (tied.length <= 1) return usage;
     // Equal-depth versions (multi-workspace): split evidence per importing
-    // file by workspace ownership. If ownership can't be established for
-    // every tied version, stay permissive and attribute to all of them.
+    // file by workspace ownership, over the COMPLETE importing-file set —
+    // topFiles caps at five and could drop another workspace's evidence.
+    // If ownership can't be established for every tied version, stay
+    // permissive and attribute to all of them: a false extra flag beats a
+    // silent miss in the security gate.
     const ownersByNode = tied.map((sibling) => nodeWorkspaceOwners(sibling));
     if (ownersByNode.some((owners) => owners.size === 0)) return usage;
     const myOwners = nodeWorkspaceOwners(node);
-    const ownedFiles = usage.topFiles.filter((file) => {
+    const allFiles = usageResult.filesByName.get(node.name) || usage.topFiles;
+    const ownedFiles = allFiles.filter((file) => {
       const owner = fileOwnerWorkspace(file);
       return owner !== undefined && myOwners.has(owner);
     });
     if (ownedFiles.length === 0) return undefined;
-    return { fileCount: ownedFiles.length, topFiles: ownedFiles };
+    return { fileCount: ownedFiles.length, topFiles: ownedFiles.slice(0, 5) };
   };
 
   for (const node of nodes) {
@@ -619,7 +623,10 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     const origins = buildOrigins(
       rootCauses,
       parentIds,
-      input.workspaceUsage?.get(node.name),
+      // Prefer the version-scoped usage entry so different installed
+      // versions keep their actual workspace origins; the bare name entry
+      // remains the fallback when the tree carried no resolved versions.
+      input.workspaceUsage?.get(node.key) ?? input.workspaceUsage?.get(node.name),
       input.workspaceEnabled,
       MAX_TOP_ROOT_PACKAGES,
       MAX_TOP_PARENT_PACKAGES
@@ -1289,11 +1296,14 @@ interface UsageSummary {
 interface UsageBuildResult {
   summary: Map<string, UsageSummary>;
   runtimeImpact: Map<string, DependencyRecord['usage']['runtimeImpact']>;
+  /** Complete importing-file list per name (topFiles caps at five). */
+  filesByName: Map<string, string[]>;
 }
 
 function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBuildResult {
   const summary = new Map<string, UsageSummary>();
   const runtimeImpact = new Map<string, DependencyRecord['usage']['runtimeImpact']>();
+  const filesByName = new Map<string, string[]>();
   const byDep = new Map<string, Map<string, number>>();
   const packages = graph.packages || {};
 
@@ -1331,10 +1341,11 @@ function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBu
       fileCount: fileMap.size,
       topFiles: entries.slice(0, 5).map((entry) => entry.file)
     });
+    filesByName.set(dep, entries.map((entry) => entry.file));
     runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
   }
 
-  return { summary, runtimeImpact };
+  return { summary, runtimeImpact, filesByName };
 }
 
 function isDirectDependency(name: string, pkg: any): boolean {
