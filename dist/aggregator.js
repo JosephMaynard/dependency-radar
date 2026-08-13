@@ -375,8 +375,13 @@ async function aggregateData(input) {
     // directly-imported-vuln. When several versions tie at the shallowest
     // depth (different workspaces declaring different majors), evidence is
     // split per importing file by workspace ownership where possible.
+    // Candidate versions for import attribution come from the FULL node map:
+    // workspace-package nodes are excluded from the report, but they still
+    // compete for import evidence — otherwise an external namesake would be
+    // the only candidate and inherit imports that resolve to the local
+    // workspace package.
     const nodesByName = new Map();
-    for (const node of nodes) {
+    for (const node of nodeMap.values()) {
         const list = nodesByName.get(node.name) || [];
         list.push(node);
         nodesByName.set(node.name, list);
@@ -406,36 +411,40 @@ async function aggregateData(input) {
         return best;
     };
     const nodeWorkspaceOwners = (node) => {
-        var _a, _b;
+        var _a, _b, _c;
         const owners = new Set();
+        if (node.path) {
+            const selfPath = path_1.default.resolve(node.path);
+            // A workspace package node owns the files under its own directory.
+            if ((_a = input.workspacePackagePaths) === null || _a === void 0 ? void 0 : _a.has(selfPath))
+                owners.add(selfPath);
+        }
         for (const parentKey of node.parents) {
             const parent = nodeMap.get(parentKey);
             if (!(parent === null || parent === void 0 ? void 0 : parent.path))
                 continue;
             const resolved = path_1.default.resolve(parent.path);
-            if ((_a = input.workspacePackagePaths) === null || _a === void 0 ? void 0 : _a.has(resolved))
+            if ((_b = input.workspacePackagePaths) === null || _b === void 0 ? void 0 : _b.has(resolved))
                 owners.add(resolved);
         }
         if (node.importerChild && workspaceRelByPath.size > 0) {
             const rootPath = path_1.default.resolve(input.projectPath);
-            if ((_b = input.workspacePackagePaths) === null || _b === void 0 ? void 0 : _b.has(rootPath))
+            if ((_c = input.workspacePackagePaths) === null || _c === void 0 ? void 0 : _c.has(rootPath))
                 owners.add(rootPath);
         }
         return owners;
     };
-    const attributeImportUsage = (node, usage) => {
-        if (!usage)
-            return undefined;
+    const attributeImportEvidence = (node) => {
         const siblings = nodesByName.get(node.name) || [];
         if (siblings.length <= 1)
-            return usage;
+            return { kind: 'all' };
         const minDepth = Math.min(...siblings.map((sibling) => sibling.depth));
         // Deeper duplicates lose to the hoisted copy outright.
         if (node.depth > minDepth)
-            return undefined;
+            return { kind: 'none' };
         const tied = siblings.filter((sibling) => sibling.depth === minDepth);
         if (tied.length <= 1)
-            return usage;
+            return { kind: 'all' };
         // Equal-depth versions (multi-workspace): split evidence per importing
         // file by workspace ownership, over the COMPLETE importing-file set —
         // topFiles caps at five and could drop another workspace's evidence.
@@ -444,16 +453,16 @@ async function aggregateData(input) {
         // silent miss in the security gate.
         const ownersByNode = tied.map((sibling) => nodeWorkspaceOwners(sibling));
         if (ownersByNode.some((owners) => owners.size === 0))
-            return usage;
+            return { kind: 'all' };
         const myOwners = nodeWorkspaceOwners(node);
-        const allFiles = usageResult.filesByName.get(node.name) || usage.topFiles;
-        const ownedFiles = allFiles.filter((file) => {
-            const owner = fileOwnerWorkspace(file);
+        const allEntries = usageResult.entriesByName.get(node.name) || [];
+        const owned = allEntries.filter((entry) => {
+            const owner = fileOwnerWorkspace(entry.file);
             return owner !== undefined && myOwners.has(owner);
         });
-        if (ownedFiles.length === 0)
-            return undefined;
-        return { fileCount: ownedFiles.length, topFiles: ownedFiles.slice(0, 5) };
+        if (owned.length === 0)
+            return { kind: 'none' };
+        return { kind: 'subset', entries: owned };
     };
     for (const node of nodes) {
         const direct = node.isDirect;
@@ -479,8 +488,29 @@ async function aggregateData(input) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
         }
         const scope = determineScope(node.name, direct, rootCauses, pkg);
-        const importUsage = attributeImportUsage(node, usageResult.summary.get(node.name));
-        const runtimeImpact = usageResult.runtimeImpact.get(node.name);
+        // importUsage and runtimeImpact both follow the per-version attribution:
+        // a version whose only imports are another version's files must not
+        // inherit that version's runtime classification either.
+        const attribution = attributeImportEvidence(node);
+        const nameUsage = usageResult.summary.get(node.name);
+        let importUsage;
+        let runtimeImpact;
+        if (attribution.kind === 'all') {
+            importUsage = nameUsage;
+            runtimeImpact = usageResult.runtimeImpact.get(node.name);
+        }
+        else if (attribution.kind === 'subset' && nameUsage) {
+            const ownedSet = new Set(attribution.entries.map((entry) => entry.file));
+            const rankedOwned = nameUsage.topFiles.filter((file) => ownedSet.has(file));
+            const rest = attribution.entries
+                .map((entry) => entry.file)
+                .filter((file) => !rankedOwned.includes(file));
+            importUsage = {
+                fileCount: attribution.entries.length,
+                topFiles: [...rankedOwned, ...rest].slice(0, 5),
+            };
+            runtimeImpact = determineRuntimeImpactFromFiles(attribution.entries);
+        }
         const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
         const parentIds = Array.from(node.parents).sort();
         const origins = buildOrigins(rootCauses, parentIds, (_l = 
@@ -1137,7 +1167,7 @@ function buildUsageSummary(graph, projectPath) {
     var _a;
     const summary = new Map();
     const runtimeImpact = new Map();
-    const filesByName = new Map();
+    const entriesByName = new Map();
     const byDep = new Map();
     const packages = graph.packages || {};
     for (const [file, deps] of Object.entries(packages)) {
@@ -1179,10 +1209,10 @@ function buildUsageSummary(graph, projectPath) {
             fileCount: fileMap.size,
             topFiles: entries.slice(0, 5).map((entry) => entry.file)
         });
-        filesByName.set(dep, entries.map((entry) => entry.file));
+        entriesByName.set(dep, entries.map((entry) => ({ file: entry.file, count: entry.count })));
         runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
     }
-    return { summary, runtimeImpact, filesByName };
+    return { summary, runtimeImpact, entriesByName };
 }
 function isDirectDependency(name, pkg) {
     return Boolean((pkg.dependencies && pkg.dependencies[name]) ||

@@ -854,28 +854,39 @@ function mergeImportGraphs(rootPath, packageMetas, graphs) {
 function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackageNames, localDependencyNames, workspaceVersionKeysByName) {
     var _a, _b, _c, _d;
     const usage = new Map();
+    const record = (key, pkgName) => {
+        if (!usage.has(key))
+            usage.set(key, new Set());
+        usage.get(key).add(pkgName);
+    };
     // Name-level skip for the tree walk, where no specifier is available. A
     // name is only skipped outright when nothing marked it external — the
     // declared-deps pass below is specifier-aware and can override. When the
     // tree supplies a resolved version, usage is additionally recorded under
     // name@version so different installed versions keep their own workspace
-    // origins instead of claiming each other's users.
+    // origins instead of claiming each other's users. An external namesake
+    // (name matches a workspace package but the resolved version matches no
+    // workspace version) keeps precise version-scoped origins instead of
+    // being dropped wholesale.
     const add = (depName, pkgName, version) => {
         if (!depName)
             return;
-        if (workspacePackageNames.has(depName))
+        const trimmed = typeof version === "string" ? version.trim() : "";
+        if (workspacePackageNames.has(depName)) {
+            const workspaceVersions = workspaceVersionKeysByName === null || workspaceVersionKeysByName === void 0 ? void 0 : workspaceVersionKeysByName.get(depName);
+            const mismatch = trimmed &&
+                workspaceVersions &&
+                workspaceVersions.length > 0 &&
+                !workspaceVersions.includes(trimmed);
+            if (mismatch)
+                record(`${depName}@${trimmed}`, pkgName);
             return;
+        }
         if (localDependencyNames.has(depName))
             return;
-        if (!usage.has(depName))
-            usage.set(depName, new Set());
-        usage.get(depName).add(pkgName);
-        if (typeof version === "string" && version.trim()) {
-            const key = `${depName}@${version.trim()}`;
-            if (!usage.has(key))
-                usage.set(key, new Set());
-            usage.get(key).add(pkgName);
-        }
+        record(depName, pkgName);
+        if (trimmed)
+            record(`${depName}@${trimmed}`, pkgName);
     };
     // Specifier-aware variant for declared dependencies: a same-name external
     // dep (workspace foo@1, declared foo@^2) must still record its user.

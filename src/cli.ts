@@ -991,23 +991,36 @@ function buildWorkspaceUsageMap(
 ): Map<string, string[]> {
   const usage = new Map<string, Set<string>>();
 
+  const record = (key: string, pkgName: string) => {
+    if (!usage.has(key)) usage.set(key, new Set());
+    usage.get(key)!.add(pkgName);
+  };
+
   // Name-level skip for the tree walk, where no specifier is available. A
   // name is only skipped outright when nothing marked it external — the
   // declared-deps pass below is specifier-aware and can override. When the
   // tree supplies a resolved version, usage is additionally recorded under
   // name@version so different installed versions keep their own workspace
-  // origins instead of claiming each other's users.
+  // origins instead of claiming each other's users. An external namesake
+  // (name matches a workspace package but the resolved version matches no
+  // workspace version) keeps precise version-scoped origins instead of
+  // being dropped wholesale.
   const add = (depName: string, pkgName: string, version?: string) => {
     if (!depName) return;
-    if (workspacePackageNames.has(depName)) return;
-    if (localDependencyNames.has(depName)) return;
-    if (!usage.has(depName)) usage.set(depName, new Set());
-    usage.get(depName)!.add(pkgName);
-    if (typeof version === "string" && version.trim()) {
-      const key = `${depName}@${version.trim()}`;
-      if (!usage.has(key)) usage.set(key, new Set());
-      usage.get(key)!.add(pkgName);
+    const trimmed = typeof version === "string" ? version.trim() : "";
+    if (workspacePackageNames.has(depName)) {
+      const workspaceVersions = workspaceVersionKeysByName?.get(depName);
+      const mismatch =
+        trimmed &&
+        workspaceVersions &&
+        workspaceVersions.length > 0 &&
+        !workspaceVersions.includes(trimmed);
+      if (mismatch) record(`${depName}@${trimmed}`, pkgName);
+      return;
     }
+    if (localDependencyNames.has(depName)) return;
+    record(depName, pkgName);
+    if (trimmed) record(`${depName}@${trimmed}`, pkgName);
   };
 
   // Specifier-aware variant for declared dependencies: a same-name external
