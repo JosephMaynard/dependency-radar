@@ -172,7 +172,7 @@ export function mountFlameView(
       UW,
       focusPath.length ? ANC : ROW,
       theme.isDark ? "#1c2836" : "#dbe4ef",
-      `${model.projectName}  —  ${Math.round(model.totalSize).toLocaleString()} blocks`,
+      `${model.projectName}  —  ${model.count.toLocaleString()} packages (${Math.round(model.totalSize).toLocaleString()} paths)`,
       0.9,
     );
     y += focusPath.length ? ANC : ROW;

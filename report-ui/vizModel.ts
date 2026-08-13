@@ -54,6 +54,11 @@ export interface VizModel {
   /** Lineage hue per root subtree. */
   rootHue: Map<number, number>;
   hueOf: (index: number) => number;
+  /**
+   * Unique packages in the subtree rooted at the index (including itself) —
+   * the deduped counterpart to `subSize`'s path counting. Memoised.
+   */
+  uniqueCount: (index: number) => number;
 }
 
 const HUES = [28, 152, 268, 322, 82, 8, 232, 55, 190, 300];
@@ -230,6 +235,27 @@ export function buildVizModel(
     return rootHue.get(cur) ?? 210;
   };
 
+  const uniqueMemo = new Map<number, number>();
+  const uniqueCount = (index: number): number => {
+    if (index < 0 || index >= count) return 0;
+    const memo = uniqueMemo.get(index);
+    if (memo !== undefined) return memo;
+    const seen = new Uint8Array(count);
+    const queue = [index];
+    seen[index] = 1;
+    let total = 0;
+    for (let head = 0; head < queue.length; head += 1) {
+      total += 1;
+      for (const child of depsOut[queue[head]]) {
+        if (seen[child]) continue;
+        seen[child] = 1;
+        queue.push(child);
+      }
+    }
+    uniqueMemo.set(index, total);
+    return total;
+  };
+
   return {
     projectName,
     workspaceName: workspace ? workspace.name : workspaceName,
@@ -255,6 +281,7 @@ export function buildVizModel(
     order,
     rootHue,
     hueOf,
+    uniqueCount,
   };
 }
 

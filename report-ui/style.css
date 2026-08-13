@@ -1070,7 +1070,12 @@ select:focus {
   display: none;
 }
 
-.graph-mode .report-footer {
+.graph-mode .report-footer-vintage {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.report-footer {
   display: none;
 }
 
