@@ -1,4 +1,5 @@
 import type { AggregatedData, DependencyFinding, DependencyRecord, SupplyChainSignal } from './types';
+import { isProductionScope } from './types';
 import { isNodeEngineTargetCompatible } from './nodeEngine';
 import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 
@@ -111,7 +112,7 @@ export function buildDependencyFindings(
     } else if (dep.compliance.license.status === 'invalid-spdx' || dep.compliance.license.status === 'unknown') {
       findings.push(baseFinding(dep, `license-${dep.compliance.license.status}`, {
         category: 'license',
-        severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+        severity: isProductionScope(dep.usage.scope) ? 'warning' : 'info',
         title: dep.compliance.license.status === 'unknown' ? 'License is unknown' : 'License declaration is invalid SPDX',
         message: `${dep.package.id} needs license review.`,
         evidence: dep.compliance.license.declared?.spdxId,
@@ -119,7 +120,7 @@ export function buildDependencyFindings(
       }));
     }
 
-    if (dep.compliance.licenseRisk === 'red' && dep.usage.scope === 'runtime') {
+    if (dep.compliance.licenseRisk === 'red' && isProductionScope(dep.usage.scope)) {
       findings.push(baseFinding(dep, 'runtime-license-risk', {
         category: 'license',
         severity: 'error',
@@ -166,7 +167,7 @@ export function buildDependencyFindings(
       const registryDeprecation = dep.maintenance?.deprecated;
       findings.push(baseFinding(dep, 'deprecated', {
         category: 'supply-chain',
-        severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+        severity: isProductionScope(dep.usage.scope) ? 'warning' : 'info',
         title: 'Package is deprecated',
         message: registryDeprecation
           ? registryDeprecation.installedVersion
@@ -181,7 +182,7 @@ export function buildDependencyFindings(
     if (dep.maintenance?.status === 'archived') {
       findings.push(baseFinding(dep, 'maintenance-archived', {
         category: 'supply-chain',
-        severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+        severity: isProductionScope(dep.usage.scope) ? 'warning' : 'info',
         title: 'Source repository is archived',
         message: `${dep.package.id} points at an archived source repository, so fixes and security patches are unlikely.`,
         evidence: dep.maintenance.repoCheckedAt ? `repoCheckedAt=${dep.maintenance.repoCheckedAt}` : undefined,
@@ -259,7 +260,7 @@ export function buildDependencyFindings(
     if (targetSupport === false && options.targetNodeMajor) {
       findings.push(baseFinding(dep, `target-node-${options.targetNodeMajor}`, {
         category: 'upgrade',
-        severity: dep.usage.scope === 'runtime' ? 'error' : 'warning',
+        severity: isProductionScope(dep.usage.scope) ? 'error' : 'warning',
         title: `May block Node ${options.targetNodeMajor}`,
         message: `${dep.package.id} declares engines.node "${dep.upgrade.nodeEngine}", which does not appear to include Node ${options.targetNodeMajor}.`,
         recommendation: 'Upgrade, replace, or verify engine compatibility manually.'

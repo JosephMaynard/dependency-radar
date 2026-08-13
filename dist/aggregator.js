@@ -287,6 +287,28 @@ function isWorkspacePackageNode(node, input) {
         }
     }
     if (((_c = input.workspacePackageNames) === null || _c === void 0 ? void 0 : _c.has(node.name)) && node.depth <= 1) {
+        // A same-name external package is not local: when the workspace package's
+        // real version is known and this node carries a different real version,
+        // keep aggregating it instead of dropping it as a workspace member.
+        if (node.version && input.workspacePackageIds && input.workspacePackageIds.size > 0) {
+            let sawRealVersion = false;
+            for (const id of input.workspacePackageIds) {
+                const at = id.lastIndexOf('@');
+                if (at <= 0 || id.slice(0, at) !== node.name)
+                    continue;
+                const workspaceVersion = id.slice(at + 1);
+                if (workspaceVersion === 'workspace') {
+                    // Placeholder for a versionless workspace manifest — stay permissive.
+                    sawRealVersion = false;
+                    break;
+                }
+                sawRealVersion = true;
+                if (workspaceVersion === node.version)
+                    return true;
+            }
+            if (sawRealVersion)
+                return false;
+        }
         return true;
     }
     return false;

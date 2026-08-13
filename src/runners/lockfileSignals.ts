@@ -249,12 +249,14 @@ function inspectTextLock(
 async function collectLockfileSignals(
   projectPath: string,
   expectedHosts: Set<string>
-): Promise<SupplyChainSignal[]> {
+): Promise<{ signals: SupplyChainSignal[]; lockfilesFound: number }> {
   const signals: SupplyChainSignal[] = [];
+  let lockfilesFound = 0;
   const candidates = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock'];
   for (const fileName of candidates) {
     const filePath = path.join(projectPath, fileName);
     if (!(await pathExists(filePath))) continue;
+    lockfilesFound += 1;
     const raw = await fs.readFile(filePath, 'utf8');
     if (fileName === 'package-lock.json' || fileName === 'npm-shrinkwrap.json') {
       try {
@@ -272,7 +274,7 @@ async function collectLockfileSignals(
       signals.push(...inspectTextLock(raw, fileName, expectedHosts));
     }
   }
-  return signals;
+  return { signals, lockfilesFound };
 }
 
 type SignatureAuditResult = {
@@ -310,12 +312,13 @@ export async function runLockfileSupplyChainSignals(
   options: LockfileSignalOptions = {}
 ): Promise<ToolResult<{
   signals: SupplyChainSignal[];
+  lockfilesFound: number;
   signatureAudit?: SignatureAuditResult;
 }>> {
   const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, 'supply-chain-signals.json');
   try {
-    const signals = await collectLockfileSignals(
+    const { signals, lockfilesFound } = await collectLockfileSignals(
       projectPath,
       normalizeExpectedHosts(options.expectedRegistryHosts)
     );
@@ -326,6 +329,7 @@ export async function runLockfileSupplyChainSignals(
         : undefined;
     const data = {
       signals,
+      lockfilesFound,
       ...(signatureAudit ? { signatureAudit } : {})
     };
     if (persistToDisk) await writeJsonFile(targetFile, data);

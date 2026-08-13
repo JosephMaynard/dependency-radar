@@ -6,6 +6,7 @@ exports.evaluatePolicyViolations = evaluatePolicyViolations;
 exports.evaluateComparePolicyViolations = evaluateComparePolicyViolations;
 const license_1 = require("./license");
 const supplyChainCombos_1 = require("./supplyChainCombos");
+const types_1 = require("./types");
 exports.SUPPORTED_FAIL_ON_RULES = [
     'directly-imported-vuln',
     'reachable-vuln',
@@ -360,14 +361,14 @@ function evaluatePolicyViolations(aggregated, rules) {
     let deprecatedDependencyCount = 0;
     let unmaintainedDependencyCount = 0;
     for (const dep of Object.values(aggregated.dependencies || {})) {
-        const isRuntime = dep.usage.scope === 'runtime';
+        const isProduction = (0, types_1.isProductionScope)(dep.usage.scope);
         const hasVuln = vulnerabilityCount(dep) > 0;
         const isDirectlyImported = (((_a = dep.usage.importUsage) === null || _a === void 0 ? void 0 : _a.fileCount) || 0) > 0;
         const hasHighSeverityVuln = (dep.security.summary.high || 0) + (dep.security.summary.critical || 0) > 0;
-        if (isRuntime && hasVuln && isDirectlyImported) {
+        if (isProduction && hasVuln && isDirectlyImported) {
             directlyImportedProductionVulnCount += 1;
         }
-        if (isRuntime && hasVuln) {
+        if (isProduction && hasVuln) {
             productionVulnCount += 1;
         }
         if (hasHighSeverityVuln) {
@@ -376,7 +377,7 @@ function evaluatePolicyViolations(aggregated, rules) {
         if (dep.compliance.license.status === 'mismatch') {
             licenceMismatchCount += 1;
         }
-        if (isRuntime && hasStrongCopyleftLicense(dep)) {
+        if (isProduction && hasStrongCopyleftLicense(dep)) {
             copyleftDetectedCount += 1;
         }
         if (!dep.compliance.license.declared && !dep.compliance.license.inferred) {

@@ -226,11 +226,13 @@ function inspectTextLock(raw, sourceFile, expectedHosts) {
 }
 async function collectLockfileSignals(projectPath, expectedHosts) {
     const signals = [];
+    let lockfilesFound = 0;
     const candidates = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock'];
     for (const fileName of candidates) {
         const filePath = path_1.default.join(projectPath, fileName);
         if (!(await (0, utils_1.pathExists)(filePath)))
             continue;
+        lockfilesFound += 1;
         const raw = await promises_1.default.readFile(filePath, 'utf8');
         if (fileName === 'package-lock.json' || fileName === 'npm-shrinkwrap.json') {
             try {
@@ -252,7 +254,7 @@ async function collectLockfileSignals(projectPath, expectedHosts) {
             signals.push(...inspectTextLock(raw, fileName, expectedHosts));
         }
     }
-    return signals;
+    return { signals, lockfilesFound };
 }
 async function runNpmAuditSignatures(projectPath) {
     try {
@@ -279,7 +281,7 @@ async function runLockfileSupplyChainSignals(projectPath, tempDir, options = {})
     const persistToDisk = options.persistToDisk !== false;
     const targetFile = path_1.default.join(tempDir, 'supply-chain-signals.json');
     try {
-        const signals = await collectLockfileSignals(projectPath, normalizeExpectedHosts(options.expectedRegistryHosts));
+        const { signals, lockfilesFound } = await collectLockfileSignals(projectPath, normalizeExpectedHosts(options.expectedRegistryHosts));
         const signatureAudit = options.auditSignatures && !options.offline
             ? await runNpmAuditSignatures(projectPath)
             : options.auditSignatures && options.offline
@@ -287,6 +289,7 @@ async function runLockfileSupplyChainSignals(projectPath, tempDir, options = {})
                 : undefined;
         const data = {
             signals,
+            lockfilesFound,
             ...(signatureAudit ? { signatureAudit } : {})
         };
         if (persistToDisk)

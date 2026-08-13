@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runImportGraph = runImportGraph;
+exports.extractImports = extractImports;
 const path_1 = __importDefault(require("path"));
 const promises_1 = __importDefault(require("fs/promises"));
 const module_1 = require("module");
@@ -90,18 +91,81 @@ async function collectSourceFiles(rootDir) {
     await walk(rootDir);
     return files;
 }
+/**
+ * Blank out comments so import-looking text inside them can't register as
+ * evidence. String literals are left alone — the import/require patterns
+ * already demand the surrounding syntax, and template-literal parsing without
+ * a real lexer causes more trouble than it prevents. Positions are preserved
+ * (comments become spaces) so no offsets shift.
+ */
+function stripComments(content) {
+    let out = '';
+    let i = 0;
+    let quote;
+    let escaped = false;
+    while (i < content.length) {
+        const ch = content[i];
+        const next = content[i + 1];
+        if (quote) {
+            out += ch;
+            if (escaped)
+                escaped = false;
+            else if (ch === '\\')
+                escaped = true;
+            else if (ch === quote || (quote === '`' && ch === '`'))
+                quote = undefined;
+            i += 1;
+            continue;
+        }
+        if (ch === '"' || ch === "'" || ch === '`') {
+            quote = ch;
+            out += ch;
+            i += 1;
+            continue;
+        }
+        if (ch === '/' && next === '/') {
+            while (i < content.length && content[i] !== '\n') {
+                out += ' ';
+                i += 1;
+            }
+            continue;
+        }
+        if (ch === '/' && next === '*') {
+            while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) {
+                out += content[i] === '\n' ? '\n' : ' ';
+                i += 1;
+            }
+            out += '  ';
+            i += 2;
+            continue;
+        }
+        out += ch;
+        i += 1;
+    }
+    return out;
+}
 function extractImports(content) {
     const matches = [];
+    const stripped = stripComments(content);
     const patterns = [
         /\bimport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
         /\bexport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
         /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g,
         /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g
     ];
+    // Type-only imports/exports are erased at compile time and never load the
+    // package at runtime; they must not count as runtime import evidence.
+    const typeOnly = /\b(?:import|export)\s+type\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g;
+    const typeOnlySpans = [];
+    let typeMatch;
+    while ((typeMatch = typeOnly.exec(stripped)) !== null) {
+        typeOnlySpans.push([typeMatch.index, typeMatch.index + typeMatch[0].length]);
+    }
+    const inTypeOnly = (index) => typeOnlySpans.some(([start, end]) => index >= start && index < end);
     for (const pattern of patterns) {
         let match;
-        while ((match = pattern.exec(content)) !== null) {
-            if (match[1])
+        while ((match = pattern.exec(stripped)) !== null) {
+            if (match[1] && !inTypeOnly(match.index))
                 matches.push(match[1]);
         }
     }
