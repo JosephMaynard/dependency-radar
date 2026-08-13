@@ -1316,4 +1316,66 @@ describe('cli summary output', () => {
       expect(report.dependencies['minimist@0.0.8'].usage.runtimeImpact).toBe('testing');
     },
   );
+
+  it(
+    'keeps evidence for an external namesake a workspace directly imports',
+    { timeout: 30000 },
+    async () => {
+      const repoRoot = path.resolve(__dirname, '..');
+      const outputDir = await makeTempDir('dr-cli-ws-inverse');
+      const projectPath = path.join(outputDir, 'project');
+      const outPath = path.join(outputDir, 'report.json');
+      for (const dir of ['packages/minimist', 'packages/local-app', 'packages/external-app']) {
+        await fs.mkdir(path.join(projectPath, dir), { recursive: true });
+      }
+      await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+        name: 'ws-root', version: '1.0.0', workspaces: ['packages/*']
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'minimist', 'package.json'), JSON.stringify({
+        name: 'minimist', version: '1.2.8'
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'local-app', 'package.json'), JSON.stringify({
+        name: '@ws/local-app', version: '1.0.0', dependencies: { minimist: '^1.2.8' }
+      }), 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'external-app', 'package.json'), JSON.stringify({
+        name: '@ws/external-app', version: '1.0.0', dependencies: { minimist: '0.0.8' }
+      }), 'utf8');
+      // BOTH workspaces import "minimist": local-app resolves the workspace
+      // package, external-app resolves its own external 0.0.8. The external
+      // version must keep its evidence — a synthetic depth-1 workspace node
+      // must not outrank a genuinely imported deeper external copy.
+      await fs.writeFile(path.join(projectPath, 'packages', 'local-app', 'index.js'), "const m = require('minimist');\n", 'utf8');
+      await fs.writeFile(path.join(projectPath, 'packages', 'external-app', 'index.js'), "const m = require('minimist');\n", 'utf8');
+      await fs.writeFile(path.join(projectPath, 'package-lock.json'), JSON.stringify({
+        name: 'ws-root', version: '1.0.0', lockfileVersion: 3, requires: true,
+        packages: {
+          '': { name: 'ws-root', version: '1.0.0', workspaces: ['packages/*'] },
+          'packages/minimist': { name: 'minimist', version: '1.2.8' },
+          'packages/local-app': { name: '@ws/local-app', version: '1.0.0', dependencies: { minimist: '^1.2.8' } },
+          'packages/external-app': { name: '@ws/external-app', version: '1.0.0', dependencies: { minimist: '0.0.8' } },
+          'node_modules/minimist': { resolved: 'packages/minimist', link: true },
+          'node_modules/@ws/local-app': { resolved: 'packages/local-app', link: true },
+          'node_modules/@ws/external-app': { resolved: 'packages/external-app', link: true },
+          'packages/external-app/node_modules/minimist': {
+            version: '0.0.8',
+            resolved: 'https://registry.npmjs.org/minimist/-/minimist-0.0.8.tgz',
+            integrity: 'sha512-b'
+          }
+        }
+      }), 'utf8');
+
+      const result = runCli(
+        ['scan', '--project', projectPath, '--offline', '--json', '--out', outPath, '--quiet'],
+        repoRoot,
+      );
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(await fs.readFile(outPath, 'utf8'));
+      const external = report.dependencies['minimist@0.0.8'];
+      expect(external).toBeDefined();
+      expect(external.usage.importUsage?.topFiles).toEqual(['packages/external-app/index.js']);
+      expect(external.usage.runtimeImpact).toBe('runtime');
+      expect(external.usage.origins.workspaces).toEqual(['@ws/external-app']);
+    },
+  );
 });

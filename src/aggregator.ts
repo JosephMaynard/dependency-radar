@@ -565,29 +565,55 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     | { kind: 'none' }
     | { kind: 'subset'; entries: Array<{ file: string; count: number }> };
 
+  // Per-name assignment of each importing file to the candidate version(s)
+  // that can actually resolve for it. Ownership comes FIRST: a file inside a
+  // workspace goes to the version reachable from that workspace, whatever
+  // its depth — synthetic workspace nodes all sit at depth 1, so comparing
+  // depth across workspace subtrees would suppress a workspace's own direct
+  // (possibly vulnerable) dependency in favour of an unrelated namesake.
+  // Depth is only the fallback for files no candidate owns (plain projects,
+  // root files): there, standard hoisting applies and the shallowest copy
+  // wins. Files with no decidable owner attribute permissively to every
+  // shallowest candidate — a false extra flag beats a silent miss.
+  const assignmentsByName = new Map<string, Map<string, Set<string>>>();
+  const fileAssignments = (name: string): Map<string, Set<string>> => {
+    const cached = assignmentsByName.get(name);
+    if (cached) return cached;
+    const candidates = nodesByName.get(name) || [];
+    const entries = usageResult.entriesByName.get(name) || [];
+    const ownersByKey = new Map(
+      candidates.map((candidate) => [candidate.key, nodeWorkspaceOwners(candidate)]),
+    );
+    const minDepth = Math.min(...candidates.map((candidate) => candidate.depth));
+    const shallowestKeys = candidates
+      .filter((candidate) => candidate.depth === minDepth)
+      .map((candidate) => candidate.key);
+    const map = new Map<string, Set<string>>();
+    for (const entry of entries) {
+      const owner = fileOwnerWorkspace(entry.file);
+      let claimedKeys: string[] = [];
+      if (owner !== undefined) {
+        claimedKeys = candidates
+          .filter((candidate) => ownersByKey.get(candidate.key)?.has(owner))
+          .map((candidate) => candidate.key);
+      }
+      if (claimedKeys.length === 0) claimedKeys = shallowestKeys;
+      map.set(entry.file, new Set(claimedKeys));
+    }
+    assignmentsByName.set(name, map);
+    return map;
+  };
+
   const attributeImportEvidence = (node: NodeInfo): ImportAttribution => {
     const siblings = nodesByName.get(node.name) || [];
     if (siblings.length <= 1) return { kind: 'all' };
-    const minDepth = Math.min(...siblings.map((sibling) => sibling.depth));
-    // Deeper duplicates lose to the hoisted copy outright.
-    if (node.depth > minDepth) return { kind: 'none' };
-    const tied = siblings.filter((sibling) => sibling.depth === minDepth);
-    if (tied.length <= 1) return { kind: 'all' };
-    // Equal-depth versions (multi-workspace): split evidence per importing
-    // file by workspace ownership, over the COMPLETE importing-file set —
-    // topFiles caps at five and could drop another workspace's evidence.
-    // If ownership can't be established for every tied version, stay
-    // permissive and attribute to all of them: a false extra flag beats a
-    // silent miss in the security gate.
-    const ownersByNode = tied.map((sibling) => nodeWorkspaceOwners(sibling));
-    if (ownersByNode.some((owners) => owners.size === 0)) return { kind: 'all' };
-    const myOwners = nodeWorkspaceOwners(node);
+    const assignments = fileAssignments(node.name);
     const allEntries = usageResult.entriesByName.get(node.name) || [];
-    const owned = allEntries.filter((entry) => {
-      const owner = fileOwnerWorkspace(entry.file);
-      return owner !== undefined && myOwners.has(owner);
-    });
+    const owned = allEntries.filter((entry) =>
+      assignments.get(entry.file)?.has(node.key),
+    );
     if (owned.length === 0) return { kind: 'none' };
+    if (owned.length === allEntries.length) return { kind: 'all' };
     return { kind: 'subset', entries: owned };
   };
 
