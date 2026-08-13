@@ -105,6 +105,7 @@ function stripComments(content) {
     let i = 0;
     let quote;
     let escaped = false;
+    let maskStrings = false;
     // Last non-whitespace character emitted outside strings/comments; a '/'
     // after one of these starts a regex literal, not division.
     let prevSignificant = '';
@@ -115,18 +116,37 @@ function stripComments(content) {
         const ch = content[i];
         const next = content[i + 1];
         if (quote) {
-            out += ch;
-            if (escaped)
+            if (escaped) {
                 escaped = false;
-            else if (ch === '\\')
+                out += maskStrings ? ' ' : ch;
+            }
+            else if (ch === '\\') {
                 escaped = true;
-            else if (ch === quote)
+                out += maskStrings ? ' ' : ch;
+            }
+            else if (ch === quote) {
                 quote = undefined;
+                out += ch;
+            }
+            else {
+                // Inside a non-specifier string: blank the content so text like
+                // "require('ghost-pkg')" in documentation strings can't register
+                // as import evidence. Newlines survive so positions keep meaning.
+                out += maskStrings && ch !== '\n' ? ' ' : ch;
+            }
             i += 1;
             continue;
         }
         if (ch === '"' || ch === "'" || ch === '`') {
             quote = ch;
+            // Only strings sitting in import-specifier position keep their
+            // contents: after `from`, `import`/`import(`, `export`, `require(`.
+            // Template literals are never specifiers. Test just the tail — an
+            // end-anchored regex over the whole accumulator goes quadratic on
+            // large files.
+            maskStrings =
+                ch === '`' ||
+                    !/(?:\bfrom|\bimport|\bexport|\brequire\s*\(|\bimport\s*\()\s*$/.test(out.slice(-24));
             out += ch;
             prevSignificant = ch;
             i += 1;

@@ -499,6 +499,16 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
   const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
 
+  // Import evidence resolves specifiers to a package NAME; when several
+  // versions of that name are installed, the importing file actually gets the
+  // direct/hoisted one. Names that have a direct record keep their evidence
+  // on the direct record(s) only, so a vulnerable transitive duplicate can't
+  // masquerade as directly imported and trip directly-imported-vuln.
+  const namesWithDirectRecord = new Set<string>();
+  for (const node of nodes) {
+    if (node.isDirect) namesWithDirectRecord.add(node.name);
+  }
+
   for (const node of nodes) {
     const direct = node.isDirect;
     if (direct) directCount += 1;
@@ -532,7 +542,11 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     }
 
     const scope = determineScope(node.name, direct, rootCauses, pkg);
-    const importUsage = usageResult.summary.get(node.name);
+    const importUsageByName = usageResult.summary.get(node.name);
+    const importUsage =
+      importUsageByName && (direct || !namesWithDirectRecord.has(node.name))
+        ? importUsageByName
+        : undefined;
     const runtimeImpact = usageResult.runtimeImpact.get(node.name);
     const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
     const parentIds = Array.from(node.parents).sort();

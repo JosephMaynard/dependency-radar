@@ -23,6 +23,7 @@ const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
+const workspaceGlobs_1 = require("./workspaceGlobs");
 function runCommand(command, args, options = {}) {
     return new Promise((resolve, reject) => {
         var _a;
@@ -371,35 +372,28 @@ async function findLicenseFile(dir) {
         return undefined;
     }
 }
-/**
- * True when the directory looks like a workspace/monorepo root whose lockfile
- * can legitimately cover nested projects.
- */
-async function isWorkspaceRoot(dir) {
-    if (await pathExists(path_1.default.join(dir, 'pnpm-workspace.yaml')))
-        return true;
-    try {
-        const raw = await promises_1.default.readFile(path_1.default.join(dir, 'package.json'), 'utf8');
-        const pkg = JSON.parse(raw);
-        return Boolean(pkg && typeof pkg === 'object' && pkg.workspaces);
-    }
-    catch {
-        return false;
-    }
-}
 async function findLockDir(startPath, lockFiles) {
-    let current = startPath;
+    let current = path_1.default.resolve(startPath);
+    const resolvedStart = current;
     while (true) {
         for (const file of lockFiles) {
             if (await pathExists(path_1.default.join(current, file))) {
                 // The project's own lockfile always applies. An ancestor's lockfile
-                // only applies when that ancestor is a workspace root that can own
-                // nested projects — otherwise it belongs to an unrelated project and
-                // using it would report evidence for the wrong dependency tree.
-                if (current === startPath)
+                // only applies when that ancestor is a workspace root whose declared
+                // patterns actually select the scanned path — a truthy `workspaces`
+                // field alone is not membership, and an unrelated project's lockfile
+                // would report evidence for the wrong dependency tree.
+                if (current === resolvedStart)
                     return current;
-                if (await isWorkspaceRoot(current))
-                    return current;
+                const patterns = await (0, workspaceGlobs_1.readWorkspacePatterns)(current);
+                if (patterns && patterns.length > 0) {
+                    const rel = path_1.default
+                        .relative(current, resolvedStart)
+                        .split(path_1.default.sep)
+                        .join('/');
+                    if ((0, workspaceGlobs_1.matchesWorkspacePatterns)(patterns, rel))
+                        return current;
+                }
                 return undefined;
             }
         }

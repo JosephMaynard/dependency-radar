@@ -27,6 +27,7 @@ const schema_1 = require("./schema");
 const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
+const workspaceGlobs_1 = require("./workspaceGlobs");
 const EXIT_POLICY_VIOLATION = 1;
 const EXIT_USAGE_OR_INCOMPLETE = 2;
 /**
@@ -52,59 +53,6 @@ function isCI() {
         process.env.CIRCLECI ||
         process.env.JENKINS_URL ||
         process.env.BUILDKITE);
-}
-async function listDirs(parent) {
-    const entries = await promises_1.default
-        .readdir(parent, { withFileTypes: true })
-        .catch(() => []);
-    return entries
-        .filter((e) => { var _a; return (_a = e === null || e === void 0 ? void 0 : e.isDirectory) === null || _a === void 0 ? void 0 : _a.call(e); })
-        .map((e) => path_1.default.join(parent, e.name));
-}
-async function expandWorkspacePattern(root, pattern) {
-    // Minimal glob support for common workspaces:
-    // - "packages/*", "apps/*"
-    // - "packages/**" (recursive)
-    // - "./packages/*" (leading ./)
-    const cleaned = pattern.trim().replace(/^[.][/\\]/, "");
-    if (!cleaned)
-        return [];
-    // Disallow node_modules and hidden by default
-    const parts = cleaned.split(/[/\\]/g).filter(Boolean);
-    const isRecursive = parts.includes("**");
-    // Find the segment containing * or **
-    const starIndex = parts.findIndex((p) => p === "*" || p === "**");
-    if (starIndex === -1) {
-        const abs = path_1.default.resolve(root, cleaned);
-        return (await (0, utils_1.pathExists)(abs)) ? [abs] : [];
-    }
-    const baseParts = parts.slice(0, starIndex);
-    const baseDir = path_1.default.resolve(root, baseParts.join(path_1.default.sep));
-    if (!(await (0, utils_1.pathExists)(baseDir)))
-        return [];
-    if (parts[starIndex] === "*" && starIndex === parts.length - 1) {
-        // one-level children
-        return await listDirs(baseDir);
-    }
-    if (parts[starIndex] === "**") {
-        // recursive directories under base
-        const out = [];
-        async function walk(dir) {
-            const children = await listDirs(dir);
-            for (const child of children) {
-                if (path_1.default.basename(child) === "node_modules")
-                    continue;
-                if (path_1.default.basename(child).startsWith("."))
-                    continue;
-                out.push(child);
-                await walk(child);
-            }
-        }
-        await walk(baseDir);
-        return out;
-    }
-    // Fallback: treat as one-level
-    return await listDirs(baseDir);
 }
 async function readJsonFile(filePath) {
     try {
@@ -423,12 +371,9 @@ async function detectWorkspace(projectPath) {
     if (type === "none") {
         return { type: "none", packagePaths: [projectPath] };
     }
-    // Expand patterns and keep only folders that contain package.json
-    const candidates = [];
-    for (const pat of patterns) {
-        const expanded = await expandWorkspacePattern(projectPath, pat);
-        candidates.push(...expanded);
-    }
+    // Expand patterns (full glob semantics incl. nested wildcards and
+    // `!`-negations) and keep only folders that contain package.json
+    const candidates = await (0, workspaceGlobs_1.expandWorkspacePatterns)(projectPath, patterns);
     const unique = Array.from(new Set(candidates.map((p) => path_1.default.resolve(p)))).filter((p) => !normalizeSlashes(p).includes("/node_modules/"));
     const packagePaths = [];
     for (const dir of unique) {
@@ -541,53 +486,87 @@ function readDependencyEntries(source) {
     }
     return entries;
 }
-// Matches the simple range forms whose major version is unambiguous:
+// Matches the simple range forms real semver satisfaction is decidable for:
 // 1, 1.2, 1.2.3, ^1.2.3, ~1.2, =1.2.3, v1, 1.x — but not *, compound
-// ranges, tags, or URLs.
-const SIMPLE_RANGE = /^[=^~]?v?(\d+)(?:\.(\d+|[xX*]))?(?:\.(?:\d+|[xX*]))?(?:[-+].*)?$/;
-function simpleSpecifierMajor(spec) {
-    const match = spec.trim().match(SIMPLE_RANGE);
+// ranges, prereleases, tags, or URLs.
+const SIMPLE_RANGE = /^([=^~]?)v?(\d+)(?:\.(\d+|[xX*]))?(?:\.(\d+|[xX*]))?$/;
+function parsePlainVersion(version) {
+    const match = version.trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/);
     if (!match)
         return undefined;
-    const major = Number.parseInt(match[1], 10);
-    return Number.isFinite(major) ? major : undefined;
+    return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+function compareTriples(a, b) {
+    for (let i = 0; i < 3; i += 1) {
+        if (a[i] !== b[i])
+            return a[i] - b[i];
+    }
+    return 0;
 }
 /**
- * Compatibility key for the simple range forms: the major ("2"), except in
- * the 0.x range where semver treats minors as breaking — there it is
- * "0.<minor>" ("0.5"), or undefined when the 0.x minor is unstated/wildcard.
+ * Real semver satisfaction for the simple range forms above; undefined when
+ * the specifier (or version) is outside what we can decide confidently.
+ * Same-major is NOT assumed compatible: workspace dayjs@1.10.0 does not
+ * satisfy ~1.11.0 or ^1.11.0.
  */
-function simpleSpecifierKey(spec) {
+function simpleRangeSatisfies(spec, version) {
+    const v = parsePlainVersion(version);
+    if (!v)
+        return undefined;
     const match = spec.trim().match(SIMPLE_RANGE);
     if (!match)
         return undefined;
-    const major = Number.parseInt(match[1], 10);
-    if (!Number.isFinite(major))
-        return undefined;
-    if (major !== 0)
-        return String(major);
-    const minor = match[2];
-    if (minor === undefined || minor === 'x' || minor === 'X' || minor === '*')
-        return undefined;
-    return `0.${Number.parseInt(minor, 10)}`;
+    const op = match[1];
+    const major = Number(match[2]);
+    const minorRaw = match[3];
+    const patchRaw = match[4];
+    const wild = (part) => part === undefined || part === 'x' || part === 'X' || part === '*';
+    const minor = wild(minorRaw) ? undefined : Number(minorRaw);
+    const patch = wild(patchRaw) ? undefined : Number(patchRaw);
+    const lower = [major, minor !== null && minor !== void 0 ? minor : 0, patch !== null && patch !== void 0 ? patch : 0];
+    if (op === '^') {
+        if (compareTriples(v, lower) < 0)
+            return false;
+        if (major > 0)
+            return v[0] === major;
+        // ^0.y.z pins the minor; ^0.0.z pins the patch.
+        if ((minor !== null && minor !== void 0 ? minor : 0) > 0 || patch === undefined) {
+            return v[0] === 0 && v[1] === (minor !== null && minor !== void 0 ? minor : 0);
+        }
+        return v[0] === 0 && v[1] === 0 && v[2] === patch;
+    }
+    if (op === '~') {
+        if (compareTriples(v, lower) < 0)
+            return false;
+        if (minor === undefined)
+            return v[0] === major;
+        return v[0] === major && v[1] === minor;
+    }
+    // Exact or wildcard forms: 1 / 1.x -> same major; 1.2 / 1.2.x -> same
+    // major.minor; 1.2.3 -> exact equality.
+    if (minor === undefined)
+        return v[0] === major;
+    if (patch === undefined)
+        return v[0] === major && v[1] === minor;
+    return compareTriples(v, lower) === 0;
 }
-function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames, workspaceVersionKeysByName) {
+function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames, workspaceVersionsByName) {
     if (isWorkspaceLocalSpecifier(spec))
         return true;
     if (!workspacePackageNames.has(dependencyName))
         return false;
-    // A name match alone is not proof of locality: a workspace foo@1 next to
-    // an external dependency on foo@^2 must keep the external package in the
-    // aggregation. Only rule the dependency external when both the specifier
-    // and the workspace versions state clear, non-overlapping compatibility
-    // keys (majors, or 0.<minor> within the 0.x range).
-    const specKey = simpleSpecifierKey(spec);
-    if (specKey === undefined)
+    // A name match alone is not proof of locality: a workspace foo@1.10.0 next
+    // to a dependency on foo@~1.11.0 installs an external foo. Rule the
+    // dependency external only when satisfaction is decidable and NO workspace
+    // version satisfies the specifier; anything ambiguous stays local (the
+    // long-standing permissive behaviour).
+    const versions = workspaceVersionsByName === null || workspaceVersionsByName === void 0 ? void 0 : workspaceVersionsByName.get(dependencyName);
+    if (!versions || versions.length === 0)
         return true;
-    const workspaceKeys = workspaceVersionKeysByName === null || workspaceVersionKeysByName === void 0 ? void 0 : workspaceVersionKeysByName.get(dependencyName);
-    if (!workspaceKeys || workspaceKeys.length === 0)
+    const verdicts = versions.map((version) => simpleRangeSatisfies(spec, version));
+    if (verdicts.some((verdict) => verdict === undefined))
         return true;
-    return workspaceKeys.includes(specKey);
+    return verdicts.some(Boolean);
 }
 function buildWorkspaceClassification(rootPath, packageMetas) {
     var _a, _b, _c, _d, _e, _f;
@@ -598,15 +577,12 @@ function buildWorkspaceClassification(rootPath, packageMetas) {
         // Prerelease/placeholder versions (0.0.0-development and friends) say
         // nothing reliable about compatibility — leave the name unkeyed so
         // classification stays permissive for it.
-        if (/[-+]/.test(version))
+        if (parsePlainVersion(version) === undefined)
             continue;
-        const key = simpleSpecifierKey(version);
-        if (key === undefined)
-            continue;
-        const keys = workspaceMajorsByName.get(meta.name) || [];
-        if (!keys.includes(key))
-            keys.push(key);
-        workspaceMajorsByName.set(meta.name, keys);
+        const versions = workspaceMajorsByName.get(meta.name) || [];
+        if (!versions.includes(version))
+            versions.push(version);
+        workspaceMajorsByName.set(meta.name, versions);
     }
     const workspacePackageIds = new Set();
     const workspacePackagePaths = new Set();

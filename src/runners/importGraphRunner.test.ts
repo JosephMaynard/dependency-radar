@@ -64,4 +64,15 @@ describe('extractImports', () => {
     ].join('\n');
     expect(extractImports(source)).toEqual(['real-pkg']);
   });
+
+  it('ignores import-looking text inside ordinary strings and templates', () => {
+    const source = [
+      'const doc = "require(\'ghost-pkg\')";',
+      "const esm = 'import x from \"ghost-esm\"';",
+      'const tpl = `import("ghost-dynamic")`;',
+      "import real from 'real-pkg';",
+      "const lazy = require('lazy-pkg');",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['real-pkg', 'lazy-pkg']);
+  });
 });

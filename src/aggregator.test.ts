@@ -695,4 +695,65 @@ describe('aggregateData', () => {
 
     expect(data.dependencies['foo@2.3.0']).toBeDefined();
   });
+
+  it('attributes import evidence to the direct version, not same-name transitive duplicates', async () => {
+    const projectPath = await makeTempDir('dr-agg-import-version');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { minimist: '^1.2.8', carrier: '1.0.0' }
+    }));
+    for (const [rel, pkg] of [
+      ['node_modules/minimist', { name: 'minimist', version: '1.2.8', license: 'MIT' }],
+      ['node_modules/carrier', { name: 'carrier', version: '1.0.0', license: 'MIT' }],
+      ['node_modules/carrier/node_modules/minimist', { name: 'minimist', version: '0.0.8', license: 'MIT' }]
+    ] as const) {
+      const dir = path.join(projectPath, rel);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'package.json'), JSON.stringify(pkg));
+    }
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { minimist: '^1.2.8', carrier: '1.0.0' }
+      },
+      projectPackageJson: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { minimist: '^1.2.8', carrier: '1.0.0' }
+      },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            minimist: { name: 'minimist', version: '1.2.8' },
+            carrier: {
+              name: 'carrier',
+              version: '1.0.0',
+              dependencies: {
+                minimist: { name: 'minimist', version: '0.0.8' }
+              }
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: {
+        ok: true,
+        data: { packages: { 'src/index.js': ['minimist'] } }
+      },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    expect(data.dependencies['minimist@1.2.8'].usage.importUsage).toBeDefined();
+    expect(data.dependencies['minimist@0.0.8']).toBeDefined();
+    expect(data.dependencies['minimist@0.0.8'].usage.importUsage).toBeUndefined();
+  });
 });

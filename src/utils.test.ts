@@ -140,4 +140,17 @@ describe('findLockDir', () => {
     );
     expect(await findLockDir(nested, ['package-lock.json'])).toBeUndefined();
   });
+
+  it('rejects an ancestor whose workspace patterns do not cover the scanned path', async () => {
+    const root = await makeTempDir('dr-lockdir-nonmember');
+    const nested = path.join(root, 'examples', 'standalone');
+    await fs.mkdir(nested, { recursive: true });
+    await fs.writeFile(path.join(root, 'package-lock.json'), '{}', 'utf8');
+    await fs.writeFile(
+      path.join(root, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+      'utf8',
+    );
+    expect(await findLockDir(nested, ['package-lock.json'])).toBeUndefined();
+  });
 });
