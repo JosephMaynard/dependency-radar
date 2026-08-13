@@ -461,9 +461,21 @@ async function enrichAggregatedWithMaintenanceSignals(aggregated, options = {}) 
     const agent = new https_1.default.Agent({ keepAlive: true, maxSockets: PACKUMENT_CONCURRENCY });
     try {
         let fetcher = options.fetcher;
-        let registryForName = () => options.registryUrl || DEFAULT_REGISTRY_URL;
+        // An explicit registry override is normalized once (credentials
+        // stripped) and the sanitized value is the only form used for requests
+        // and cache keys — the no-auth guarantee must hold for overrides too.
+        const explicitRegistry = options.registryUrl
+            ? normalizeRegistryUrl(options.registryUrl)
+            : undefined;
+        const invalidExplicitRegistry = Boolean(options.registryUrl) && !explicitRegistry;
+        let registryForName = () => explicitRegistry || DEFAULT_REGISTRY_URL;
+        if (!fetcher && invalidExplicitRegistry) {
+            // A malformed override must not silently fall back to another
+            // registry: fail the lookups instead.
+            fetcher = () => Promise.resolve({ ok: false, error: 'invalid registryUrl override' });
+        }
         if (!fetcher) {
-            const defaultRegistry = options.registryUrl ||
+            const defaultRegistry = explicitRegistry ||
                 (await resolveRegistryBaseUrl(options.projectPath, timeoutWithinBudget(deadline, 10000)));
             const scopes = new Set();
             for (const name of targetNames) {
@@ -475,7 +487,7 @@ async function enrichAggregatedWithMaintenanceSignals(aggregated, options = {}) 
             // it for every lookup rather than second-guessing via npm config. The
             // spawn is also capped so config resolution can never eat more than a
             // slice of the maintenance budget.
-            const scopeRegistries = options.registryUrl
+            const scopeRegistries = explicitRegistry
                 ? new Map()
                 : await resolveScopeRegistries(scopes, options.projectPath, Math.min(4000, Math.floor(((_c = options.budgetMs) !== null && _c !== void 0 ? _c : exports.DEFAULT_MAINTENANCE_BUDGET_MS) / 4), remainingBudgetMs(deadline)));
             registryForName = (name) => {

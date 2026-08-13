@@ -513,11 +513,24 @@ export async function enrichAggregatedWithMaintenanceSignals(
   const agent = new https.Agent({ keepAlive: true, maxSockets: PACKUMENT_CONCURRENCY });
   try {
     let fetcher = options.fetcher;
+    // An explicit registry override is normalized once (credentials
+    // stripped) and the sanitized value is the only form used for requests
+    // and cache keys — the no-auth guarantee must hold for overrides too.
+    const explicitRegistry = options.registryUrl
+      ? normalizeRegistryUrl(options.registryUrl)
+      : undefined;
+    const invalidExplicitRegistry = Boolean(options.registryUrl) && !explicitRegistry;
     let registryForName: (name: string) => string = () =>
-      options.registryUrl || DEFAULT_REGISTRY_URL;
+      explicitRegistry || DEFAULT_REGISTRY_URL;
+    if (!fetcher && invalidExplicitRegistry) {
+      // A malformed override must not silently fall back to another
+      // registry: fail the lookups instead.
+      fetcher = () =>
+        Promise.resolve({ ok: false, error: 'invalid registryUrl override' });
+    }
     if (!fetcher) {
       const defaultRegistry =
-        options.registryUrl ||
+        explicitRegistry ||
         (await resolveRegistryBaseUrl(options.projectPath, timeoutWithinBudget(deadline, 10_000)));
       const scopes = new Set<string>();
       for (const name of targetNames) {
@@ -528,7 +541,7 @@ export async function enrichAggregatedWithMaintenanceSignals(
       // it for every lookup rather than second-guessing via npm config. The
       // spawn is also capped so config resolution can never eat more than a
       // slice of the maintenance budget.
-      const scopeRegistries = options.registryUrl
+      const scopeRegistries = explicitRegistry
         ? new Map<string, string>()
         : await resolveScopeRegistries(
             scopes,

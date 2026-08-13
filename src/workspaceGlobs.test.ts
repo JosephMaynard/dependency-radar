@@ -28,6 +28,15 @@ describe('matchesWorkspacePatterns', () => {
     expect(matchesWorkspacePatterns(['packages/**'], 'other/a')).toBe(false);
   });
 
+  it('collapses consecutive ** segments without backtracking blowup', () => {
+    const started = Date.now();
+    expect(matchesWorkspacePatterns(['**/**/**/**/x'], 'a/b/c/x')).toBe(true);
+    expect(
+      matchesWorkspacePatterns(['**/**/**/**/x'], 'a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/nope'),
+    ).toBe(false);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
   it('honours negated patterns', () => {
     const patterns = ['packages/*', '!packages/internal'];
     expect(matchesWorkspacePatterns(patterns, 'packages/app')).toBe(true);

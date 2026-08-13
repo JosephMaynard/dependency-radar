@@ -75,4 +75,22 @@ describe('extractImports', () => {
     ].join('\n');
     expect(extractImports(source)).toEqual(['real-pkg', 'lazy-pkg']);
   });
+
+  it('masks regex literal bodies so import-shaped regex text never counts', () => {
+    const source = [
+      "const re = /import fake from 'ghost-pkg'/;",
+      "function f() { return /require\\('ghost-return'\\)/; }",
+      "import real from 'real-pkg';",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['real-pkg']);
+  });
+
+  it('ignores TypeScript import() type queries but keeps dynamic imports', () => {
+    const source = [
+      "type Package = import('types-only').Package;",
+      "export type Other = import('types-only-export').Other;",
+      "const mod = await import('real-dynamic');",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['real-dynamic']);
+  });
 });

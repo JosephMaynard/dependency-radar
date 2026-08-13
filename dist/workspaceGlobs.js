@@ -17,13 +17,18 @@ const path_1 = __importDefault(require("path"));
 // literal segments, `*` (one segment), `**` (any depth), and `!`-negated
 // exclusion patterns. Kept dependency-free like the rest of the CLI.
 function normalizePattern(pattern) {
-    return pattern
+    const segments = pattern
         .trim()
         .replace(/^[.][/\\]/, '')
         .replace(/[/\\]+$/, '')
         .split(/[/\\]+/g)
-        .filter(Boolean)
-        .join('/');
+        .filter(Boolean);
+    // Consecutive `**` segments are equivalent to one, and compiling them
+    // separately produces adjacent identical star groups that backtrack
+    // exponentially on non-matching input (patterns come from the scanned
+    // project's manifest, which is untrusted).
+    const collapsed = segments.filter((segment, index) => segment !== '**' || segments[index - 1] !== '**');
+    return collapsed.join('/');
 }
 /** Convert one workspace glob into a full-match regex over a relative path. */
 function workspacePatternToRegex(pattern) {

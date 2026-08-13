@@ -111,8 +111,15 @@ function stripComments(content: string): string {
   // Last non-whitespace character emitted outside strings/comments; a '/'
   // after one of these starts a regex literal, not division.
   let prevSignificant = '';
+  // Trailing identifier word, so regexes after keywords (return /x/) are
+  // recognised even though the preceding character is a letter.
+  let prevWord = '';
+  let wordBroken = false;
   const regexPreceders = new Set([
     '', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '<', '>', '+', '-', '*', '%', '~', '^',
+  ]);
+  const regexPrecederWords = new Set([
+    'return', 'typeof', 'instanceof', 'case', 'in', 'of', 'delete', 'void', 'new', 'do', 'else', 'yield', 'await',
   ]);
   while (i < content.length) {
     const ch = content[i];
@@ -169,34 +176,57 @@ function stripComments(content: string): string {
       i = close + 2;
       continue;
     }
-    if (ch === '/' && regexPreceders.has(prevSignificant)) {
-      // Consume a regex literal (with character classes) verbatim.
+    if (
+      ch === '/' &&
+      (regexPreceders.has(prevSignificant) || regexPrecederWords.has(prevWord))
+    ) {
+      // Consume a regex literal (with character classes), masking its body:
+      // regex text can contain anything, including import-shaped strings,
+      // and must never register as evidence.
       out += ch;
       i += 1;
       let inClass = false;
       let regexEscaped = false;
       while (i < content.length) {
         const rc = content[i];
-        out += rc;
         i += 1;
         if (regexEscaped) {
           regexEscaped = false;
+          out += ' ';
           continue;
         }
         if (rc === '\\') {
           regexEscaped = true;
+          out += ' ';
           continue;
         }
         if (rc === '[') inClass = true;
         else if (rc === ']') inClass = false;
-        else if (rc === '/' && !inClass) break;
-        else if (rc === '\n') break; // not actually a regex — bail out
+        if (rc === '/' && !inClass) {
+          out += '/';
+          break;
+        }
+        if (rc === '\n') {
+          out += '\n'; // not actually a regex — bail out
+          break;
+        }
+        out += ' ';
       }
       prevSignificant = '/';
+      prevWord = '';
       continue;
     }
     out += ch;
     if (!/\s/.test(ch)) prevSignificant = ch;
+    if (/[A-Za-z0-9_$]/.test(ch)) {
+      prevWord = wordBroken ? ch : prevWord + ch;
+      wordBroken = false;
+    } else if (/\s/.test(ch)) {
+      wordBroken = true;
+    } else {
+      prevWord = '';
+      wordBroken = false;
+    }
     i += 1;
   }
   return out;
@@ -217,13 +247,26 @@ export function extractImports(content: string): string[] {
     /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g
   ];
 
+  // TypeScript import() type queries (`type X = import('pkg').Y`) are
+  // erased at compile time: a dynamic-import match whose statement starts
+  // with a type-alias declaration is not runtime evidence.
+  const inTypeAlias = (index: number): boolean => {
+    const lineStart = stripped.lastIndexOf('\n', index - 1) + 1;
+    const prefix = stripped.slice(lineStart, index);
+    return /(?:^|[;{])\s*(?:export\s+)?type\s+[A-Za-z0-9_$]+(?:<[^=]*>)?\s*=[^;]*$/.test(prefix);
+  };
+
   for (const pattern of patterns) {
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(stripped)) !== null) {
       // Type-only imports/exports never load the package at runtime; checking
       // the matched statement itself (not a precomputed span) keeps the
       // exclusion from bleeding across statement boundaries.
-      if (match[1] && !isTypeOnlyStatement(match[0])) matches.push(match[1]);
+      if (!match[1] || isTypeOnlyStatement(match[0])) continue;
+      if (match[0].startsWith('import(') || /^import\s*\(/.test(match[0])) {
+        if (inTypeAlias(match.index)) continue;
+      }
+      matches.push(match[1]);
     }
   }
 

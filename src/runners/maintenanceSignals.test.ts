@@ -535,4 +535,20 @@ describe('registry-scoped cache keys', () => {
 
     expect(cache.getFresh('plain-lib', NOW)).toBeDefined();
   });
+
+  it('strips credentials from an explicit registryUrl before keying the cache', async () => {
+    const cache = new MaintenanceCache(undefined);
+    const aggregated = makeAggregated({ 'cred-lib@1.0.0': makeDependency({ name: 'cred-lib' }) });
+
+    await enrichAggregatedWithMaintenanceSignals(aggregated, {
+      now: NOW,
+      cache,
+      registryUrl: 'https://user:secret-token@mirror.example.com',
+      fetcher: async () => packument({ modified: monthsAgo(1), latest: '1.2.3' })
+    });
+
+    expect(cache.getFresh('https://mirror.example.com|cred-lib', NOW)).toBeDefined();
+    const allKeys = JSON.stringify(cache);
+    expect(allKeys).not.toContain('secret-token');
+  });
 });
