@@ -91,7 +91,6 @@ html {
     animation-duration: 0s !important;
     animation-iteration-count: 1 !important;
     transition: none !important;
-    transform: none !important;
   }
 }
 

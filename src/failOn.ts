@@ -477,10 +477,10 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: directlyImportedRule,
       count: directlyImportedProductionVulnCount,
-      message: `${directlyImportedProductionVulnCount} directly imported production ${pluralize(
+      message: `${directlyImportedProductionVulnCount} directly imported vulnerable production ${pluralize(
         directlyImportedProductionVulnCount,
-        'vulnerability',
-        'vulnerabilities'
+        'package',
+        'packages'
       )}`
     });
   }
@@ -488,10 +488,10 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: 'production-vuln',
       count: productionVulnCount,
-      message: `${productionVulnCount} production ${pluralize(
+      message: `${productionVulnCount} vulnerable production ${pluralize(
         productionVulnCount,
-        'vulnerability',
-        'vulnerabilities'
+        'package',
+        'packages'
       )}`
     });
   }
@@ -499,11 +499,11 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: 'high-severity-vuln',
       count: highSeverityVulnCount,
-      message: `${highSeverityVulnCount} high-severity ${pluralize(
+      message: `${highSeverityVulnCount} ${pluralize(
         highSeverityVulnCount,
-        'vulnerability',
-        'vulnerabilities'
-      )}`
+        'package',
+        'packages'
+      )} with high-severity vulnerabilities`
     });
   }
   if (rules.has('licence-mismatch') && licenceMismatchCount > 0) {

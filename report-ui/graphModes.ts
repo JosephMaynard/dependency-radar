@@ -236,7 +236,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     options.statusLine.classList.remove("dim");
     options.statusLine.textContent =
       `${m.projectName} › ${trail.map((id) => m.refs[id].name).join(" › ")}` +
-      ` · ${m.uniqueCount(last).toLocaleString()} packages (${Math.round(m.subSize[last]).toLocaleString()} paths) in subtree` +
+      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} (${Math.round(m.subSize[last]).toLocaleString()} path${Math.round(m.subSize[last]) === 1 ? "" : "s"}) in subtree` +
       ` · reached via ${Math.round(m.occ[last]).toLocaleString()} path${m.occ[last] === 1 ? "" : "s"}`;
   }
 

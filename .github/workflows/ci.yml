@@ -40,6 +40,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Generated output is committed
+        run: git diff --exit-code
+
       - name: Typecheck (CLI + report UI)
         run: npm run typecheck
 

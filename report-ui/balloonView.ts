@@ -314,9 +314,13 @@ export function mountBalloonView(
         ctx.fillText(model.projectName, x, y - r * 0.1);
         ctx.font = `${Math.min(11, r * 0.16)}px ${mono}`;
         ctx.fillStyle = theme.muted;
-        ctx.fillText(`${model.count.toLocaleString()} packages`, x, y + r * 0.2);
         ctx.fillText(
-          `(${Math.round(model.totalSize).toLocaleString()} paths)`,
+          `${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
+          x,
+          y + r * 0.2,
+        );
+        ctx.fillText(
+          `(${Math.round(model.totalSize).toLocaleString()} path${Math.round(model.totalSize) === 1 ? "" : "s"})`,
           x,
           y + r * 0.38,
         );
