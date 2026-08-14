@@ -11,6 +11,7 @@ import {
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
+import { computeReachCounts } from "./domTree";
 import { initGraphModes, type GraphModesHandle } from "./graphModes";
 import { DEFAULT_GRAPH_FILTERS } from "./vizModel";
 import type {
@@ -2010,6 +2011,17 @@ function renderDep(
  * @param supplyChainSignals - Optional list of supply-chain source signals associated with this dependency; when provided a "Supply chain source" subsection will be included.
  * @returns An HTML string containing the complete detail content for the dependency card.
  */
+// Sub-dependency counts (unique packages beneath each dependency), computed
+// lazily from the full graph the first time the list needs one.
+let subDepCountByKey: Map<string, number> | null = null;
+let subDepCountBuilder: (() => Map<string, number>) | null = null;
+function getSubDepCount(depKey: string): number | undefined {
+  if (!subDepCountByKey && subDepCountBuilder) {
+    subDepCountByKey = subDepCountBuilder();
+  }
+  return subDepCountByKey?.get(depKey);
+}
+
 function renderDepDetails(
   dep: DependencyRecord,
   linkableKeys: Set<string>,
@@ -2051,6 +2063,10 @@ function renderDepDetails(
         )
       : "",
     renderKvItem("Dependency depth", dep.usage.depth),
+    (() => {
+      const subs = getSubDepCount(`${dep.package.name}@${dep.package.version}`);
+      return subs !== undefined ? renderKvItem("Sub-dependencies", subs) : "";
+    })(),
     !dep.usage.direct
       ? renderKvItemHtml(
           "Introduced via root packages",
@@ -3128,6 +3144,23 @@ async function init(): Promise<void> {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
   const knownDepKeys = new Set(depByKey.keys());
+  subDepCountByKey = null;
+  subDepCountBuilder = () => {
+    const dataset = adaptDataset(report, knownDepKeys, resolveDepKey);
+    const slugs = Object.keys(dataset.dependencies);
+    const indexOf = new Map(slugs.map((slug, index) => [slug, index]));
+    const out = slugs.map((slug) =>
+      (dataset.dependencies[slug].dependencies || [])
+        .map((child) => indexOf.get(child))
+        .filter((index): index is number => index !== undefined),
+    );
+    const counts = computeReachCounts(slugs.length, out);
+    const map = new Map<string, number>();
+    slugs.forEach((slug, index) => {
+      map.set(slug, Math.max(0, counts[index] - 1));
+    });
+    return map;
+  };
   const depKeysByName = getDepKeysByNameIndex(knownDepKeys);
   const supplyChainSignalsByKey = buildSupplyChainSignalIndex(
     report,
@@ -3524,6 +3557,11 @@ async function init(): Promise<void> {
       sorted.sort((a, b) => a.package.name.localeCompare(b.package.name));
     } else if (sortColumn === "depth") {
       sorted.sort((a, b) => a.usage.depth - b.usage.depth);
+    } else if (sortColumn === "subdeps") {
+      // Heaviest first: "what pulls in the most" is the question being asked.
+      const countOf = (dep: DependencyRecord): number =>
+        getSubDepCount(`${dep.package.name}@${dep.package.version}`) ?? -1;
+      sorted.sort((a, b) => countOf(b) - countOf(a));
     } else {
       // Look up sort function from COLUMN_CONFIG
       const columnConfig = COLUMN_CONFIG.find(

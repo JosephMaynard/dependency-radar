@@ -48,63 +48,96 @@ export function mountHyperbolicView(
   // don't smear into slivers.
   const rootWeight = (r: number): number => Math.sqrt(leaves[r]) + 1.5;
 
-  // Iterative with an explicit stack: the spanning tree can be thousands of
-  // levels deep on chain-heavy graphs, which would overflow the call stack
-  // if walked recursively. Each frame only needs its parent's already-set
-  // position, so traversal order doesn't affect the layout.
-  function placeSubtree(startId: number, startMid: number, startWedge: number): void {
-    const stack: Array<{ id: number; mid: number; wedge: number }> = [
-      { id: startId, mid: startMid, wedge: startWedge },
+  // Re-rootable layout. The spanning tree is laid out around ANY node (or
+  // the project hub): the focused node sits at the origin, each neighbour —
+  // children AND the way back up — takes a wedge proportional to how much of
+  // the tree lies in that direction, and the walk proceeds outward. Focusing
+  // therefore restructures the picture around what you're looking at while
+  // the rest of the graph compresses toward the rim but stays visible.
+  const HUB = -1;
+  const CAME_NONE = -3;
+  const hubKids: number[] = [];
+  for (let i = 0; i < N; i += 1) if (parent[i] === -1) hubKids.push(i);
+  const totalLeaves = hubKids.reduce((sum, r) => sum + leaves[r], 0) || 1;
+
+  function neighborsFrom(
+    id: number,
+    cameFrom: number,
+  ): Array<{ next: number; weight: number }> {
+    if (id === HUB) {
+      return hubKids
+        .filter((r) => r !== cameFrom)
+        .map((r) => ({ next: r, weight: rootWeight(r) }));
+    }
+    const list: Array<{ next: number; weight: number }> = [];
+    for (const kid of children[id]) {
+      if (kid !== cameFrom) list.push({ next: kid, weight: Math.max(leaves[kid], 0.5) });
+    }
+    const upId = parent[id] === -1 ? HUB : parent[id];
+    if (upId !== cameFrom) {
+      // Everything that is NOT below this node lies in the parent direction.
+      list.push({ next: upId, weight: Math.max(totalLeaves - leaves[id], 1) });
+    }
+    return list;
+  }
+
+  /** Lay the whole tree out around `centerId` (HUB or a package index). */
+  function computeLayout(centerId: number): { positions: C[]; hub: C } {
+    const positions: C[] = Array.from({ length: N }, () => ({ x: 0, y: 0 }));
+    let hub: C = { x: 0, y: 0 };
+    const setP = (id: number, p: C): void => {
+      if (id === HUB) hub = p;
+      else positions[id] = p;
+    };
+    const getP = (id: number): C => (id === HUB ? hub : positions[id]);
+    setP(centerId, { x: 0, y: 0 });
+
+    const stack: Array<{ id: number; cameFrom: number; mid: number; wedge: number }> = [
+      { id: centerId, cameFrom: CAME_NONE, mid: -Math.PI / 2, wedge: Math.PI * 2 },
     ];
     while (stack.length > 0) {
       const frame = stack.pop();
       if (!frame) break;
-      const { id, mid, wedge } = frame;
-      const kids = children[id];
-      if (!kids.length) continue;
-      // 0.8 factor: 20% shorter parent-child links keep systems visually
-      // attached to their parents in the overview.
-      const rhoBase = Math.min(0.66, 0.34 + 0.04 * Math.sqrt(kids.length));
-      const total = kids.reduce((s, c) => s + leaves[c], 0);
+      const { id, cameFrom, mid, wedge } = frame;
+      const around = neighborsFrom(id, cameFrom);
+      if (around.length === 0) continue;
+      const isCenter = cameFrom === CAME_NONE;
+      // 0.8 factor: 20% shorter links keep systems visually attached.
+      const rhoBase = isCenter
+        ? 0.42
+        : Math.min(0.66, 0.34 + 0.04 * Math.sqrt(around.length));
+      const total = around.reduce((sum, n) => sum + n.weight, 0) || 1;
       let start = mid - wedge / 2;
-      let kidIndex = 0;
-      for (const kid of kids) {
-        const share = (leaves[kid] / total) * wedge;
+      let index = 0;
+      for (const { next, weight } of around) {
+        const share = (weight / total) * wedge;
         const ang = start + share / 2;
         start += share;
         // Large fans of equal-weight leaves crush onto one arc; staggering
         // siblings across three shells triples their angular breathing room.
         const rho =
-          kids.length > 6
-            ? Math.min(0.72, rhoBase + ((kidIndex % 3) - 1) * 0.072)
+          !isCenter && around.length > 6
+            ? Math.min(0.72, rhoBase + ((index % 3) - 1) * 0.072)
             : rhoBase;
-        kidIndex += 1;
+        index += 1;
         const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
-        const g = mobius(pos[id], local);
-        pos[kid] = g;
-        // Outward direction in the kid's own frame: away from its parent.
-        const parentLocal = mobiusNeg(g, pos[id]);
+        const g = mobius(getP(id), local);
+        setP(next, g);
+        // Outward direction in the neighbour's own frame: away from here.
+        const parentLocal = mobiusNeg(g, getP(id));
         const out = Math.atan2(parentLocal.y, parentLocal.x) + Math.PI;
-        stack.push({ id: kid, mid: out, wedge: Math.min(share * 0.92, 2.4) });
+        stack.push({ id: next, cameFrom: id, mid: out, wedge: Math.min(share * 0.92, 2.4) });
       }
     }
+    return { positions, hub };
   }
 
-  function rebuildPositions(): void {
-    hubPos = { x: 0, y: 0 };
-    const sorted = [...roots].sort((a, b) => leaves[b] - leaves[a] || a - b);
-    const total = sorted.reduce((s, r) => s + rootWeight(r), 0) || 1;
-    let start = -Math.PI / 2;
-    for (const r of sorted) {
-      const share = (rootWeight(r) / total) * Math.PI * 2;
-      const ang = start + share / 2;
-      start += share;
-      const rho = 0.42;
-      pos[r] = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
-      placeSubtree(r, ang, Math.min(share * 0.92, 2.4));
-    }
+  function applyLayout(layout: { positions: C[]; hub: C }): void {
+    for (let i = 0; i < N; i += 1) pos[i] = layout.positions[i];
+    hubPos = layout.hub;
   }
-  rebuildPositions();
+
+  applyLayout(computeLayout(HUB));
 
   let W = 0;
   let H = 0;
@@ -344,16 +377,26 @@ export function mountHyperbolicView(
   }
 
   function focusOn(target: number): void {
-    // Retarget any in-flight focus animation rather than dropping the request.
+    // Retarget any in-flight transition rather than dropping the request.
     cancelAnim();
-    const a = { ...pos[target] };
-    // The Mobius translation lands the target at disk coordinate (0,0),
-    // which is only the VIEWPORT centre when the Euclidean magnification
-    // offsets are zero — so they animate home alongside the translation.
+    startLayoutTransition(computeLayout(target));
+  }
+
+  function resetLayout(): void {
+    cancelAnim();
+    startLayoutTransition(computeLayout(HUB));
+  }
+
+  const clampDisk = (z: C): C => {
+    const m = Math.sqrt(cAbs2(z));
+    return m > 0.995 ? { x: (z.x / m) * 0.995, y: (z.y / m) * 0.995 } : z;
+  };
+
+  function startLayoutTransition(layout: { positions: C[]; hub: C }): void {
     const fromOffX = offX;
     const fromOffY = offY;
-    if ((Math.sqrt(cAbs2(a)) < 0.01 && fromOffX === 0 && fromOffY === 0) || reduced) {
-      applyToAll((z) => mobiusNeg(a, z));
+    if (reduced) {
+      applyLayout(layout);
       offX = 0;
       offY = 0;
       draw();
@@ -368,9 +411,16 @@ export function mountHyperbolicView(
       if (destroyed) return;
       const u = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - u, 3);
-      const at = { x: a.x * e, y: a.y * e };
-      for (let i = 0; i < N; i += 1) pos[i] = mobiusNeg(at, base[i]);
-      hubPos = mobiusNeg(at, baseHub);
+      for (let i = 0; i < N; i += 1) {
+        pos[i] = clampDisk({
+          x: base[i].x + (layout.positions[i].x - base[i].x) * e,
+          y: base[i].y + (layout.positions[i].y - base[i].y) * e,
+        });
+      }
+      hubPos = clampDisk({
+        x: baseHub.x + (layout.hub.x - baseHub.x) * e,
+        y: baseHub.y + (layout.hub.y - baseHub.y) * e,
+      });
       offX = fromOffX * (1 - e);
       offY = fromOffY * (1 - e);
       draw();
@@ -506,14 +556,10 @@ export function mountHyperbolicView(
     "dblclick",
     (e) => {
       if (pick(e.offsetX, e.offsetY) >= 0) return;
-      cancelAnim();
       selected = -1;
       cb.onSelect(-1);
       viewScale = 1;
-      offX = 0;
-      offY = 0;
-      rebuildPositions();
-      draw();
+      resetLayout();
     },
     { signal },
   );
@@ -552,12 +598,8 @@ export function mountHyperbolicView(
       focusOn(index);
     },
     resetView() {
-      cancelAnim();
       viewScale = 1;
-      offX = 0;
-      offY = 0;
-      rebuildPositions();
-      draw();
+      resetLayout();
     },
   };
 }

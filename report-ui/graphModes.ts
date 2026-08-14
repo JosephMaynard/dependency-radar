@@ -8,6 +8,7 @@ import {
 import { mountFlameView } from "./flameView";
 import { mountBalloonView } from "./balloonView";
 import { mountHyperbolicView } from "./hyperbolicView";
+import { mountTreemapView } from "./treemapView";
 
 // Orchestrates the graph panel's four layout modes (classic graph + flame +
 // balloon + hyperbolic), the shared docked side panel (search + dossier), and
@@ -15,9 +16,9 @@ import { mountHyperbolicView } from "./hyperbolicView";
 // alternative views mount a fresh canvas each and are destroyed on switch
 // (reset-on-switch is deliberate — see docs/VIZ-VIEWS-HANDOFF.md).
 
-export type GraphMode = "graph" | "flame" | "balloon" | "hyperbolic";
+export type GraphMode = "graph" | "flame" | "treemap" | "balloon" | "hyperbolic";
 
-const GRAPH_MODES: GraphMode[] = ["graph", "flame", "balloon", "hyperbolic"];
+const GRAPH_MODES: GraphMode[] = ["graph", "flame", "treemap", "balloon", "hyperbolic"];
 
 // Persisted alongside the theme preference (see main.ts).
 const MODE_STORE_KEY = "dependency-radar-graph-mode";
@@ -31,6 +32,8 @@ const MODE_HINTS: Record<GraphMode, string> = {
   graph: "click a node to inspect · drag to pan · scroll to zoom",
   flame:
     "hover a bar · click to zoom in · click a pinned ancestor to climb back out · double-click to reset",
+  treemap:
+    "click a box to inspect · double-click to drill in · double-click space to reset",
   balloon: "drag to pan · scroll to zoom · click a body · double-click space to fit",
   hyperbolic: "drag to warp · scroll to zoom · click a blip to focus · double-click space to reset",
 };
@@ -184,6 +187,16 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     if (mode === "hyperbolic") {
       items.appendChild(keyItem("#ff9a58", "Direct dependency"));
       items.appendChild(keyItem("#5b7186", "Sub-dependency"));
+    } else if (mode === "flame" || mode === "treemap") {
+      items.appendChild(
+        keyItem(
+          "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))",
+          mode === "flame"
+            ? "Width = packages deleting it frees"
+            : "Area = packages deleting it frees",
+        ),
+      );
+      items.appendChild(keyItem("#3d4c5c", "Shared — kept by several dependencies"));
     } else {
       items.appendChild(
         keyItem(
@@ -239,10 +252,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const m = model;
     const last = trail[trail.length - 1];
     options.statusLine.classList.remove("dim");
+    const trailFrees = m.domTree().exclusiveCount[last];
     options.statusLine.textContent =
       `${m.projectName} › ${trail.map((id) => m.refs[id].name).join(" › ")}` +
-      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} (${Math.round(m.subSize[last]).toLocaleString()} path${Math.round(m.subSize[last]) === 1 ? "" : "s"}) in subtree` +
-      ` · reached via ${Math.round(m.occ[last]).toLocaleString()} path${m.occ[last] === 1 ? "" : "s"}`;
+      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} beneath` +
+      ` · deleting frees ${trailFrees.toLocaleString()}`;
   }
 
   // ----- dossier --------------------------------------------------------
@@ -284,7 +298,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mode === "graph"
         ? "Select a node to inspect it."
         : mode === "flame"
-          ? "Click a bar. Width is the share of the whole dependency tree beneath it — the widest bars in the first row are the direct dependencies that cost you the most. Counts are paths, flame-graph style: a package shared by several parents is counted once per route, so path counts run higher than unique package counts."
+          ? "Click a bar. Width is the number of packages that would leave node_modules if you deleted it — each package is counted exactly once. The grey band holds packages shared by several dependencies: deleting any one of them frees nothing there."
+          : mode === "treemap"
+            ? "Click a box to inspect it; double-click to drill in. Area is the number of packages deleting it would free. The grey block is shared by several dependencies — no single one of them owns it."
           : mode === "balloon"
             ? "Click a body. Each direct dependency is a system orbiting the project; its sub-dependencies fan out behind it."
             : "Click a blip. Drag toward the centre to grow that part of the tree — nothing ever leaves the disk.",
@@ -369,12 +385,15 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     fact(
       "",
       "\u03a3",
-      `${m.uniqueCount(index).toLocaleString()} package${m.uniqueCount(index) === 1 ? "" : "s"} in subtree (${Math.round(m.subSize[index]).toLocaleString()} path${Math.round(m.subSize[index]) === 1 ? "" : "s"})`,
+      `${m.uniqueCount(index).toLocaleString()} package${m.uniqueCount(index) === 1 ? "" : "s"} in subtree`,
     );
+    const frees = m.domTree().exclusiveCount[index];
     fact(
       "",
-      "\u2295",
-      `reached via ${Math.round(m.occ[index]).toLocaleString()} path${m.occ[index] === 1 ? "" : "s"}`,
+      "\u2702",
+      frees > 1
+        ? `deleting frees ${frees.toLocaleString()} packages`
+        : "deleting frees only itself",
     );
     options.dossier.appendChild(facts);
 
@@ -421,6 +440,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       isDimmed: isDimmedIndex,
     };
     if (mode === "flame") activeView = mountFlameView(options.altHost, m, callbacks);
+    else if (mode === "treemap") activeView = mountTreemapView(options.altHost, m, callbacks);
     else if (mode === "balloon") activeView = mountBalloonView(options.altHost, m, callbacks);
     else if (mode === "hyperbolic") {
       activeView = mountHyperbolicView(options.altHost, m, callbacks);

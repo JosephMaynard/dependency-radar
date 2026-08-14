@@ -349,6 +349,7 @@ ${safeCssContent}
                 <option value="install">Install</option>
                 <option value="maintenance">Maintenance</option>
                 <option value="depth">Depth</option>
+                <option value="subdeps">Sub-deps</option>
               </select>
               <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction" aria-label="Toggle sort direction">↑</button>
             </div>
@@ -398,6 +399,7 @@ ${safeCssContent}
           <div class="graph-mode-switch" id="graph-mode-switch" role="group" aria-label="Graph layout">
             <button type="button" class="graph-mode-btn active" data-graph-mode="graph" aria-pressed="true">Graph</button>
             <button type="button" class="graph-mode-btn" data-graph-mode="flame" aria-pressed="false">Flame</button>
+            <button type="button" class="graph-mode-btn" data-graph-mode="treemap" aria-pressed="false">Treemap</button>
             <button type="button" class="graph-mode-btn" data-graph-mode="balloon" aria-pressed="false">Balloon</button>
             <button type="button" class="graph-mode-btn" data-graph-mode="hyperbolic" aria-pressed="false">Hyperbolic</button>
           </div>

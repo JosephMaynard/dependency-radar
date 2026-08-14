@@ -1,4 +1,6 @@
 import type { GraphDataset, GraphDependency } from "./graphView";
+import type { DomTree } from "./domTree";
+import { buildDomTree, computeReachCounts } from "./domTree";
 
 /** Display filters shared by all graph layouts. */
 export interface GraphFilters {
@@ -43,8 +45,12 @@ export interface VizModel {
   totalSize: number;
   /** Children sorted heaviest-first. */
   kidsOf: number[][];
-  /** Distinct root->package paths ("appears in N places"). */
-  occ: Float64Array;
+  /**
+   * Dominator tree over this workspace's graph (lazy, memoised): idom,
+   * exclusive counts ("what deleting frees"), shared band = rootChildren
+   * that are not direct roots.
+   */
+  domTree: () => DomTree;
   /** BFS spanning tree (hyperbolic + balloon focus paths). */
   parent: Int32Array;
   children: number[][];
@@ -195,39 +201,13 @@ export function buildVizModel(
     (a, b) => subSize[b] - subSize[a] || a - b,
   );
 
-  // (d) number of distinct root->package paths. Iterative for the same
-  // deep-chain reason as sizeOf. A root appears once at top level PLUS once
-  // per path through each dependent — direct deps that are also transitive
-  // deps are common.
-  const occ = new Float64Array(count).fill(0);
-  const occOf = (start: number): void => {
-    if (occ[start] > 0) return;
-    const onPath = new Set<number>([start]);
-    const stack: SizeFrame[] = [
-      { id: start, next: 0, acc: isRoot[start] ? 1 : 0 },
-    ];
-    while (stack.length > 0) {
-      const frame = stack[stack.length - 1];
-      const froms = depsIn[frame.id];
-      if (frame.next < froms.length) {
-        const from = froms[frame.next];
-        frame.next += 1;
-        if (occ[from] > 0) {
-          frame.acc += occ[from];
-        } else if (!onPath.has(from)) {
-          onPath.add(from);
-          stack.push({ id: from, next: 0, acc: isRoot[from] ? 1 : 0 });
-        }
-        continue;
-      }
-      onPath.delete(frame.id);
-      occ[frame.id] = Math.max(frame.acc, 1);
-      stack.pop();
-      const parentFrame = stack[stack.length - 1];
-      if (parentFrame) parentFrame.acc += occ[frame.id];
-    }
+  // Dominator tree, built on first use (flame/treemap/dossier need it;
+  // classic graph does not).
+  let domTreeMemo: DomTree | undefined;
+  const domTree = (): DomTree => {
+    if (!domTreeMemo) domTreeMemo = buildDomTree(count, depsOut, roots);
+    return domTreeMemo;
   };
-  for (let i = 0; i < count; i += 1) occOf(i);
 
   // (c) BFS spanning tree from roots; first claimer wins.
   const parent = new Int32Array(count).fill(-2);
@@ -275,25 +255,14 @@ export function buildVizModel(
     return rootHue.get(cur) ?? 210;
   };
 
-  const uniqueMemo = new Map<number, number>();
+  // Unique reach per package (itself + everything beneath), computed once
+  // for the whole workspace with the bitset DP — cheap enough that views can
+  // size every node by it.
+  let reachMemo: Int32Array | undefined;
   const uniqueCount = (index: number): number => {
     if (index < 0 || index >= count) return 0;
-    const memo = uniqueMemo.get(index);
-    if (memo !== undefined) return memo;
-    const seen = new Uint8Array(count);
-    const queue = [index];
-    seen[index] = 1;
-    let total = 0;
-    for (let head = 0; head < queue.length; head += 1) {
-      total += 1;
-      for (const child of depsOut[queue[head]]) {
-        if (seen[child]) continue;
-        seen[child] = 1;
-        queue.push(child);
-      }
-    }
-    uniqueMemo.set(index, total);
-    return total;
+    if (!reachMemo) reachMemo = computeReachCounts(count, depsOut);
+    return reachMemo[index];
   };
 
   return {
@@ -313,7 +282,7 @@ export function buildVizModel(
     subSize,
     totalSize,
     kidsOf,
-    occ,
+    domTree,
     parent,
     children,
     leaves,

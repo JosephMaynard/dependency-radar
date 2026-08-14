@@ -42,7 +42,8 @@ describe('buildVizModel', () => {
     expect(model.totalSize).toBe(8000);
     expect(model.uniqueCount(root as number)).toBe(8000);
     const tail = model.indexOfSlug.get('pkg-7999@1.0.0');
-    expect(model.occ[tail as number]).toBe(1);
+    expect(model.domTree().exclusiveCount[root as number]).toBe(8000);
+    expect(model.domTree().exclusiveCount[tail as number]).toBe(1);
   });
 
   it('counts paths and unique packages separately on diamond graphs', () => {
@@ -83,7 +84,10 @@ describe('buildVizModel', () => {
     const shared = model.indexOfSlug.get('shared@1.0.0') as number;
     expect(model.uniqueCount(top)).toBe(4);
     expect(model.subSize[top]).toBe(5);
-    expect(model.occ[shared]).toBe(2);
+    // Shared sits under top in the dominator tree (all routes pass through
+    // top), so top's removal frees everything.
+    expect(model.domTree().exclusiveCount[top]).toBe(4);
+    expect(model.domTree().idom[shared]).toBe(top);
   });
 
   it('matches the recursive semantics on cyclic graphs', () => {
@@ -125,10 +129,9 @@ describe('buildVizModel', () => {
     expect(model.subSize[idx('a')]).toBe(4);
     expect(model.subSize[idx('entry')]).toBe(5);
     expect(model.totalSize).toBe(5);
-    // occ: entry=1; a is reached from entry and from c -> occ(a)=occ(entry)+occ(c);
-    // with the path cut, occ(c)=occ(b), occ(b)=occ(a) computed as 1 at cut time.
-    expect(model.occ[idx('entry')]).toBe(1);
     expect(model.uniqueCount(idx('entry'))).toBe(5);
     expect(model.uniqueCount(idx('a'))).toBe(4);
+    // Dominators through the cycle: entry owns everything.
+    expect(model.domTree().exclusiveCount[idx('entry')]).toBe(5);
   });
 });

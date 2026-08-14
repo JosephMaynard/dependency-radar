@@ -27,8 +27,9 @@ export function mountBalloonView(
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // Sub-linear node size: one monster can't blow out the dynamic range.
+  // Weighted by unique packages beneath (honest reach), not path counts.
   const nodeRadius = (id: number): number =>
-    Math.min(70, 2.2 + Math.pow(model.subSize[id], 0.34) * 1.1);
+    Math.min(70, 2.2 + Math.pow(model.uniqueCount(id), 0.34) * 1.1);
 
   // Enclosing radius of a subtree's balloon in local units, memoised.
   // Iterative with an explicit stack: dependency chains can be thousands of
@@ -356,13 +357,7 @@ export function mountBalloonView(
           x,
           y + lineGap * 0.35,
         );
-        ctx.font = `${metaFont}px ${mono}`;
-        ctx.fillStyle = theme.muted;
-        ctx.fillText(
-          `(${Math.round(model.totalSize).toLocaleString()} path${Math.round(model.totalSize) === 1 ? "" : "s"})`,
-          x,
-          y + lineGap * 1.45,
-        );
+
         ctx.textAlign = "left";
       }
     }
