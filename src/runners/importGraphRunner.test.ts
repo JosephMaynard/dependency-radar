@@ -102,4 +102,12 @@ describe('extractImports', () => {
     ].join('\n');
     expect(extractImports(source)).toEqual(['pkg-bracket', 'pkg-paren', 'pkg-block']);
   });
+
+  it('extracts side-effect-only imports', () => {
+    const source = [
+      "import 'side-effect-pkg';",
+      "const a = 1; import 'polyfill-pkg';",
+    ].join('\n');
+    expect(extractImports(source)).toEqual(['side-effect-pkg', 'polyfill-pkg']);
+  });
 });
