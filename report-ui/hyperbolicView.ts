@@ -62,7 +62,9 @@ export function mountHyperbolicView(
       const { id, mid, wedge } = frame;
       const kids = children[id];
       if (!kids.length) continue;
-      const rhoBase = Math.min(0.82, 0.42 + 0.05 * Math.sqrt(kids.length));
+      // 0.8 factor: 20% shorter parent-child links keep systems visually
+      // attached to their parents in the overview.
+      const rhoBase = Math.min(0.66, 0.34 + 0.04 * Math.sqrt(kids.length));
       const total = kids.reduce((s, c) => s + leaves[c], 0);
       let start = mid - wedge / 2;
       let kidIndex = 0;
@@ -74,7 +76,7 @@ export function mountHyperbolicView(
         // siblings across three shells triples their angular breathing room.
         const rho =
           kids.length > 6
-            ? Math.min(0.9, rhoBase + ((kidIndex % 3) - 1) * 0.09)
+            ? Math.min(0.72, rhoBase + ((kidIndex % 3) - 1) * 0.072)
             : rhoBase;
         kidIndex += 1;
         const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
@@ -97,7 +99,7 @@ export function mountHyperbolicView(
       const share = (rootWeight(r) / total) * Math.PI * 2;
       const ang = start + share / 2;
       start += share;
-      const rho = 0.52;
+      const rho = 0.42;
       pos[r] = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
       placeSubtree(r, ang, Math.min(share * 0.92, 2.4));
     }

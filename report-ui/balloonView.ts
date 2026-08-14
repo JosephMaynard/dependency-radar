@@ -340,20 +340,28 @@ export function mountBalloonView(
       if (r > 22) {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = `600 ${Math.min(15, r * 0.24)}px ${mono}`;
+        const titleFont = Math.min(15, r * 0.24);
+        const metaFont = Math.min(11, r * 0.16);
+        // Line gaps follow the (capped) font size, not the radius — zoomed
+        // in, the title and stats stay one tight block instead of drifting
+        // toward the poles of the circle.
+        const lineGap = metaFont * 1.55;
+        ctx.font = `600 ${titleFont}px ${mono}`;
         ctx.fillStyle = theme.panelText;
-        ctx.fillText(model.projectName, x, y - r * 0.1);
-        ctx.font = `${Math.min(11, r * 0.16)}px ${mono}`;
-        ctx.fillStyle = theme.muted;
+        ctx.fillText(model.projectName, x, y - lineGap);
+        ctx.font = `600 ${metaFont}px ${mono}`;
+        ctx.fillStyle = theme.panelText;
         ctx.fillText(
           `${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
           x,
-          y + r * 0.2,
+          y + lineGap * 0.35,
         );
+        ctx.font = `${metaFont}px ${mono}`;
+        ctx.fillStyle = theme.muted;
         ctx.fillText(
           `(${Math.round(model.totalSize).toLocaleString()} path${Math.round(model.totalSize) === 1 ? "" : "s"})`,
           x,
-          y + r * 0.38,
+          y + lineGap * 1.45,
         );
         ctx.textAlign = "left";
       }
@@ -384,7 +392,22 @@ export function mountBalloonView(
         const x = sx(px[i]);
         const y = sy(py[i]);
         const name = model.refs[pid[i]].name;
-        const w = ctx.measureText(name).width;
+        // Second line: fan-in/fan-out (↑ required by · ↓ depends on) — the
+        // circle's size already encodes subtree weight, so the label adds
+        // the relationship counts the geometry can't show. Zeros are
+        // omitted; leaves with nothing to say get no second line.
+        const fanIn = model.depsIn[pid[i]].length;
+        const fanOut = model.depsOut[pid[i]].length;
+        const countText = [
+          ...(fanIn > 0 ? [`\u2191${fanIn.toLocaleString()}`] : []),
+          ...(fanOut > 0 ? [`\u2193${fanOut.toLocaleString()}`] : []),
+        ].join(" ");
+        // The collision box must cover BOTH lines — either can be wider.
+        const nameW = ctx.measureText(name).width;
+        ctx.font = `10px ${mono}`;
+        const countW = countText ? ctx.measureText(countText).width : 0;
+        ctx.font = `600 10.5px ${mono}`;
+        const w = Math.max(nameW, countW);
         const x0 = x + r + 5;
         const y0 = y - 14;
         const x1 = x0 + w;
@@ -409,9 +432,11 @@ export function mountBalloonView(
               ? "#aabdd0"
               : "#3f5266";
         ctx.fillText(name, x0, y - 6);
-        ctx.font = `10px ${mono}`;
-        ctx.fillStyle = theme.muted;
-        ctx.fillText(Math.round(model.subSize[pid[i]]).toLocaleString(), x0, y + 7);
+        if (countText) {
+          ctx.font = `10px ${mono}`;
+          ctx.fillStyle = theme.muted;
+          ctx.fillText(countText, x0, y + 7);
+        }
       }
     }
   }
