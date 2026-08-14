@@ -392,7 +392,15 @@ export function mountBalloonView(
         const x = sx(px[i]);
         const y = sy(py[i]);
         const name = model.refs[pid[i]].name;
-        const w = ctx.measureText(name).width;
+        // The collision box must cover BOTH lines — a count like
+        // "1,234 pkgs" can be wider than a short package name.
+        const labelPkgCount = model.uniqueCount(pid[i]);
+        const countText = `${labelPkgCount.toLocaleString()} pkg${labelPkgCount === 1 ? "" : "s"}`;
+        const nameW = ctx.measureText(name).width;
+        ctx.font = `10px ${mono}`;
+        const countW = ctx.measureText(countText).width;
+        ctx.font = `600 10.5px ${mono}`;
+        const w = Math.max(nameW, countW);
         const x0 = x + r + 5;
         const y0 = y - 14;
         const x1 = x0 + w;
@@ -419,12 +427,7 @@ export function mountBalloonView(
         ctx.fillText(name, x0, y - 6);
         ctx.font = `10px ${mono}`;
         ctx.fillStyle = theme.muted;
-        const pkgCount = model.uniqueCount(pid[i]);
-        ctx.fillText(
-          `${pkgCount.toLocaleString()} pkg${pkgCount === 1 ? "" : "s"}`,
-          x0,
-          y + 7,
-        );
+        ctx.fillText(countText, x0, y + 7);
       }
     }
   }
