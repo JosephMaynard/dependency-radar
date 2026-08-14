@@ -142,7 +142,9 @@ export function mountTreemapView(
       return highlight ? theme.vulnHigh : withAlpha(theme.vulnHigh, 0.72);
     }
     if (rect.owner === SHARED_RECT) {
-      const l = theme.isDark ? 26 + rect.depth * 3 : 88 - rect.depth * 3;
+      const l = theme.isDark
+        ? Math.min(44, 26 + rect.depth * 3)
+        : Math.max(64, 88 - rect.depth * 3);
       return `hsl(210 10% ${l}%${highlight ? " / 1" : " / 0.95"})`;
     }
     const hue = model.rootHue.get(rect.owner) ?? 210;
@@ -350,17 +352,13 @@ export function mountTreemapView(
       const i = pick(e.offsetX, e.offsetY);
       if (i < 0) return;
       const rect = rects[i];
-      if (rect.id === SHARED_RECT) {
-        zoomRoot = SHARED_RECT;
-        selected = -1;
-        cb.onSelect(-1);
-      } else {
+      // Single click only selects — no relayout, so a following double-click
+      // resolves against the geometry the user actually saw.
+      if (rect.id >= 0) {
         selected = rect.id;
         cb.onSelect(rect.id);
+        draw();
       }
-      hovered = -1;
-      layout();
-      draw();
     },
     { signal },
   );
@@ -368,16 +366,46 @@ export function mountTreemapView(
     "dblclick",
     (e) => {
       const i = pick(e.offsetX, e.offsetY);
-      const rect = i >= 0 ? rects[i] : undefined;
-      if (rect && rect.id >= 0 && dom.children[rect.id].length > 0) {
-        // Drill into a subtree; double-click empty space resets below.
-        zoomRoot = rect.id;
-        selected = rect.id;
-        cb.onSelect(rect.id);
-      } else {
+      if (i < 0) {
+        // Empty space: reset.
         zoomRoot = -1;
         selected = -1;
         cb.onSelect(-1);
+        hovered = -1;
+        layout();
+        draw();
+        return;
+      }
+      const rect = rects[i];
+      // pick() returns the DEEPEST rect (usually a leaf); the drill target is
+      // the ancestor one level below the current zoom, so drilling steps into
+      // the box the user sees, not the pixel they hit.
+      let target: number;
+      if (rect.id === SHARED_RECT || rect.owner === SHARED_RECT) {
+        if (zoomRoot === SHARED_RECT && rect.id >= 0) {
+          const trail = trailOf(rect.id);
+          target = trail.length > 0 ? trail[0] : SHARED_RECT;
+        } else {
+          target = SHARED_RECT;
+        }
+      } else {
+        const trail = trailOf(rect.id);
+        if (zoomRoot >= 0) {
+          const at = trail.indexOf(zoomRoot);
+          target = at >= 0 && at + 1 < trail.length ? trail[at + 1] : rect.id;
+        } else {
+          target = trail[0];
+        }
+      }
+      if (target !== SHARED_RECT && (target < 0 || dom.children[target].length === 0)) {
+        // Nothing to drill into — treat as reset to the whole project.
+        zoomRoot = -1;
+      } else {
+        zoomRoot = target;
+      }
+      if (rect.id >= 0) {
+        selected = rect.id;
+        cb.onSelect(rect.id);
       }
       hovered = -1;
       layout();

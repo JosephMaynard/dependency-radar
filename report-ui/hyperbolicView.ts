@@ -370,10 +370,21 @@ export function mountHyperbolicView(
     hubPos = fn(hubPos);
   }
 
+  let pendingLayout: { positions: C[]; hub: C } | null = null;
+
   function cancelAnim(): void {
     if (!animating) return;
     cancelAnimationFrame(animFrame);
     animating = false;
+    // Never park the view mid-blend: an interpolated frame is not a valid
+    // hyperbolic configuration, and every later drag would Mobius-transform
+    // the mangled state. Snap to the in-flight target instead.
+    if (pendingLayout) {
+      applyLayout(pendingLayout);
+      offX = 0;
+      offY = 0;
+      pendingLayout = null;
+    }
   }
 
   function focusOn(target: number): void {
@@ -387,11 +398,6 @@ export function mountHyperbolicView(
     startLayoutTransition(computeLayout(HUB));
   }
 
-  const clampDisk = (z: C): C => {
-    const m = Math.sqrt(cAbs2(z));
-    return m > 0.995 ? { x: (z.x / m) * 0.995, y: (z.y / m) * 0.995 } : z;
-  };
-
   function startLayoutTransition(layout: { positions: C[]; hub: C }): void {
     const fromOffX = offX;
     const fromOffY = offY;
@@ -403,6 +409,7 @@ export function mountHyperbolicView(
       return;
     }
     animating = true;
+    pendingLayout = layout;
     const base = pos.map((z) => ({ ...z }));
     const baseHub = { ...hubPos };
     const t0 = performance.now();
@@ -410,22 +417,35 @@ export function mountHyperbolicView(
     const step = (t: number): void => {
       if (destroyed) return;
       const u = Math.min(1, (t - t0) / dur);
+      if (u >= 1) {
+        // Snap exactly onto the computed layout: persisting lerped (let
+        // alone clamped) values would flatten rim depth — nodes deep in a
+        // chain live at |z| > 0.999 and must keep their true radii.
+        applyLayout(layout);
+        offX = 0;
+        offY = 0;
+        animating = false;
+        pendingLayout = null;
+        draw();
+        return;
+      }
       const e = 1 - Math.pow(1 - u, 3);
+      // No clamp needed mid-flight: both endpoints are interior to the disk
+      // and the disk is convex.
       for (let i = 0; i < N; i += 1) {
-        pos[i] = clampDisk({
+        pos[i] = {
           x: base[i].x + (layout.positions[i].x - base[i].x) * e,
           y: base[i].y + (layout.positions[i].y - base[i].y) * e,
-        });
+        };
       }
-      hubPos = clampDisk({
+      hubPos = {
         x: baseHub.x + (layout.hub.x - baseHub.x) * e,
         y: baseHub.y + (layout.hub.y - baseHub.y) * e,
-      });
+      };
       offX = fromOffX * (1 - e);
       offY = fromOffY * (1 - e);
       draw();
-      if (u < 1) animFrame = requestAnimationFrame(step);
-      else animating = false;
+      animFrame = requestAnimationFrame(step);
     };
     animFrame = requestAnimationFrame(step);
   }

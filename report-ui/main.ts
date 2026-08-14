@@ -3558,10 +3558,11 @@ async function init(): Promise<void> {
     } else if (sortColumn === "depth") {
       sorted.sort((a, b) => a.usage.depth - b.usage.depth);
     } else if (sortColumn === "subdeps") {
-      // Heaviest first: "what pulls in the most" is the question being asked.
+      // Ascending like every other numeric key, so the direction arrow keeps
+      // its meaning; flip the arrow for heaviest-first.
       const countOf = (dep: DependencyRecord): number =>
         getSubDepCount(`${dep.package.name}@${dep.package.version}`) ?? -1;
-      sorted.sort((a, b) => countOf(b) - countOf(a));
+      sorted.sort((a, b) => countOf(a) - countOf(b));
     } else {
       // Look up sort function from COLUMN_CONFIG
       const columnConfig = COLUMN_CONFIG.find(

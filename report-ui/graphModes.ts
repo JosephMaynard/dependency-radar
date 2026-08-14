@@ -10,8 +10,9 @@ import { mountBalloonView } from "./balloonView";
 import { mountHyperbolicView } from "./hyperbolicView";
 import { mountTreemapView } from "./treemapView";
 
-// Orchestrates the graph panel's four layout modes (classic graph + flame +
-// balloon + hyperbolic), the shared docked side panel (search + dossier), and
+// Orchestrates the graph panel's five layout modes (classic graph + flame +
+// treemap + balloon + hyperbolic), the shared docked side panel (search +
+// dossier), and
 // the status line. The classic graph view keeps its own canvas and handle;
 // alternative views mount a fresh canvas each and are destroyed on switch
 // (reset-on-switch is deliberate — see docs/VIZ-VIEWS-HANDOFF.md).
@@ -255,7 +256,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const trailFrees = m.domTree().exclusiveCount[last];
     options.statusLine.textContent =
       `${m.projectName} › ${trail.map((id) => m.refs[id].name).join(" › ")}` +
-      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} beneath` +
+      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} in subtree` +
       ` · deleting frees ${trailFrees.toLocaleString()}`;
   }
 
@@ -395,6 +396,12 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         ? `deleting frees ${frees.toLocaleString()} packages`
         : "deleting frees only itself",
     );
+    const cycle = m.domTree().cycleWith[index];
+    if (cycle && cycle.length > 0) {
+      const names = cycle.slice(0, 3).map((other) => m.refs[other].name);
+      const suffix = cycle.length > 3 ? ` +${cycle.length - 3}` : "";
+      fact("", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
+    }
     options.dossier.appendChild(facts);
 
     chipRow(options.dossier, "Depends on", m.kidsOf[index]);

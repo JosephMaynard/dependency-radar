@@ -10,18 +10,19 @@
 // flame and treemap layouts on: widths/areas are real unique packages and
 // children always sum into their parents.
 //
-// Cycles are handled by collapsing strongly connected components first
-// (Tarjan, iterative) — a cycle's members share one fate, so they act as a
-// single node whose weight is the member count. Dominators are then computed
-// on the resulting DAG with the Cooper–Harvey–Kennedy iterative algorithm
-// over a virtual root that points at the workspace's direct dependencies.
+// Dominators are computed with the Cooper–Harvey–Kennedy iterative algorithm
+// directly on the (possibly cyclic) graph over a virtual root that points at
+// the workspace's direct dependencies — per-node, NOT on the SCC
+// condensation: members of a multi-entry cycle do not share one fate, and
+// each gets its true immediate dominator. Tarjan SCCs are still computed for
+// cycle annotations and for computeReachCounts' topological bitset DP.
 
 export interface DomTree {
   /** Immediate dominator per package index; -1 = virtual root, -2 = unreachable. */
   idom: Int32Array;
   /** Dominator-tree children (package indices) per package index; roots of the forest are idom === -1. */
   children: number[][];
-  /** Packages dominated by each index, INCLUDING itself (SCC members each count once). */
+  /** Packages dominated by each index, INCLUDING itself. */
   exclusiveCount: Int32Array;
   /** Packages whose immediate dominator is the virtual root. */
   rootChildren: number[];
@@ -115,6 +116,12 @@ function condense(count: number, out: number[][]): Condensation {
 /**
  * Build the dominator tree for a workspace graph.
  *
+ * The Cooper–Harvey–Kennedy iterative algorithm runs directly on the (possibly
+ * cyclic) package graph — it needs only a DFS reverse-postorder, not a DAG.
+ * Running it per-node (rather than on the SCC condensation) matters: members
+ * of a cycle entered from more than one place do NOT share one fate, and each
+ * gets its true immediate dominator (possibly the virtual root).
+ *
  * @param count   number of packages
  * @param out     dependency edges per package index
  * @param roots   the workspace's direct dependencies (virtual root's edges)
@@ -127,17 +134,24 @@ export function buildDomTree(count: number, out: number[][], roots: number[]): D
   const result: DomTree = { idom, children, exclusiveCount, rootChildren: [], cycleWith };
   if (count === 0) return result;
 
-  const { comp, members, compOut } = condense(count, out);
-  const compCount = members.length;
+  // Cycle membership is informational (dossier annotations) — the dominator
+  // computation itself never uses it.
+  const { members } = condense(count, out);
+  for (const component of members) {
+    if (component.length < 2) continue;
+    for (const member of component) {
+      cycleWith[member] = component.filter((other) => other !== member);
+    }
+  }
 
-  // Virtual root = component index compCount; reverse-postorder over the
-  // component DAG from it.
-  const ROOT = compCount;
-  const rootEdges = Array.from(new Set(roots.map((r) => comp[r])));
-  const outOf = (component: number): number[] => (component === ROOT ? rootEdges : compOut[component]);
+  // Reverse-postorder DFS over the raw graph from a virtual root (index
+  // `count`) whose edges are the direct dependencies.
+  const ROOT = count;
+  const rootEdges = Array.from(new Set(roots));
+  const outOf = (node: number): number[] => (node === ROOT ? rootEdges : out[node]);
 
   const order: number[] = [];
-  const state = new Int32Array(compCount + 1).fill(0);
+  const state = new Uint8Array(count + 1);
   {
     interface Frame {
       node: number;
@@ -162,72 +176,56 @@ export function buildDomTree(count: number, out: number[][], roots: number[]): D
     }
   }
   order.reverse(); // reverse postorder, ROOT first
-  const rpoIndex = new Int32Array(compCount + 1).fill(-1);
-  order.forEach((component, index) => {
-    rpoIndex[component] = index;
+  const rpoIndex = new Int32Array(count + 1).fill(-1);
+  order.forEach((node, index) => {
+    rpoIndex[node] = index;
   });
 
-  // Predecessors within the reachable component DAG.
-  const preds: number[][] = Array.from({ length: compCount + 1 }, () => []);
-  for (const component of order) {
-    for (const next of outOf(component)) {
-      preds[next].push(component);
+  // Predecessors within the reachable graph.
+  const preds: number[][] = Array.from({ length: count + 1 }, () => []);
+  for (const node of order) {
+    for (const next of outOf(node)) {
+      if (rpoIndex[next] !== -1) preds[next].push(node);
     }
   }
 
-  // Cooper–Harvey–Kennedy iterative dominators.
-  const compIdom = new Int32Array(compCount + 1).fill(-1);
-  compIdom[ROOT] = ROOT;
+  // Cooper–Harvey–Kennedy iteration to fixpoint (cycles converge naturally).
+  const nodeIdom = new Int32Array(count + 1).fill(-1);
+  nodeIdom[ROOT] = ROOT;
   const intersect = (a: number, b: number): number => {
     let fingerA = a;
     let fingerB = b;
     while (fingerA !== fingerB) {
-      while (rpoIndex[fingerA] > rpoIndex[fingerB]) fingerA = compIdom[fingerA];
-      while (rpoIndex[fingerB] > rpoIndex[fingerA]) fingerB = compIdom[fingerB];
+      while (rpoIndex[fingerA] > rpoIndex[fingerB]) fingerA = nodeIdom[fingerA];
+      while (rpoIndex[fingerB] > rpoIndex[fingerA]) fingerB = nodeIdom[fingerB];
     }
     return fingerA;
   };
   let changed = true;
   while (changed) {
     changed = false;
-    for (const component of order) {
-      if (component === ROOT) continue;
+    for (const node of order) {
+      if (node === ROOT) continue;
       let newIdom = -1;
-      for (const pred of preds[component]) {
-        if (compIdom[pred] === -1) continue;
+      for (const pred of preds[node]) {
+        if (nodeIdom[pred] === -1) continue;
         newIdom = newIdom === -1 ? pred : intersect(pred, newIdom);
       }
-      if (newIdom !== -1 && compIdom[component] !== newIdom) {
-        compIdom[component] = newIdom;
+      if (newIdom !== -1 && nodeIdom[node] !== newIdom) {
+        nodeIdom[node] = newIdom;
         changed = true;
       }
     }
   }
 
-  // Project back to packages. Each SCC's representative carries the
-  // component; other members hang off the representative so every package
-  // still appears exactly once in the tree.
-  const representative = members.map((component) => Math.min(...component));
-  for (let componentId = 0; componentId < compCount; componentId += 1) {
-    if (compIdom[componentId] === -1) continue; // unreachable
-    const rep = representative[componentId];
-    const parentComponent = compIdom[componentId];
-    if (parentComponent === ROOT) {
-      idom[rep] = -1;
-      result.rootChildren.push(rep);
+  for (let node = 0; node < count; node += 1) {
+    if (rpoIndex[node] === -1 || nodeIdom[node] === -1) continue; // unreachable
+    if (nodeIdom[node] === ROOT) {
+      idom[node] = -1;
+      result.rootChildren.push(node);
     } else {
-      const parentRep = representative[parentComponent];
-      idom[rep] = parentRep;
-      children[parentRep].push(rep);
-    }
-    for (const member of members[componentId]) {
-      if (member === rep) continue;
-      idom[member] = rep;
-      children[rep].push(member);
-      cycleWith[member] = members[componentId].filter((other) => other !== member);
-    }
-    if (members[componentId].length > 1) {
-      cycleWith[rep] = members[componentId].filter((other) => other !== rep);
+      idom[node] = nodeIdom[node];
+      children[nodeIdom[node]].push(node);
     }
   }
 

@@ -140,7 +140,13 @@ export function mountFlameView(
     }
   }
 
-  /** Draw a dominator-tree level: `ids` weight-sorted, widths additive. */
+  /**
+   * Draw a dominator-tree level. `parentWeight` preserves the invariant that
+   * width == removal cost: children are normalised by the PARENT's weight
+   * (children + the parent itself), so the unallocated sliver at the right of
+   * each nest is the parent's own unit. Pass 0 to normalise by the children
+   * sum alone (the virtual root has no self weight).
+   */
   function drawLevel(
     ids: number[],
     rootFor: number | null,
@@ -149,9 +155,11 @@ export function mountFlameView(
     y: number,
     depthIdx: number,
     parentBlock: number,
+    parentWeight: number,
   ): void {
     if (!ctx || y > H || ids.length === 0) return;
-    const total = ids.reduce((sum, id) => sum + weightOf(id), 0);
+    const childSum = ids.reduce((sum, id) => sum + weightOf(id), 0);
+    const total = parentWeight > 0 ? parentWeight : childSum;
     if (total <= 0) return;
     let x = x0;
     let sprayW = 0;
@@ -181,7 +189,7 @@ export function mountFlameView(
         ctx.strokeRect(x + 0.5, y + 0.5, w - PAD, ROW - 2.5);
       }
       // The dominator tree is a real tree — no cycle guard needed.
-      drawLevel(dom.children[id], rootId, x, x + w, y + ROW, depthIdx + 1, idx);
+      drawLevel(dom.children[id], rootId, x, x + w, y + ROW, depthIdx + 1, idx, weightOf(id));
       x += w;
     }
     if (sprayW > 0.4) {
@@ -220,7 +228,7 @@ export function mountFlameView(
       const idx = blocks.length;
       blocks.push({ id: SHARED_BAR, parent: idx - 1, x: 0, y, w: UW, h: ROW });
       drawBar(0, y, UW, ROW, sharedFill(true), sharedBandLabel(), 1);
-      drawLevel(sharedMembers, null, 0, UW, y + ROW, 1, idx);
+      drawLevel(sharedMembers, null, 0, UW, y + ROW, 1, idx, 0);
       return;
     }
 
@@ -246,9 +254,13 @@ export function mountFlameView(
       const total = directTop.reduce((sum, id) => sum + weightOf(id), 0) + sharedTotal;
       if (total <= 0) return;
       let x = 0;
+      let topSprayW = 0;
       for (const id of directTop) {
         const w = (UW * weightOf(id)) / total;
-        if (w < MIN_BLOCK_PX) continue;
+        if (w < MIN_BLOCK_PX) {
+          topSprayW += w;
+          continue;
+        }
         const idx = blocks.length;
         blocks.push({ id, parent: 0, x, y, w, h: ROW });
         const hl = idx === hoveredBlock || id === selectedId;
@@ -258,7 +270,7 @@ export function mountFlameView(
           ctx.lineWidth = 1.2;
           ctx.strokeRect(x + 0.5, y + 0.5, w - PAD, ROW - 2.5);
         }
-        drawLevel(dom.children[id], id, x, x + w, y + ROW, 1, idx);
+        drawLevel(dom.children[id], id, x, x + w, y + ROW, 1, idx, weightOf(id));
         x += w;
       }
       if (sharedTotal > 0) {
@@ -267,7 +279,12 @@ export function mountFlameView(
         blocks.push({ id: SHARED_BAR, parent: 0, x, y, w, h: ROW });
         const hl = idx === hoveredBlock;
         drawBar(x, y, w, ROW, sharedFill(hl), sharedBandLabel(), hl ? 1 : 0.85);
-        drawLevel(sharedMembers, null, x, x + w, y + ROW, 1, idx);
+        drawLevel(sharedMembers, null, x, x + w, y + ROW, 1, idx, 0);
+        x += w;
+      }
+      if (topSprayW > 0.4) {
+        ctx.fillStyle = "rgba(90, 110, 130, 0.22)";
+        ctx.fillRect(x, y + ROW * 0.3, Math.max(0.5, topSprayW - PAD / 2), ROW * 0.4);
       }
       return;
     }
@@ -282,7 +299,7 @@ export function mountFlameView(
       ctx.lineWidth = 1.2;
       ctx.strokeRect(0.5, y + 0.5, UW - 1, ROW - 2.5);
     }
-    drawLevel(dom.children[focus], focusShared ? focus : rootId, 0, UW, y + ROW, 2, idx);
+    drawLevel(dom.children[focus], focusShared ? focus : rootId, 0, UW, y + ROW, 2, idx, weightOf(focus));
   }
 
   function pick(px: number, py: number): number {
