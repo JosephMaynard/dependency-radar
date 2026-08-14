@@ -156,11 +156,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   function keyItem(color: string, label: string): HTMLElement {
     const item = document.createElement("span");
     item.className = "graph-key-item";
-    const dot = document.createElement("span");
-    dot.className = "graph-key-dot";
-    dot.style.background = color;
-    dot.setAttribute("aria-hidden", "true");
-    item.appendChild(dot);
+    if (color) {
+      const dot = document.createElement("span");
+      dot.className = "graph-key-dot";
+      dot.style.background = color;
+      dot.setAttribute("aria-hidden", "true");
+      item.appendChild(dot);
+    }
     const text = document.createElement("span");
     text.textContent = label;
     item.appendChild(text);
@@ -191,6 +193,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       );
     }
     items.appendChild(keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable"));
+    if (mode === "balloon") {
+      items.appendChild(keyItem("", "\u2191 required by \u00b7 \u2193 depends on"));
+    }
     keyEl.replaceChildren(label, items);
   }
 

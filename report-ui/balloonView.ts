@@ -392,13 +392,20 @@ export function mountBalloonView(
         const x = sx(px[i]);
         const y = sy(py[i]);
         const name = model.refs[pid[i]].name;
-        // The collision box must cover BOTH lines — a count like
-        // "1,234 pkgs" can be wider than a short package name.
-        const labelPkgCount = model.uniqueCount(pid[i]);
-        const countText = `${labelPkgCount.toLocaleString()} pkg${labelPkgCount === 1 ? "" : "s"}`;
+        // Second line: fan-in/fan-out (↑ required by · ↓ depends on) — the
+        // circle's size already encodes subtree weight, so the label adds
+        // the relationship counts the geometry can't show. Zeros are
+        // omitted; leaves with nothing to say get no second line.
+        const fanIn = model.depsIn[pid[i]].length;
+        const fanOut = model.depsOut[pid[i]].length;
+        const countText = [
+          ...(fanIn > 0 ? [`\u2191${fanIn.toLocaleString()}`] : []),
+          ...(fanOut > 0 ? [`\u2193${fanOut.toLocaleString()}`] : []),
+        ].join(" ");
+        // The collision box must cover BOTH lines — either can be wider.
         const nameW = ctx.measureText(name).width;
         ctx.font = `10px ${mono}`;
-        const countW = ctx.measureText(countText).width;
+        const countW = countText ? ctx.measureText(countText).width : 0;
         ctx.font = `600 10.5px ${mono}`;
         const w = Math.max(nameW, countW);
         const x0 = x + r + 5;
@@ -425,9 +432,11 @@ export function mountBalloonView(
               ? "#aabdd0"
               : "#3f5266";
         ctx.fillText(name, x0, y - 6);
-        ctx.font = `10px ${mono}`;
-        ctx.fillStyle = theme.muted;
-        ctx.fillText(countText, x0, y + 7);
+        if (countText) {
+          ctx.font = `10px ${mono}`;
+          ctx.fillStyle = theme.muted;
+          ctx.fillText(countText, x0, y + 7);
+        }
       }
     }
   }
