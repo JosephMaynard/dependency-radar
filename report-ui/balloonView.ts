@@ -340,20 +340,28 @@ export function mountBalloonView(
       if (r > 22) {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = `600 ${Math.min(15, r * 0.24)}px ${mono}`;
+        const titleFont = Math.min(15, r * 0.24);
+        const metaFont = Math.min(11, r * 0.16);
+        // Line gaps follow the (capped) font size, not the radius — zoomed
+        // in, the title and stats stay one tight block instead of drifting
+        // toward the poles of the circle.
+        const lineGap = metaFont * 1.55;
+        ctx.font = `600 ${titleFont}px ${mono}`;
         ctx.fillStyle = theme.panelText;
-        ctx.fillText(model.projectName, x, y - r * 0.1);
-        ctx.font = `${Math.min(11, r * 0.16)}px ${mono}`;
-        ctx.fillStyle = theme.muted;
+        ctx.fillText(model.projectName, x, y - lineGap);
+        ctx.font = `600 ${metaFont}px ${mono}`;
+        ctx.fillStyle = theme.panelText;
         ctx.fillText(
           `${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
           x,
-          y + r * 0.2,
+          y + lineGap * 0.35,
         );
+        ctx.font = `${metaFont}px ${mono}`;
+        ctx.fillStyle = theme.muted;
         ctx.fillText(
           `(${Math.round(model.totalSize).toLocaleString()} path${Math.round(model.totalSize) === 1 ? "" : "s"})`,
           x,
-          y + r * 0.38,
+          y + lineGap * 1.45,
         );
         ctx.textAlign = "left";
       }
@@ -411,7 +419,12 @@ export function mountBalloonView(
         ctx.fillText(name, x0, y - 6);
         ctx.font = `10px ${mono}`;
         ctx.fillStyle = theme.muted;
-        ctx.fillText(Math.round(model.subSize[pid[i]]).toLocaleString(), x0, y + 7);
+        const pkgCount = model.uniqueCount(pid[i]);
+        ctx.fillText(
+          `${pkgCount.toLocaleString()} pkg${pkgCount === 1 ? "" : "s"}`,
+          x0,
+          y + 7,
+        );
       }
     }
   }
