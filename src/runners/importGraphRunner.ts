@@ -93,8 +93,153 @@ async function collectSourceFiles(rootDir: string): Promise<string[]> {
   return files;
 }
 
-function extractImports(content: string): string[] {
+/**
+ * Blank out comments so import-looking text inside them can't register as
+ * evidence. Regex literals are recognised with the standard preceding-token
+ * heuristic so `/[/*]/` or `://` inside them are not mistaken for comments;
+ * string literals are left alone (the import patterns demand surrounding
+ * syntax anyway). Positions are preserved (comments become spaces). If a
+ * block comment is unterminated the original content is returned unchanged —
+ * failing open to the old behaviour beats blanking a file to EOF.
+ */
+function stripComments(content: string): string {
+  let out = '';
+  let i = 0;
+  let quote: string | undefined;
+  let escaped = false;
+  let maskStrings = false;
+  // Last non-whitespace character emitted outside strings/comments; a '/'
+  // after one of these starts a regex literal, not division.
+  let prevSignificant = '';
+  // Trailing identifier word, so regexes after keywords (return /x/) are
+  // recognised even though the preceding character is a letter.
+  let prevWord = '';
+  let wordBroken = false;
+  const regexPreceders = new Set([
+    '', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '<', '>', '+', '-', '*', '%', '~', '^',
+  ]);
+  const regexPrecederWords = new Set([
+    'return', 'typeof', 'instanceof', 'case', 'in', 'of', 'delete', 'void', 'new', 'do', 'else', 'yield', 'await',
+  ]);
+  while (i < content.length) {
+    const ch = content[i];
+    const next = content[i + 1];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        out += maskStrings ? ' ' : ch;
+      } else if (ch === '\\') {
+        escaped = true;
+        out += maskStrings ? ' ' : ch;
+      } else if (ch === quote) {
+        quote = undefined;
+        out += ch;
+      } else {
+        // Inside a non-specifier string: blank the content so text like
+        // "require('ghost-pkg')" in documentation strings can't register
+        // as import evidence. Newlines survive so positions keep meaning.
+        out += maskStrings && ch !== '\n' ? ' ' : ch;
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch;
+      // Only strings sitting in import-specifier position keep their
+      // contents: after `from`, `import`/`import(`, `export`, `require(`.
+      // Template literals are never specifiers. Test just the tail — an
+      // end-anchored regex over the whole accumulator goes quadratic on
+      // large files.
+      maskStrings =
+        ch === '`' ||
+        !/(?:\bfrom|\bimport|\bexport|\brequire\s*\(|\bimport\s*\()\s*$/.test(
+          out.slice(-24),
+        );
+      out += ch;
+      prevSignificant = ch;
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && (next === '/' || next === '*') ) {
+      if (next === '/') {
+        while (i < content.length && content[i] !== '\n') {
+          out += ' ';
+          i += 1;
+        }
+        continue;
+      }
+      const close = content.indexOf('*/', i + 2);
+      if (close === -1) return content; // unterminated — fail open
+      for (let j = i; j < close + 2; j += 1) {
+        out += content[j] === '\n' ? '\n' : ' ';
+      }
+      i = close + 2;
+      continue;
+    }
+    if (
+      ch === '/' &&
+      (regexPreceders.has(prevSignificant) || regexPrecederWords.has(prevWord))
+    ) {
+      // Consume a regex literal (with character classes), masking its body:
+      // regex text can contain anything, including import-shaped strings,
+      // and must never register as evidence.
+      out += ch;
+      i += 1;
+      let inClass = false;
+      let regexEscaped = false;
+      while (i < content.length) {
+        const rc = content[i];
+        i += 1;
+        if (regexEscaped) {
+          regexEscaped = false;
+          out += ' ';
+          continue;
+        }
+        if (rc === '\\') {
+          regexEscaped = true;
+          out += ' ';
+          continue;
+        }
+        if (rc === '[') inClass = true;
+        else if (rc === ']') inClass = false;
+        if (rc === '/' && !inClass) {
+          out += '/';
+          break;
+        }
+        if (rc === '\n') {
+          out += '\n'; // not actually a regex — bail out
+          break;
+        }
+        out += ' ';
+      }
+      prevSignificant = '/';
+      prevWord = '';
+      continue;
+    }
+    out += ch;
+    if (!/\s/.test(ch)) prevSignificant = ch;
+    if (/[A-Za-z0-9_$]/.test(ch)) {
+      prevWord = wordBroken ? ch : prevWord + ch;
+      wordBroken = false;
+    } else if (/\s/.test(ch)) {
+      wordBroken = true;
+    } else {
+      prevWord = '';
+      wordBroken = false;
+    }
+    i += 1;
+  }
+  return out;
+}
+
+/** True for type-only import/export statements, erased at compile time. */
+function isTypeOnlyStatement(matchedText: string): boolean {
+  return /^(?:import|export)\s+type[\s{*]/.test(matchedText);
+}
+
+export function extractImports(content: string): string[] {
   const matches: string[] = [];
+  const stripped = stripComments(content);
   const patterns = [
     /\bimport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
     /\bexport\s+(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g,
@@ -102,10 +247,26 @@ function extractImports(content: string): string[] {
     /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g
   ];
 
+  // TypeScript import() type queries (`type X = import('pkg').Y`) are
+  // erased at compile time: a dynamic-import match whose statement starts
+  // with a type-alias declaration is not runtime evidence.
+  const inTypeAlias = (index: number): boolean => {
+    const lineStart = stripped.lastIndexOf('\n', index - 1) + 1;
+    const prefix = stripped.slice(lineStart, index);
+    return /(?:^|[;{])\s*(?:export\s+)?type\s+[A-Za-z0-9_$]+(?:<[^=]*>)?\s*=[^;]*$/.test(prefix);
+  };
+
   for (const pattern of patterns) {
     let match: RegExpExecArray | null;
-    while ((match = pattern.exec(content)) !== null) {
-      if (match[1]) matches.push(match[1]);
+    while ((match = pattern.exec(stripped)) !== null) {
+      // Type-only imports/exports never load the package at runtime; checking
+      // the matched statement itself (not a precomputed span) keeps the
+      // exclusion from bleeding across statement boundaries.
+      if (!match[1] || isTypeOnlyStatement(match[0])) continue;
+      if (match[0].startsWith('import(') || /^import\s*\(/.test(match[0])) {
+        if (inTypeAlias(match.index)) continue;
+      }
+      matches.push(match[1]);
     }
   }
 

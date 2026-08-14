@@ -236,8 +236,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     options.statusLine.classList.remove("dim");
     options.statusLine.textContent =
       `${m.projectName} › ${trail.map((id) => m.refs[id].name).join(" › ")}` +
-      ` · ${Math.round(m.subSize[last]).toLocaleString()} in subtree` +
-      ` · appears in ${Math.round(m.occ[last]).toLocaleString()} place${m.occ[last] === 1 ? "" : "s"}`;
+      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} (${Math.round(m.subSize[last]).toLocaleString()} path${Math.round(m.subSize[last]) === 1 ? "" : "s"}) in subtree` +
+      ` · reached via ${Math.round(m.occ[last]).toLocaleString()} path${m.occ[last] === 1 ? "" : "s"}`;
   }
 
   // ----- dossier --------------------------------------------------------
@@ -279,7 +279,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mode === "graph"
         ? "Select a node to inspect it."
         : mode === "flame"
-          ? "Click a bar. Width is the share of the whole dependency tree beneath it — the widest bars in the first row are the direct dependencies that cost you the most."
+          ? "Click a bar. Width is the share of the whole dependency tree beneath it — the widest bars in the first row are the direct dependencies that cost you the most. Counts are paths, flame-graph style: a package shared by several parents is counted once per route, so path counts run higher than unique package counts."
           : mode === "balloon"
             ? "Click a body. Each direct dependency is a system orbiting the project; its sub-dependencies fan out behind it."
             : "Click a blip. Drag toward the centre to grow that part of the tree — nothing ever leaves the disk.",
@@ -361,11 +361,15 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         facts.appendChild(chip);
       }
     }
-    fact("", "\u03a3", `${Math.round(m.subSize[index]).toLocaleString()} in subtree`);
+    fact(
+      "",
+      "\u03a3",
+      `${m.uniqueCount(index).toLocaleString()} package${m.uniqueCount(index) === 1 ? "" : "s"} in subtree (${Math.round(m.subSize[index]).toLocaleString()} path${Math.round(m.subSize[index]) === 1 ? "" : "s"})`,
+    );
     fact(
       "",
       "\u2295",
-      `appears in ${Math.round(m.occ[index]).toLocaleString()} place${m.occ[index] === 1 ? "" : "s"}`,
+      `reached via ${Math.round(m.occ[index]).toLocaleString()} path${m.occ[index] === 1 ? "" : "s"}`,
     );
     options.dossier.appendChild(facts);
 

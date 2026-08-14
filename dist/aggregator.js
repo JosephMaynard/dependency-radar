@@ -264,11 +264,31 @@ function isWorkspaceLocalVersion(version) {
     const normalized = version.trim().toLowerCase();
     return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
 }
-function isPathWithin(basePath, candidatePath) {
-    const normalizedBase = path_1.default.resolve(basePath);
-    const normalizedCandidate = path_1.default.resolve(candidatePath);
-    return (normalizedCandidate === normalizedBase ||
-        normalizedCandidate.startsWith(`${normalizedBase}${path_1.default.sep}`));
+/**
+ * True when the node's name matches a workspace package whose real version(s)
+ * are known and NONE of them equal the node's version — i.e. this node is a
+ * same-name EXTERNAL package that must keep aggregating. False when versions
+ * match, are unknown, or the name isn't a workspace package.
+ */
+function isVersionMismatchedNamesake(node, input) {
+    if (!node.version || !input.workspacePackageIds || input.workspacePackageIds.size === 0) {
+        return false;
+    }
+    let sawRealVersion = false;
+    for (const id of input.workspacePackageIds) {
+        const at = id.lastIndexOf('@');
+        if (at <= 0 || id.slice(0, at) !== node.name)
+            continue;
+        const workspaceVersion = id.slice(at + 1);
+        if (workspaceVersion === 'workspace') {
+            // Placeholder for a versionless workspace manifest — stay permissive.
+            return false;
+        }
+        sawRealVersion = true;
+        if (workspaceVersion === node.version)
+            return false;
+    }
+    return sawRealVersion;
 }
 function isWorkspacePackageNode(node, input) {
     var _a, _b, _c;
@@ -278,13 +298,21 @@ function isWorkspacePackageNode(node, input) {
         return true;
     if (isWorkspaceLocalVersion(node.version))
         return true;
+    // The version-mismatch veto must run before every name-keyed check below:
+    // localDependencyNames collapses per-(name,spec) decisions to bare names,
+    // so a workspace foo@1 with any local dependent would otherwise swallow an
+    // external foo@2 at every depth.
+    if (isVersionMismatchedNamesake(node, input))
+        return false;
     if ((_b = input.workspaceLocalDependencyNames) === null || _b === void 0 ? void 0 : _b.has(node.name))
         return true;
     if (node.path && input.workspacePackagePaths && input.workspacePackagePaths.size > 0) {
-        for (const workspacePath of input.workspacePackagePaths) {
-            if (isPathWithin(workspacePath, node.path))
-                return true;
-        }
+        // Exact package-directory equality only: the workspace ROOT is one of
+        // these paths, so descendant containment would classify every installed
+        // dependency under the repository (node_modules included) as a
+        // workspace package and empty the whole report.
+        if (input.workspacePackagePaths.has(path_1.default.resolve(node.path)))
+            return true;
     }
     if (((_c = input.workspacePackageNames) === null || _c === void 0 ? void 0 : _c.has(node.name)) && node.depth <= 1) {
         return true;
@@ -303,7 +331,8 @@ function isWorkspacePackageNode(node, input) {
  * @returns The assembled AggregatedData containing project metadata, environment info, per-dependency records, findings, and summary counts.
  */
 async function aggregateData(input) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _l;
     const pkg = input.pkgOverride || (await (0, utils_1.readPackageJson)(input.projectPath));
     let projectPkg = input.projectPackageJson;
     if (!projectPkg) {
@@ -339,6 +368,123 @@ async function aggregateData(input) {
     let directCount = 0;
     const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
     const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
+    // Import evidence resolves specifiers to a package NAME; when several
+    // versions of that name are installed, the importing file actually gets
+    // the nearest (hoisted) one. Deeper duplicates never win resolution, so a
+    // vulnerable nested copy must not inherit the evidence and trip
+    // directly-imported-vuln. When several versions tie at the shallowest
+    // depth (different workspaces declaring different majors), evidence is
+    // split per importing file by workspace ownership where possible.
+    // Candidate versions for import attribution come from the FULL node map:
+    // workspace-package nodes are excluded from the report, but they still
+    // compete for import evidence — otherwise an external namesake would be
+    // the only candidate and inherit imports that resolve to the local
+    // workspace package.
+    const nodesByName = new Map();
+    for (const node of nodeMap.values()) {
+        const list = nodesByName.get(node.name) || [];
+        list.push(node);
+        nodesByName.set(node.name, list);
+    }
+    const workspaceRelByPath = new Map();
+    if (input.workspacePackagePaths) {
+        for (const wsPath of input.workspacePackagePaths) {
+            workspaceRelByPath.set(wsPath, path_1.default.relative(input.projectPath, wsPath).split(path_1.default.sep).join('/'));
+        }
+    }
+    const fileOwnerWorkspace = (file) => {
+        let best;
+        let bestLen = -1;
+        for (const [wsPath, rel] of workspaceRelByPath) {
+            if (rel === '' || rel === '.') {
+                if (bestLen < 0) {
+                    best = wsPath;
+                    bestLen = 0;
+                }
+                continue;
+            }
+            if ((file === rel || file.startsWith(`${rel}/`)) && rel.length > bestLen) {
+                best = wsPath;
+                bestLen = rel.length;
+            }
+        }
+        return best;
+    };
+    const nodeWorkspaceOwners = (node) => {
+        var _a, _b, _c;
+        const owners = new Set();
+        if (node.path) {
+            const selfPath = path_1.default.resolve(node.path);
+            // A workspace package node owns the files under its own directory.
+            if ((_a = input.workspacePackagePaths) === null || _a === void 0 ? void 0 : _a.has(selfPath))
+                owners.add(selfPath);
+        }
+        for (const parentKey of node.parents) {
+            const parent = nodeMap.get(parentKey);
+            if (!(parent === null || parent === void 0 ? void 0 : parent.path))
+                continue;
+            const resolved = path_1.default.resolve(parent.path);
+            if ((_b = input.workspacePackagePaths) === null || _b === void 0 ? void 0 : _b.has(resolved))
+                owners.add(resolved);
+        }
+        if (node.importerChild && workspaceRelByPath.size > 0) {
+            const rootPath = path_1.default.resolve(input.projectPath);
+            if ((_c = input.workspacePackagePaths) === null || _c === void 0 ? void 0 : _c.has(rootPath))
+                owners.add(rootPath);
+        }
+        return owners;
+    };
+    // Per-name assignment of each importing file to the candidate version(s)
+    // that can actually resolve for it. Ownership comes FIRST: a file inside a
+    // workspace goes to the version reachable from that workspace, whatever
+    // its depth — synthetic workspace nodes all sit at depth 1, so comparing
+    // depth across workspace subtrees would suppress a workspace's own direct
+    // (possibly vulnerable) dependency in favour of an unrelated namesake.
+    // Depth is only the fallback for files no candidate owns (plain projects,
+    // root files): there, standard hoisting applies and the shallowest copy
+    // wins. Files with no decidable owner attribute permissively to every
+    // shallowest candidate — a false extra flag beats a silent miss.
+    const assignmentsByName = new Map();
+    const fileAssignments = (name) => {
+        const cached = assignmentsByName.get(name);
+        if (cached)
+            return cached;
+        const candidates = nodesByName.get(name) || [];
+        const entries = usageResult.entriesByName.get(name) || [];
+        const ownersByKey = new Map(candidates.map((candidate) => [candidate.key, nodeWorkspaceOwners(candidate)]));
+        const minDepth = Math.min(...candidates.map((candidate) => candidate.depth));
+        const shallowestKeys = candidates
+            .filter((candidate) => candidate.depth === minDepth)
+            .map((candidate) => candidate.key);
+        const map = new Map();
+        for (const entry of entries) {
+            const owner = fileOwnerWorkspace(entry.file);
+            let claimedKeys = [];
+            if (owner !== undefined) {
+                claimedKeys = candidates
+                    .filter((candidate) => { var _a; return (_a = ownersByKey.get(candidate.key)) === null || _a === void 0 ? void 0 : _a.has(owner); })
+                    .map((candidate) => candidate.key);
+            }
+            if (claimedKeys.length === 0)
+                claimedKeys = shallowestKeys;
+            map.set(entry.file, new Set(claimedKeys));
+        }
+        assignmentsByName.set(name, map);
+        return map;
+    };
+    const attributeImportEvidence = (node) => {
+        const siblings = nodesByName.get(node.name) || [];
+        if (siblings.length <= 1)
+            return { kind: 'all' };
+        const assignments = fileAssignments(node.name);
+        const allEntries = usageResult.entriesByName.get(node.name) || [];
+        const owned = allEntries.filter((entry) => { var _a; return (_a = assignments.get(entry.file)) === null || _a === void 0 ? void 0 : _a.has(node.key); });
+        if (owned.length === 0)
+            return { kind: 'none' };
+        if (owned.length === allEntries.length)
+            return { kind: 'all' };
+        return { kind: 'subset', entries: owned };
+    };
     for (const node of nodes) {
         const direct = node.isDirect;
         if (direct)
@@ -363,11 +509,36 @@ async function aggregateData(input) {
             nodeEngineRanges.push(packageInsights.nodeEngine);
         }
         const scope = determineScope(node.name, direct, rootCauses, pkg);
-        const importUsage = usageResult.summary.get(node.name);
-        const runtimeImpact = usageResult.runtimeImpact.get(node.name);
+        // importUsage and runtimeImpact both follow the per-version attribution:
+        // a version whose only imports are another version's files must not
+        // inherit that version's runtime classification either.
+        const attribution = attributeImportEvidence(node);
+        const nameUsage = usageResult.summary.get(node.name);
+        let importUsage;
+        let runtimeImpact;
+        if (attribution.kind === 'all') {
+            importUsage = nameUsage;
+            runtimeImpact = usageResult.runtimeImpact.get(node.name);
+        }
+        else if (attribution.kind === 'subset' && nameUsage) {
+            const ownedSet = new Set(attribution.entries.map((entry) => entry.file));
+            const rankedOwned = nameUsage.topFiles.filter((file) => ownedSet.has(file));
+            const rest = attribution.entries
+                .map((entry) => entry.file)
+                .filter((file) => !rankedOwned.includes(file));
+            importUsage = {
+                fileCount: attribution.entries.length,
+                topFiles: [...rankedOwned, ...rest].slice(0, 5),
+            };
+            runtimeImpact = determineRuntimeImpactFromFiles(attribution.entries);
+        }
         const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
         const parentIds = Array.from(node.parents).sort();
-        const origins = buildOrigins(rootCauses, parentIds, (_f = input.workspaceUsage) === null || _f === void 0 ? void 0 : _f.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES, MAX_TOP_PARENT_PACKAGES);
+        const origins = buildOrigins(rootCauses, parentIds, (_l = 
+        // Prefer the version-scoped usage entry so different installed
+        // versions keep their actual workspace origins; the bare name entry
+        // remains the fallback when the tree carried no resolved versions.
+        (_f = input.workspaceUsage) === null || _f === void 0 ? void 0 : _f.get(node.key)) !== null && _l !== void 0 ? _l : (_g = input.workspaceUsage) === null || _g === void 0 ? void 0 : _g.get(node.name), input.workspaceEnabled, MAX_TOP_ROOT_PACKAGES, MAX_TOP_PARENT_PACKAGES);
         const execution = packageInsights.execution;
         const packaging = packageInsights.packaging;
         const id = node.key;
@@ -397,9 +568,9 @@ async function aggregateData(input) {
                 deprecated: packageInsights.deprecated,
                 links: {
                     npm: `https://www.npmjs.com/package/${node.name}`,
-                    ...(((_g = packageInsights.links) === null || _g === void 0 ? void 0 : _g.repository) ? { repository: packageInsights.links.repository } : {}),
-                    ...(((_h = packageInsights.links) === null || _h === void 0 ? void 0 : _h.homepage) ? { homepage: packageInsights.links.homepage } : {}),
-                    ...(((_j = packageInsights.links) === null || _j === void 0 ? void 0 : _j.bugs) ? { bugs: packageInsights.links.bugs } : {})
+                    ...(((_h = packageInsights.links) === null || _h === void 0 ? void 0 : _h.repository) ? { repository: packageInsights.links.repository } : {}),
+                    ...(((_j = packageInsights.links) === null || _j === void 0 ? void 0 : _j.homepage) ? { homepage: packageInsights.links.homepage } : {}),
+                    ...(((_k = packageInsights.links) === null || _k === void 0 ? void 0 : _k.bugs) ? { bugs: packageInsights.links.bugs } : {})
                 }
             },
             compliance: {
@@ -1017,6 +1188,7 @@ function buildUsageSummary(graph, projectPath) {
     var _a;
     const summary = new Map();
     const runtimeImpact = new Map();
+    const entriesByName = new Map();
     const byDep = new Map();
     const packages = graph.packages || {};
     for (const [file, deps] of Object.entries(packages)) {
@@ -1058,9 +1230,10 @@ function buildUsageSummary(graph, projectPath) {
             fileCount: fileMap.size,
             topFiles: entries.slice(0, 5).map((entry) => entry.file)
         });
+        entriesByName.set(dep, entries.map((entry) => ({ file: entry.file, count: entry.count })));
         runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
     }
-    return { summary, runtimeImpact };
+    return { summary, runtimeImpact, entriesByName };
 }
 function isDirectDependency(name, pkg) {
     return Boolean((pkg.dependencies && pkg.dependencies[name]) ||
@@ -1091,10 +1264,12 @@ function determineScope(name, direct, rootCauses, pkg) {
     }
     if (scopes.has('runtime'))
         return 'runtime';
-    if (scopes.has('dev'))
-        return 'dev';
+    // Optional outranks dev: optional deps install and execute in production,
+    // so a package reachable via both paths must keep its production scope.
     if (scopes.has('optional'))
         return 'optional';
+    if (scopes.has('dev'))
+        return 'dev';
     if (scopes.has('peer'))
         return 'peer';
     return 'runtime';

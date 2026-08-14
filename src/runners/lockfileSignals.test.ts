@@ -201,3 +201,52 @@ describe('lockfile supply-chain signals', () => {
     expect(result.data?.signatureAudit?.ok).toBe(true);
   });
 });
+
+describe('lockfile supply-chain signals — v1.1.1 fixes', () => {
+  it('treats registry.yarnpkg.com as an expected registry host', async () => {
+    const projectPath = await makeTempDir('dr-yarnpkg-host');
+    const tempDir = await makeTempDir('dr-yarnpkg-host-out');
+    await fs.writeFile(path.join(projectPath, 'yarn.lock'), [
+      '# yarn lockfile v1',
+      '',
+      'dayjs@^1.11.0:',
+      '  version "1.11.19"',
+      '  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.11.19.tgz#abc"',
+      '  integrity sha512-x'
+    ].join('\n'), 'utf8');
+
+    const result = await runLockfileSupplyChainSignals(projectPath, tempDir, { persistToDisk: false });
+    expect(result.ok).toBe(true);
+    expect(result.data?.lockfilesFound).toBe(1);
+    expect(result.data?.signals.filter((s) => s.type === 'unexpected-registry-host')).toEqual([]);
+  });
+
+  it('reports zero lockfiles found when the project has none', async () => {
+    const projectPath = await makeTempDir('dr-no-lockfile');
+    const tempDir = await makeTempDir('dr-no-lockfile-out');
+    const result = await runLockfileSupplyChainSignals(projectPath, tempDir, { persistToDisk: false });
+    expect(result.ok).toBe(true);
+    expect(result.data?.lockfilesFound).toBe(0);
+    expect(result.data?.signals).toEqual([]);
+  });
+
+  it('reads the workspace root lockfile for a workspace child scan', async () => {
+    const root = await makeTempDir('dr-ws-lockfile');
+    const child = path.join(root, 'packages', 'child');
+    await fs.mkdir(child, { recursive: true });
+    await fs.writeFile(path.join(root, 'package.json'), JSON.stringify({ name: 'root', workspaces: ['packages/*'] }), 'utf8');
+    await fs.writeFile(path.join(root, 'package-lock.json'), JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        '': { name: 'root' },
+        'node_modules/evil': { version: '1.0.0', resolved: 'https://evil.example.com/evil-1.0.0.tgz', integrity: 'sha512-x' }
+      }
+    }), 'utf8');
+    const tempDir = await makeTempDir('dr-ws-lockfile-out');
+
+    const result = await runLockfileSupplyChainSignals(child, tempDir, { persistToDisk: false });
+    expect(result.ok).toBe(true);
+    expect(result.data?.lockfilesFound).toBe(1);
+    expect(result.data?.signals.some((s) => s.type === 'unexpected-registry-host' || s.type === 'non-registry-tarball')).toBe(true);
+  });
+});

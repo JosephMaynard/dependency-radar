@@ -31,29 +31,60 @@ export function mountBalloonView(
     Math.min(70, 2.2 + Math.pow(model.subSize[id], 0.34) * 1.1);
 
   // Enclosing radius of a subtree's balloon in local units, memoised.
+  // Iterative with an explicit stack: dependency chains can be thousands of
+  // packages deep, which overflows the call stack when done recursively.
   const encMemo = new Float64Array(model.count).fill(-1);
-  const encLocal = (id: number, path: Set<number>): number => {
-    if (encMemo[id] >= 0) return encMemo[id];
-    const r = nodeRadius(id);
-    const kids = model.kidsOf[id];
-    if (!kids.length || path.has(id)) {
-      if (!path.has(id)) encMemo[id] = r;
-      return r;
+  interface EncFrame {
+    id: number;
+    next: number;
+    arc: number;
+    maxKid: number;
+  }
+  const encLocal = (start: number): void => {
+    if (encMemo[start] >= 0) return;
+    if (model.kidsOf[start].length === 0) {
+      // Leaf: the recursive version returned the bare node radius.
+      encMemo[start] = nodeRadius(start);
+      return;
     }
-    path.add(id);
-    let arc = 0;
-    let maxKid = 0;
-    for (const kid of kids) {
-      const e = SHRINK * encLocal(kid, path);
-      arc += 2 * e * 1.12;
-      maxKid = Math.max(maxKid, e);
+    const onPath = new Set<number>([start]);
+    const stack: EncFrame[] = [{ id: start, next: 0, arc: 0, maxKid: 0 }];
+    const contribute = (parent: EncFrame | undefined, value: number): void => {
+      if (!parent) return;
+      const e = SHRINK * value;
+      parent.arc += 2 * e * 1.12;
+      parent.maxKid = Math.max(parent.maxKid, e);
+    };
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const kids = model.kidsOf[frame.id];
+      if (frame.next < kids.length) {
+        const kid = kids[frame.next];
+        frame.next += 1;
+        if (encMemo[kid] >= 0) {
+          contribute(frame, encMemo[kid]);
+        } else if (onPath.has(kid)) {
+          // Cycle: the recursive version used the bare node radius without
+          // memoising it — mirror that exactly.
+          contribute(frame, nodeRadius(kid));
+        } else if (model.kidsOf[kid].length === 0) {
+          encMemo[kid] = nodeRadius(kid);
+          contribute(frame, encMemo[kid]);
+        } else {
+          onPath.add(kid);
+          stack.push({ id: kid, next: 0, arc: 0, maxKid: 0 });
+        }
+        continue;
+      }
+      onPath.delete(frame.id);
+      const r = nodeRadius(frame.id);
+      const dist = Math.max(r + frame.maxKid + 6, frame.arc / FAN);
+      encMemo[frame.id] = dist + frame.maxKid;
+      stack.pop();
+      contribute(stack[stack.length - 1], encMemo[frame.id]);
     }
-    path.delete(id);
-    const dist = Math.max(r + maxKid + 6, arc / FAN);
-    encMemo[id] = dist + maxKid;
-    return encMemo[id];
   };
-  for (const r of model.rootsSorted) encLocal(r, new Set());
+  for (const r of model.rootsSorted) encLocal(r);
 
   // Flat placement arrays; `unit` is the world scale of the subtree's level.
   const px: number[] = [];
@@ -314,7 +345,16 @@ export function mountBalloonView(
         ctx.fillText(model.projectName, x, y - r * 0.1);
         ctx.font = `${Math.min(11, r * 0.16)}px ${mono}`;
         ctx.fillStyle = theme.muted;
-        ctx.fillText(`${Math.round(model.totalSize).toLocaleString()} blocks`, x, y + r * 0.2);
+        ctx.fillText(
+          `${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
+          x,
+          y + r * 0.2,
+        );
+        ctx.fillText(
+          `(${Math.round(model.totalSize).toLocaleString()} path${Math.round(model.totalSize) === 1 ? "" : "s"})`,
+          x,
+          y + r * 0.38,
+        );
         ctx.textAlign = "left";
       }
     }

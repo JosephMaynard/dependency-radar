@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { parseJsonOutput, readLicenseFromPackageDir, resolvePackageJsonPath, writeJsonFile } from './utils';
+import { findLockDir, parseJsonOutput, readLicenseFromPackageDir, resolvePackageJsonPath, writeJsonFile } from './utils';
 
 const tempDirs: string[] = [];
 
@@ -96,5 +96,61 @@ describe('writeJsonFile', () => {
     await writeJsonFile(filePath, { hello: 'world' });
     const content = await fs.readFile(filePath, 'utf8');
     expect(content).toBe('{"hello":"world"}');
+  });
+});
+
+describe('findLockDir', () => {
+  it('returns the project directory when it holds a lockfile', async () => {
+    const dir = await makeTempDir('dr-lockdir-self');
+    await fs.writeFile(path.join(dir, 'package-lock.json'), '{}', 'utf8');
+    expect(await findLockDir(dir, ['package-lock.json'])).toBe(dir);
+  });
+
+  it('accepts an ancestor lockfile when the ancestor is a workspace root', async () => {
+    const root = await makeTempDir('dr-lockdir-ws');
+    const child = path.join(root, 'packages', 'child');
+    await fs.mkdir(child, { recursive: true });
+    await fs.writeFile(path.join(root, 'package-lock.json'), '{}', 'utf8');
+    await fs.writeFile(
+      path.join(root, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+      'utf8',
+    );
+    expect(await findLockDir(child, ['package-lock.json'])).toBe(root);
+  });
+
+  it('accepts an ancestor lockfile when the ancestor is a pnpm workspace root', async () => {
+    const root = await makeTempDir('dr-lockdir-pnpm');
+    const child = path.join(root, 'packages', 'child');
+    await fs.mkdir(child, { recursive: true });
+    await fs.writeFile(path.join(root, 'pnpm-lock.yaml'), '', 'utf8');
+    await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n", 'utf8');
+    expect(await findLockDir(child, ['pnpm-lock.yaml'])).toBe(root);
+  });
+
+  it('rejects an unrelated ancestor lockfile from a non-workspace project', async () => {
+    const outer = await makeTempDir('dr-lockdir-unrelated');
+    const nested = path.join(outer, 'examples', 'standalone');
+    await fs.mkdir(nested, { recursive: true });
+    await fs.writeFile(path.join(outer, 'package-lock.json'), '{}', 'utf8');
+    await fs.writeFile(
+      path.join(outer, 'package.json'),
+      JSON.stringify({ name: 'unrelated-standalone' }),
+      'utf8',
+    );
+    expect(await findLockDir(nested, ['package-lock.json'])).toBeUndefined();
+  });
+
+  it('rejects an ancestor whose workspace patterns do not cover the scanned path', async () => {
+    const root = await makeTempDir('dr-lockdir-nonmember');
+    const nested = path.join(root, 'examples', 'standalone');
+    await fs.mkdir(nested, { recursive: true });
+    await fs.writeFile(path.join(root, 'package-lock.json'), '{}', 'utf8');
+    await fs.writeFile(
+      path.join(root, 'package.json'),
+      JSON.stringify({ name: 'root', workspaces: ['packages/*'] }),
+      'utf8',
+    );
+    expect(await findLockDir(nested, ['package-lock.json'])).toBeUndefined();
   });
 });

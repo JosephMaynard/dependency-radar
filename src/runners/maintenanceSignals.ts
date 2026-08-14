@@ -1,4 +1,6 @@
+import fs from 'fs/promises';
 import https from 'https';
+import path from 'path';
 import {
   AggregatedData,
   DependencyMaintenanceInfo,
@@ -109,8 +111,8 @@ function encodePackageName(name: string): string {
 /**
  * Resolve the default registry base URL via `npm config get registry` so
  * project/user .npmrc overrides are respected. Falls back to the public
- * registry on any failure. Per-scope registries are intentionally not
- * resolved and no auth is ever attached.
+ * registry on any failure. Per-scope registries are resolved separately (see
+ * resolveScopeRegistries); no auth is ever attached.
  */
 export async function resolveRegistryBaseUrl(projectPath?: string, timeoutMs = 10_000): Promise<string> {
   if (timeoutMs <= 0) return DEFAULT_REGISTRY_URL;
@@ -130,6 +132,82 @@ export async function resolveRegistryBaseUrl(projectPath?: string, timeoutMs = 1
     // fall through to the default
   }
   return DEFAULT_REGISTRY_URL;
+}
+
+/**
+ * Resolve per-scope registry overrides (`@scope:registry` in .npmrc) with a
+ * single `npm config list --json` call, so scoped packages are looked up
+ * against the registry that actually hosts them instead of the default one
+ * (which would return wrong metadata and leak private package names). Only
+ * registry mappings are read — auth material is never extracted or attached.
+ * Returns an empty map on any failure.
+ */
+function normalizeRegistryUrl(raw: string): string | undefined {
+  if (!/^https?:\/\//i.test(raw)) return undefined;
+  try {
+    const url = new URL(raw);
+    url.username = '';
+    url.password = '';
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    return undefined;
+  }
+}
+
+async function readScopeRegistriesFromNpmrc(
+  scopes: Set<string>,
+  projectPath: string | undefined,
+  out: Map<string, string>
+): Promise<void> {
+  if (!projectPath) return;
+  try {
+    const raw = await fs.readFile(path.join(projectPath, '.npmrc'), 'utf8');
+    for (const line of raw.split(/\r?\n/)) {
+      const match = line.trim().match(/^(@[^:=\s]+):registry\s*=\s*(\S+)/);
+      if (!match || !scopes.has(match[1]) || out.has(match[1])) continue;
+      const url = normalizeRegistryUrl(match[2]);
+      if (url) out.set(match[1], url);
+    }
+  } catch {
+    // No project .npmrc — nothing to add.
+  }
+}
+
+async function resolveScopeRegistries(
+  scopes: Set<string>,
+  projectPath?: string,
+  timeoutMs = 10_000
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (scopes.size === 0 || timeoutMs <= 0) return out;
+  try {
+    const result = await runCommand('npm', ['config', 'list', '--json'], {
+      cwd: projectPath,
+      timeoutMs
+    });
+    const parsed = JSON.parse(result.stdout || '{}') as Record<string, unknown>;
+    for (const scope of scopes) {
+      const raw = parsed[`${scope}:registry`];
+      if (typeof raw === 'string') {
+        const url = normalizeRegistryUrl(raw);
+        if (url) out.set(scope, url);
+      }
+    }
+  } catch {
+    // npm unavailable or non-JSON output — fall back to the .npmrc pass.
+  }
+  // npm omits values it considers protected (e.g. registry URLs embedding
+  // credentials) from `config list --json`; the project .npmrc keeps scoped
+  // lookups off the default registry in that case. Only the registry mapping
+  // is read — never auth material.
+  await readScopeRegistriesFromNpmrc(scopes, projectPath, out);
+  return out;
+}
+
+function packageScope(name: string): string | undefined {
+  if (!name.startsWith('@')) return undefined;
+  const slash = name.indexOf('/');
+  return slash > 0 ? name.slice(0, slash) : undefined;
 }
 
 function remainingBudgetMs(deadline: number): number {
@@ -435,18 +513,58 @@ export async function enrichAggregatedWithMaintenanceSignals(
   const agent = new https.Agent({ keepAlive: true, maxSockets: PACKUMENT_CONCURRENCY });
   try {
     let fetcher = options.fetcher;
+    // An explicit registry override is normalized once (credentials
+    // stripped) and the sanitized value is the only form used for requests
+    // and cache keys — the no-auth guarantee must hold for overrides too.
+    const explicitRegistry = options.registryUrl
+      ? normalizeRegistryUrl(options.registryUrl)
+      : undefined;
+    const invalidExplicitRegistry = Boolean(options.registryUrl) && !explicitRegistry;
+    let registryForName: (name: string) => string = () =>
+      explicitRegistry || DEFAULT_REGISTRY_URL;
+    if (invalidExplicitRegistry) {
+      // A malformed override must not silently fall back to another
+      // registry — and that holds even when a fetcher was supplied: the
+      // supplied fetcher is never invoked, and the sentinel registry keeps
+      // cache keys from ever matching (or writing) another registry's
+      // entries.
+      fetcher = () =>
+        Promise.resolve({ ok: false, error: 'invalid registryUrl override' });
+      registryForName = () => 'invalid:registry-url-override';
+    }
     if (!fetcher) {
-      const registry =
-        options.registryUrl ||
+      const defaultRegistry =
+        explicitRegistry ||
         (await resolveRegistryBaseUrl(options.projectPath, timeoutWithinBudget(deadline, 10_000)));
-      // The keep-alive agent is https-only; an http registry (e.g. a private
-      // mirror) must not receive it or Node rejects the request outright.
-      const registryAgent = registry.toLowerCase().startsWith('https:') ? agent : undefined;
+      const scopes = new Set<string>();
+      for (const name of targetNames) {
+        const scope = packageScope(name);
+        if (scope) scopes.add(scope);
+      }
+      // An explicit registryUrl is a caller decision (tests, mirrors): honor
+      // it for every lookup rather than second-guessing via npm config. The
+      // spawn is also capped so config resolution can never eat more than a
+      // slice of the maintenance budget.
+      const scopeRegistries = explicitRegistry
+        ? new Map<string, string>()
+        : await resolveScopeRegistries(
+            scopes,
+            options.projectPath,
+            Math.min(4_000, Math.floor((options.budgetMs ?? DEFAULT_MAINTENANCE_BUDGET_MS) / 4), remainingBudgetMs(deadline))
+          );
+      registryForName = (name: string) => {
+        const scope = packageScope(name);
+        return (scope && scopeRegistries.get(scope)) || defaultRegistry;
+      };
       fetcher = (name: string) => {
         const timeoutMs = timeoutWithinBudget(deadline, PACKUMENT_TIMEOUT_MS);
         if (timeoutMs <= 0) {
           return Promise.resolve({ ok: false, error: 'maintenance time budget exhausted' });
         }
+        const registry = registryForName(name);
+        // The keep-alive agent is https-only; an http registry (e.g. a private
+        // mirror) must not receive it or Node rejects the request outright.
+        const registryAgent = registry.toLowerCase().startsWith('https:') ? agent : undefined;
         return httpGetJson(`${registry}/${encodePackageName(name)}`, {
           headers: { Accept: 'application/vnd.npm.install-v1+json' },
           timeoutMs,
@@ -456,6 +574,14 @@ export async function enrichAggregatedWithMaintenanceSignals(
       };
     }
 
+    // Cache entries from non-default registries carry the registry in their
+    // key so metadata never crosses registry boundaries; the bare-name form
+    // stays reserved for the public default registry.
+    const cacheKeyFor = (name: string): string => {
+      const registry = registryForName(name);
+      return registry === DEFAULT_REGISTRY_URL ? name : `${registry}|${name}`;
+    };
+
     const lookupByName = new Map<string, NameLookup>();
 
     const lookups = await mapWithConcurrency(
@@ -463,7 +589,7 @@ export async function enrichAggregatedWithMaintenanceSignals(
       PACKUMENT_CONCURRENCY,
       deadline,
       async (name): Promise<NameLookup & { name: string }> => {
-        const cached = cache.getFresh(name, now);
+        const cached = cache.getFresh(cacheKeyFor(name), now);
         if (cached) {
           return { name, entry: cached, fromCache: true };
         }
@@ -475,7 +601,7 @@ export async function enrichAggregatedWithMaintenanceSignals(
         if (!entry) {
           return { name, error: 'unrecognized registry response' };
         }
-        cache.set(name, entry);
+        cache.set(cacheKeyFor(name), entry);
         return { name, entry, fromCache: false };
       },
       (name) => ({ name, error: 'maintenance time budget exhausted' })
@@ -529,7 +655,7 @@ export async function enrichAggregatedWithMaintenanceSignals(
           typeof rawPushedAt === 'string' && !Number.isNaN(Date.parse(rawPushedAt))
             ? rawPushedAt
             : undefined;
-        cache.setRepoCheck(candidate.name, archived, now, pushedAt);
+        cache.setRepoCheck(cacheKeyFor(candidate.name), archived, now, pushedAt);
         const lookup = lookupByName.get(candidate.name);
         if (lookup?.entry) {
           lookup.entry.repo = { checkedAt: now.toISOString(), archived, ...(pushedAt ? { pushedAt } : {}) };

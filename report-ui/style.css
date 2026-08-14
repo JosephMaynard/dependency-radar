@@ -91,7 +91,6 @@ html {
     animation-duration: 0s !important;
     animation-iteration-count: 1 !important;
     transition: none !important;
-    transform: none !important;
   }
 }
 
@@ -2027,6 +2026,11 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 
 .report-footer p {
   margin: 8px 0 0;
+}
+
+.report-footer-vintage {
+  color: var(--text-muted);
+  font-size: 11.5px;
 }
 
 .report-footer.hidden {

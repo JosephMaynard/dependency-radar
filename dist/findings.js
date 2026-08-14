@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildDependencyFindings = buildDependencyFindings;
+const types_1 = require("./types");
 const nodeEngine_1 = require("./nodeEngine");
 const supplyChainCombos_1 = require("./supplyChainCombos");
 function vulnerabilityTotal(dep) {
@@ -99,19 +100,19 @@ function buildDependencyFindings(data, options = {}) {
         else if (dep.compliance.license.status === 'invalid-spdx' || dep.compliance.license.status === 'unknown') {
             findings.push(baseFinding(dep, `license-${dep.compliance.license.status}`, {
                 category: 'license',
-                severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+                severity: (0, types_1.isProductionScope)(dep.usage.scope) ? 'warning' : 'info',
                 title: dep.compliance.license.status === 'unknown' ? 'License is unknown' : 'License declaration is invalid SPDX',
                 message: `${dep.package.id} needs license review.`,
                 evidence: (_e = dep.compliance.license.declared) === null || _e === void 0 ? void 0 : _e.spdxId,
                 recommendation: 'Check package metadata and LICENSE files.'
             }));
         }
-        if (dep.compliance.licenseRisk === 'red' && dep.usage.scope === 'runtime') {
+        if (dep.compliance.licenseRisk === 'red' && (0, types_1.isProductionScope)(dep.usage.scope)) {
             findings.push(baseFinding(dep, 'runtime-license-risk', {
                 category: 'license',
                 severity: 'error',
-                title: 'High-risk runtime license',
-                message: `${dep.package.id} is in the runtime tree and has red license risk.`,
+                title: 'High-risk production license',
+                message: `${dep.package.id} is in the production tree and has red license risk.`,
                 recommendation: 'Review legal/compliance acceptability or replace the package.'
             }));
         }
@@ -149,7 +150,7 @@ function buildDependencyFindings(data, options = {}) {
             const registryDeprecation = (_l = dep.maintenance) === null || _l === void 0 ? void 0 : _l.deprecated;
             findings.push(baseFinding(dep, 'deprecated', {
                 category: 'supply-chain',
-                severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+                severity: (0, types_1.isProductionScope)(dep.usage.scope) ? 'warning' : 'info',
                 title: 'Package is deprecated',
                 message: registryDeprecation
                     ? registryDeprecation.installedVersion
@@ -163,7 +164,7 @@ function buildDependencyFindings(data, options = {}) {
         if (((_m = dep.maintenance) === null || _m === void 0 ? void 0 : _m.status) === 'archived') {
             findings.push(baseFinding(dep, 'maintenance-archived', {
                 category: 'supply-chain',
-                severity: dep.usage.scope === 'runtime' ? 'warning' : 'info',
+                severity: (0, types_1.isProductionScope)(dep.usage.scope) ? 'warning' : 'info',
                 title: 'Source repository is archived',
                 message: `${dep.package.id} points at an archived source repository, so fixes and security patches are unlikely.`,
                 evidence: dep.maintenance.repoCheckedAt ? `repoCheckedAt=${dep.maintenance.repoCheckedAt}` : undefined,
@@ -235,7 +236,7 @@ function buildDependencyFindings(data, options = {}) {
         if (targetSupport === false && options.targetNodeMajor) {
             findings.push(baseFinding(dep, `target-node-${options.targetNodeMajor}`, {
                 category: 'upgrade',
-                severity: dep.usage.scope === 'runtime' ? 'error' : 'warning',
+                severity: (0, types_1.isProductionScope)(dep.usage.scope) ? 'error' : 'warning',
                 title: `May block Node ${options.targetNodeMajor}`,
                 message: `${dep.package.id} declares engines.node "${dep.upgrade.nodeEngine}", which does not appear to include Node ${options.targetNodeMajor}.`,
                 recommendation: 'Upgrade, replace, or verify engine compatibility manually.'

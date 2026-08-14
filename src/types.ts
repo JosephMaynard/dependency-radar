@@ -125,6 +125,17 @@ export interface DependencyReplacementInfo {
 
 export type UpgradeRisk = 'high' | 'medium' | 'low' | 'unknown';
 
+export type DependencyScope = 'runtime' | 'dev' | 'optional' | 'peer';
+
+/**
+ * Scopes that install and execute in production. Optional dependencies are
+ * skipped only when they fail to build — when present they run exactly like
+ * runtime dependencies, so production policies must include them.
+ */
+export function isProductionScope(scope: DependencyScope): boolean {
+  return scope === 'runtime' || scope === 'optional';
+}
+
 export type MaintenanceStatus =
   | 'deprecated'
   | 'archived'
@@ -237,7 +248,7 @@ export interface DependencyRecord {
   // Usage answers why this dependency exists and where it shows up in the project.
   usage: {
     direct: boolean;
-    scope: 'runtime' | 'dev' | 'optional' | 'peer';
+    scope: DependencyScope;
     depth: number;
     origins: DependencyOrigins;
     introduction?: 'direct' | 'tooling' | 'framework' | 'testing' | 'transitive' | 'unknown';

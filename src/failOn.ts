@@ -1,6 +1,7 @@
 import { validateSpdxExpression } from './license';
 import { detectSupplyChainCombos, indexSupplyChainSignalTypes, signalTypesForDependency } from './supplyChainCombos';
 import type { AggregatedData, DependencyRecord, ExecutionSignal, PackagingSignal, RegistryRiskSignal, SupplyChainSignal } from './types';
+import { isProductionScope } from './types';
 
 export type FailOnRule =
   | 'directly-imported-vuln'
@@ -426,16 +427,16 @@ export function evaluatePolicyViolations(
   let unmaintainedDependencyCount = 0;
 
   for (const dep of Object.values(aggregated.dependencies || {})) {
-    const isRuntime = dep.usage.scope === 'runtime';
+    const isProduction = isProductionScope(dep.usage.scope);
     const hasVuln = vulnerabilityCount(dep) > 0;
     const isDirectlyImported = (dep.usage.importUsage?.fileCount || 0) > 0;
     const hasHighSeverityVuln =
       (dep.security.summary.high || 0) + (dep.security.summary.critical || 0) > 0;
 
-    if (isRuntime && hasVuln && isDirectlyImported) {
+    if (isProduction && hasVuln && isDirectlyImported) {
       directlyImportedProductionVulnCount += 1;
     }
-    if (isRuntime && hasVuln) {
+    if (isProduction && hasVuln) {
       productionVulnCount += 1;
     }
     if (hasHighSeverityVuln) {
@@ -444,7 +445,7 @@ export function evaluatePolicyViolations(
     if (dep.compliance.license.status === 'mismatch') {
       licenceMismatchCount += 1;
     }
-    if (isRuntime && hasStrongCopyleftLicense(dep)) {
+    if (isProduction && hasStrongCopyleftLicense(dep)) {
       copyleftDetectedCount += 1;
     }
     if (!dep.compliance.license.declared && !dep.compliance.license.inferred) {
@@ -477,10 +478,10 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: directlyImportedRule,
       count: directlyImportedProductionVulnCount,
-      message: `${directlyImportedProductionVulnCount} directly imported production ${pluralize(
+      message: `${directlyImportedProductionVulnCount} directly imported vulnerable production ${pluralize(
         directlyImportedProductionVulnCount,
-        'vulnerability',
-        'vulnerabilities'
+        'package',
+        'packages'
       )}`
     });
   }
@@ -488,10 +489,10 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: 'production-vuln',
       count: productionVulnCount,
-      message: `${productionVulnCount} production ${pluralize(
+      message: `${productionVulnCount} vulnerable production ${pluralize(
         productionVulnCount,
-        'vulnerability',
-        'vulnerabilities'
+        'package',
+        'packages'
       )}`
     });
   }
@@ -499,11 +500,11 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: 'high-severity-vuln',
       count: highSeverityVulnCount,
-      message: `${highSeverityVulnCount} high-severity ${pluralize(
+      message: `${highSeverityVulnCount} ${pluralize(
         highSeverityVulnCount,
-        'vulnerability',
-        'vulnerabilities'
-      )}`
+        'package',
+        'packages'
+      )} with high-severity vulnerabilities`
     });
   }
   if (rules.has('licence-mismatch') && licenceMismatchCount > 0) {
@@ -521,7 +522,7 @@ export function evaluatePolicyViolations(
     violations.push({
       rule: 'copyleft-detected',
       count: copyleftDetectedCount,
-      message: `Copyleft licence detected in runtime tree (${copyleftDetectedCount} ${pluralize(
+      message: `Copyleft licence detected in production tree (${copyleftDetectedCount} ${pluralize(
         copyleftDetectedCount,
         'package',
         'packages'

@@ -384,25 +384,48 @@ function isWorkspaceLocalVersion(version: string): boolean {
   return normalized.startsWith('workspace:') || normalized.startsWith('link:') || normalized.startsWith('file:');
 }
 
-function isPathWithin(basePath: string, candidatePath: string): boolean {
-  const normalizedBase = path.resolve(basePath);
-  const normalizedCandidate = path.resolve(candidatePath);
-  return (
-    normalizedCandidate === normalizedBase ||
-    normalizedCandidate.startsWith(`${normalizedBase}${path.sep}`)
-  );
+/**
+ * True when the node's name matches a workspace package whose real version(s)
+ * are known and NONE of them equal the node's version — i.e. this node is a
+ * same-name EXTERNAL package that must keep aggregating. False when versions
+ * match, are unknown, or the name isn't a workspace package.
+ */
+function isVersionMismatchedNamesake(node: NodeInfo, input: AggregateInput): boolean {
+  if (!node.version || !input.workspacePackageIds || input.workspacePackageIds.size === 0) {
+    return false;
+  }
+  let sawRealVersion = false;
+  for (const id of input.workspacePackageIds) {
+    const at = id.lastIndexOf('@');
+    if (at <= 0 || id.slice(0, at) !== node.name) continue;
+    const workspaceVersion = id.slice(at + 1);
+    if (workspaceVersion === 'workspace') {
+      // Placeholder for a versionless workspace manifest — stay permissive.
+      return false;
+    }
+    sawRealVersion = true;
+    if (workspaceVersion === node.version) return false;
+  }
+  return sawRealVersion;
 }
 
 function isWorkspacePackageNode(node: NodeInfo, input: AggregateInput): boolean {
   if (!input.workspaceEnabled) return false;
   if (input.workspacePackageIds?.has(node.key)) return true;
   if (isWorkspaceLocalVersion(node.version)) return true;
+  // The version-mismatch veto must run before every name-keyed check below:
+  // localDependencyNames collapses per-(name,spec) decisions to bare names,
+  // so a workspace foo@1 with any local dependent would otherwise swallow an
+  // external foo@2 at every depth.
+  if (isVersionMismatchedNamesake(node, input)) return false;
   if (input.workspaceLocalDependencyNames?.has(node.name)) return true;
 
   if (node.path && input.workspacePackagePaths && input.workspacePackagePaths.size > 0) {
-    for (const workspacePath of input.workspacePackagePaths) {
-      if (isPathWithin(workspacePath, node.path)) return true;
-    }
+    // Exact package-directory equality only: the workspace ROOT is one of
+    // these paths, so descendant containment would classify every installed
+    // dependency under the repository (node_modules included) as a
+    // workspace package and empty the whole report.
+    if (input.workspacePackagePaths.has(path.resolve(node.path))) return true;
   }
 
   if (input.workspacePackageNames?.has(node.name) && node.depth <= 1) {
@@ -469,6 +492,131 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
   const MAX_TOP_ROOT_PACKAGES = 10; // cap to keep payload size predictable
   const MAX_TOP_PARENT_PACKAGES = 5; // cap for direct parents to keep payload size predictable
 
+  // Import evidence resolves specifiers to a package NAME; when several
+  // versions of that name are installed, the importing file actually gets
+  // the nearest (hoisted) one. Deeper duplicates never win resolution, so a
+  // vulnerable nested copy must not inherit the evidence and trip
+  // directly-imported-vuln. When several versions tie at the shallowest
+  // depth (different workspaces declaring different majors), evidence is
+  // split per importing file by workspace ownership where possible.
+  // Candidate versions for import attribution come from the FULL node map:
+  // workspace-package nodes are excluded from the report, but they still
+  // compete for import evidence — otherwise an external namesake would be
+  // the only candidate and inherit imports that resolve to the local
+  // workspace package.
+  const nodesByName = new Map<string, NodeInfo[]>();
+  for (const node of nodeMap.values()) {
+    const list = nodesByName.get(node.name) || [];
+    list.push(node);
+    nodesByName.set(node.name, list);
+  }
+
+  const workspaceRelByPath = new Map<string, string>();
+  if (input.workspacePackagePaths) {
+    for (const wsPath of input.workspacePackagePaths) {
+      workspaceRelByPath.set(
+        wsPath,
+        path.relative(input.projectPath, wsPath).split(path.sep).join('/'),
+      );
+    }
+  }
+
+  const fileOwnerWorkspace = (file: string): string | undefined => {
+    let best: string | undefined;
+    let bestLen = -1;
+    for (const [wsPath, rel] of workspaceRelByPath) {
+      if (rel === '' || rel === '.') {
+        if (bestLen < 0) {
+          best = wsPath;
+          bestLen = 0;
+        }
+        continue;
+      }
+      if ((file === rel || file.startsWith(`${rel}/`)) && rel.length > bestLen) {
+        best = wsPath;
+        bestLen = rel.length;
+      }
+    }
+    return best;
+  };
+
+  const nodeWorkspaceOwners = (node: NodeInfo): Set<string> => {
+    const owners = new Set<string>();
+    if (node.path) {
+      const selfPath = path.resolve(node.path);
+      // A workspace package node owns the files under its own directory.
+      if (input.workspacePackagePaths?.has(selfPath)) owners.add(selfPath);
+    }
+    for (const parentKey of node.parents) {
+      const parent = nodeMap.get(parentKey);
+      if (!parent?.path) continue;
+      const resolved = path.resolve(parent.path);
+      if (input.workspacePackagePaths?.has(resolved)) owners.add(resolved);
+    }
+    if (node.importerChild && workspaceRelByPath.size > 0) {
+      const rootPath = path.resolve(input.projectPath);
+      if (input.workspacePackagePaths?.has(rootPath)) owners.add(rootPath);
+    }
+    return owners;
+  };
+
+  type ImportAttribution =
+    | { kind: 'all' }
+    | { kind: 'none' }
+    | { kind: 'subset'; entries: Array<{ file: string; count: number }> };
+
+  // Per-name assignment of each importing file to the candidate version(s)
+  // that can actually resolve for it. Ownership comes FIRST: a file inside a
+  // workspace goes to the version reachable from that workspace, whatever
+  // its depth — synthetic workspace nodes all sit at depth 1, so comparing
+  // depth across workspace subtrees would suppress a workspace's own direct
+  // (possibly vulnerable) dependency in favour of an unrelated namesake.
+  // Depth is only the fallback for files no candidate owns (plain projects,
+  // root files): there, standard hoisting applies and the shallowest copy
+  // wins. Files with no decidable owner attribute permissively to every
+  // shallowest candidate — a false extra flag beats a silent miss.
+  const assignmentsByName = new Map<string, Map<string, Set<string>>>();
+  const fileAssignments = (name: string): Map<string, Set<string>> => {
+    const cached = assignmentsByName.get(name);
+    if (cached) return cached;
+    const candidates = nodesByName.get(name) || [];
+    const entries = usageResult.entriesByName.get(name) || [];
+    const ownersByKey = new Map(
+      candidates.map((candidate) => [candidate.key, nodeWorkspaceOwners(candidate)]),
+    );
+    const minDepth = Math.min(...candidates.map((candidate) => candidate.depth));
+    const shallowestKeys = candidates
+      .filter((candidate) => candidate.depth === minDepth)
+      .map((candidate) => candidate.key);
+    const map = new Map<string, Set<string>>();
+    for (const entry of entries) {
+      const owner = fileOwnerWorkspace(entry.file);
+      let claimedKeys: string[] = [];
+      if (owner !== undefined) {
+        claimedKeys = candidates
+          .filter((candidate) => ownersByKey.get(candidate.key)?.has(owner))
+          .map((candidate) => candidate.key);
+      }
+      if (claimedKeys.length === 0) claimedKeys = shallowestKeys;
+      map.set(entry.file, new Set(claimedKeys));
+    }
+    assignmentsByName.set(name, map);
+    return map;
+  };
+
+  const attributeImportEvidence = (node: NodeInfo): ImportAttribution => {
+    const siblings = nodesByName.get(node.name) || [];
+    if (siblings.length <= 1) return { kind: 'all' };
+    const assignments = fileAssignments(node.name);
+    const allEntries = usageResult.entriesByName.get(node.name) || [];
+    const owned = allEntries.filter((entry) =>
+      assignments.get(entry.file)?.has(node.key),
+    );
+    if (owned.length === 0) return { kind: 'none' };
+    if (owned.length === allEntries.length) return { kind: 'all' };
+    return { kind: 'subset', entries: owned };
+  };
+
   for (const node of nodes) {
     const direct = node.isDirect;
     if (direct) directCount += 1;
@@ -502,14 +650,37 @@ export async function aggregateData(input: AggregateInput): Promise<AggregatedDa
     }
 
     const scope = determineScope(node.name, direct, rootCauses, pkg);
-    const importUsage = usageResult.summary.get(node.name);
-    const runtimeImpact = usageResult.runtimeImpact.get(node.name);
+    // importUsage and runtimeImpact both follow the per-version attribution:
+    // a version whose only imports are another version's files must not
+    // inherit that version's runtime classification either.
+    const attribution = attributeImportEvidence(node);
+    const nameUsage = usageResult.summary.get(node.name);
+    let importUsage: UsageSummary | undefined;
+    let runtimeImpact: DependencyRecord['usage']['runtimeImpact'];
+    if (attribution.kind === 'all') {
+      importUsage = nameUsage;
+      runtimeImpact = usageResult.runtimeImpact.get(node.name);
+    } else if (attribution.kind === 'subset' && nameUsage) {
+      const ownedSet = new Set(attribution.entries.map((entry) => entry.file));
+      const rankedOwned = nameUsage.topFiles.filter((file) => ownedSet.has(file));
+      const rest = attribution.entries
+        .map((entry) => entry.file)
+        .filter((file) => !rankedOwned.includes(file));
+      importUsage = {
+        fileCount: attribution.entries.length,
+        topFiles: [...rankedOwned, ...rest].slice(0, 5),
+      };
+      runtimeImpact = determineRuntimeImpactFromFiles(attribution.entries);
+    }
     const introduction = determineIntroduction(direct, scope, rootCauses, runtimeImpact);
     const parentIds = Array.from(node.parents).sort();
     const origins = buildOrigins(
       rootCauses,
       parentIds,
-      input.workspaceUsage?.get(node.name),
+      // Prefer the version-scoped usage entry so different installed
+      // versions keep their actual workspace origins; the bare name entry
+      // remains the fallback when the tree carried no resolved versions.
+      input.workspaceUsage?.get(node.key) ?? input.workspaceUsage?.get(node.name),
       input.workspaceEnabled,
       MAX_TOP_ROOT_PACKAGES,
       MAX_TOP_PARENT_PACKAGES
@@ -1179,11 +1350,14 @@ interface UsageSummary {
 interface UsageBuildResult {
   summary: Map<string, UsageSummary>;
   runtimeImpact: Map<string, DependencyRecord['usage']['runtimeImpact']>;
+  /** Complete importing-file entries per name (topFiles caps at five). */
+  entriesByName: Map<string, Array<{ file: string; count: number }>>;
 }
 
 function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBuildResult {
   const summary = new Map<string, UsageSummary>();
   const runtimeImpact = new Map<string, DependencyRecord['usage']['runtimeImpact']>();
+  const entriesByName = new Map<string, Array<{ file: string; count: number }>>();
   const byDep = new Map<string, Map<string, number>>();
   const packages = graph.packages || {};
 
@@ -1221,10 +1395,11 @@ function buildUsageSummary(graph: ImportGraphData, projectPath: string): UsageBu
       fileCount: fileMap.size,
       topFiles: entries.slice(0, 5).map((entry) => entry.file)
     });
+    entriesByName.set(dep, entries.map((entry) => ({ file: entry.file, count: entry.count })));
     runtimeImpact.set(dep, determineRuntimeImpactFromFiles(entries));
   }
 
-  return { summary, runtimeImpact };
+  return { summary, runtimeImpact, entriesByName };
 }
 
 function isDirectDependency(name: string, pkg: any): boolean {
@@ -1256,8 +1431,10 @@ function determineScope(name: string, direct: boolean, rootCauses: RootPackageRe
     if (scope) scopes.add(scope);
   }
   if (scopes.has('runtime')) return 'runtime';
-  if (scopes.has('dev')) return 'dev';
+  // Optional outranks dev: optional deps install and execute in production,
+  // so a package reachable via both paths must keep its production scope.
   if (scopes.has('optional')) return 'optional';
+  if (scopes.has('dev')) return 'dev';
   if (scopes.has('peer')) return 'peer';
   return 'runtime';
 }

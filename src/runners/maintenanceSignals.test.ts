@@ -506,3 +506,73 @@ describe('selectArchivedCheckCandidates', () => {
     ]);
   });
 });
+
+describe('registry-scoped cache keys', () => {
+  it('keys cache entries by registry when a non-default registry is used', async () => {
+    const cache = new MaintenanceCache(undefined);
+    const aggregated = makeAggregated({ 'scoped-lib@1.0.0': makeDependency({ name: 'scoped-lib' }) });
+
+    await enrichAggregatedWithMaintenanceSignals(aggregated, {
+      now: NOW,
+      cache,
+      registryUrl: 'https://mirror.example.com',
+      fetcher: async () => packument({ modified: monthsAgo(1), latest: '1.2.3' })
+    });
+
+    expect(cache.getFresh('https://mirror.example.com|scoped-lib', NOW)).toBeDefined();
+    expect(cache.getFresh('scoped-lib', NOW)).toBeUndefined();
+  });
+
+  it('keeps bare-name cache keys for the default public registry', async () => {
+    const cache = new MaintenanceCache(undefined);
+    const aggregated = makeAggregated({ 'plain-lib@1.0.0': makeDependency({ name: 'plain-lib' }) });
+
+    await enrichAggregatedWithMaintenanceSignals(aggregated, {
+      now: NOW,
+      cache,
+      fetcher: async () => packument({ modified: monthsAgo(1), latest: '1.2.3' })
+    });
+
+    expect(cache.getFresh('plain-lib', NOW)).toBeDefined();
+  });
+
+  it('strips credentials from an explicit registryUrl before keying the cache', async () => {
+    const cache = new MaintenanceCache(undefined);
+    const aggregated = makeAggregated({ 'cred-lib@1.0.0': makeDependency({ name: 'cred-lib' }) });
+
+    await enrichAggregatedWithMaintenanceSignals(aggregated, {
+      now: NOW,
+      cache,
+      registryUrl: 'https://user:secret-token@mirror.example.com',
+      fetcher: async () => packument({ modified: monthsAgo(1), latest: '1.2.3' })
+    });
+
+    expect(cache.getFresh('https://mirror.example.com|cred-lib', NOW)).toBeDefined();
+    const allKeys = JSON.stringify(cache);
+    expect(allKeys).not.toContain('secret-token');
+  });
+
+  it('rejects an invalid registryUrl before touching the cache or a supplied fetcher', async () => {
+    const cache = new MaintenanceCache(undefined);
+    // Fresh default-registry entry that must NOT satisfy the invalid-registry lookup.
+    cache.set('cached-lib', {
+      fetchedAt: NOW.toISOString(),
+      modified: monthsAgo(1),
+      latestVersion: '1.2.3'
+    });
+    const aggregated = makeAggregated({ 'cached-lib@1.0.0': makeDependency({ name: 'cached-lib' }) });
+
+    const summary = await enrichAggregatedWithMaintenanceSignals(aggregated, {
+      now: NOW,
+      cache,
+      registryUrl: 'not a valid url',
+      fetcher: async () => {
+        throw new Error('supplied fetcher must not be called for an invalid registry override');
+      }
+    });
+
+    expect(aggregated.dependencies['cached-lib@1.0.0'].maintenance?.fromCache).not.toBe(true);
+    expect(summary.fromCache).toBe(0);
+    expect(summary.succeeded).toBe(0);
+  });
+});

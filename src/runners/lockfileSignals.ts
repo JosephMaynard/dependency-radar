@@ -1,9 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { SupplyChainSignal, ToolResult } from '../types';
-import { pathExists, runCommand, writeJsonFile } from '../utils';
+import { findLockDir, pathExists, runCommand, writeJsonFile } from '../utils';
 
-const DEFAULT_REGISTRY_HOSTS = new Set(['registry.npmjs.org']);
+// registry.yarnpkg.com is Yarn Classic's default alias for the npm registry;
+// treating it as unexpected flags every ordinary Yarn lockfile.
+const DEFAULT_REGISTRY_HOSTS = new Set(['registry.npmjs.org', 'registry.yarnpkg.com']);
 
 type LockfileSignalOptions = {
   persistToDisk?: boolean;
@@ -247,12 +249,18 @@ function inspectTextLock(
 async function collectLockfileSignals(
   projectPath: string,
   expectedHosts: Set<string>
-): Promise<SupplyChainSignal[]> {
+): Promise<{ signals: SupplyChainSignal[]; lockfilesFound: number }> {
   const signals: SupplyChainSignal[] = [];
+  let lockfilesFound = 0;
   const candidates = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock'];
+  // Read the same lockfile the audit/outdated collectors use: the project's
+  // own, or a workspace root's (findLockDir bounds the walk so an unrelated
+  // ancestor project is never borrowed).
+  const lockDir = (await findLockDir(projectPath, candidates)) ?? projectPath;
   for (const fileName of candidates) {
-    const filePath = path.join(projectPath, fileName);
+    const filePath = path.join(lockDir, fileName);
     if (!(await pathExists(filePath))) continue;
+    lockfilesFound += 1;
     const raw = await fs.readFile(filePath, 'utf8');
     if (fileName === 'package-lock.json' || fileName === 'npm-shrinkwrap.json') {
       try {
@@ -270,7 +278,7 @@ async function collectLockfileSignals(
       signals.push(...inspectTextLock(raw, fileName, expectedHosts));
     }
   }
-  return signals;
+  return { signals, lockfilesFound };
 }
 
 type SignatureAuditResult = {
@@ -308,12 +316,13 @@ export async function runLockfileSupplyChainSignals(
   options: LockfileSignalOptions = {}
 ): Promise<ToolResult<{
   signals: SupplyChainSignal[];
+  lockfilesFound: number;
   signatureAudit?: SignatureAuditResult;
 }>> {
   const persistToDisk = options.persistToDisk !== false;
   const targetFile = path.join(tempDir, 'supply-chain-signals.json');
   try {
-    const signals = await collectLockfileSignals(
+    const { signals, lockfilesFound } = await collectLockfileSignals(
       projectPath,
       normalizeExpectedHosts(options.expectedRegistryHosts)
     );
@@ -324,6 +333,7 @@ export async function runLockfileSupplyChainSignals(
         : undefined;
     const data = {
       signals,
+      lockfilesFound,
       ...(signatureAudit ? { signatureAudit } : {})
     };
     if (persistToDisk) await writeJsonFile(targetFile, data);

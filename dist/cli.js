@@ -27,12 +27,20 @@ const schema_1 = require("./schema");
 const failOn_1 = require("./failOn");
 const promises_1 = __importDefault(require("fs/promises"));
 const utils_1 = require("./utils");
+const workspaceGlobs_1 = require("./workspaceGlobs");
 const EXIT_POLICY_VIOLATION = 1;
 const EXIT_USAGE_OR_INCOMPLETE = 2;
-const skippedToolResult = {
-    ok: true,
-    status: "skipped",
-};
+/**
+ * An enabled collector that the package manager cannot run is missing
+ * evidence, not deliberately skipped — report it unavailable so --strict and
+ * fail-on gating react to the gap.
+ */
+function unsupportedToolResult(what, manager) {
+    return {
+        ok: false,
+        error: `${what} is not supported for ${manager} projects`,
+    };
+}
 function normalizeSlashes(p) {
     return p.split(path_1.default.sep).join("/");
 }
@@ -45,59 +53,6 @@ function isCI() {
         process.env.CIRCLECI ||
         process.env.JENKINS_URL ||
         process.env.BUILDKITE);
-}
-async function listDirs(parent) {
-    const entries = await promises_1.default
-        .readdir(parent, { withFileTypes: true })
-        .catch(() => []);
-    return entries
-        .filter((e) => { var _a; return (_a = e === null || e === void 0 ? void 0 : e.isDirectory) === null || _a === void 0 ? void 0 : _a.call(e); })
-        .map((e) => path_1.default.join(parent, e.name));
-}
-async function expandWorkspacePattern(root, pattern) {
-    // Minimal glob support for common workspaces:
-    // - "packages/*", "apps/*"
-    // - "packages/**" (recursive)
-    // - "./packages/*" (leading ./)
-    const cleaned = pattern.trim().replace(/^[.][/\\]/, "");
-    if (!cleaned)
-        return [];
-    // Disallow node_modules and hidden by default
-    const parts = cleaned.split(/[/\\]/g).filter(Boolean);
-    const isRecursive = parts.includes("**");
-    // Find the segment containing * or **
-    const starIndex = parts.findIndex((p) => p === "*" || p === "**");
-    if (starIndex === -1) {
-        const abs = path_1.default.resolve(root, cleaned);
-        return (await (0, utils_1.pathExists)(abs)) ? [abs] : [];
-    }
-    const baseParts = parts.slice(0, starIndex);
-    const baseDir = path_1.default.resolve(root, baseParts.join(path_1.default.sep));
-    if (!(await (0, utils_1.pathExists)(baseDir)))
-        return [];
-    if (parts[starIndex] === "*" && starIndex === parts.length - 1) {
-        // one-level children
-        return await listDirs(baseDir);
-    }
-    if (parts[starIndex] === "**") {
-        // recursive directories under base
-        const out = [];
-        async function walk(dir) {
-            const children = await listDirs(dir);
-            for (const child of children) {
-                if (path_1.default.basename(child) === "node_modules")
-                    continue;
-                if (path_1.default.basename(child).startsWith("."))
-                    continue;
-                out.push(child);
-                await walk(child);
-            }
-        }
-        await walk(baseDir);
-        return out;
-    }
-    // Fallback: treat as one-level
-    return await listDirs(baseDir);
 }
 async function readJsonFile(filePath) {
     try {
@@ -387,7 +342,23 @@ async function detectWorkspace(projectPath) {
         pnpmWorkspaceOverrides = workspaceFile.overrides;
     }
     if (hasYarnPnp) {
-        return { type: "yarn", packagePaths: [] };
+        if (rootPkg && rootPkg.workspaces) {
+            // PnP installs have no node_modules, but package.json#workspaces still
+            // defines the monorepo layout — enumerate child workspaces like any
+            // other Yarn workspace instead of scanning only the root. Reset any
+            // pnpm-workspace.yaml patterns picked up above: a patternless
+            // workspaces field must not silently inherit pnpm globs.
+            type = "yarn";
+            patterns = [];
+            if (Array.isArray(rootPkg.workspaces))
+                patterns = rootPkg.workspaces;
+            else if (Array.isArray(rootPkg.workspaces.packages))
+                patterns = rootPkg.workspaces.packages;
+            pnpmWorkspaceOverrides = undefined;
+        }
+        else {
+            return { type: "yarn", packagePaths: [] };
+        }
     }
     // npm/yarn workspaces
     if (type === "none" && rootPkg && rootPkg.workspaces) {
@@ -400,12 +371,9 @@ async function detectWorkspace(projectPath) {
     if (type === "none") {
         return { type: "none", packagePaths: [projectPath] };
     }
-    // Expand patterns and keep only folders that contain package.json
-    const candidates = [];
-    for (const pat of patterns) {
-        const expanded = await expandWorkspacePattern(projectPath, pat);
-        candidates.push(...expanded);
-    }
+    // Expand patterns (full glob semantics incl. nested wildcards and
+    // `!`-negations) and keep only folders that contain package.json
+    const candidates = await (0, workspaceGlobs_1.expandWorkspacePatterns)(projectPath, patterns);
     const unique = Array.from(new Set(candidates.map((p) => path_1.default.resolve(p)))).filter((p) => !normalizeSlashes(p).includes("/node_modules/"));
     const packagePaths = [];
     for (const dir of unique) {
@@ -518,18 +486,46 @@ function readDependencyEntries(source) {
     }
     return entries;
 }
-function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames) {
-    return workspacePackageNames.has(dependencyName) || isWorkspaceLocalSpecifier(spec);
+function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames, workspaceVersionsByName) {
+    if (isWorkspaceLocalSpecifier(spec))
+        return true;
+    if (!workspacePackageNames.has(dependencyName))
+        return false;
+    // A name match alone is not proof of locality: a workspace foo@1.10.0 next
+    // to a dependency on foo@~1.11.0 installs an external foo. Rule the
+    // dependency external only when satisfaction is decidable and NO workspace
+    // version satisfies the specifier; anything ambiguous stays local (the
+    // long-standing permissive behaviour).
+    const versions = workspaceVersionsByName === null || workspaceVersionsByName === void 0 ? void 0 : workspaceVersionsByName.get(dependencyName);
+    if (!versions || versions.length === 0)
+        return true;
+    const verdicts = versions.map((version) => (0, workspaceGlobs_1.rangeSatisfies)(spec, version));
+    if (verdicts.some((verdict) => verdict === undefined))
+        return true;
+    return verdicts.some(Boolean);
 }
 function buildWorkspaceClassification(rootPath, packageMetas) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+    const workspaceMajorsByName = new Map();
+    for (const meta of packageMetas) {
+        const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" ? meta.pkg.version.trim() : "";
+        // Prerelease/placeholder versions (0.0.0-development and friends) say
+        // nothing reliable about compatibility — leave the name unkeyed so
+        // classification stays permissive for it.
+        if ((0, workspaceGlobs_1.parsePlainVersion)(version) === undefined)
+            continue;
+        const versions = workspaceMajorsByName.get(meta.name) || [];
+        if (!versions.includes(version))
+            versions.push(version);
+        workspaceMajorsByName.set(meta.name, versions);
+    }
     const workspacePackageIds = new Set();
     const workspacePackagePaths = new Set();
     const localDependencyNames = new Set();
     const workspacePackages = [];
     for (const meta of packageMetas) {
-        const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" && meta.pkg.version.trim().length > 0
+        const version = typeof ((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.version) === "string" && meta.pkg.version.trim().length > 0
             ? meta.pkg.version.trim()
             : "workspace";
         workspacePackageIds.add(`${meta.name}@${version}`);
@@ -537,27 +533,27 @@ function buildWorkspaceClassification(rootPath, packageMetas) {
         const runtimeExternal = new Set();
         const devExternal = new Set();
         const runtimeEntries = [
-            ...readDependencyEntries((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.dependencies),
-            ...readDependencyEntries((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies),
+            ...readDependencyEntries((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.dependencies),
+            ...readDependencyEntries((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.optionalDependencies),
         ];
-        const devEntries = readDependencyEntries((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.devDependencies);
-        const peerEntries = readDependencyEntries((_e = meta.pkg) === null || _e === void 0 ? void 0 : _e.peerDependencies);
+        const devEntries = readDependencyEntries((_e = meta.pkg) === null || _e === void 0 ? void 0 : _e.devDependencies);
+        const peerEntries = readDependencyEntries((_f = meta.pkg) === null || _f === void 0 ? void 0 : _f.peerDependencies);
         for (const [depName, spec] of runtimeEntries) {
-            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames, workspaceMajorsByName)) {
                 localDependencyNames.add(depName);
                 continue;
             }
             runtimeExternal.add(depName);
         }
         for (const [depName, spec] of devEntries) {
-            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames, workspaceMajorsByName)) {
                 localDependencyNames.add(depName);
                 continue;
             }
             devExternal.add(depName);
         }
         for (const [depName, spec] of peerEntries) {
-            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames, workspaceMajorsByName)) {
                 localDependencyNames.add(depName);
             }
         }
@@ -582,9 +578,10 @@ function buildWorkspaceClassification(rootPath, packageMetas) {
         workspacePackageIds,
         workspacePackagePaths,
         localDependencyNames,
+        workspaceMajorsByName,
     };
 }
-function mergeDepsFromWorkspace(pkgs, workspacePackageNames, localDependencyNames) {
+function mergeDepsFromWorkspace(pkgs, workspacePackageNames, localDependencyNames, workspaceMajorsByName) {
     var _a, _b, _c, _d;
     const merged = {
         dependencies: {},
@@ -594,7 +591,7 @@ function mergeDepsFromWorkspace(pkgs, workspacePackageNames, localDependencyName
     };
     const mergeSection = (target, source) => {
         for (const [depName, spec] of readDependencyEntries(source)) {
-            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames)) {
+            if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames, workspaceMajorsByName)) {
                 localDependencyNames.add(depName);
                 continue;
             }
@@ -854,16 +851,51 @@ function mergeImportGraphs(rootPath, packageMetas, graphs) {
     }
     return { files, packages, packageCounts, unresolvedImports };
 }
-function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackageNames, localDependencyNames) {
+function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackageNames, localDependencyNames, workspaceVersionKeysByName) {
     var _a, _b, _c, _d;
     const usage = new Map();
-    const add = (depName, pkgName) => {
+    const record = (key, pkgName) => {
+        if (!usage.has(key))
+            usage.set(key, new Set());
+        usage.get(key).add(pkgName);
+    };
+    // Name-level skip for the tree walk, where no specifier is available. A
+    // name is only skipped outright when nothing marked it external — the
+    // declared-deps pass below is specifier-aware and can override. When the
+    // tree supplies a resolved version, usage is additionally recorded under
+    // name@version so different installed versions keep their own workspace
+    // origins instead of claiming each other's users. An external namesake
+    // (name matches a workspace package but the resolved version matches no
+    // workspace version) keeps precise version-scoped origins instead of
+    // being dropped wholesale.
+    const add = (depName, pkgName, version) => {
         if (!depName)
             return;
-        if (workspacePackageNames.has(depName))
+        const trimmed = typeof version === "string" ? version.trim() : "";
+        if (workspacePackageNames.has(depName)) {
+            const workspaceVersions = workspaceVersionKeysByName === null || workspaceVersionKeysByName === void 0 ? void 0 : workspaceVersionKeysByName.get(depName);
+            const mismatch = trimmed &&
+                workspaceVersions &&
+                workspaceVersions.length > 0 &&
+                !workspaceVersions.includes(trimmed);
+            if (mismatch)
+                record(`${depName}@${trimmed}`, pkgName);
             return;
+        }
         if (localDependencyNames.has(depName))
             return;
+        record(depName, pkgName);
+        if (trimmed)
+            record(`${depName}@${trimmed}`, pkgName);
+    };
+    // Specifier-aware variant for declared dependencies: a same-name external
+    // dep (workspace foo@1, declared foo@^2) must still record its user.
+    const addDeclared = (depName, spec, pkgName) => {
+        if (!depName)
+            return;
+        if (isWorkspaceLocalDependency(depName, spec, workspacePackageNames, workspaceVersionKeysByName)) {
+            return;
+        }
         if (!usage.has(depName))
             usage.set(depName, new Set());
         usage.get(depName).add(pkgName);
@@ -871,22 +903,16 @@ function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackage
     // From declared deps
     for (const meta of packageMetas) {
         const pkgName = meta.name;
-        const deps = ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.dependencies) || {};
-        const dev = ((_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies) || {};
-        const opt = ((_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies) || {};
-        const peer = ((_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies) || {};
-        Object.keys(deps).forEach((d) => {
-            add(d, pkgName);
-        });
-        Object.keys(dev).forEach((d) => {
-            add(d, pkgName);
-        });
-        Object.keys(opt).forEach((d) => {
-            add(d, pkgName);
-        });
-        Object.keys(peer).forEach((d) => {
-            add(d, pkgName);
-        });
+        for (const section of [
+            (_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.dependencies,
+            (_b = meta.pkg) === null || _b === void 0 ? void 0 : _b.devDependencies,
+            (_c = meta.pkg) === null || _c === void 0 ? void 0 : _c.optionalDependencies,
+            (_d = meta.pkg) === null || _d === void 0 ? void 0 : _d.peerDependencies,
+        ]) {
+            for (const [depName, spec] of readDependencyEntries(section)) {
+                addDeclared(depName, spec, pkgName);
+            }
+        }
     }
     // From npm ls trees (transitives)
     const walk = (node, pkgName) => {
@@ -894,11 +920,11 @@ function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackage
             return;
         const name = node.name;
         if (typeof name === "string")
-            add(name, pkgName);
+            add(name, pkgName, node.version);
         const deps = node.dependencies;
         if (deps && typeof deps === "object") {
             for (const [depName, child] of Object.entries(deps)) {
-                add(depName, pkgName);
+                add(depName, pkgName, child === null || child === void 0 ? void 0 : child.version);
                 walk(child, pkgName);
             }
         }
@@ -911,7 +937,7 @@ function buildWorkspaceUsageMap(packageMetas, dependencyGraphs, workspacePackage
         const deps = data.dependencies;
         if (deps && typeof deps === "object") {
             for (const [depName, child] of Object.entries(deps)) {
-                add(depName, meta.name);
+                add(depName, meta.name, child === null || child === void 0 ? void 0 : child.version);
                 walk(child, meta.name);
             }
         }
@@ -942,6 +968,10 @@ function buildCombinedDependencyGraph(rootPath, packageMetas, dependencyGraphs) 
         dependencies[meta.name] = {
             name: meta.name,
             version,
+            // The aggregator identifies workspace parents (and attributes import
+            // evidence per workspace) by this path — without it, equal-depth
+            // versions across workspaces lose their evidence entirely.
+            path: meta.path,
             dependencies: nodeDeps,
         };
     }
@@ -1050,12 +1080,14 @@ function parseArgs(argv) {
             opts.format = format;
         }
         else if (arg === "--target-node") {
-            const value = Number.parseInt(takeOptionValue(args, arg), 10);
-            if (!Number.isFinite(value) || value <= 0) {
-                console.error("--target-node must be a positive Node.js major version.");
+            const raw = takeOptionValue(args, arg);
+            // parseInt would accept "20garbage" or "20.9"; a Node target is a bare
+            // major version, so require exactly that.
+            if (!/^\d+$/.test(raw.trim()) || Number.parseInt(raw, 10) <= 0) {
+                console.error("--target-node must be a positive Node.js major version (e.g. 20).");
                 process.exit(EXIT_USAGE_OR_INCOMPLETE);
             }
-            opts.targetNodeMajor = value;
+            opts.targetNodeMajor = Number.parseInt(raw, 10);
         }
         else if (arg === "--audit-signatures")
             opts.auditSignatures = true;
@@ -1634,7 +1666,8 @@ function printIncompleteEvidence(reasons) {
  * @returns An AnalysisExecutionResult containing the aggregated report, CLI summary, policy violations, dependency counts, timing, output path/creation status, collector availability, and workspace metadata.
  */
 async function executeAnalysis(opts, options) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
+    var _f;
     const shouldWriteArtifacts = options.shouldWriteArtifacts;
     const projectPath = path_1.default.resolve(opts.project);
     let outputPath = opts.outProvided
@@ -1766,7 +1799,9 @@ async function executeAnalysis(opts, options) {
                 opts.audit
                     && supportsRegistryCollectors(scanManager)
                     ? (0, npmAudit_1.runPackageAudit)(meta.path, pkgTempDir, scanManager, yarnVersion, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(opts.audit ? skippedToolResult : undefined),
+                    : Promise.resolve(opts.audit
+                        ? unsupportedToolResult("vulnerability audit", scanManager)
+                        : undefined),
                 (0, npmLs_1.runNpmLs)(meta.path, pkgTempDir, scanManager, {
                     contextLabel: meta.name,
                     lockfileSearchRoot: projectPath,
@@ -1779,7 +1814,9 @@ async function executeAnalysis(opts, options) {
                 opts.outdated
                     && supportsRegistryCollectors(scanManager)
                     ? (0, npmOutdated_1.runPackageOutdated)(meta.path, pkgTempDir, scanManager, { persistToDisk: shouldWriteArtifacts }).catch((err) => ({ ok: false, error: String(err) }))
-                    : Promise.resolve(opts.outdated ? skippedToolResult : undefined),
+                    : Promise.resolve(opts.outdated
+                        ? unsupportedToolResult("outdated check", scanManager)
+                        : undefined),
             ]);
             perPackageAudit.push(a);
             perPackageLs.push(l);
@@ -1821,14 +1858,14 @@ async function executeAnalysis(opts, options) {
                 : undefined
             : buildCombinedDependencyGraph(projectPath, packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)));
         const mergedImportGraphData = mergeImportGraphs(projectPath, packageMetas, perPackageImportGraph.map((r) => (r && r.ok ? r.data : undefined)));
-        const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)), workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
+        const workspaceUsage = buildWorkspaceUsageMap(packageMetas, perPackageLs.map((r) => (r && r.ok ? r.data : undefined)), workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames, workspaceClassification.workspaceMajorsByName);
         const outdatedResult = mergeOutdatedResults(perPackageOutdated);
         const auditResult = mergedAuditData
             ? { ok: true, data: mergedAuditData }
             : undefined;
         const npmLsResult = { ok: true, data: mergedGraphData };
         const importGraphResult = { ok: true, data: mergedImportGraphData };
-        const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas, workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames);
+        const mergedPkgForAggregator = mergeDepsFromWorkspace(packageMetas, workspaceClassification.workspacePackageNames, workspaceClassification.localDependencyNames, workspaceClassification.workspaceMajorsByName);
         const auditFailure = opts.audit
             ? perPackageAudit.find((r) => r && !r.ok)
             : undefined;
@@ -1841,7 +1878,11 @@ async function executeAnalysis(opts, options) {
         const importCollectorStatus = collectorStatusFromResults(perPackageImportGraph, true);
         const signatureAuditOk = !opts.auditSignatures
             || (supplyChainResult.ok && ((_c = (_b = supplyChainResult.data) === null || _b === void 0 ? void 0 : _b.signatureAudit) === null || _c === void 0 ? void 0 : _c.ok) === true);
-        const supplyChainCollectorStatus = supplyChainResult.ok && signatureAuditOk
+        // Zero lockfiles means zero source/integrity evidence — success with an
+        // empty signal list must not read as an all-clear.
+        const supplyChainCollectorStatus = supplyChainResult.ok &&
+            signatureAuditOk &&
+            ((_f = (_d = supplyChainResult.data) === null || _d === void 0 ? void 0 : _d.lockfilesFound) !== null && _f !== void 0 ? _f : 0) > 0
             ? "available"
             : "unavailable";
         if (auditFailure) {
@@ -1850,7 +1891,7 @@ async function executeAnalysis(opts, options) {
         if (lsFailures.length > 0) {
             const packageList = lsFailures.map((entry) => { var _a; return (_a = entry.meta) === null || _a === void 0 ? void 0 : _a.name; }).filter(Boolean);
             spinner.log(`Dependency tree warning: ${lsFailures.length} package${lsFailures.length === 1 ? "" : "s"} failed (${packageList.join(", ")}).`);
-            spinner.log(`First dependency tree error: ${((_d = lsFailures[0].result) === null || _d === void 0 ? void 0 : _d.error) || "pnpm ls failed"}`);
+            spinner.log(`First dependency tree error: ${((_e = lsFailures[0].result) === null || _e === void 0 ? void 0 : _e.error) || "pnpm ls failed"}`);
         }
         if (importFailures.length > 0) {
             spinner.log(`Import graph warning: ${importFailures.length} package${importFailures.length === 1 ? "" : "s"} failed (${importFailures[0].error || "import graph failed"})`);

@@ -473,8 +473,8 @@
                 class="filter-group sort-wrapper mobile-only"
                 id="mobile-sort"
               >
-                <span class="filter-label">SORT</span>
-                <select id="sort-by">
+                <label class="filter-label" for="sort-by">SORT</label>
+                <select id="sort-by" aria-label="Sort dependencies by">
                   <option value="name">Name</option>
                   <option value="type">Type</option>
                   <option value="scope">Scope</option>
@@ -489,6 +489,7 @@
                   class="sort-direction-btn"
                   id="sort-direction"
                   title="Toggle sort direction"
+                  aria-label="Toggle sort direction"
                 >
                   ↑
                 </button>
@@ -818,6 +819,12 @@
         It surfaces factual signals from dependency metadata, known
         vulnerabilities (npm audit), dependency graphs, and install-time
         behaviour to support informed review.
+      </p>
+      <!-- Dev-harness sample: the generated report interpolates real values. -->
+      <p class="report-footer-vintage">
+        Dependency Radar v0.0.0-dev — report created just now. Bundled
+        definitions: SPDX licence list (sample) · e18e module-replacements
+        (sample).
       </p>
     </footer>
     <!-- END: Copied to src/report.ts (footer block) -->

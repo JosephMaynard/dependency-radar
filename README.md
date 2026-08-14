@@ -207,13 +207,13 @@ It is recomputed after registry enrichment so a registry-discovered deprecation 
 The report's Graph View offers four switchable layouts (toolbar buttons), all sharing the same docked side panel and package search:
 
 - **Graph** — the classic layered dependency graph: pan, zoom, and click a node to focus its ancestors and descendants. Focusing zooms to fit the highlighted subtree.
-- **Flame** — a profiler-style icicle plot. One row per depth; bar width is the package's share of the whole tree beneath it (path-expanded, like stacks in a flame graph), children heaviest-first. Click a bar to zoom in — every ancestor stays pinned above you; double-click to reset.
+- **Flame** — a profiler-style icicle plot. One row per depth; bar width is the package's share of the whole tree beneath it (path-expanded, like stacks in a flame graph), children heaviest-first. Counts read "N packages (M paths)": a package shared by several parents is counted once per route, so paths run higher than unique packages. Click a bar to zoom in — every ancestor stays pinned above you; double-click to reset.
 - **Balloon** — an orbital constellation: the project at the centre, direct dependencies orbiting it, each one's sub-dependencies fanning out behind it recursively. Drag to pan, scroll to zoom, click a body to fly to it.
 - **Hyperbolic** — a Poincaré-disk focus+context view: the whole tree in one finite circle, sub-dependencies compressing toward the rim. Dragging warps the space (whatever you pull toward the centre grows); scrolling magnifies the disk; clicking a package brings it to the centre.
 
 Shared behaviour:
 
-- **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, subtree size, "appears in N places", and clickable *depends-on* / *required-by* chips that refocus the current view. Search results fly to the package in whichever layout you're using.
+- **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, unique package and path counts for its subtree, "reached via N paths", and clickable *depends-on* / *required-by* chips that refocus the current view. Search results fly to the package in whichever layout you're using.
 - **Status line** — in the flame, balloon, and hyperbolic views, hovering shows the full path trail (`project › a › b › c`) along the bottom of the canvas instead of a tooltip covering the visualization.
 - **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar key explains each layout's colours.
 - **Workspaces** — all layouts respect the workspace selector, scoping the tree to that workspace's direct dependencies.

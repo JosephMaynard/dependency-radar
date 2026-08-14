@@ -2,6 +2,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { AggregatedData } from './types';
 import { CSS_CONTENT, JS_CONTENT } from './report-assets';
+import {
+  MODULE_REPLACEMENTS_DATE,
+  MODULE_REPLACEMENTS_VERSION,
+} from './generated/replacements';
+import { SPDX_LICENSE_LIST_RELEASE_DATE } from './generated/spdx';
 
 /**
  * Escape occurrences of closing `</style` tags in a CSS payload to prevent premature termination when inlined into HTML.
@@ -339,8 +344,8 @@ ${safeCssContent}
 
             <!-- Sort dropdown - visible on mobile, hidden on desktop (replaced by column headers) -->
             <div class="filter-group sort-wrapper mobile-only" id="mobile-sort">
-              <span class="filter-label">SORT</span>
-              <select id="sort-by">
+              <label class="filter-label" for="sort-by">SORT</label>
+              <select id="sort-by" aria-label="Sort dependencies by">
                 <option value="name">Name</option>
                 <option value="type">Type</option>
                 <option value="scope">Scope</option>
@@ -350,7 +355,7 @@ ${safeCssContent}
                 <option value="maintenance">Maintenance</option>
                 <option value="depth">Depth</option>
               </select>
-              <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction">↑</button>
+              <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction" aria-label="Toggle sort direction">↑</button>
             </div>
 
             <div class="filter-panel-actions">
@@ -484,6 +489,7 @@ ${safeCssContent}
   <footer class="report-footer">
     <p><strong>About this report</strong></p>
     <p>Dependency Radar does not perform malware scanning or security auditing. It surfaces factual signals from dependency metadata, known vulnerabilities (npm audit), dependency graphs, and install-time behaviour to support informed review.</p>
+    <p class="report-footer-vintage">Dependency Radar v${escapeHtml(data.dependencyRadarVersion)} — report created ${escapeHtml(formattedDate)}. Bundled definitions: SPDX licence list (${SPDX_LICENSE_LIST_RELEASE_DATE}) · e18e module-replacements ${MODULE_REPLACEMENTS_VERSION} (${MODULE_REPLACEMENTS_DATE}).</p>
   </footer>
   
   <script type="application/json" id="radar-data">${json}</script>
