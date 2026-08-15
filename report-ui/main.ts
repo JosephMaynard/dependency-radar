@@ -293,6 +293,19 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     sortFn: (a, b) => a.usage.scope.localeCompare(b.usage.scope),
   },
   {
+    id: "subdeps",
+    label: "Sub-deps",
+    sortKey: "subdeps",
+    getValue: (dep) => {
+      const count = getSubDepCount(`${dep.package.name}@${dep.package.version}`);
+      return count === undefined ? "—" : count.toLocaleString();
+    },
+    getTone: () => "gray",
+    sortFn: (a, b) =>
+      (getSubDepCount(`${a.package.name}@${a.package.version}`) ?? -1) -
+      (getSubDepCount(`${b.package.name}@${b.package.version}`) ?? -1),
+  },
+  {
     id: "license",
     label: "License",
     sortKey: "license",

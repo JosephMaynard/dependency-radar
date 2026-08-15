@@ -52,9 +52,12 @@
   --graph-muted: var(--text-muted);
   --graph-vuln-high: var(--red);
   --graph-vuln-medium: var(--amber);
-  /* Swatch for the flame/treemap "shared" band in the key panel; must track
-     the canvas fills in sharedFill()/fillFor(). */
+  /* Key-panel swatches; must track the theme-dependent canvas fills in
+     sharedFill()/fillFor() (flame/treemap) and hyperbolicView's draw(). */
   --graph-shared-swatch: #3d4c5c;
+  --graph-hyp-direct-swatch: #ff9a58;
+  --graph-hyp-sub-swatch: #5b7186;
+  --graph-hyp-route-swatch: #f59e0b;
 }
 
 :root.light {
@@ -75,12 +78,18 @@
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
   --graph-shared-swatch: #c4d0dc;
+  --graph-hyp-direct-swatch: #f97316;
+  --graph-hyp-sub-swatch: #94a8bc;
+  --graph-hyp-route-swatch: #d97706;
 }
 
 [data-theme="light"] {
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
   --graph-shared-swatch: #c4d0dc;
+  --graph-hyp-direct-swatch: #f97316;
+  --graph-hyp-sub-swatch: #94a8bc;
+  --graph-hyp-route-swatch: #d97706;
 }
 
 html {
@@ -1199,7 +1208,9 @@ select.graph-workspace-select:focus {
   line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
-  transition: all var(--transition);
+  transition:
+    background var(--transition),
+    border-color var(--transition);
 }
 
 .graph-key-toggle:hover {
@@ -1231,7 +1242,7 @@ select.graph-workspace-select:focus {
   left: 12px;
   z-index: 20;
   min-width: 240px;
-  max-width: 380px;
+  max-width: min(380px, calc(100vw - 48px));
   padding: 12px 14px;
   border-radius: 10px;
   background: rgba(15, 23, 42, 0.96);
@@ -1598,6 +1609,7 @@ select.graph-depth-select:disabled {
 .graph-dossier-open:focus-visible,
 .graph-mode-btn:focus-visible,
 .graph-filter-chip:focus-visible,
+.graph-key-toggle:focus-visible,
 .scan-status-dismiss:focus-visible {
   outline: 2px solid var(--graph-highlight, #22d3ee);
   outline-offset: 1px;
@@ -1795,6 +1807,22 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 .graph-mode-btn:hover,
 .graph-mode-btn:focus-visible {
   color: var(--text-primary);
+}
+
+/* Small phones: the five modes scroll horizontally instead of clipping. */
+@media (max-width: 640px) {
+  .graph-mode-switch {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .graph-mode-btn {
+    flex: none;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
 }
 
 .graph-mode-btn.active {

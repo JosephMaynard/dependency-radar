@@ -18,6 +18,14 @@ const MIN_RECT_PX = 2;
 
 /** Sentinel id for the shared block. */
 const SHARED_RECT = -2;
+/**
+ * Sentinel id for a parent's own unit of area inside its children's layout:
+ * a parent of weight N holds N-1 children-weight plus itself, so one weight
+ * unit of every nest stays empty. Without it, children would be inflated to
+ * fill the whole content box and nested areas would stop being proportional
+ * to package counts.
+ */
+const SELF_SPACE = -3;
 
 interface Rect {
   id: number;
@@ -35,6 +43,74 @@ interface LayoutItem {
   weight: number;
 }
 
+/**
+ * Squarified layout (Bruls, Huizing, van Wijk) of items into (x, y, w, h).
+ * Pure geometry — the caller decides what the weights mean. Exported for the
+ * geometry tests: item areas must stay proportional to weights.
+ */
+export function squarify(
+  items: LayoutItem[],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): Array<{ id: number; x: number; y: number; w: number; h: number }> {
+  const out: Array<{ id: number; x: number; y: number; w: number; h: number }> = [];
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  if (total <= 0 || w <= 0 || h <= 0) return out;
+  const scale = (w * h) / total;
+  let queue = items.filter((item) => item.weight > 0);
+  let px = x;
+  let py = y;
+  let pw = w;
+  let ph = h;
+
+  while (queue.length > 0) {
+    const horizontal = pw >= ph; // lay the strip along the shorter side
+    const side = horizontal ? ph : pw;
+    let row: LayoutItem[] = [];
+    let rowArea = 0;
+    let worst = Infinity;
+    let index = 0;
+    while (index < queue.length) {
+      const candidate = queue[index];
+      const candidateArea = candidate.weight * scale;
+      const nextArea = rowArea + candidateArea;
+      const strip = nextArea / side;
+      let nextWorst = 0;
+      for (const item of [...row, candidate]) {
+        const length = (item.weight * scale) / strip;
+        nextWorst = Math.max(nextWorst, Math.max(strip / length, length / strip));
+      }
+      if (row.length > 0 && nextWorst > worst) break;
+      row.push(candidate);
+      rowArea = nextArea;
+      worst = nextWorst;
+      index += 1;
+    }
+    const strip = rowArea / side;
+    let offset = 0;
+    for (const item of row) {
+      const length = (item.weight * scale) / strip;
+      if (horizontal) {
+        out.push({ id: item.id, x: px, y: py + offset, w: strip, h: length });
+      } else {
+        out.push({ id: item.id, x: px + offset, y: py, w: length, h: strip });
+      }
+      offset += length;
+    }
+    if (horizontal) {
+      px += strip;
+      pw -= strip;
+    } else {
+      py += strip;
+      ph -= strip;
+    }
+    queue = queue.slice(row.length);
+  }
+  return out;
+}
+
 export function mountTreemapView(
   host: HTMLElement,
   model: VizModel,
@@ -42,6 +118,11 @@ export function mountTreemapView(
 ): VizHandle {
   const canvas = document.createElement("canvas");
   canvas.className = "graph-alt-canvas";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute(
+    "aria-label",
+    "Treemap of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+  );
   host.appendChild(canvas);
   // Cursor tooltip: most rects are too small to carry a label, so the name
   // travels with the pointer instead.
@@ -74,73 +155,6 @@ export function mountTreemapView(
   let destroyed = false;
 
   const mono = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
-
-  /**
-   * Squarified layout of items into (x, y, w, h). Returns each item's rect.
-   * Pure geometry — the caller decides what the weights mean.
-   */
-  function squarify(
-    items: LayoutItem[],
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-  ): Array<{ id: number; x: number; y: number; w: number; h: number }> {
-    const out: Array<{ id: number; x: number; y: number; w: number; h: number }> = [];
-    const total = items.reduce((sum, item) => sum + item.weight, 0);
-    if (total <= 0 || w <= 0 || h <= 0) return out;
-    const scale = (w * h) / total;
-    let queue = items.filter((item) => item.weight > 0);
-    let px = x;
-    let py = y;
-    let pw = w;
-    let ph = h;
-
-    while (queue.length > 0) {
-      const horizontal = pw >= ph; // lay the strip along the shorter side
-      const side = horizontal ? ph : pw;
-      let row: LayoutItem[] = [];
-      let rowArea = 0;
-      let worst = Infinity;
-      let index = 0;
-      while (index < queue.length) {
-        const candidate = queue[index];
-        const candidateArea = candidate.weight * scale;
-        const nextArea = rowArea + candidateArea;
-        const strip = nextArea / side;
-        let nextWorst = 0;
-        for (const item of [...row, candidate]) {
-          const length = (item.weight * scale) / strip;
-          nextWorst = Math.max(nextWorst, Math.max(strip / length, length / strip));
-        }
-        if (row.length > 0 && nextWorst > worst) break;
-        row.push(candidate);
-        rowArea = nextArea;
-        worst = nextWorst;
-        index += 1;
-      }
-      const strip = rowArea / side;
-      let offset = 0;
-      for (const item of row) {
-        const length = (item.weight * scale) / strip;
-        if (horizontal) {
-          out.push({ id: item.id, x: px, y: py + offset, w: strip, h: length });
-        } else {
-          out.push({ id: item.id, x: px + offset, y: py, w: length, h: strip });
-        }
-        offset += length;
-      }
-      if (horizontal) {
-        px += strip;
-        pw -= strip;
-      } else {
-        py += strip;
-        ph -= strip;
-      }
-      queue = queue.slice(row.length);
-    }
-    return out;
-  }
 
   function fillFor(rect: Rect, highlight: boolean): string {
     const theme = cb.theme();
@@ -176,11 +190,23 @@ export function mountTreemapView(
       h: number;
       depth: number;
       owner: number; // -1 = derive per item (top level)
+      /** The parent's own weight unit (0 when the parent is not a package —
+       *  the shared block's weight is exactly the sum of its members). */
+      selfWeight: number;
     }
     const jobs: Job[] = [];
 
     if (zoomRoot === SHARED_RECT) {
-      jobs.push({ ids: sharedMembers, x: x0, y: y0, w: w0, h: h0, depth: 0, owner: SHARED_RECT });
+      jobs.push({
+        ids: sharedMembers,
+        x: x0,
+        y: y0,
+        w: w0,
+        h: h0,
+        depth: 0,
+        owner: SHARED_RECT,
+        selfWeight: 0,
+      });
     } else if (zoomRoot >= 0) {
       rects.push({ id: zoomRoot, x: x0, y: y0, w: w0, h: h0, depth: 0, owner: ownerOf(zoomRoot) });
       jobs.push({
@@ -191,6 +217,7 @@ export function mountTreemapView(
         h: h0 - HEADER - INNER_PAD,
         depth: 1,
         owner: ownerOf(zoomRoot),
+        selfWeight: 1,
       });
     } else {
       const items: LayoutItem[] = directTop.map((id) => ({ id, weight: dom.exclusiveCount[id] }));
@@ -207,6 +234,7 @@ export function mountTreemapView(
             h: placed.h - HEADER - INNER_PAD,
             depth: 1,
             owner: SHARED_RECT,
+            selfWeight: 0,
           });
         } else {
           rects.push({ ...placed, depth: 0, owner: placed.id });
@@ -218,6 +246,7 @@ export function mountTreemapView(
             h: placed.h - HEADER - INNER_PAD,
             depth: 1,
             owner: placed.id,
+            selfWeight: 1,
           });
         }
       }
@@ -227,7 +256,12 @@ export function mountTreemapView(
       const job = jobs.pop() as Job;
       if (job.ids.length === 0 || job.w < MIN_RECT_PX * 2 || job.h < MIN_RECT_PX * 2) continue;
       const items = job.ids.map((id) => ({ id, weight: dom.exclusiveCount[id] }));
+      // Reserve the parent's own unit so child areas keep meaning "packages":
+      // a child of weight w gets w/(children+self) of the parent's box, never
+      // an inflated share of it.
+      if (job.selfWeight > 0) items.push({ id: SELF_SPACE, weight: job.selfWeight });
       for (const placed of squarify(items, job.x, job.y, job.w, job.h)) {
+        if (placed.id === SELF_SPACE) continue; // parent's own unit stays empty
         if (placed.w < MIN_RECT_PX || placed.h < MIN_RECT_PX) continue;
         const owner = job.owner === -1 ? placed.id : job.owner;
         rects.push({ ...placed, depth: job.depth, owner });
@@ -241,6 +275,7 @@ export function mountTreemapView(
             h: placed.h - HEADER - INNER_PAD,
             depth: job.depth + 1,
             owner,
+            selfWeight: 1,
           });
         }
       }
@@ -337,11 +372,12 @@ export function mountTreemapView(
     tip.textContent = rectLabel(rects[i]);
     tip.hidden = false;
     // Measure after content is set; flip to the other side near the edges.
+    // The right edge is the USABLE edge — beyond it sits the docked panel.
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
     let x = e.offsetX + 14;
     let y = e.offsetY + 18;
-    if (x + tw > W - 8) x = e.offsetX - tw - 10;
+    if (x + tw > usableW() - 8) x = e.offsetX - tw - 10;
     if (y + th > H - 34) y = e.offsetY - th - 10;
     tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
   }
@@ -387,16 +423,31 @@ export function mountTreemapView(
     },
     { signal },
   );
+  /** Change the zoom root, notifying the host (it shows Reset while zoomed). */
+  function setZoom(next: number): void {
+    if (next === zoomRoot) return;
+    zoomRoot = next;
+    cb.onZoomChanged?.(zoomRoot !== -1);
+  }
+
+  /** One level up from the current zoom root. */
+  function zoomParent(): number {
+    if (zoomRoot === SHARED_RECT || zoomRoot < 0) return -1;
+    if (dom.idom[zoomRoot] >= 0) return dom.idom[zoomRoot];
+    return ownerOf(zoomRoot) === SHARED_RECT ? SHARED_RECT : -1;
+  }
+
   canvas.addEventListener(
     "dblclick",
     (e) => {
       const i = pick(e.offsetX, e.offsetY);
       if (i < 0) {
         // Empty space: reset.
-        zoomRoot = -1;
+        setZoom(-1);
         selected = -1;
         cb.onSelect(-1);
         hovered = -1;
+        tip.hidden = true;
         layout();
         draw();
         return;
@@ -422,17 +473,20 @@ export function mountTreemapView(
           target = trail[0];
         }
       }
-      if (target !== SHARED_RECT && (target < 0 || dom.children[target].length === 0)) {
-        // Nothing to drill into — treat as reset to the whole project.
-        zoomRoot = -1;
-      } else {
-        zoomRoot = target;
+      if (target === zoomRoot && zoomRoot !== -1) {
+        // Double-clicking the zoomed box itself climbs back out one level.
+        setZoom(zoomParent());
+      } else if (target === SHARED_RECT || (target >= 0 && dom.children[target].length > 0)) {
+        setZoom(target);
       }
+      // A childless target keeps the current zoom — losing your place because
+      // you double-clicked a leaf reads as a bug, not a reset.
       if (rect.id >= 0) {
         selected = rect.id;
         cb.onSelect(rect.id);
       }
       hovered = -1;
+      tip.hidden = true;
       layout();
       draw();
     },
@@ -447,6 +501,8 @@ export function mountTreemapView(
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;
     canvas.style.height = `${H}px`;
+    hovered = -1;
+    tip.hidden = true;
     layout();
     draw();
   }
@@ -466,16 +522,18 @@ export function mountTreemapView(
       // Zoom to the focused package's dominator parent so the package is
       // visible in context; the package itself is selected.
       const parent = dom.idom[index];
-      zoomRoot = parent >= 0 ? parent : ownerOf(index) === SHARED_RECT ? SHARED_RECT : -1;
+      setZoom(parent >= 0 ? parent : ownerOf(index) === SHARED_RECT ? SHARED_RECT : -1);
       selected = index;
       hovered = -1;
+      tip.hidden = true;
       layout();
       draw();
     },
     resetView() {
-      zoomRoot = -1;
+      setZoom(-1);
       selected = -1;
       hovered = -1;
+      tip.hidden = true;
       layout();
       draw();
     },

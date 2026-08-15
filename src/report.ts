@@ -411,9 +411,9 @@ ${safeCssContent}
           <div class="graph-key" id="graph-key">
             <button type="button" class="graph-key-toggle" id="graph-key-toggle" aria-expanded="false" aria-controls="graph-key-panel">
               Key
-              <span class="chevron">▼</span>
+              <span class="chevron" aria-hidden="true">▼</span>
             </button>
-            <div class="graph-key-panel" id="graph-key-panel" aria-label="Graph key" hidden>
+            <div class="graph-key-panel" id="graph-key-panel" role="group" aria-label="Graph key" hidden>
               <div class="graph-key-items">
                 <span class="graph-key-item">
                   <span class="graph-key-dot dependency" aria-hidden="true"></span>

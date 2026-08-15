@@ -19,6 +19,11 @@ export function mountBalloonView(
 ): VizHandle {
   const canvas = document.createElement("canvas");
   canvas.className = "graph-alt-canvas";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute(
+    "aria-label",
+    "Balloon view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+  );
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);

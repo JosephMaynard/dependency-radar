@@ -65,6 +65,30 @@ export interface VizModel {
    * the deduped counterpart to `subSize`'s path counting. Memoised.
    */
   uniqueCount: (index: number) => number;
+  /**
+   * Removal-impact facts computed over the UNFILTERED workspace graph.
+   * Display filters change what renders, never what a package costs.
+   */
+  impact: (index: number) => PackageImpact;
+}
+
+export interface PackageImpact {
+  /** Unique packages in its subtree, including itself (full graph). */
+  subtreeCount: number;
+  /** Packages that leave node_modules if the package itself ceased to exist
+   *  (its dominator footprint in the full graph). */
+  exclusiveCount: number;
+  /**
+   * Direct dependencies only: what deleting the package.json entry actually
+   * frees. 0 when other packages still pull it in (the entry is redundant);
+   * equal to exclusiveCount otherwise. null for sub-dependencies, which have
+   * no manifest entry to delete.
+   */
+  manifestFrees: number | null;
+  /** Names of the packages that keep it installed after a manifest removal. */
+  keptBy: string[];
+  /** Names of the other members of its dependency cycle, if any. */
+  cycleWith: string[];
 }
 
 const HUES = [28, 152, 268, 322, 82, 8, 232, 55, 190, 300];
@@ -85,30 +109,34 @@ export function buildVizModel(
   const workspace =
     dataset.workspaces.find((w) => w.name === workspaceName) ||
     dataset.workspaces[0];
-  let rootSlugs = (
-    workspace
-      ? [
-          ...(filters.runtime ? workspace.directDependencies : []),
-          ...(filters.dev ? workspace.directDevDependencies : []),
-        ]
-      : []
-  ).filter((slug) => Boolean(dataset.dependencies[slug]));
   const unfilteredCount = workspace
     ? workspace.directDependencies.length + workspace.directDevDependencies.length
     : 0;
-  if (rootSlugs.length === 0 && unfilteredCount === 0) {
-    // Parity with the classic graph view: a workspace with no direct deps
-    // (e.g. a hoisting-only monorepo root) falls back to parentless packages.
-    const hasParent = new Set<string>();
-    for (const dep of Object.values(dataset.dependencies)) {
-      for (const child of dep.dependencies || []) {
-        if (child !== dep.slug) hasParent.add(child);
+  const rootSlugsFor = (includeRuntime: boolean, includeDev: boolean): string[] => {
+    const list = (
+      workspace
+        ? [
+            ...(includeRuntime ? workspace.directDependencies : []),
+            ...(includeDev ? workspace.directDevDependencies : []),
+          ]
+        : []
+    ).filter((slug) => Boolean(dataset.dependencies[slug]));
+    if (list.length === 0 && unfilteredCount === 0) {
+      // Parity with the classic graph view: a workspace with no direct deps
+      // (e.g. a hoisting-only monorepo root) falls back to parentless packages.
+      const hasParent = new Set<string>();
+      for (const dep of Object.values(dataset.dependencies)) {
+        for (const child of dep.dependencies || []) {
+          if (child !== dep.slug) hasParent.add(child);
+        }
       }
+      return Object.keys(dataset.dependencies)
+        .filter((slug) => !hasParent.has(slug))
+        .slice(0, 40);
     }
-    rootSlugs = Object.keys(dataset.dependencies)
-      .filter((slug) => !hasParent.has(slug))
-      .slice(0, 40);
-  }
+    return list;
+  };
+  const rootSlugs = rootSlugsFor(filters.runtime, filters.dev);
   const rootSet = new Set(rootSlugs);
 
   // Reachability sweep gives the index space; BFS depth enforces the
@@ -265,6 +293,131 @@ export function buildVizModel(
     return reachMemo[index];
   };
 
+  // ----- removal impact over the UNFILTERED workspace graph ---------------
+  // Display filters (runtime/dev/sub/depth) narrow what renders; they must
+  // never change what removing a package would actually free. When filters
+  // are at their defaults the filtered graph IS the full graph, so the
+  // already-built structures are reused as-is.
+  const filtersAreDefault =
+    filters.runtime && filters.dev && filters.sub && filters.maxDepth === null;
+
+  interface ImpactGraph {
+    /** Filtered-model index -> full-graph index (-1 when absent). */
+    toFull: Int32Array;
+    refsF: GraphDependency[];
+    depsInF: number[][];
+    isRootF: boolean[];
+    dom: DomTree;
+    reach: Int32Array;
+  }
+  let impactGraphMemo: ImpactGraph | undefined;
+  const impactGraph = (): ImpactGraph => {
+    if (impactGraphMemo) return impactGraphMemo;
+    if (filtersAreDefault) {
+      if (!reachMemo) reachMemo = computeReachCounts(count, depsOut);
+      const toFull = new Int32Array(count);
+      for (let i = 0; i < count; i += 1) toFull[i] = i;
+      impactGraphMemo = {
+        toFull,
+        refsF: refs,
+        depsInF: depsIn,
+        isRootF: isRoot,
+        dom: domTree(),
+        reach: reachMemo,
+      };
+      return impactGraphMemo;
+    }
+    const fullRootSlugs = rootSlugsFor(true, true);
+    const fullRootSet = new Set(fullRootSlugs);
+    const slugsF: string[] = [];
+    const indexF = new Map<string, number>();
+    const queueF: string[] = [];
+    const pushF = (slug: string): void => {
+      if (indexF.has(slug) || !dataset.dependencies[slug]) return;
+      indexF.set(slug, slugsF.length);
+      slugsF.push(slug);
+      queueF.push(slug);
+    };
+    fullRootSlugs.forEach(pushF);
+    for (let head = 0; head < queueF.length; head += 1) {
+      const dep = dataset.dependencies[queueF[head]];
+      for (const child of dep.dependencies || []) pushF(child);
+    }
+    const countF = slugsF.length;
+    const refsF = slugsF.map((slug) => dataset.dependencies[slug]);
+    const depsOutF: number[][] = Array.from({ length: countF }, () => []);
+    const depsInF: number[][] = Array.from({ length: countF }, () => []);
+    for (let i = 0; i < countF; i += 1) {
+      for (const childSlug of refsF[i].dependencies || []) {
+        const j = indexF.get(childSlug);
+        if (j === undefined || j === i) continue;
+        depsOutF[i].push(j);
+        depsInF[j].push(i);
+      }
+    }
+    const isRootF = slugsF.map((slug) => fullRootSet.has(slug));
+    const rootsF: number[] = [];
+    isRootF.forEach((flag, i) => {
+      if (flag) rootsF.push(i);
+    });
+    const toFull = new Int32Array(count).fill(-1);
+    for (let i = 0; i < count; i += 1) {
+      const j = indexF.get(slugs[i]);
+      if (j !== undefined) toFull[i] = j;
+    }
+    impactGraphMemo = {
+      toFull,
+      refsF,
+      depsInF,
+      isRootF,
+      dom: buildDomTree(countF, depsOutF, rootsF),
+      reach: computeReachCounts(countF, depsOutF),
+    };
+    return impactGraphMemo;
+  };
+
+  const EMPTY_IMPACT: PackageImpact = {
+    subtreeCount: 0,
+    exclusiveCount: 0,
+    manifestFrees: null,
+    keptBy: [],
+    cycleWith: [],
+  };
+  const impact = (index: number): PackageImpact => {
+    if (index < 0 || index >= count) return EMPTY_IMPACT;
+    const g = impactGraph();
+    const full = g.toFull[index];
+    if (full < 0) return EMPTY_IMPACT;
+    let manifestFrees: number | null = null;
+    let keptBy: string[] = [];
+    if (g.isRootF[full]) {
+      // A predecessor whose idom-chain does NOT pass through this package has
+      // a route from the project that survives the manifest removal — it
+      // keeps the package (and therefore its whole subtree) installed.
+      const dominatedByTarget = (node: number): boolean => {
+        let cur = node;
+        let guard = 0;
+        while (cur >= 0 && guard < 100_000) {
+          if (cur === full) return true;
+          cur = g.dom.idom[cur];
+          guard += 1;
+        }
+        return false;
+      };
+      keptBy = g.depsInF[full]
+        .filter((p) => !dominatedByTarget(p))
+        .map((p) => g.refsF[p].name);
+      manifestFrees = keptBy.length > 0 ? 0 : g.dom.exclusiveCount[full];
+    }
+    return {
+      subtreeCount: g.reach[full],
+      exclusiveCount: g.dom.exclusiveCount[full],
+      manifestFrees,
+      keptBy,
+      cycleWith: (g.dom.cycleWith[full] || []).map((other) => g.refsF[other].name),
+    };
+  };
+
   return {
     projectName,
     workspaceName: workspace ? workspace.name : workspaceName,
@@ -291,6 +444,7 @@ export function buildVizModel(
     rootHue,
     hueOf,
     uniqueCount,
+    impact,
   };
 }
 
@@ -357,6 +511,8 @@ export interface VizCallbacks {
   insetTop(): number;
   /** True when the package should render dimmed (name filter active, no match). */
   isDimmed(index: number): boolean;
+  /** A view with an internal zoom state entered/left it (treemap drill). */
+  onZoomChanged?(zoomed: boolean): void;
 }
 
 /** Node fill hue/lightness helper shared by views: dev deps render dimmer. */

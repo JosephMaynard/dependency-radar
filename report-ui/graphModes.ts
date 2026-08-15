@@ -34,7 +34,7 @@ const MODE_HINTS: Record<GraphMode, string> = {
   flame:
     "hover a bar · click to zoom in · click a pinned ancestor to climb back out · double-click to reset",
   treemap:
-    "click a box to inspect · double-click to drill in · double-click space to reset",
+    "click a box to inspect · double-click to drill in · double-click the zoomed box to climb back out",
   balloon: "drag to pan · scroll to zoom · click a body · double-click space to fit",
   hyperbolic: "drag to warp · scroll to zoom · click a blip to focus · double-click space to reset",
 };
@@ -168,11 +168,15 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !keyPanel || keyPanel.hidden) return;
     setKeyOpen(false);
-    keyToggle?.focus();
+    // Only reclaim focus when it was inside the key component — an Escape
+    // aimed at the search box must not yank focus across the toolbar.
+    if (options.keyEl?.contains(document.activeElement)) keyToggle?.focus();
   });
 
   // Floating reset for the alternative views (flame resets via double-click
-  // and its pinned ancestors, so it opts out).
+  // and its pinned ancestors, so it opts out; the treemap tiles the whole
+  // stage, so the button appears only while zoomed — there is no "empty
+  // space to double-click" once you have drilled in).
   const resetBtn = document.createElement("button");
   resetBtn.type = "button";
   resetBtn.className = "graph-alt-reset";
@@ -182,6 +186,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     activeView?.resetView?.();
   });
   shell?.appendChild(resetBtn);
+  let treemapZoomed = false;
+  function syncResetBtn(): void {
+    resetBtn.hidden =
+      mode === "graph" ||
+      mode === "flame" ||
+      (mode === "treemap" && !treemapZoomed);
+  }
 
   function keyItem(color: string, label: string, line = false): HTMLElement {
     const item = document.createElement("span");
@@ -211,10 +222,20 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const items = document.createElement("div");
     items.className = "graph-key-items";
     if (mode === "hyperbolic") {
-      items.appendChild(keyItem("#ff9a58", "Direct dependency"));
-      items.appendChild(keyItem("#5b7186", "Sub-dependency"));
+      items.appendChild(
+        keyItem("var(--graph-hyp-direct-swatch, #ff9a58)", "Direct dependency"),
+      );
+      items.appendChild(
+        keyItem("var(--graph-hyp-sub-swatch, #5b7186)", "Sub-dependency"),
+      );
       items.appendChild(keyItem("", "Blip size — packages beneath it"));
-      items.appendChild(keyItem("#f59e0b", "Selection: route back to the project", true));
+      items.appendChild(
+        keyItem(
+          "var(--graph-hyp-route-swatch, #f59e0b)",
+          "Selection: route back to the project",
+          true,
+        ),
+      );
       items.appendChild(
         keyItem("var(--accent, #06b6d4)", "Selection: what it depends on", true),
       );
@@ -293,11 +314,17 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const m = model;
     const last = trail[trail.length - 1];
     options.statusLine.classList.remove("dim");
-    const trailFrees = m.domTree().exclusiveCount[last];
+    // Impact facts come from the unfiltered graph: hover numbers must not
+    // change when display filters do.
+    const imp = m.impact(last);
+    const freesText =
+      imp.manifestFrees !== null
+        ? `removing frees ${imp.manifestFrees.toLocaleString()}`
+        : `deleting frees ${imp.exclusiveCount.toLocaleString()}`;
     options.statusLine.textContent =
       `${m.projectName} › ${trail.map((id) => m.refs[id].name).join(" › ")}` +
-      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} in subtree` +
-      ` · deleting frees ${trailFrees.toLocaleString()}`;
+      ` · ${imp.subtreeCount.toLocaleString()} package${imp.subtreeCount === 1 ? "" : "s"} in subtree` +
+      ` · ${freesText}`;
   }
 
   // ----- dossier --------------------------------------------------------
@@ -423,23 +450,42 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         facts.appendChild(chip);
       }
     }
+    // Impact facts come from the UNFILTERED workspace graph \u2014 display
+    // filters change what renders, never what removing a package frees.
+    const imp = m.impact(index);
     fact(
       "",
       "\u03a3",
-      `${m.uniqueCount(index).toLocaleString()} package${m.uniqueCount(index) === 1 ? "" : "s"} in subtree`,
+      `${imp.subtreeCount.toLocaleString()} package${imp.subtreeCount === 1 ? "" : "s"} in subtree`,
     );
-    const frees = m.domTree().exclusiveCount[index];
-    fact(
-      "",
-      "\u2702",
-      frees > 1
-        ? `deleting frees ${frees.toLocaleString()} packages`
-        : "deleting frees only itself",
-    );
-    const cycle = m.domTree().cycleWith[index];
-    if (cycle && cycle.length > 0) {
-      const names = cycle.slice(0, 3).map((other) => m.refs[other].name);
-      const suffix = cycle.length > 3 ? ` +${cycle.length - 3}` : "";
+    if (imp.manifestFrees === null) {
+      // Sub-dependency: nothing to uninstall directly; the number answers the
+      // what-if of the package itself going away.
+      fact(
+        "",
+        "\u2702",
+        imp.exclusiveCount > 1
+          ? `deleting frees ${imp.exclusiveCount.toLocaleString()} packages`
+          : "deleting frees only itself",
+      );
+    } else if (imp.manifestFrees === 0) {
+      // Direct dependency that other packages also pull in: removing the
+      // package.json entry uninstalls nothing.
+      const names = imp.keptBy.slice(0, 2).join(", ");
+      const suffix = imp.keptBy.length > 2 ? ` +${imp.keptBy.length - 2}` : "";
+      fact("", "\u2702", `removing it frees nothing \u2014 still needed by ${names}${suffix}`);
+    } else {
+      fact(
+        "",
+        "\u2702",
+        imp.manifestFrees > 1
+          ? `removing it frees ${imp.manifestFrees.toLocaleString()} packages`
+          : "removing it frees only itself",
+      );
+    }
+    if (imp.cycleWith.length > 0) {
+      const names = imp.cycleWith.slice(0, 3);
+      const suffix = imp.cycleWith.length > 3 ? ` +${imp.cycleWith.length - 3}` : "";
       fact("", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
     }
     options.dossier.appendChild(facts);
@@ -485,6 +531,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       insetRight,
       insetTop,
       isDimmed: isDimmedIndex,
+      onZoomChanged: (zoomed: boolean) => {
+        treemapZoomed = zoomed;
+        syncResetBtn();
+      },
     };
     if (mode === "flame") activeView = mountFlameView(options.altHost, m, callbacks);
     else if (mode === "treemap") activeView = mountTreemapView(options.altHost, m, callbacks);
@@ -508,10 +558,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       });
     options.altHost.hidden = classic;
     options.altHost.parentElement?.classList.toggle("alt-active", !classic);
-    // Flame resets via its pinned ancestors, the treemap via double-clicking
-    // empty space — neither needs the floating button (which would overlap
-    // the treemap's top-right rects).
-    resetBtn.hidden = classic || mode === "flame" || mode === "treemap";
+    treemapZoomed = false; // fresh mounts start unzoomed
+    syncResetBtn();
     for (const elc of options.classicOnly) elc.classList.toggle("hidden", !classic);
     const handle = options.getClassicHandle();
     if (classic) {

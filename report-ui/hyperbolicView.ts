@@ -31,6 +31,11 @@ export function mountHyperbolicView(
 ): VizHandle {
   const canvas = document.createElement("canvas");
   canvas.className = "graph-alt-canvas";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute(
+    "aria-label",
+    "Hyperbolic view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+  );
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -482,9 +487,12 @@ export function mountHyperbolicView(
     const baseHub = { ...hubPos };
     const a = { ...carry };
     const carryDist = Math.sqrt(cAbs2(a));
-    // Warped endpoint of phase 1: everything translated so `carry` is centred.
-    const warped = base.map((z) => mobiusNeg(a, z));
-    const warpedHub = mobiusNeg(a, baseHub);
+    // Warped endpoint of phase 1 — computed with the SAME clamped endpoint
+    // geodesicPoint(a, 1) that phase 1 converges to, so the phase boundary is
+    // seamless even for carries parked at |z| > 0.999999 near the rim.
+    const aEff = geodesicPoint(a, 1);
+    const warped = base.map((z) => mobiusNeg(aEff, z));
+    const warpedHub = mobiusNeg(aEff, baseHub);
     const durCarry = carryDist < 1e-4 ? 0 : 380;
     const durSettle = 300;
     const t0 = performance.now();
@@ -566,9 +574,13 @@ export function mountHyperbolicView(
   let last: C | null = null;
   let downX = 0;
   let downY = 0;
+  /** Hit under the cursor at pointerdown, BEFORE cancelAnim snaps an
+   *  in-flight transition: a stationary click must select what was seen. */
+  let downHit = -1;
   canvas.addEventListener(
     "pointerdown",
     (e) => {
+      downHit = pick(e.offsetX, e.offsetY);
       cancelAnim();
       dragging = true;
       movedInDrag = false;
@@ -606,11 +618,11 @@ export function mountHyperbolicView(
   );
   canvas.addEventListener(
     "pointerup",
-    (e) => {
+    () => {
       dragging = false;
       canvas.classList.remove("dragging");
       if (movedInDrag) return;
-      const id = pick(e.offsetX, e.offsetY);
+      const id = downHit;
       selected = id;
       cb.onSelect(id);
       if (id >= 0) focusOn(id);

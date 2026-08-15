@@ -135,3 +135,107 @@ describe('buildVizModel', () => {
     expect(model.domTree().exclusiveCount[idx('entry')]).toBe(5);
   });
 });
+
+function impactDataset(): GraphDataset {
+  const dependencies: GraphDataset['dependencies'] = {};
+  const add = (name: string, deps: string[], isDevOnly = false): void => {
+    const slug = `${name}@1.0.0`;
+    dependencies[slug] = {
+      slug,
+      name,
+      version: '1.0.0',
+      dependencies: deps.map((d) => `${d}@1.0.0`),
+      license: 'MIT',
+      vulnerabilityCount: 0,
+      vulnerabilitySeverity: 'none',
+      isDevOnly,
+      workspaceOrigins: ['root'],
+    };
+  };
+  // vite is direct AND pulled in by vitest (another direct dep) — the
+  // vite/vitest shape: removing vite's manifest entry frees nothing.
+  add('vitest', ['vite'], true);
+  add('vite', ['esbuild', 'rollup'], true);
+  add('esbuild', []);
+  add('rollup', []);
+  // solo is direct with an exclusive subtree — removing it frees all of it.
+  add('solo', ['solo-dep']);
+  add('solo-dep', []);
+  return {
+    workspaces: [
+      {
+        name: 'root',
+        directDependencies: ['solo@1.0.0'],
+        directDevDependencies: ['vitest@1.0.0', 'vite@1.0.0'],
+      },
+    ],
+    dependencies,
+  };
+}
+
+describe('impact', () => {
+  it('distinguishes manifest removal from node deletion for direct deps', () => {
+    const model = buildVizModel(impactDataset(), 'root', 'impact');
+    const idx = (n: string): number => model.indexOfSlug.get(`${n}@1.0.0`) as number;
+
+    // vite's node-delete footprint is itself + esbuild + rollup…
+    const vite = model.impact(idx('vite'));
+    expect(vite.exclusiveCount).toBe(3);
+    // …but deleting its manifest entry frees nothing: vitest still pulls it in.
+    expect(vite.manifestFrees).toBe(0);
+    expect(vite.keptBy).toEqual(['vitest']);
+
+    // vitest's manifest removal frees only vitest (vite survives as direct).
+    const vitest = model.impact(idx('vitest'));
+    expect(vitest.manifestFrees).toBe(1);
+    expect(vitest.keptBy).toEqual([]);
+
+    // solo has no other route: manifest removal frees its whole subtree.
+    const solo = model.impact(idx('solo'));
+    expect(solo.manifestFrees).toBe(2);
+    expect(solo.subtreeCount).toBe(2);
+
+    // Sub-dependencies have no manifest entry to remove.
+    expect(model.impact(idx('esbuild')).manifestFrees).toBeNull();
+    expect(model.impact(idx('esbuild')).exclusiveCount).toBe(1);
+  });
+
+  it('keeps impact numbers stable under display filters', () => {
+    const dataset = impactDataset();
+    const unfiltered = buildVizModel(dataset, 'root', 'impact');
+    const noSubs = buildVizModel(dataset, 'root', 'impact', {
+      runtime: true,
+      dev: true,
+      sub: false,
+      maxDepth: null,
+    });
+    const runtimeOnly = buildVizModel(dataset, 'root', 'impact', {
+      runtime: true,
+      dev: false,
+      sub: true,
+      maxDepth: null,
+    });
+
+    const at = (m: typeof unfiltered, n: string) =>
+      m.impact(m.indexOfSlug.get(`${n}@1.0.0`) as number);
+
+    // Hiding sub-dependencies must not shrink what removal frees.
+    expect(at(noSubs, 'vite').exclusiveCount).toBe(3);
+    expect(at(noSubs, 'vite').manifestFrees).toBe(0);
+    expect(at(noSubs, 'vite').keptBy).toEqual(['vitest']);
+    expect(at(noSubs, 'solo').manifestFrees).toBe(2);
+    expect(at(noSubs, 'solo').subtreeCount).toBe(2);
+
+    // Hiding dev deps must not change what the runtime-visible ones report.
+    expect(at(runtimeOnly, 'solo').manifestFrees).toBe(2);
+    expect(at(runtimeOnly, 'solo').subtreeCount).toBe(2);
+
+    // A direct dep in a cycle with its own subtree still frees it all:
+    // the cycle-mate predecessor is dominated by the package itself.
+    const cyclic = structuredClone(dataset);
+    cyclic.dependencies['solo-dep@1.0.0'].dependencies = ['solo@1.0.0'];
+    const cyc = buildVizModel(cyclic, 'root', 'impact');
+    expect(at(cyc, 'solo').manifestFrees).toBe(2);
+    expect(at(cyc, 'solo').keptBy).toEqual([]);
+  });
+});

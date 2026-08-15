@@ -52,6 +52,11 @@ export function mountFlameView(
 ): VizHandle {
   const canvas = document.createElement("canvas");
   canvas.className = "graph-alt-canvas";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute(
+    "aria-label",
+    "Flame view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+  );
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -95,9 +100,10 @@ export function mountFlameView(
   }
 
   /**
-   * Deepest row that would actually RENDER (width >= MIN_BLOCK_PX) for the
-   * given level entries — row heights size to the visible tree, not to some
-   * sub-pixel sliver chain nobody can see. Same width maths as drawLevel,
+   * Deepest row holding a legibly-wide bar (width >= MEASURE_BAR_PX) for the
+   * given level entries. Narrower bars still render (down to MIN_BLOCK_PX) —
+   * they just don't count toward the height budget, or hairline sliver
+   * chains would squash every legible row. Same width maths as drawLevel,
    * iterative.
    */
   function measureVisibleDepth(entries: MeasureEntry[]): number {
