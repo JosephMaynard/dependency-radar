@@ -215,8 +215,8 @@ The report's Graph View offers five switchable layouts (toolbar buttons), all sh
 Shared behaviour:
 
 - **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, how many unique packages sit beneath it, how many packages deleting it would free, and clickable *depends-on* / *required-by* chips that refocus the current view. Search results fly to the package in whichever layout you're using.
-- **Status line** — in the flame, treemap, balloon, and hyperbolic views, hovering shows the full trail (`project › a › b › c`) along the bottom of the canvas instead of a tooltip covering the visualization.
-- **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar key explains each layout's colours.
+- **Status line** — in the flame, treemap, balloon, and hyperbolic views, hovering shows the full trail (`project › a › b › c`) along the bottom of the canvas instead of a popover covering the visualization. The treemap adds a small cursor name tag, since most of its boxes are too small to carry a label.
+- **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar's **Key** dropdown explains each layout's encoding.
 - **Workspaces** — all layouts respect the workspace selector, scoping the tree to that workspace's direct dependencies.
 - **Filters** — toolbar chips toggle runtime dependencies, dev dependencies, and sub-dependencies on and off, and a depth selector caps how deep the tree is expanded (Depth ≤ 1 shows just your direct dependencies and their children). Filters apply to all four layouts.
 - **Search doubles as a highlight filter** — while a search query is active, packages whose names don't match render dimmed in every layout, so matches stand out across the whole tree.

@@ -408,21 +408,26 @@ ${safeCssContent}
             <button type="button" class="graph-mode-btn" data-graph-mode="balloon" aria-pressed="false">Balloon</button>
             <button type="button" class="graph-mode-btn" data-graph-mode="hyperbolic" aria-pressed="false">Hyperbolic</button>
           </div>
-          <div class="graph-key" id="graph-key" aria-label="Graph key">
-            <span class="graph-workspace-label">Key</span>
-            <div class="graph-key-items">
-              <span class="graph-key-item">
-                <span class="graph-key-dot dependency" aria-hidden="true"></span>
-                <span>Dependency</span>
-              </span>
-              <span class="graph-key-item">
-                <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
-                <span>Dev-Dependency</span>
-              </span>
-              <span class="graph-key-item">
-                <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
-                <span>Sub-Dependency</span>
-              </span>
+          <div class="graph-key" id="graph-key">
+            <button type="button" class="graph-key-toggle" id="graph-key-toggle" aria-expanded="false" aria-controls="graph-key-panel">
+              Key
+              <span class="chevron">▼</span>
+            </button>
+            <div class="graph-key-panel" id="graph-key-panel" aria-label="Graph key" hidden>
+              <div class="graph-key-items">
+                <span class="graph-key-item">
+                  <span class="graph-key-dot dependency" aria-hidden="true"></span>
+                  <span>Dependency</span>
+                </span>
+                <span class="graph-key-item">
+                  <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
+                  <span>Dev-Dependency</span>
+                </span>
+                <span class="graph-key-item">
+                  <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
+                  <span>Sub-Dependency</span>
+                </span>
+              </div>
             </div>
           </div>
           <div class="graph-filter-wrap" id="graph-filter-wrap" role="group" aria-label="Graph filters">

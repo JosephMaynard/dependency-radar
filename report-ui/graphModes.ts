@@ -141,9 +141,35 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     );
     return (Number.isFinite(toolbar) && toolbar > 0 ? toolbar : 50) + 10;
   };
-  const classicKeyNodes = options.keyEl
-    ? Array.from(options.keyEl.childNodes)
-    : [];
+  // The key lives in a dropdown: a compact "Key" toggle in the toolbar opens
+  // a panel whose entries switch per mode.
+  const keyToggle =
+    options.keyEl?.querySelector<HTMLButtonElement>(".graph-key-toggle") ?? null;
+  const keyPanel =
+    options.keyEl?.querySelector<HTMLElement>(".graph-key-panel") ?? null;
+  const keyItemsEl =
+    options.keyEl?.querySelector<HTMLElement>(".graph-key-items") ?? null;
+  const classicKeyNodes = keyItemsEl ? Array.from(keyItemsEl.childNodes) : [];
+
+  function setKeyOpen(open: boolean): void {
+    if (!keyToggle || !keyPanel) return;
+    keyPanel.hidden = !open;
+    keyToggle.setAttribute("aria-expanded", String(open));
+    keyToggle.classList.toggle("open", open);
+  }
+  keyToggle?.addEventListener("click", () => {
+    setKeyOpen(Boolean(keyPanel?.hidden));
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!keyPanel || keyPanel.hidden) return;
+    if (options.keyEl?.contains(event.target as Node)) return;
+    setKeyOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !keyPanel || keyPanel.hidden) return;
+    setKeyOpen(false);
+    keyToggle?.focus();
+  });
 
   // Floating reset for the alternative views (flame resets via double-click
   // and its pinned ancestors, so it opts out).
@@ -157,12 +183,12 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   });
   shell?.appendChild(resetBtn);
 
-  function keyItem(color: string, label: string): HTMLElement {
+  function keyItem(color: string, label: string, line = false): HTMLElement {
     const item = document.createElement("span");
     item.className = "graph-key-item";
     if (color) {
       const dot = document.createElement("span");
-      dot.className = "graph-key-dot";
+      dot.className = line ? "graph-key-line" : "graph-key-dot";
       dot.style.background = color;
       dot.setAttribute("aria-hidden", "true");
       item.appendChild(dot);
@@ -173,44 +199,58 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     return item;
   }
 
+  const LINEAGE_SWATCH =
+    "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))";
+
   function updateKey(): void {
-    const keyEl = options.keyEl;
-    if (!keyEl) return;
+    if (!keyItemsEl) return;
     if (mode === "graph") {
-      keyEl.replaceChildren(...classicKeyNodes);
+      keyItemsEl.replaceChildren(...classicKeyNodes);
       return;
     }
-    const label = document.createElement("span");
-    label.className = "graph-workspace-label";
-    label.textContent = "Key";
     const items = document.createElement("div");
     items.className = "graph-key-items";
     if (mode === "hyperbolic") {
       items.appendChild(keyItem("#ff9a58", "Direct dependency"));
       items.appendChild(keyItem("#5b7186", "Sub-dependency"));
+      items.appendChild(keyItem("", "Blip size — packages beneath it"));
+      items.appendChild(keyItem("#f59e0b", "Selection: route back to the project", true));
+      items.appendChild(
+        keyItem("var(--accent, #06b6d4)", "Selection: what it depends on", true),
+      );
     } else if (mode === "flame" || mode === "treemap") {
       items.appendChild(
         keyItem(
-          "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))",
+          "",
           mode === "flame"
-            ? "Width = packages deleting it frees"
-            : "Area = packages deleting it frees",
+            ? "Bar width — packages that leave node_modules if you delete it"
+            : "Box area — packages that leave node_modules if you delete it",
         ),
       );
-      items.appendChild(keyItem("#3d4c5c", "Shared — kept by several dependencies"));
-    } else {
+      items.appendChild(keyItem(LINEAGE_SWATCH, "One colour per direct dependency"));
       items.appendChild(
         keyItem(
-          "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))",
-          "One colour per direct dependency's subtree",
+          "var(--graph-shared-swatch, #3d4c5c)",
+          "Shared — kept by several dependencies; deleting one frees nothing",
         ),
       );
+    } else {
+      items.appendChild(
+        keyItem(LINEAGE_SWATCH, "One colour per direct dependency's system"),
+      );
+      items.appendChild(keyItem("", "Circle size — packages in its subtree"));
     }
-    items.appendChild(keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable"));
     if (mode === "balloon") {
       items.appendChild(keyItem("", "\u2191 required by \u00b7 \u2193 depends on"));
+      items.appendChild(
+        keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable (red outline)"),
+      );
+    } else {
+      items.appendChild(
+        keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable (high severity)"),
+      );
     }
-    keyEl.replaceChildren(label, items);
+    keyItemsEl.replaceChildren(...Array.from(items.children));
   }
 
   function ensureModel(): VizModel {
@@ -468,7 +508,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       });
     options.altHost.hidden = classic;
     options.altHost.parentElement?.classList.toggle("alt-active", !classic);
-    resetBtn.hidden = classic || mode === "flame";
+    // Flame resets via its pinned ancestors, the treemap via double-clicking
+    // empty space — neither needs the floating button (which would overlap
+    // the treemap's top-right rects).
+    resetBtn.hidden = classic || mode === "flame" || mode === "treemap";
     for (const elc of options.classicOnly) elc.classList.toggle("hidden", !classic);
     const handle = options.getClassicHandle();
     if (classic) {

@@ -273,7 +273,7 @@ export function buildDomTree(count: number, out: number[][], roots: number[]): D
 export function computeReachCounts(count: number, out: number[][]): Int32Array {
   const counts = new Int32Array(count).fill(0);
   if (count === 0) return counts;
-  const { comp, members, compOut } = condense(count, out);
+  const { members, compOut } = condense(count, out);
   const words = Math.ceil(count / 32);
   const bits: Int32Array[] = new Array(members.length);
   // Tarjan emits components callee-first: every edge from component i targets

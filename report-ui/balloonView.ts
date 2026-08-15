@@ -126,9 +126,15 @@ export function mountBalloonView(
       maxKid = Math.max(maxKid, e);
     }
     const dist = Math.max(nodeRadius(id) + maxKid + 6, arc / FAN) * unit;
-    let a = dir - Math.min(FAN, (arc * unit) / dist) / 2;
+    // Fans whose children only need a fraction of the available arc spread
+    // out to use it (capped so a two-child fan doesn't go antipodal):
+    // sibling enclosing circles are radial bounds, so widening the angles
+    // within FAN never leaks into a neighbouring subtree's space.
+    const fanUsed = Math.min(FAN, (arc * unit) / dist);
+    const spread = fanUsed > 1e-9 ? Math.min(2.2, FAN / fanUsed) : 1;
+    let a = dir - (fanUsed * spread) / 2;
     for (const kid of kids) {
-      const share = (2 * SHRINK * encMemo[kid] * 1.12 * unit) / dist;
+      const share = ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / dist) * spread;
       const ang = a + share / 2;
       a += share;
       // Bound materialisation: skip subtrees whose whole balloon stays below
@@ -171,20 +177,30 @@ export function mountBalloonView(
     }
     // Arc-pack the minor orbit too: each root gets angular share proportional
     // to its enclosing radius (even-by-count spacing let larger minors overlap
-    // their neighbours into a solid rope on real monorepos).
-    const minorShare = (r: number): number => 2 * Math.max(encMemo[r], 34) * 1.15;
+    // their neighbours into a solid rope on real monorepos). Minors also
+    // stagger across three orbit shells: at fit zoom their on-screen floor
+    // size exceeds their world spacing, so a single orbit renders as a solid
+    // rope no matter how it is packed — three shells triple the room.
+    const minorShare = (r: number): number => 2 * Math.max(encMemo[r], 40) * 1.15;
     const minorArc = minors.reduce((s2, r) => s2 + minorShare(r), 0);
     const minorDist = Math.max(
       majors.length ? dist * 0.34 : 0,
       CENTER_R + 120,
       minorArc / (Math.PI * 2),
     );
+    // When the packed minors need less than the full circle, spread them
+    // around the whole orbit instead of clumping in one wedge.
+    const minorSpread =
+      minorArc > 0 ? Math.max(1, (Math.PI * 2 * minorDist) / minorArc) : 1;
     let am = -Math.PI / 2;
+    let minorIndex = 0;
     for (const r of minors) {
-      const share = minorShare(r) / minorDist;
+      const share = (minorShare(r) / minorDist) * minorSpread;
       const ang = am + share / 2;
       am += share;
-      place(r, Math.cos(ang) * minorDist, Math.sin(ang) * minorDist, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
+      const d = minorDist * (1 + (minorIndex % 3) * 0.18);
+      minorIndex += 1;
+      place(r, Math.cos(ang) * d, Math.sin(ang) * d, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
     }
   }
   const COUNT = px.length;

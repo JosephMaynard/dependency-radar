@@ -45,8 +45,9 @@ export function mountHyperbolicView(
   let hubPos: C = { x: 0, y: 0 };
 
   // Small roots get a floor on their wedge share so leafless direct deps
-  // don't smear into slivers.
-  const rootWeight = (r: number): number => Math.sqrt(leaves[r]) + 1.5;
+  // don't smear into slivers — but a modest one, so roots with real subtrees
+  // get the angular room their fans actually need.
+  const rootWeight = (r: number): number => Math.sqrt(leaves[r]) + 0.8;
 
   // Re-rootable layout. The spanning tree is laid out around ANY node (or
   // the project hub): the focused node sits at the origin, each neighbour —
@@ -102,10 +103,10 @@ export function mountHyperbolicView(
       const around = neighborsFrom(id, cameFrom);
       if (around.length === 0) continue;
       const isCenter = cameFrom === CAME_NONE;
-      // 0.8 factor: 20% shorter links keep systems visually attached.
+      // Short links keep systems visually attached to their parents.
       const rhoBase = isCenter
-        ? 0.42
-        : Math.min(0.66, 0.34 + 0.04 * Math.sqrt(around.length));
+        ? 0.4
+        : Math.min(0.58, 0.3 + 0.036 * Math.sqrt(around.length));
       const total = around.reduce((sum, n) => sum + n.weight, 0) || 1;
       let start = mid - wedge / 2;
       let index = 0;
@@ -117,7 +118,7 @@ export function mountHyperbolicView(
         // siblings across three shells triples their angular breathing room.
         const rho =
           !isCenter && around.length > 6
-            ? Math.min(0.72, rhoBase + ((index % 3) - 1) * 0.072)
+            ? Math.min(0.64, rhoBase + ((index % 3) - 1) * 0.065)
             : rhoBase;
         index += 1;
         const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
@@ -126,7 +127,7 @@ export function mountHyperbolicView(
         // Outward direction in the neighbour's own frame: away from here.
         const parentLocal = mobiusNeg(g, getP(id));
         const out = Math.atan2(parentLocal.y, parentLocal.x) + Math.PI;
-        stack.push({ id: next, cameFrom: id, mid: out, wedge: Math.min(share * 0.92, 2.4) });
+        stack.push({ id: next, cameFrom: id, mid: out, wedge: Math.min(share * 0.95, 2.8) });
       }
     }
     return { positions, hub };
@@ -144,6 +145,10 @@ export function mountHyperbolicView(
   let CX = 0;
   let CY = 0;
   let R = 0;
+  // Widescreen stretch: the disk renders as an ellipse (capped) so it uses
+  // the horizontal space. The hyperbolic maths stays circular — the stretch
+  // is one final affine step on render, inverted again on input.
+  let stretchX = 1;
   // Euclidean magnification of the disk on top of the Möbius navigation:
   // the circle simply gets bigger, anchored at the cursor.
   let viewScale = 1;
@@ -156,9 +161,15 @@ export function mountHyperbolicView(
   let destroyed = false;
 
   const effR = (): number => R * viewScale;
-  const toScreen = (z: C): C => ({ x: CX + offX + z.x * effR(), y: CY + offY + z.y * effR() });
+  const toScreen = (z: C): C => ({
+    x: CX + offX + z.x * effR() * stretchX,
+    y: CY + offY + z.y * effR(),
+  });
   const toDisk = (mx: number, my: number): C => {
-    const z = { x: (mx - CX - offX) / effR(), y: (my - CY - offY) / effR() };
+    const z = {
+      x: (mx - CX - offX) / (effR() * stretchX),
+      y: (my - CY - offY) / effR(),
+    };
     const m = Math.sqrt(cAbs2(z));
     return m > 0.985 ? { x: (z.x / m) * 0.985, y: (z.y / m) * 0.985 } : z;
   };
@@ -171,15 +182,34 @@ export function mountHyperbolicView(
     return Math.min(22, Math.max(0.35, base * conformal(pos[id]) * (effR() / 460)));
   };
 
-  /** Geodesic between two disk points: arc orthogonal to the rim. */
+  /**
+   * Geodesic path construction happens in CIRCULAR disk space; the ellipse
+   * stretch is applied by the canvas transform below, so arcs stay arcs and
+   * the deferred stroke keeps a uniform line width.
+   */
+  function beginWarpPath(): void {
+    if (!ctx) return;
+    ctx.save();
+    ctx.translate(CX + offX, CY + offY);
+    ctx.scale(stretchX, 1);
+    ctx.beginPath();
+  }
+
+  function strokeWarpPath(): void {
+    if (!ctx) return;
+    ctx.restore();
+    ctx.stroke();
+  }
+
+  /** Geodesic between two disk points: arc orthogonal to the rim. Emits into
+   * a beginWarpPath() context (centre-origin, unstretched screen units). */
   function geodesic(z1: C, z2: C): void {
     if (!ctx) return;
+    const r0 = effR();
     const cross = z1.x * z2.y - z1.y * z2.x;
-    const p1 = toScreen(z1);
-    const p2 = toScreen(z2);
     if (Math.abs(cross) < 1e-4) {
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
+      ctx.moveTo(z1.x * r0, z1.y * r0);
+      ctx.lineTo(z2.x * r0, z2.y * r0);
       return;
     }
     const k1 = (cAbs2(z1) + 1) / 2;
@@ -193,9 +223,8 @@ export function mountHyperbolicView(
     let delta = a2 - a1;
     while (delta > Math.PI) delta -= Math.PI * 2;
     while (delta < -Math.PI) delta += Math.PI * 2;
-    const sc = toScreen(c);
-    ctx.moveTo(p1.x, p1.y);
-    ctx.arc(sc.x, sc.y, rad * effR(), a1, a1 + delta, delta < 0);
+    ctx.moveTo(z1.x * r0, z1.y * r0);
+    ctx.arc(c.x * r0, c.y * r0, rad * r0, a1, a1 + delta, delta < 0);
   }
 
   function draw(): void {
@@ -205,10 +234,11 @@ export function mountHyperbolicView(
     ctx.clearRect(0, 0, W, H);
 
     // Disk face + range rings at equal hyperbolic distance (d_h = 2 atanh r).
+    // Rendered as an ellipse when the stage is wider than tall.
     const dcx = CX + offX;
     const dcy = CY + offY;
     ctx.beginPath();
-    ctx.arc(dcx, dcy, effR(), 0, Math.PI * 2);
+    ctx.ellipse(dcx, dcy, effR() * stretchX, effR(), 0, 0, Math.PI * 2);
     ctx.fillStyle = theme.isDark ? "#0a1219" : "#f6f9fc";
     ctx.fill();
     ctx.strokeStyle = theme.line;
@@ -217,52 +247,70 @@ export function mountHyperbolicView(
     ctx.strokeStyle = theme.isDark ? "#14202c" : "#e3eaf2";
     ctx.lineWidth = 1;
     for (let d = 1; d <= 5; d += 1) {
+      const rd = Math.tanh(d * 0.55) * effR();
       ctx.beginPath();
-      ctx.arc(dcx, dcy, Math.tanh(d * 0.55) * effR(), 0, Math.PI * 2);
+      ctx.ellipse(dcx, dcy, rd * stretchX, rd, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     // Focus set: selected node, its path to root, and its direct neighbours.
-    const focusEdges: Array<[number, number]> = [];
+    // The route back to the project and the selection's own dependencies are
+    // different questions, so they get different colours (see the key).
+    const depEdges: Array<[number, number]> = [];
+    const pathEdges: Array<[number, number]> = [];
+    let pathTop = -1;
     const focusSet = new Set<number>();
     if (selected >= 0) {
       focusSet.add(selected);
       for (const dep of model.depsOut[selected]) {
         focusSet.add(dep);
-        focusEdges.push([selected, dep]);
+        depEdges.push([selected, dep]);
       }
       for (const from of model.depsIn[selected]) focusSet.add(from);
       let walk = selected;
       while (parent[walk] >= 0) {
-        focusEdges.push([parent[walk], walk]);
+        pathEdges.push([parent[walk], walk]);
         focusSet.add(parent[walk]);
         walk = parent[walk];
       }
+      pathTop = walk;
     }
 
-    // Spanning-tree edges.
+    // Spanning-tree edges. Selection dims the context only gently — keeping
+    // the whole tree visible around the focus is the point of this view.
     ctx.lineWidth = 0.7;
     const edgeBase = theme.isDark ? "59, 76, 94" : "148, 163, 184";
-    ctx.strokeStyle = `rgba(${edgeBase}, ${selected >= 0 ? 0.22 : 0.45})`;
-    ctx.beginPath();
+    ctx.strokeStyle = `rgba(${edgeBase}, ${selected >= 0 ? 0.32 : 0.45})`;
+    beginWarpPath();
     for (let id = 0; id < N; id += 1) {
       if (parent[id] < 0) continue;
       if (conformal(pos[id]) < 0.004 && conformal(pos[parent[id]]) < 0.004) continue;
       geodesic(pos[parent[id]], pos[id]);
     }
-    ctx.stroke();
+    strokeWarpPath();
     // Spokes from the project hub to the first ring.
-    ctx.strokeStyle = `rgba(${edgeBase}, ${selected >= 0 ? 0.18 : 0.4})`;
-    ctx.beginPath();
+    ctx.strokeStyle = `rgba(${edgeBase}, ${selected >= 0 ? 0.28 : 0.4})`;
+    beginWarpPath();
     for (const r of roots) geodesic(hubPos, pos[r]);
-    ctx.stroke();
+    strokeWarpPath();
 
     if (selected >= 0) {
-      ctx.lineWidth = 1.4;
+      // What the selection depends on — accent, hair-thin.
+      ctx.lineWidth = 0.9;
+      ctx.globalAlpha = 0.85;
       ctx.strokeStyle = theme.accent;
-      ctx.beginPath();
-      for (const [a, b] of focusEdges) geodesic(pos[a], pos[b]);
-      ctx.stroke();
+      beginWarpPath();
+      for (const [a, b] of depEdges) geodesic(pos[a], pos[b]);
+      strokeWarpPath();
+      // The route that keeps it installed — warm amber, including the last
+      // hop from the direct dependency to the project hub.
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = theme.isDark ? "#f59e0b" : "#d97706";
+      beginWarpPath();
+      for (const [a, b] of pathEdges) geodesic(pos[a], pos[b]);
+      if (pathTop >= 0) geodesic(hubPos, pos[pathTop]);
+      strokeWarpPath();
+      ctx.globalAlpha = 1;
     }
 
     // Nodes, small first so big blips sit on top. Radii cached once per
@@ -287,7 +335,7 @@ export function mountHyperbolicView(
           : "#94a8bc";
       if (vuln === "high") fill = theme.vulnHigh;
       let alpha = (model.isRoot[id] ? 0.95 : 0.8) * (model.isDev[id] ? 0.65 : 1);
-      if (selected >= 0 && !focusSet.has(id)) alpha *= 0.25;
+      if (selected >= 0 && !focusSet.has(id)) alpha *= 0.45;
       if (cb.isDimmed(id) && id !== selected && id !== hovered) alpha *= 0.2;
       if (id === selected) fill = theme.accent;
       ctx.globalAlpha = alpha;
@@ -351,7 +399,7 @@ export function mountHyperbolicView(
       }
       if (collides && id !== selected && id !== hovered) continue;
       placed.push([x0, y0, x1, y1]);
-      ctx.globalAlpha = selected >= 0 && !focusSet.has(id) && id !== hovered ? 0.3 : 0.9;
+      ctx.globalAlpha = selected >= 0 && !focusSet.has(id) && id !== hovered ? 0.45 : 0.9;
       ctx.fillStyle = id === selected ? theme.accent : theme.muted;
       ctx.fillText(name, x0, p.y);
     }
@@ -390,15 +438,35 @@ export function mountHyperbolicView(
   function focusOn(target: number): void {
     // Retarget any in-flight transition rather than dropping the request.
     cancelAnim();
-    startLayoutTransition(computeLayout(target));
+    startLayoutTransition(pos[target], computeLayout(target));
   }
 
   function resetLayout(): void {
     cancelAnim();
-    startLayoutTransition(computeLayout(HUB));
+    startLayoutTransition(hubPos, computeLayout(HUB));
   }
 
-  function startLayoutTransition(layout: { positions: C[]; hub: C }): void {
+  /** Ease-in-out: gentle at both ends — sudden starts read as jarring. */
+  const easeInOut = (u: number): number =>
+    u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+
+  /** Point along the geodesic 0 → a at fraction u of the hyperbolic distance. */
+  function geodesicPoint(a: C, u: number): C {
+    const m = Math.sqrt(cAbs2(a));
+    if (m < 1e-9) return { x: 0, y: 0 };
+    const r = Math.tanh(Math.atanh(Math.min(m, 0.999999)) * u);
+    return { x: (a.x / m) * r, y: (a.y / m) * r };
+  }
+
+  /**
+   * Two-phase transition into a new layout centred on `carry` (the clicked
+   * node's current position, or the hub's for a reset). Phase 1 is a pure
+   * Möbius translation gliding `carry` to the centre — an isometry, so the
+   * whole picture warps exactly as if dragged there, nothing crosses
+   * anything. Phase 2 blends the small residual differences into the freshly
+   * computed layout (which has the same node at the origin), then snaps.
+   */
+  function startLayoutTransition(carry: C, layout: { positions: C[]; hub: C }): void {
     const fromOffX = offX;
     const fromOffY = offY;
     if (reduced) {
@@ -412,12 +480,18 @@ export function mountHyperbolicView(
     pendingLayout = layout;
     const base = pos.map((z) => ({ ...z }));
     const baseHub = { ...hubPos };
+    const a = { ...carry };
+    const carryDist = Math.sqrt(cAbs2(a));
+    // Warped endpoint of phase 1: everything translated so `carry` is centred.
+    const warped = base.map((z) => mobiusNeg(a, z));
+    const warpedHub = mobiusNeg(a, baseHub);
+    const durCarry = carryDist < 1e-4 ? 0 : 380;
+    const durSettle = 300;
     const t0 = performance.now();
-    const dur = 420;
     const step = (t: number): void => {
       if (destroyed) return;
-      const u = Math.min(1, (t - t0) / dur);
-      if (u >= 1) {
+      const elapsed = t - t0;
+      if (elapsed >= durCarry + durSettle) {
         // Snap exactly onto the computed layout: persisting lerped (let
         // alone clamped) values would flatten rim depth — nodes deep in a
         // chain live at |z| > 0.999 and must keep their true radii.
@@ -429,21 +503,31 @@ export function mountHyperbolicView(
         draw();
         return;
       }
-      const e = 1 - Math.pow(1 - u, 3);
-      // No clamp needed mid-flight: both endpoints are interior to the disk
-      // and the disk is convex.
-      for (let i = 0; i < N; i += 1) {
-        pos[i] = {
-          x: base[i].x + (layout.positions[i].x - base[i].x) * e,
-          y: base[i].y + (layout.positions[i].y - base[i].y) * e,
+      if (elapsed < durCarry) {
+        const e = easeInOut(elapsed / durCarry);
+        const shift = geodesicPoint(a, e);
+        for (let i = 0; i < N; i += 1) pos[i] = mobiusNeg(shift, base[i]);
+        hubPos = mobiusNeg(shift, baseHub);
+        offX = fromOffX * (1 - e);
+        offY = fromOffY * (1 - e);
+      } else {
+        const e = easeInOut((elapsed - durCarry) / durSettle);
+        // No clamp needed mid-flight: both endpoints are interior to the
+        // disk and the disk is convex.
+        for (let i = 0; i < N; i += 1) {
+          pos[i] = {
+            x: warped[i].x + (layout.positions[i].x - warped[i].x) * e,
+            y: warped[i].y + (layout.positions[i].y - warped[i].y) * e,
+          };
+        }
+        hubPos = {
+          x: warpedHub.x + (layout.hub.x - warpedHub.x) * e,
+          y: warpedHub.y + (layout.hub.y - warpedHub.y) * e,
         };
+        // With no carry phase the pan offset decays here instead.
+        offX = durCarry === 0 ? fromOffX * (1 - e) : 0;
+        offY = durCarry === 0 ? fromOffY * (1 - e) : 0;
       }
-      hubPos = {
-        x: baseHub.x + (layout.hub.x - baseHub.x) * e,
-        y: baseHub.y + (layout.hub.y - baseHub.y) * e,
-      };
-      offX = fromOffX * (1 - e);
-      offY = fromOffY * (1 - e);
       draw();
       animFrame = requestAnimationFrame(step);
     };
@@ -599,6 +683,9 @@ export function mountHyperbolicView(
     CX = usable / 2;
     CY = cb.insetTop() + usableH / 2;
     R = Math.min(usable, usableH) / 2 - 24;
+    // Wider-than-tall stages stretch the disk into an ellipse — capped, so
+    // ultrawide windows don't smear the geometry into unreadability.
+    stretchX = Math.min(1.45, Math.max(1, (usable / 2 - 24) / Math.max(1, R)));
     draw();
   }
   window.addEventListener("resize", resize, { signal });

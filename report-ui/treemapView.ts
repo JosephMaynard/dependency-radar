@@ -43,6 +43,12 @@ export function mountTreemapView(
   const canvas = document.createElement("canvas");
   canvas.className = "graph-alt-canvas";
   host.appendChild(canvas);
+  // Cursor tooltip: most rects are too small to carry a label, so the name
+  // travels with the pointer instead.
+  const tip = document.createElement("div");
+  tip.className = "graph-cursor-tip";
+  tip.hidden = true;
+  host.appendChild(tip);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
@@ -323,10 +329,28 @@ export function mountTreemapView(
     return path;
   }
 
+  function moveTip(e: PointerEvent, i: number): void {
+    if (i < 0) {
+      tip.hidden = true;
+      return;
+    }
+    tip.textContent = rectLabel(rects[i]);
+    tip.hidden = false;
+    // Measure after content is set; flip to the other side near the edges.
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let x = e.offsetX + 14;
+    let y = e.offsetY + 18;
+    if (x + tw > W - 8) x = e.offsetX - tw - 10;
+    if (y + th > H - 34) y = e.offsetY - th - 10;
+    tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
+  }
+
   canvas.addEventListener(
     "pointermove",
     (e) => {
       const i = pick(e.offsetX, e.offsetY);
+      moveTip(e, i);
       if (i === hovered) return;
       hovered = i;
       canvas.style.cursor = i >= 0 ? "pointer" : "default";
@@ -340,6 +364,7 @@ export function mountTreemapView(
     "pointerleave",
     () => {
       hovered = -1;
+      tip.hidden = true;
       cb.onHoverTrail(null);
       draw();
     },
@@ -432,6 +457,7 @@ export function mountTreemapView(
     destroy() {
       destroyed = true;
       aborter.abort();
+      tip.remove();
       canvas.remove();
     },
     resize,

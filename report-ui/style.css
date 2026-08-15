@@ -52,6 +52,9 @@
   --graph-muted: var(--text-muted);
   --graph-vuln-high: var(--red);
   --graph-vuln-medium: var(--amber);
+  /* Swatch for the flame/treemap "shared" band in the key panel; must track
+     the canvas fills in sharedFill()/fillFor(). */
+  --graph-shared-swatch: #3d4c5c;
 }
 
 :root.light {
@@ -71,11 +74,13 @@
 
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
+  --graph-shared-swatch: #c4d0dc;
 }
 
 [data-theme="light"] {
   --graph-highlight: var(--accent);
   --graph-muted: var(--text-secondary);
+  --graph-shared-swatch: #c4d0dc;
 }
 
 html {
@@ -1178,26 +1183,95 @@ select.graph-workspace-select:focus {
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  max-width: 100%;
   position: relative;
+}
+
+.graph-key-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.graph-key-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+[data-theme="light"] .graph-key-toggle {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+[data-theme="light"] .graph-key-toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.graph-key-toggle .chevron {
+  font-size: 8px;
+  transition: transform var(--transition);
+}
+
+.graph-key-toggle.open .chevron {
+  transform: rotate(180deg);
+}
+
+.graph-key-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 12px;
+  z-index: 20;
+  min-width: 240px;
+  max-width: 380px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .graph-key-panel {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: rgba(100, 116, 139, 0.2);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+}
+
+.graph-key-panel[hidden] {
+  display: none;
 }
 
 .graph-key-items {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
   min-width: 0;
 }
 
 .graph-key-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   color: var(--text-secondary);
   font-size: 12px;
-  line-height: 1.1;
-  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.graph-key-item > .graph-key-dot,
+.graph-key-item > .graph-key-line {
+  flex: none;
+  align-self: center;
 }
 
 .graph-key-dot {
@@ -1206,6 +1280,13 @@ select.graph-workspace-select:focus {
   border-radius: 50%;
   display: inline-block;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.graph-key-line {
+  width: 16px;
+  height: 2.5px;
+  border-radius: 2px;
+  display: inline-block;
 }
 
 .graph-key-dot.dependency {
@@ -1752,6 +1833,31 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 
 .graph-alt-canvas.dragging {
   cursor: grabbing !important;
+}
+
+/* Cursor-following name tag for canvas views whose shapes are mostly too
+   small to carry their own label (treemap). */
+.graph-cursor-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.graph-cursor-tip[hidden] {
+  display: none;
 }
 
 .graph-status-line {
@@ -3357,10 +3463,6 @@ details[open] > summary .expand-icon {
 
   .graph-key {
     padding: 6px 8px;
-    gap: 8px;
-  }
-
-  .graph-key-items {
     gap: 8px;
   }
 
