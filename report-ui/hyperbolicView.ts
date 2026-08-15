@@ -440,15 +440,52 @@ export function mountHyperbolicView(
     }
   }
 
+  /** Which node the current layout is centred on (HUB after a reset). */
+  let layoutCenter = HUB;
+
+  /**
+   * Rotate a freshly computed layout (an isometry of the disk) so that
+   * `anchorId` keeps the bearing it will have on screen after the carry —
+   * subtrees stay on the side of the disk they started on instead of the
+   * whole picture flipping to a canonical "everything up" orientation.
+   */
+  function orientLayout(
+    layout: { positions: C[]; hub: C },
+    carry: C,
+    anchorId: number,
+  ): void {
+    if (anchorId < HUB) return;
+    const aEff = geodesicPoint(carry, 1);
+    const current = anchorId === HUB ? hubPos : pos[anchorId];
+    const from = mobiusNeg(aEff, current); // anchor's position once carried
+    const to = anchorId === HUB ? layout.hub : layout.positions[anchorId];
+    if (Math.hypot(from.x, from.y) < 1e-4 || Math.hypot(to.x, to.y) < 1e-4) return;
+    const delta = Math.atan2(from.y, from.x) - Math.atan2(to.y, to.x);
+    const c = Math.cos(delta);
+    const s = Math.sin(delta);
+    const rot = (z: C): C => ({ x: z.x * c - z.y * s, y: z.x * s + z.y * c });
+    for (let i = 0; i < N; i += 1) layout.positions[i] = rot(layout.positions[i]);
+    layout.hub = rot(layout.hub);
+  }
+
   function focusOn(target: number): void {
     // Retarget any in-flight transition rather than dropping the request.
     cancelAnim();
-    startLayoutTransition(pos[target], computeLayout(target));
+    const layout = computeLayout(target);
+    // Anchor on the way back up: the parent (or the hub for a direct dep)
+    // keeps its bearing, so the focused subtree fans out where it was.
+    orientLayout(layout, pos[target], parent[target] >= 0 ? parent[target] : HUB);
+    layoutCenter = target;
+    startLayoutTransition(pos[target], layout);
   }
 
   function resetLayout(): void {
     cancelAnim();
-    startLayoutTransition(hubPos, computeLayout(HUB));
+    const layout = computeLayout(HUB);
+    // Going home: keep the previously focused node on the side it occupied.
+    if (layoutCenter !== HUB) orientLayout(layout, hubPos, layoutCenter);
+    layoutCenter = HUB;
+    startLayoutTransition(hubPos, layout);
   }
 
   /** Ease-in-out: gentle at both ends — sudden starts read as jarring. */

@@ -270,12 +270,22 @@ export function mountBalloonView(
     );
     minScale = Math.min(0.05, scale);
   }
-  const sx = (x: number): number => (x - vx) * scale + usableW() / 2;
-  const sy = (y: number): number => (y - vy) * scale + centreY();
+  // Screen mapping. The offsets are cached ONCE per frame: usableW()/centreY()
+  // read CSS variables via getComputedStyle, and calling them per placement
+  // (250k of them on a monorepo) froze every draw for hundreds of ms.
+  let sxOff = 0;
+  let syOff = 0;
+  const syncScreenOffsets = (): void => {
+    sxOff = usableW() / 2;
+    syOff = centreY();
+  };
+  const sx = (x: number): number => (x - vx) * scale + sxOff;
+  const sy = (y: number): number => (y - vy) * scale + syOff;
 
   function draw(): void {
     if (!ctx || destroyed) return;
     const theme = cb.theme();
+    syncScreenOffsets();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     const lodMin = interacting ? 0.9 : 0.35;
@@ -283,8 +293,10 @@ export function mountBalloonView(
     const bodyL = theme.isDark ? [30, 20] : [72, 82];
     const strokeL = theme.isDark ? 64 : 38;
 
-    // Edges first — always visible, satellite style.
-    ctx.lineWidth = 0.6;
+    // Edges first — always visible, satellite style. Batched by
+    // (hue, quantised alpha): one stroke() per edge froze monorepo-scale
+    // graphs for ~half a second per frame.
+    const edgeGroups = new Map<string, number[]>();
     for (let i = 0; i < COUNT; i += 1) {
       const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? Math.min(hubFloor, 2.4) : pdepth[i] === 1 ? 2.4 : 0);
       if (r < 1.1) continue;
@@ -301,16 +313,32 @@ export function mountBalloonView(
       ) {
         continue;
       }
-      ctx.strokeStyle = `hsla(${phue[i]} 30% ${theme.isDark ? 62 : 45}% / ${Math.min(0.5, 0.16 + r * 0.01)})`;
+      const alpha = Math.round(Math.min(0.5, 0.16 + r * 0.01) * 25) / 25;
+      const key = `${phue[i]}|${alpha}`;
+      let seg = edgeGroups.get(key);
+      if (!seg) {
+        seg = [];
+        edgeGroups.set(key, seg);
+      }
+      seg.push(pxs, pys, x, y);
+    }
+    ctx.lineWidth = 0.6;
+    for (const [key, seg] of edgeGroups) {
+      const [hue, alpha] = key.split("|");
+      ctx.strokeStyle = `hsla(${hue} 30% ${theme.isDark ? 62 : 45}% / ${alpha})`;
       ctx.beginPath();
-      ctx.moveTo(pxs, pys);
-      ctx.lineTo(x, y);
+      for (let k = 0; k < seg.length; k += 4) {
+        ctx.moveTo(seg[k], seg[k + 1]);
+        ctx.lineTo(seg[k + 2], seg[k + 3]);
+      }
       ctx.stroke();
     }
 
     // Bodies — hubs keep a minimum screen size like cities on a map, and at
     // idle every node keeps at least a visible dot so the fitted overview
-    // shows the whole tree.
+    // shows the whole tree. Sub-1.6px dots batch into one fill per
+    // (hue, dev, dimmed) group for the same reason as the edges.
+    const dotGroups = new Map<string, number[]>();
     for (let i = 0; i < COUNT; i += 1) {
       const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : interacting ? 0 : 0.85;
       const r = Math.max(pr[i] * scale, minR);
@@ -321,16 +349,20 @@ export function mountBalloonView(
       const hue = phue[i];
       const id = pid[i];
       const dev = model.isDev[id];
-      const vuln = model.refs[id].vulnerabilitySeverity;
       const hl = i === hovered || i === selectedIdx;
       const dim = !hl && cb.isDimmed(id);
-      if (dim) ctx.globalAlpha = 0.16;
       if (r < 1.6) {
-        ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev ? 0.35 : 0.55})`;
-        ctx.fillRect(x - r / 2, y - r / 2, r, r);
-        ctx.globalAlpha = 1;
+        const key = `${hue}|${dev ? 1 : 0}|${dim ? 1 : 0}`;
+        let arr = dotGroups.get(key);
+        if (!arr) {
+          arr = [];
+          dotGroups.set(key, arr);
+        }
+        arr.push(x, y, r);
         continue;
       }
+      const vuln = model.refs[id].vulnerabilitySeverity;
+      if (dim) ctx.globalAlpha = 0.16;
       ctx.beginPath();
       ctx.arc(x, y, Math.max(0.01, r), 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${hue} 32% ${pdepth[i] === 0 ? bodyL[0] : bodyL[1]}% / ${dev ? 0.62 : 0.9})`;
@@ -344,6 +376,18 @@ export function mountBalloonView(
             ? theme.vulnModerate
             : `hsla(${hue} 42% ${strokeL - pdepth[i] * 4}% / 0.9)`;
       ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    for (const [key, arr] of dotGroups) {
+      const [hue, dev, dim] = key.split("|");
+      ctx.globalAlpha = dim === "1" ? 0.16 : 1;
+      ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev === "1" ? 0.35 : 0.55})`;
+      ctx.beginPath();
+      for (let k = 0; k < arr.length; k += 3) {
+        const rr = arr[k + 2];
+        ctx.rect(arr[k] - rr / 2, arr[k + 1] - rr / 2, rr, rr);
+      }
+      ctx.fill();
       ctx.globalAlpha = 1;
     }
 
@@ -463,13 +507,21 @@ export function mountBalloonView(
     const cx = Math.floor(wx / CELL);
     const cyy = Math.floor(wy / CELL);
     let best = -1;
-    let bestD = Math.min(10 / scale, CELL);
-    for (let gx = cx - PICK_REACH; gx <= cx + PICK_REACH; gx += 1) {
-      for (let gy = cyy - PICK_REACH; gy <= cyy + PICK_REACH; gy += 1) {
+    // SCREEN-space distances, against the radius the node actually renders
+    // at (including the depth floors): zoomed out, nodes are drawn far
+    // larger than their world radius, and the pick target must match what
+    // the eye sees or clicks land on "nothing".
+    let bestD = 8;
+    const reach = Math.max(PICK_REACH, Math.ceil(20 / scale / CELL));
+    for (let gx = cx - reach; gx <= cx + reach; gx += 1) {
+      for (let gy = cyy - reach; gy <= cyy + reach; gy += 1) {
         const list = grid.get(`${gx},${gy}`);
         if (!list) continue;
         for (const i of list) {
-          const d = Math.hypot(px[i] - wx, py[i] - wy) - pr[i];
+          const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : 0.85;
+          const rScreen = Math.max(pr[i] * scale, minR);
+          const d =
+            Math.hypot((px[i] - wx) * scale, (py[i] - wy) * scale) - rScreen;
           if (d < bestD) {
             bestD = d;
             best = i;
@@ -525,8 +577,10 @@ export function mountBalloonView(
       if (dragging) {
         const dx = e.offsetX - lastX;
         const dy = e.offsetY - lastY;
-        // Cumulative from pointerdown: slow pans must not read as clicks.
-        if (Math.abs(e.offsetX - downX) + Math.abs(e.offsetY - downY) > 3) movedInDrag = true;
+        // Cumulative from pointerdown: slow pans must not read as clicks —
+        // but the threshold allows the drift of a human hand across a slow
+        // frame, or taps read as micro-drags.
+        if (Math.abs(e.offsetX - downX) + Math.abs(e.offsetY - downY) > 6) movedInDrag = true;
         vx -= dx / scale;
         vy -= dy / scale;
         lastX = e.offsetX;
@@ -597,6 +651,7 @@ export function mountBalloonView(
 
   function flyTo(idx: number): void {
     cancelAnimationFrame(flyFrame);
+    syncScreenOffsets();
     // Zoom in far enough to see the body, but never zoom OUT on selection.
     const targetScale = Math.max(scale, Math.min(24, Math.max(1.2, 42 / pr[idx])));
     const fromS = scale;
@@ -617,6 +672,7 @@ export function mountBalloonView(
       scale = sNow;
       vx = px[idx] - (sxNow - usableW() / 2) / sNow;
       vy = py[idx] - (syNow - centreY()) / sNow;
+      if (u < 1) poke(); // in-flight frames use the cheap interaction LOD
       draw();
       if (u < 1) flyFrame = requestAnimationFrame(step);
     };

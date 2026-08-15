@@ -58,6 +58,12 @@ export function mountFlameView(
     "Flame view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
+  // Cursor tooltip, as in the treemap: deep bars are often too narrow to
+  // carry their own label.
+  const tip = document.createElement("div");
+  tip.className = "graph-cursor-tip";
+  tip.hidden = true;
+  host.appendChild(tip);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
@@ -437,10 +443,29 @@ export function mountFlameView(
     return false;
   }
 
+  function moveTip(e: PointerEvent, i: number): void {
+    const id = i >= 0 ? blocks[i].id : PROJECT_BAR;
+    if (i < 0 || id === PROJECT_BAR) {
+      // The project bar is full-width and always labelled.
+      tip.hidden = true;
+      return;
+    }
+    tip.textContent = id === SHARED_BAR ? sharedBandLabel() : barLabel(id);
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let x = e.offsetX + 14;
+    let y = e.offsetY + 18;
+    if (x + tw > usableW() - 8) x = e.offsetX - tw - 10;
+    if (y + th > H - 34) y = e.offsetY - th - 10;
+    tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
+  }
+
   canvas.addEventListener(
     "pointermove",
     (e) => {
       const i = pick(e.offsetX, e.offsetY);
+      moveTip(e, i);
       if (i === hoveredBlock) return;
       hoveredBlock = i;
       canvas.style.cursor = i >= 0 ? "pointer" : "default";
@@ -453,6 +478,7 @@ export function mountFlameView(
     "pointerleave",
     () => {
       hoveredBlock = -1;
+      tip.hidden = true;
       cb.onHoverTrail(null);
       draw();
     },
@@ -466,6 +492,7 @@ export function mountFlameView(
       if (i < 0) return;
       const b = blocks[i];
       hoveredBlock = -1; // relayout invalidates positional hover indices
+      tip.hidden = true;
       cb.onHoverTrail(null);
       if (b.id === PROJECT_BAR) {
         focusPath = [];
@@ -503,6 +530,7 @@ export function mountFlameView(
       focusShared = false;
       selectedId = -1;
       hoveredBlock = -1;
+      tip.hidden = true;
       cb.onHoverTrail(null);
       cb.onSelect(-1);
       draw();
@@ -541,6 +569,7 @@ export function mountFlameView(
     destroy() {
       destroyed = true;
       aborter.abort();
+      tip.remove();
       canvas.remove();
     },
     resize,
@@ -551,6 +580,7 @@ export function mountFlameView(
       focusShared = !directRootSet.has(path[0]);
       selectedId = index;
       hoveredBlock = -1;
+      tip.hidden = true;
       draw();
     },
   };
