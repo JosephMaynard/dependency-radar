@@ -159,6 +159,77 @@ describe('aggregateData', () => {
     ]));
   });
 
+  it('measures on-disk install size with extension buckets and records platform constraints', async () => {
+    const projectPath = await makeTempDir('dr-agg-install-size');
+    await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
+      name: 'fixture-root',
+      version: '1.0.0',
+      dependencies: { 'sized-local': '1.0.0' }
+    }));
+    const depDir = path.join(projectPath, 'node_modules', 'sized-local');
+    await fs.mkdir(depDir, { recursive: true });
+    const manifest = JSON.stringify({
+      name: 'sized-local',
+      version: '1.0.0',
+      license: 'MIT',
+      main: 'index.js',
+      os: ['darwin', 'linux'],
+      cpu: ['arm64']
+    });
+    await fs.writeFile(path.join(depDir, 'package.json'), manifest);
+    await fs.writeFile(path.join(depDir, 'index.js'), 'a'.repeat(100));
+    await fs.writeFile(path.join(depDir, 'index.d.ts'), 'b'.repeat(40));
+    await fs.writeFile(path.join(depDir, 'index.js.map'), 'c'.repeat(30));
+    await fs.writeFile(path.join(depDir, 'README.md'), 'd'.repeat(20));
+
+    const data = await aggregateData({
+      projectPath,
+      pkgOverride: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { 'sized-local': '1.0.0' }
+      },
+      projectPackageJson: {
+        name: 'fixture-root',
+        version: '1.0.0',
+        dependencies: { 'sized-local': '1.0.0' }
+      },
+      npmLsResult: {
+        ok: true,
+        data: {
+          dependencies: {
+            'sized-local': {
+              name: 'sized-local',
+              version: '1.0.0'
+            }
+          }
+        }
+      },
+      auditResult: { ok: true, data: {} },
+      importGraphResult: { ok: true, data: {} },
+      outdatedResult: { entries: [], unknownNames: [] },
+      workspaceEnabled: false,
+      workspaceType: 'none',
+      workspacePackageCount: 1,
+      resolvePaths: [projectPath]
+    });
+
+    const dep = data.dependencies['sized-local@1.0.0'];
+    const size = dep.package.installSize;
+    expect(size).toBeDefined();
+    // Measured, not estimated: exact byte counts per bucket, manifest
+    // counted in "other", buckets summing to the total.
+    expect(size?.codeBytes).toBe(100);
+    expect(size?.typesBytes).toBe(40);
+    expect(size?.mapBytes).toBe(30);
+    expect(size?.otherBytes).toBe(20 + manifest.length);
+    expect(size?.totalBytes).toBe(
+      (size?.codeBytes ?? 0) + (size?.typesBytes ?? 0) + (size?.mapBytes ?? 0) + (size?.otherBytes ?? 0)
+    );
+    expect(dep.package.fileCount).toBe(5);
+    expect(dep.package.platform).toEqual({ os: ['darwin', 'linux'], cpu: ['arm64'] });
+  });
+
   it('records boolean bundledDependencies as a packaging signal', async () => {
     const projectPath = await makeTempDir('dr-agg-bundle-all');
     await fs.writeFile(path.join(projectPath, 'package.json'), JSON.stringify({
