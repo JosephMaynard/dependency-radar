@@ -599,8 +599,8 @@ export function mountHyperbolicView(
         // it a tooltip-style backing plate so it stays readable.
         ctx.globalAlpha = 1;
         ctx.fillStyle = theme.isDark
-          ? "rgba(6, 10, 16, 0.78)"
-          : "rgba(255, 255, 255, 0.85)";
+          ? "rgba(6, 10, 16, 0.55)"
+          : "rgba(255, 255, 255, 0.65)";
         ctx.beginPath();
         ctx.roundRect(x0 - 5, p.y - 10, w + 10, 20, 5);
         ctx.fill();
