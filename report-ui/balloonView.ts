@@ -11,6 +11,14 @@ const SHRINK = 0.52; // each level is a scaled-down copy: series must converge
 const CENTER_R = 64;
 const CELL = 64; // spatial hash cell, world units
 const MAJOR_ENC = 150; // roots at least this enclosing radius arc-pack the outer ring
+/** Big fans split across concentric shells instead of one distant arc —
+ *  otherwise a 40-child hub orbits its children so far out that the parent
+ *  is a speck in a sea of empty space. Used identically by the enclosing-
+ *  radius memo and the placement pass, so sibling systems still never
+ *  overlap. */
+const SHELL_STEP = 0.32;
+const shellsFor = (kidCount: number): number =>
+  kidCount > 12 ? 3 : kidCount > 6 ? 2 : 1;
 
 export function mountBalloonView(
   host: HTMLElement,
@@ -90,8 +98,9 @@ export function mountBalloonView(
       }
       onPath.delete(frame.id);
       const r = nodeRadius(frame.id);
-      const dist = Math.max(r + frame.maxKid + 6, frame.arc / FAN);
-      encMemo[frame.id] = dist + frame.maxKid;
+      const shells = shellsFor(model.kidsOf[frame.id].length);
+      const dist = Math.max(r + frame.maxKid + 6, frame.arc / (FAN * shells));
+      encMemo[frame.id] = dist * (1 + SHELL_STEP * (shells - 1)) + frame.maxKid;
       stack.pop();
       contribute(stack[stack.length - 1], encMemo[frame.id]);
     }
@@ -123,10 +132,10 @@ export function mountBalloonView(
     const idx = px.length;
     px.push(x);
     py.push(y);
-    // Render radius decays slower than the layout unit (unit^0.82): with the
-    // raw unit, nodes three levels down were specks long before their
-    // spacing ran out.
-    pr.push(nodeRadius(id) * Math.pow(unit, 0.82));
+    // Render radius decays slower than the layout unit: with the raw unit,
+    // nodes three levels down were specks long before their spacing ran
+    // out. The boost is capped, or deep siblings inflate into each other.
+    pr.push(nodeRadius(id) * unit * Math.min(Math.pow(unit, -0.18), 1.45));
     pid.push(id);
     pparent.push(parentIdx);
     pdepth.push(depthIdx);
@@ -143,25 +152,34 @@ export function mountBalloonView(
       arc += 2 * e * 1.12;
       maxKid = Math.max(maxKid, e);
     }
-    const dist = Math.max(nodeRadius(id) + maxKid + 6, arc / FAN) * unit;
+    const shells = shellsFor(kids.length);
+    const distBase = Math.max(nodeRadius(id) + maxKid + 6, arc / (FAN * shells)) * unit;
     // Fans whose children only need a fraction of the available arc spread
     // out to use it (capped so a two-child fan doesn't go antipodal):
     // sibling enclosing circles are radial bounds, so widening the angles
-    // within FAN never leaks into a neighbouring subtree's space.
-    const fanUsed = Math.min(FAN, (arc * unit) / dist);
+    // within FAN never leaks into a neighbouring subtree's space. Large
+    // fans round-robin across concentric shells, each with its own angular
+    // cursor, so children hug their parent instead of orbiting at a
+    // distance dictated by one ring's arc capacity.
+    const fanUsed = Math.min(FAN, (arc * unit) / (shells * distBase));
     const spread = fanUsed > 1e-9 ? Math.min(2.2, FAN / fanUsed) : 1;
-    let a = dir - (fanUsed * spread) / 2;
+    const startAngle = dir - (fanUsed * spread) / 2;
+    const cursors: number[] = Array.from({ length: shells }, () => startAngle);
+    let kidIndex = 0;
     for (const kid of kids) {
-      const share = ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / dist) * spread;
-      const ang = a + share / 2;
-      a += share;
+      const shell = kidIndex % shells;
+      kidIndex += 1;
+      const d = distBase * (1 + SHELL_STEP * shell);
+      const share = ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / d) * spread;
+      const ang = cursors[shell] + share / 2;
+      cursors[shell] += share;
       // Bound materialisation: skip subtrees whose whole balloon stays below
       // half a pixel even at the wheel's maximum zoom (600x).
       if (SHRINK * unit * encMemo[kid] * 600 < 0.5) continue;
       place(
         kid,
-        x + Math.cos(ang) * dist,
-        y + Math.sin(ang) * dist,
+        x + Math.cos(ang) * d,
+        y + Math.sin(ang) * d,
         ang,
         depthIdx + 1,
         idx,
