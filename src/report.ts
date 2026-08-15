@@ -355,6 +355,7 @@ ${safeCssContent}
                 <option value="maintenance">Maintenance</option>
                 <option value="depth">Depth</option>
                 <option value="subdeps">Sub-deps</option>
+                <option value="frees">Frees</option>
               </select>
               <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction" aria-label="Toggle sort direction">↑</button>
             </div>

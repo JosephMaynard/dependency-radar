@@ -11,7 +11,7 @@ import {
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
-import { computeReachCounts } from "./domTree";
+import { buildDomTree, computeReachCounts } from "./domTree";
 import { initGraphModes, type GraphModesHandle } from "./graphModes";
 import { DEFAULT_GRAPH_FILTERS } from "./vizModel";
 import type {
@@ -304,6 +304,19 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     sortFn: (a, b) =>
       (getSubDepCount(`${a.package.name}@${a.package.version}`) ?? -1) -
       (getSubDepCount(`${b.package.name}@${b.package.version}`) ?? -1),
+  },
+  {
+    id: "frees",
+    label: "Frees",
+    sortKey: "frees",
+    getValue: (dep) => {
+      const count = getFreesCount(`${dep.package.name}@${dep.package.version}`);
+      return count === undefined ? "—" : count.toLocaleString();
+    },
+    getTone: () => "gray",
+    sortFn: (a, b) =>
+      (getFreesCount(`${a.package.name}@${a.package.version}`) ?? -1) -
+      (getFreesCount(`${b.package.name}@${b.package.version}`) ?? -1),
   },
   {
     id: "license",
@@ -2024,15 +2037,29 @@ function renderDep(
  * @param supplyChainSignals - Optional list of supply-chain source signals associated with this dependency; when provided a "Supply chain source" subsection will be included.
  * @returns An HTML string containing the complete detail content for the dependency card.
  */
-// Sub-dependency counts (unique packages beneath each dependency), computed
-// lazily from the full graph the first time the list needs one.
-let subDepCountByKey: Map<string, number> | null = null;
-let subDepCountBuilder: (() => Map<string, number>) | null = null;
-function getSubDepCount(depKey: string): number | undefined {
-  if (!subDepCountByKey && subDepCountBuilder) {
-    subDepCountByKey = subDepCountBuilder();
+// Per-dependency graph stats, computed lazily from the full graph the first
+// time the list needs one. Two DIFFERENT questions live here:
+// - subs:  unique packages beneath it (reachability — what depends on being
+//          installed while it is);
+// - frees: what removing it actually uninstalls (dominator footprint; 0 for
+//          a direct dependency other packages still pull in).
+interface DepGraphStats {
+  subs: number;
+  frees: number;
+}
+let depStatsByKey: Map<string, DepGraphStats> | null = null;
+let depStatsBuilder: (() => Map<string, DepGraphStats>) | null = null;
+function getDepStats(depKey: string): DepGraphStats | undefined {
+  if (!depStatsByKey && depStatsBuilder) {
+    depStatsByKey = depStatsBuilder();
   }
-  return subDepCountByKey?.get(depKey);
+  return depStatsByKey?.get(depKey);
+}
+function getSubDepCount(depKey: string): number | undefined {
+  return getDepStats(depKey)?.subs;
+}
+function getFreesCount(depKey: string): number | undefined {
+  return getDepStats(depKey)?.frees;
 }
 
 function renderDepDetails(
@@ -2077,8 +2104,16 @@ function renderDepDetails(
       : "",
     renderKvItem("Dependency depth", dep.usage.depth),
     (() => {
-      const subs = getSubDepCount(`${dep.package.name}@${dep.package.version}`);
-      return subs !== undefined ? renderKvItem("Sub-dependencies", subs) : "";
+      const stats = getDepStats(`${dep.package.name}@${dep.package.version}`);
+      if (!stats) return "";
+      const freesLabel =
+        dep.usage.direct && stats.frees === 0
+          ? "Nothing (still required by other packages)"
+          : stats.frees;
+      return (
+        renderKvItem("Sub-dependencies", stats.subs) +
+        renderKvItem("Removal frees", freesLabel)
+      );
     })(),
     !dep.usage.direct
       ? renderKvItemHtml(
@@ -3157,8 +3192,8 @@ async function init(): Promise<void> {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
   const knownDepKeys = new Set(depByKey.keys());
-  subDepCountByKey = null;
-  subDepCountBuilder = () => {
+  depStatsByKey = null;
+  depStatsBuilder = () => {
     const dataset = adaptDataset(report, knownDepKeys, resolveDepKey);
     const slugs = Object.keys(dataset.dependencies);
     const indexOf = new Map(slugs.map((slug, index) => [slug, index]));
@@ -3168,9 +3203,42 @@ async function init(): Promise<void> {
         .filter((index): index is number => index !== undefined),
     );
     const counts = computeReachCounts(slugs.length, out);
-    const map = new Map<string, number>();
+    // Removal impact over the whole project: every workspace's direct
+    // dependencies are the roots. Same semantics as the graph dossier —
+    // a direct dep other packages still pull in frees nothing.
+    const rootSet = new Set<number>();
+    for (const workspace of dataset.workspaces) {
+      for (const slug of [
+        ...workspace.directDependencies,
+        ...workspace.directDevDependencies,
+      ]) {
+        const index = indexOf.get(slug);
+        if (index !== undefined) rootSet.add(index);
+      }
+    }
+    const dom = buildDomTree(slugs.length, out, [...rootSet]);
+    const depsIn: number[][] = Array.from({ length: slugs.length }, () => []);
+    out.forEach((kids, from) => {
+      for (const to of kids) if (to !== from) depsIn[to].push(from);
+    });
+    const dominatedBy = (node: number, target: number): boolean => {
+      let cur = node;
+      let guard = 0;
+      while (cur >= 0 && guard < 100_000) {
+        if (cur === target) return true;
+        cur = dom.idom[cur];
+        guard += 1;
+      }
+      return false;
+    };
+    const map = new Map<string, DepGraphStats>();
     slugs.forEach((slug, index) => {
-      map.set(slug, Math.max(0, counts[index] - 1));
+      let frees = dom.exclusiveCount[index];
+      if (rootSet.has(index)) {
+        const kept = depsIn[index].some((pred) => !dominatedBy(pred, index));
+        if (kept) frees = 0;
+      }
+      map.set(slug, { subs: Math.max(0, counts[index] - 1), frees });
     });
     return map;
   };

@@ -566,9 +566,20 @@ export function mountHyperbolicView(
     const forced = orderDraw.filter(
       (id) => focusSet.has(id) || id === hovered || id === selected,
     );
+    // Direct dependencies are the names a reader orients by — they outrank
+    // every size-qualified transitive label (collision pruning still runs).
+    const rootTier = orderDraw.filter(
+      (id) =>
+        model.isRoot[id] &&
+        !focusSet.has(id) &&
+        id !== hovered &&
+        id !== selected &&
+        !cb.isDimmed(id),
+    );
     const sized = orderDraw.filter(
       (id) =>
         radii[id] > 3.4 &&
+        !model.isRoot[id] &&
         !focusSet.has(id) &&
         id !== hovered &&
         id !== selected &&
@@ -577,11 +588,17 @@ export function mountHyperbolicView(
     );
     // Cap applies to size-qualified labels only; focus/hover/selection always
     // stay in, and lead so collision pruning favours them.
-    const labelled = [...forced.reverse(), ...sized.slice(-70).reverse()];
+    const labelled = [
+      ...forced.reverse(),
+      ...rootTier.reverse(),
+      ...sized.slice(-70).reverse(),
+    ];
     const placed: Array<[number, number, number, number]> = [];
     for (const id of labelled) {
       const r = radii[id];
-      if (r < 1.4 && !focusSet.has(id) && id !== hovered) continue;
+      if (r < 1.4 && !focusSet.has(id) && id !== hovered && !model.isRoot[id]) {
+        continue;
+      }
       const p = toScreen(pos[id]);
       const name = model.refs[id].name;
       const w = ctx.measureText(name).width;

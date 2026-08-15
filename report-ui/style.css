@@ -407,6 +407,19 @@ body {
   }
 }
 
+/* Small phones: the notice must not blanket the graph stage — compact it. */
+@media (max-width: 640px) {
+  .scan-status-banner {
+    width: min(260px, calc(100vw - 32px));
+    padding: 8px 30px 8px 10px;
+    font-size: 11px;
+  }
+
+  .scan-status-banner strong {
+    font-size: 12px;
+  }
+}
+
 .scan-status-dismiss {
   all: unset;
   position: absolute;
@@ -1290,13 +1303,18 @@ select.graph-workspace-select:focus {
   min-width: 300px;
 }
 
-/* Narrow screens: anchor the filters panel to its wrap's right edge so the
-   clamped max-width keeps it on-screen instead of spilling past the right
-   viewport edge from its mid-toolbar position. */
+/* Narrow screens: the panel is wider than the viewport allows from its
+   mid-toolbar anchor (min-width 300px vs ~272px available), so anchor it
+   to the VIEWPORT instead — full width with fixed insets, below the
+   (possibly two-row) toolbar. */
 @media (max-width: 640px) {
   .graph-filters-panel {
-    left: auto;
-    right: 0;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: 116px;
+    min-width: 0;
+    max-width: none;
   }
 }
 
