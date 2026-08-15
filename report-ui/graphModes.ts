@@ -35,7 +35,9 @@ export type HighlightKind =
   | "maintenance"
   | "replacement"
   | "license"
-  | "blocker";
+  | "blocker"
+  | "unused"
+  | "duplicate";
 
 const HIGHLIGHT_KINDS: HighlightKind[] = [
   "vuln",
@@ -43,6 +45,8 @@ const HIGHLIGHT_KINDS: HighlightKind[] = [
   "replacement",
   "license",
   "blocker",
+  "unused",
+  "duplicate",
 ];
 
 const MODE_HINTS: Record<GraphMode, string> = {

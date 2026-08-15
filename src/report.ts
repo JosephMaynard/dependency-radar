@@ -483,6 +483,14 @@ ${safeCssContent}
                   <span class="graph-key-dot hl-blocker" aria-hidden="true"></span>
                   Upgrade blocker
                 </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-unused" aria-pressed="false">
+                  <span class="graph-key-dot hl-unused" aria-hidden="true"></span>
+                  No imports found
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-duplicate" aria-pressed="false">
+                  <span class="graph-key-dot hl-duplicate" aria-hidden="true"></span>
+                  Duplicate versions
+                </button>
               </div>
               <button type="button" class="graph-panel-reset" id="graph-filters-reset">
                 Reset filters

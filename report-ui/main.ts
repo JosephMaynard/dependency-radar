@@ -3192,6 +3192,28 @@ async function init(): Promise<void> {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
   const knownDepKeys = new Set(depByKey.keys());
+  // Installed-version counts per package name, for the duplicate-versions
+  // highlight ("lodash appears 3×").
+  const duplicateVersionNames = new Map<string, number>();
+  allDependencies.forEach((dep) => {
+    duplicateVersionNames.set(
+      dep.package.name,
+      (duplicateVersionNames.get(dep.package.name) ?? 0) + 1,
+    );
+  });
+  // "No imports found" is only meaningful when the import scan ran.
+  const importsCollectorRan =
+    report.scanStatus?.collectors?.imports === "available" ||
+    report.scanStatus?.collectors?.imports === "partial";
+  if (!importsCollectorRan) {
+    const unusedChip = document.getElementById(
+      "graph-hl-unused",
+    ) as HTMLButtonElement | null;
+    if (unusedChip) {
+      unusedChip.disabled = true;
+      unusedChip.title = "Import scanning did not run for this report";
+    }
+  }
   depStatsByKey = null;
   depStatsBuilder = () => {
     const dataset = adaptDataset(report, knownDepKeys, resolveDepKey);
@@ -3875,6 +3897,17 @@ async function init(): Promise<void> {
                 return hasLicenseIssue(dep);
               case "blocker":
                 return hasUpgradeBlocker(dep);
+              case "unused":
+                // Direct deps only (project source rarely imports transitive
+                // packages directly), and only when the import scan actually
+                // ran — otherwise everything would light up as "unused".
+                return (
+                  importsCollectorRan &&
+                  dep.usage.direct &&
+                  !(dep.usage.importUsage?.fileCount ?? 0)
+                );
+              case "duplicate":
+                return (duplicateVersionNames.get(dep.package.name) ?? 0) > 1;
               default:
                 return false;
             }

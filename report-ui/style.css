@@ -62,6 +62,8 @@
   --hl-replacement: #a78bfa;
   --hl-license: #fb7185;
   --hl-blocker: #94a3b8;
+  --hl-unused: #fb923c;
+  --hl-duplicate: #2dd4bf;
 }
 
 :root.light {
@@ -88,6 +90,8 @@
   --hl-replacement: #7c3aed;
   --hl-license: #e11d48;
   --hl-blocker: #64748b;
+  --hl-unused: #ea580c;
+  --hl-duplicate: #0d9488;
 }
 
 [data-theme="light"] {
@@ -100,6 +104,8 @@
   --hl-replacement: #7c3aed;
   --hl-license: #e11d48;
   --hl-blocker: #64748b;
+  --hl-unused: #ea580c;
+  --hl-duplicate: #0d9488;
 }
 
 html {
@@ -1374,6 +1380,14 @@ select.graph-workspace-select:focus {
 
 .graph-key-dot.hl-blocker {
   background: var(--hl-blocker, #94a3b8);
+}
+
+.graph-key-dot.hl-unused {
+  background: var(--hl-unused, #fb923c);
+}
+
+.graph-key-dot.hl-duplicate {
+  background: var(--hl-duplicate, #2dd4bf);
 }
 
 .graph-key-items {
