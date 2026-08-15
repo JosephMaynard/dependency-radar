@@ -3264,23 +3264,31 @@ async function init(): Promise<void> {
       (duplicateVersionNames.get(dep.package.name) ?? 0) + 1,
     );
   });
-  // "No imports found" is only meaningful when the import scan ran.
+  // Positive import evidence ("imported in N files") is valid whenever the
+  // scan ran at all, but the NEGATIVE claim ("no imports found") needs a
+  // complete scan — under a partial one, a missing record may just mean the
+  // workspace whose scan failed was the importer.
   const importsCollectorRan =
     report.scanStatus?.collectors?.imports === "available" ||
     report.scanStatus?.collectors?.imports === "partial";
-  if (!importsCollectorRan) {
+  const importsEvidenceComplete =
+    report.scanStatus?.collectors?.imports === "available";
+  if (!importsEvidenceComplete) {
+    const reason = importsCollectorRan
+      ? "Import scanning was incomplete for this report"
+      : "Import scanning did not run for this report";
     const unusedChip = document.getElementById(
       "graph-hl-unused",
     ) as HTMLButtonElement | null;
     if (unusedChip) {
       unusedChip.disabled = true;
-      unusedChip.title = "Import scanning did not run for this report";
+      unusedChip.title = reason;
     }
     if (controls.noImports) {
       controls.noImports.disabled = true;
-      controls.noImports.title = "Import scanning did not run for this report";
+      controls.noImports.title = reason;
       const label = controls.noImports.closest("label");
-      if (label) label.title = "Import scanning did not run for this report";
+      if (label) label.title = reason;
     }
   }
   depStatsByKey = null;
@@ -3533,7 +3541,7 @@ async function init(): Promise<void> {
       if (
         noImportsOnly &&
         !(
-          importsCollectorRan &&
+          importsEvidenceComplete &&
           dep.usage.direct &&
           !(dep.usage.importUsage?.fileCount ?? 0)
         )
@@ -3588,6 +3596,8 @@ async function init(): Promise<void> {
     if (controls.licenseIssues) controls.licenseIssues.checked = false;
     if (controls.upgradeBlockers) controls.upgradeBlockers.checked = false;
     if (controls.hasReplacement) controls.hasReplacement.checked = false;
+    if (controls.noImports) controls.noImports.checked = false;
+    if (controls.duplicateVersions) controls.duplicateVersions.checked = false;
     controls.licensePermissive.checked = true;
     controls.licenseWeakCopyleft.checked = true;
     controls.licenseStrongCopyleft.checked = true;
@@ -4060,9 +4070,11 @@ async function init(): Promise<void> {
               (dep.usage.importUsage?.fileCount ?? 0) > 0
                 ? { phantom: true }
                 : {}),
-              ...(importsCollectorRan
-                ? { importFileCount: dep.usage.importUsage?.fileCount ?? 0 }
-                : {}),
+              ...((dep.usage.importUsage?.fileCount ?? 0) > 0
+                ? { importFileCount: dep.usage.importUsage!.fileCount }
+                : importsEvidenceComplete
+                  ? { importFileCount: 0 }
+                  : {}),
             };
           },
           highlightMatch: (slug: string, kind: string) => {
@@ -4089,7 +4101,7 @@ async function init(): Promise<void> {
                 // packages directly), and only when the import scan actually
                 // ran — otherwise everything would light up as "unused".
                 return (
-                  importsCollectorRan &&
+                  importsEvidenceComplete &&
                   dep.usage.direct &&
                   !(dep.usage.importUsage?.fileCount ?? 0)
                 );
@@ -4194,6 +4206,8 @@ async function init(): Promise<void> {
     controls.licenseWeakCopyleft,
     controls.licenseStrongCopyleft,
     controls.licenseUnknown,
+    controls.noImports,
+    controls.duplicateVersions,
   ];
   const handleFilterControlChange = (): void => {
     // User-driven filtering should return to normal behavior.
