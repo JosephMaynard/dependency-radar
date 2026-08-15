@@ -668,6 +668,8 @@ export function mountBalloonView(
 
   function draw(): void {
     if (!ctx || destroyed) return;
+    // A hidden host measures 0x0; drawImage from a 0x0 canvas throws.
+    if (W <= 0 || H <= 0) return;
     syncScreenOffsets();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -691,7 +693,10 @@ export function mountBalloonView(
       drawScene(bctx, -1, -1);
       baseKey = key;
     }
-    ctx.drawImage(baseLayer, 0, 0, W, H);
+    // Identity-transform blit: no resampling even at fractional dpr.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(baseLayer, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (selectedIdx >= 0 && selectedIdx !== hovered) drawNodeOverlay(ctx, selectedIdx, theme);
     if (hovered >= 0) drawNodeOverlay(ctx, hovered, theme);
   }

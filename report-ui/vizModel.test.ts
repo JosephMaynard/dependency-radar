@@ -239,3 +239,67 @@ describe('impact', () => {
     expect(at(cyc, 'solo').keptBy).toEqual([]);
   });
 });
+
+describe('simulateRemoval', () => {
+  const names = (entries: Array<{ name: string }>): string[] =>
+    entries.map((e) => e.name);
+
+  it('frees the dominator subtree and explains what survives', () => {
+    const model = buildVizModel(impactDataset(), 'root', 'impact');
+    const idx = (n: string): number => model.indexOfSlug.get(`${n}@1.0.0`) as number;
+
+    // solo owns its subtree outright: everything freed, nothing retained.
+    const solo = model.simulateRemoval(idx('solo'));
+    expect(solo.isDirect).toBe(true);
+    expect(solo.blockedBy).toEqual([]);
+    expect(names(solo.freed).sort()).toEqual(['solo', 'solo-dep']);
+    expect(solo.retained).toEqual([]);
+
+    // vitest reaches vite/esbuild/rollup but frees only itself — vite is a
+    // direct dep, so the whole reachable remainder is retained with keepers.
+    const vitest = model.simulateRemoval(idx('vitest'));
+    expect(names(vitest.freed)).toEqual(['vitest']);
+    const retained = new Map(vitest.retained.map((r) => [r.name, r.keptBy]));
+    expect(retained.get('vite')).toBe('the project manifest');
+    expect(retained.get('esbuild')).toBe('vite');
+    expect(retained.get('rollup')).toBe('vite');
+  });
+
+  it('reports blocking dependents for a direct dep another package pulls in', () => {
+    const model = buildVizModel(impactDataset(), 'root', 'impact');
+    const idx = (n: string): number => model.indexOfSlug.get(`${n}@1.0.0`) as number;
+
+    const vite = model.simulateRemoval(idx('vite'));
+    expect(vite.isDirect).toBe(true);
+    expect(vite.blockedBy).toEqual(['vitest']);
+    // If vitest dropped it, removal would free vite + its exclusive subtree.
+    expect(names(vite.freed).sort()).toEqual(['esbuild', 'rollup', 'vite']);
+  });
+
+  it('computes over the full graph regardless of display filters', () => {
+    const noSubs = buildVizModel(impactDataset(), 'root', 'impact', {
+      runtime: true,
+      dev: true,
+      sub: false,
+      maxDepth: null,
+    });
+    const idx = noSubs.indexOfSlug.get('solo@1.0.0') as number;
+    // solo-dep is filtered out of the display model but still freed.
+    expect(names(noSubs.simulateRemoval(idx).freed).sort()).toEqual([
+      'solo',
+      'solo-dep',
+    ]);
+  });
+
+  it('does not list a cycle-mate inside the freed subtree as a blocker', () => {
+    const cyclic = impactDataset();
+    cyclic.dependencies['solo-dep@1.0.0'].dependencies = ['solo@1.0.0'];
+    const model = buildVizModel(cyclic, 'root', 'impact');
+    const idx = model.indexOfSlug.get('solo@1.0.0') as number;
+    const sim = model.simulateRemoval(idx);
+    // solo-dep depends back on solo, but it leaves with it — not a blocker.
+    expect(sim.blockedBy).toEqual([]);
+    expect(names(sim.freed).sort()).toEqual(['solo', 'solo-dep']);
+    expect(sim.retained).toEqual([]);
+  });
+});

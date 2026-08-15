@@ -347,6 +347,8 @@ export function mountTreemapView(
 
   function draw(): void {
     if (!ctx || destroyed) return;
+    // A hidden host measures 0x0; drawImage from a 0x0 canvas throws.
+    if (W <= 0 || H <= 0) return;
     const theme = cb.theme();
     if (!baseValid) {
       baseLayer.width = W * dpr;
@@ -360,9 +362,12 @@ export function mountTreemapView(
       for (const rect of rects) drawRect(bctx, rect, false, theme);
       baseValid = true;
     }
+    // Identity-transform blit: source and destination are both W*dpr device
+    // pixels, so no resampling happens even at fractional dpr.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(baseLayer, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(baseLayer, 0, 0, W, H);
     ctx.textBaseline = "middle";
     ctx.font = `600 10.5px ${mono}`;
     const hlIdx = new Set<number>();

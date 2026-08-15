@@ -1765,6 +1765,9 @@ interface PackageStats {
   typesBytes: number;
   mapBytes: number;
   otherBytes: number;
+  /** False when any directory or file could not be read — the byte sums are
+   *  then partial and must not be reported as a measurement. */
+  sizeComplete: boolean;
 }
 
 interface PackageInsights {
@@ -1865,7 +1868,7 @@ async function gatherPackageInsights(
     requiredPeerDependencies,
     description,
     ...(typeof stats?.fileCount === 'number' ? { fileCount: stats.fileCount } : {}),
-    ...(stats
+    ...(stats?.sizeComplete
       ? {
           installSize: {
             totalBytes: stats.totalBytes,
@@ -2063,9 +2066,18 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
   let typesBytes = 0;
   let mapBytes = 0;
   let otherBytes = 0;
+  let sizeComplete = true;
 
   async function walk(current: string): Promise<void> {
-    const entries = await fs.readdir(current, { withFileTypes: true });
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      // Unreadable/removed subdirectory: the sums are now partial. Keep
+      // walking siblings, but never report the result as a measurement.
+      sizeComplete = false;
+      return;
+    }
     for (const entry of entries) {
       const full = path.join(current, entry.name);
       if (entry.isSymbolicLink()) continue;
@@ -2075,7 +2087,7 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
         await walk(full);
       } else if (entry.isFile()) {
         fileCount += 1;
-        if (entry.name.endsWith('.d.ts')) hasDts = true;
+        if (DECLARATION_FILE_RE.test(entry.name)) hasDts = true;
         if (entry.name.endsWith('.node')) hasNativeBinary = true;
         if (entry.name === 'binding.gyp') hasBindingGyp = true;
         if (entry.name === 'npm-shrinkwrap.json') hasShrinkwrap = true;
@@ -2088,17 +2100,15 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
           else if (CODE_FILE_RE.test(entry.name)) codeBytes += size;
           else otherBytes += size;
         } catch {
-          // best-effort; a file disappearing mid-scan must not abort stats
+          // A file disappearing mid-scan must not abort stats, but its
+          // bytes are missing from the sums.
+          sizeComplete = false;
         }
       }
     }
   }
 
-  try {
-    await walk(dir);
-  } catch (err) {
-    // best-effort; ignore inaccessible paths
-  }
+  await walk(dir);
   const result: PackageStats = {
     hasDts,
     hasNativeBinary,
@@ -2109,7 +2119,8 @@ async function calculatePackageStats(dir: string, cache: Map<string, PackageStat
     codeBytes,
     typesBytes,
     mapBytes,
-    otherBytes
+    otherBytes,
+    sizeComplete
   };
   cache.set(dir, result);
   return result;

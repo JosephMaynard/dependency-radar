@@ -1610,7 +1610,7 @@ async function gatherPackageInsights(name, version, resolvePaths, metaCache, sta
         requiredPeerDependencies,
         description,
         ...(typeof (stats === null || stats === void 0 ? void 0 : stats.fileCount) === 'number' ? { fileCount: stats.fileCount } : {}),
-        ...(stats
+        ...((stats === null || stats === void 0 ? void 0 : stats.sizeComplete)
             ? {
                 installSize: {
                     totalBytes: stats.totalBytes,
@@ -1797,8 +1797,18 @@ async function calculatePackageStats(dir, cache) {
     let typesBytes = 0;
     let mapBytes = 0;
     let otherBytes = 0;
+    let sizeComplete = true;
     async function walk(current) {
-        const entries = await promises_1.default.readdir(current, { withFileTypes: true });
+        let entries;
+        try {
+            entries = await promises_1.default.readdir(current, { withFileTypes: true });
+        }
+        catch {
+            // Unreadable/removed subdirectory: the sums are now partial. Keep
+            // walking siblings, but never report the result as a measurement.
+            sizeComplete = false;
+            return;
+        }
         for (const entry of entries) {
             const full = path_1.default.join(current, entry.name);
             if (entry.isSymbolicLink())
@@ -1811,7 +1821,7 @@ async function calculatePackageStats(dir, cache) {
             }
             else if (entry.isFile()) {
                 fileCount += 1;
-                if (entry.name.endsWith('.d.ts'))
+                if (DECLARATION_FILE_RE.test(entry.name))
                     hasDts = true;
                 if (entry.name.endsWith('.node'))
                     hasNativeBinary = true;
@@ -1833,17 +1843,14 @@ async function calculatePackageStats(dir, cache) {
                         otherBytes += size;
                 }
                 catch {
-                    // best-effort; a file disappearing mid-scan must not abort stats
+                    // A file disappearing mid-scan must not abort stats, but its
+                    // bytes are missing from the sums.
+                    sizeComplete = false;
                 }
             }
         }
     }
-    try {
-        await walk(dir);
-    }
-    catch (err) {
-        // best-effort; ignore inaccessible paths
-    }
+    await walk(dir);
     const result = {
         hasDts,
         hasNativeBinary,
@@ -1854,7 +1861,8 @@ async function calculatePackageStats(dir, cache) {
         codeBytes,
         typesBytes,
         mapBytes,
-        otherBytes
+        otherBytes,
+        sizeComplete
     };
     cache.set(dir, result);
     return result;

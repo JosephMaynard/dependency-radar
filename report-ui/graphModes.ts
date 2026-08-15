@@ -480,35 +480,66 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const finePop = document.createElement("div");
   finePop.className = "graph-fineprint-pop";
   finePop.hidden = true;
+  finePop.setAttribute("role", "note");
+  finePop.tabIndex = -1;
   shell?.appendChild(finePop);
+  /** The (i) button whose note is open — reset/refocused on close. */
+  let fineAnchor: HTMLElement | null = null;
+  function closeFinePrint(refocus = false): void {
+    if (finePop.hidden) return;
+    finePop.hidden = true;
+    fineAnchor?.setAttribute("aria-expanded", "false");
+    if (refocus) fineAnchor?.focus();
+    fineAnchor = null;
+  }
   document.addEventListener("pointerdown", (event) => {
     if (finePop.hidden) return;
     if (finePop.contains(event.target as Node)) return;
-    finePop.hidden = true;
+    closeFinePrint();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !finePop.hidden) finePop.hidden = true;
+    if (event.key === "Escape" && !finePop.hidden) closeFinePrint(true);
   });
+  // The anchors live in the scrollable dossier — an open note would drift
+  // away from its (i) on scroll, so close it instead.
+  options.dossier.addEventListener("scroll", () => closeFinePrint(), { passive: true });
   function openFinePrint(topic: string, anchorEl: HTMLElement): void {
     const note = FINE_PRINT[topic];
     if (!note || !shell) return;
+    if (!finePop.hidden && fineAnchor === anchorEl) {
+      closeFinePrint(true);
+      return;
+    }
+    fineAnchor?.setAttribute("aria-expanded", "false");
+    fineAnchor = anchorEl;
+    anchorEl.setAttribute("aria-expanded", "true");
     finePop.textContent = "";
     finePop.appendChild(el("strong", "", note.title));
     finePop.appendChild(el("p", "", note.body));
     finePop.hidden = false;
     const shellRect = shell.getBoundingClientRect();
     const a = anchorEl.getBoundingClientRect();
-    finePop.style.top = `${a.bottom - shellRect.top + 6}px`;
+    // Below the anchor by default; flip above (and clamp) near the shell
+    // bottom so the note stays inside the overflow-hidden shell.
+    const popH = finePop.offsetHeight;
+    let top = a.bottom - shellRect.top + 6;
+    if (top + popH > shell.clientHeight - 8) {
+      top = a.top - shellRect.top - popH - 6;
+    }
+    finePop.style.top = `${Math.max(8, Math.min(top, shell.clientHeight - popH - 8))}px`;
     const left = Math.max(
       8,
       Math.min(a.left - shellRect.left - 140, shell.clientWidth - 296),
     );
     finePop.style.left = `${left}px`;
+    finePop.focus({ preventScroll: true });
   }
   function infoButton(topic: string): HTMLElement {
     const btn = el("button", "graph-fineprint-btn", "\u24d8");
     (btn as HTMLButtonElement).type = "button";
     btn.setAttribute("aria-label", `About: ${FINE_PRINT[topic]?.title ?? topic}`);
+    btn.setAttribute("aria-haspopup", "true");
+    btn.setAttribute("aria-expanded", "false");
     btn.addEventListener("click", (event) => {
       event.stopPropagation();
       openFinePrint(topic, btn);
@@ -702,8 +733,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       chip.appendChild(infoButton("size"));
       facts.appendChild(chip);
     }
-    if (imp.manifestFrees !== null) {
-      const files = extras?.importFileCount ?? 0;
+    if (imp.manifestFrees !== null && extras?.importFileCount !== undefined) {
+      const files = extras.importFileCount;
       const chip = el(
         "span",
         files === 0 ? "graph-dossier-fact fact-dev" : "graph-dossier-fact",
@@ -759,12 +790,18 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const simUiCache = new Map<string, SimUi>();
 
   function simChip(slug: string, name: string): HTMLElement {
-    const m = ensureModel();
     const chip = el("button", "graph-dossier-chip", name);
     (chip as HTMLButtonElement).type = "button";
     chip.addEventListener("click", () => {
-      const idx = m.indexOfSlug.get(slug);
-      if (idx !== undefined) focusPackage(idx);
+      // Resolve at click time — the simulation spans the FULL graph, so a
+      // freed package can sit outside the current display filters. Those
+      // open in the list view, which shows everything.
+      const idx = ensureModel().indexOfSlug.get(slug);
+      if (idx !== undefined) {
+        focusPackage(idx);
+      } else {
+        options.onOpenList(slug);
+      }
     });
     return chip;
   }
@@ -822,7 +859,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       data = { sim, freedBytes, sizedCount, rollups };
       simUiCache.set(key, data);
     }
-    const { sim, freedBytes, rollups } = data;
+    const { sim, freedBytes, sizedCount, rollups } = data;
     const d = options.dossier;
     d.textContent = "";
 
@@ -855,7 +892,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         "span",
         "",
         `${blocked ? "would free" : "frees"} ${sim.freed.length.toLocaleString()} package${sim.freed.length === 1 ? "" : "s"}` +
-          (freedBytes > 0 ? ` \u00b7 ${formatBytes(freedBytes)} on disk` : ""),
+          (freedBytes > 0
+            ? ` \u00b7 ${formatBytes(freedBytes)} on disk${
+                sizedCount < sim.freed.length
+                  ? ` (${sizedCount.toLocaleString()} of ${sim.freed.length.toLocaleString()} measured)`
+                  : ""
+              }`
+            : ""),
       ),
     );
     headChip.appendChild(infoButton("impact"));

@@ -36,6 +36,8 @@ interface Block {
   rootId?: number;
   /** Depth index for fill colour — set on hover-eligible bars. */
   depth?: number;
+  /** The zoomed focus bar: already drawn highlighted in the base scene. */
+  focusBar?: boolean;
 }
 
 /** Canvas-safe alpha applied to a #rrggbb (or #rgb) colour. */
@@ -401,7 +403,17 @@ export function mountFlameView(
     const focus = focusPath[focusPath.length - 1];
     const idx = blocks.length;
     const focusRoot = focusShared ? focus : rootId;
-    blocks.push({ id: focus, parent: idx - 1, x: 0, y, w: UW, h: rowH, rootId: focusRoot, depth: 1 });
+    blocks.push({
+      id: focus,
+      parent: idx - 1,
+      x: 0,
+      y,
+      w: UW,
+      h: rowH,
+      rootId: focusRoot,
+      depth: 1,
+      focusBar: true,
+    });
     drawBar(g, 0, y, UW, rowH, fillFor(focus, focusRoot, 1, true), barLabel(focus), 1);
     drawLevel(g, dom.children[focus], focusRoot, 0, UW, y + rowH, 2, idx, weightOf(focus));
   }
@@ -430,6 +442,16 @@ export function mountFlameView(
       // Ancestor breadcrumbs and the project bar never highlighted before
       // the cache split either.
       if (!b || b.anc !== undefined || b.id === PROJECT_BAR) continue;
+      if (b.focusBar) {
+        // Base already paints it highlighted; hover adds nothing (parity
+        // with the pre-cache draw), selection adds the accent stroke.
+        if (b.id === selectedId) {
+          ctx.strokeStyle = cb.theme().accent;
+          ctx.lineWidth = 1.2;
+          ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 2.5);
+        }
+        continue;
+      }
       if (b.id === SHARED_BAR) {
         if (i === hoveredBlock) {
           drawBar(ctx, b.x, b.y, b.w, b.h, sharedFill(true), sharedBandLabel(), 1);
@@ -454,14 +476,19 @@ export function mountFlameView(
 
   function blitAndOverlay(): void {
     if (!ctx || destroyed) return;
+    // A hidden host measures 0x0; drawImage from a 0x0 canvas throws.
+    if (W <= 0 || H <= 0 || baseLayer.width === 0 || baseLayer.height === 0) return;
+    // Identity-transform blit: no resampling even at fractional dpr.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(baseLayer, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(baseLayer, 0, 0, W, H);
     overlayHl();
   }
 
   function draw(): void {
     if (!ctx || destroyed) return;
+    if (W <= 0 || H <= 0) return;
     baseLayer.width = W * dpr;
     baseLayer.height = H * dpr;
     const bctx = baseLayer.getContext("2d");

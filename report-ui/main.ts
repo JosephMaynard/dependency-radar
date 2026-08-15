@@ -3276,6 +3276,12 @@ async function init(): Promise<void> {
       unusedChip.disabled = true;
       unusedChip.title = "Import scanning did not run for this report";
     }
+    if (controls.noImports) {
+      controls.noImports.disabled = true;
+      controls.noImports.title = "Import scanning did not run for this report";
+      const label = controls.noImports.closest("label");
+      if (label) label.title = "Import scanning did not run for this report";
+    }
   }
   depStatsByKey = null;
   depStatsBuilder = () => {
@@ -3351,8 +3357,9 @@ async function init(): Promise<void> {
           const group = groups.get(childName);
           if (!group || !Array.isArray(entry)) continue;
           const [range, resolved] = entry;
+          // resolved is a dep key ("name@version"), not a bare version.
           const target = resolved
-            ? group.find((v) => v.version === resolved)
+            ? group.find((v) => `${childName}@${v.version}` === resolved)
             : undefined;
           if (target) {
             target.dependents.push({
@@ -4023,13 +4030,19 @@ async function init(): Promise<void> {
             if (!dep) return {};
             const size = dep.package.installSize;
             const platform = dep.package.platform;
+            // npm checkPlatform semantics: "!win32" entries form a blocklist,
+            // plain entries an allowlist; a negation-only list allows the rest.
+            const platformMiss = (list: string[] | undefined, value: string | undefined): boolean => {
+              if (!list?.length || !value) return false;
+              const allowed = list.filter((entry) => !entry.startsWith("!"));
+              if (list.includes(`!${value}`)) return true;
+              return allowed.length > 0 && !allowed.includes(value);
+            };
             let platformNote: string | undefined;
             if (platform && (platform.os?.length || platform.cpu?.length)) {
               const here = report.environment;
-              const osMiss =
-                platform.os && here?.platform && !platform.os.includes(here.platform);
-              const cpuMiss =
-                platform.cpu && here?.arch && !platform.cpu.includes(here.arch);
+              const osMiss = platformMiss(platform.os, here?.platform);
+              const cpuMiss = platformMiss(platform.cpu, here?.arch);
               const target = [
                 ...(platform.os ?? []),
                 ...(platform.cpu ?? []),
@@ -4042,10 +4055,14 @@ async function init(): Promise<void> {
             return {
               ...(size ? { sizeBytes: size.totalBytes, codeBytes: size.codeBytes } : {}),
               ...(platformNote ? { platformNote } : {}),
-              ...(!dep.usage.direct && (dep.usage.importUsage?.fileCount ?? 0) > 0
+              ...(importsCollectorRan &&
+              !dep.usage.direct &&
+              (dep.usage.importUsage?.fileCount ?? 0) > 0
                 ? { phantom: true }
                 : {}),
-              importFileCount: dep.usage.importUsage?.fileCount ?? 0,
+              ...(importsCollectorRan
+                ? { importFileCount: dep.usage.importUsage?.fileCount ?? 0 }
+                : {}),
             };
           },
           highlightMatch: (slug: string, kind: string) => {
