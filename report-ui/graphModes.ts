@@ -8,16 +8,18 @@ import {
 import { mountFlameView } from "./flameView";
 import { mountBalloonView } from "./balloonView";
 import { mountHyperbolicView } from "./hyperbolicView";
+import { mountTreemapView } from "./treemapView";
 
-// Orchestrates the graph panel's four layout modes (classic graph + flame +
-// balloon + hyperbolic), the shared docked side panel (search + dossier), and
+// Orchestrates the graph panel's five layout modes (classic graph + flame +
+// treemap + balloon + hyperbolic), the shared docked side panel (search +
+// dossier), and
 // the status line. The classic graph view keeps its own canvas and handle;
 // alternative views mount a fresh canvas each and are destroyed on switch
 // (reset-on-switch is deliberate — see docs/VIZ-VIEWS-HANDOFF.md).
 
-export type GraphMode = "graph" | "flame" | "balloon" | "hyperbolic";
+export type GraphMode = "graph" | "flame" | "treemap" | "balloon" | "hyperbolic";
 
-const GRAPH_MODES: GraphMode[] = ["graph", "flame", "balloon", "hyperbolic"];
+const GRAPH_MODES: GraphMode[] = ["graph", "flame", "treemap", "balloon", "hyperbolic"];
 
 // Persisted alongside the theme preference (see main.ts).
 const MODE_STORE_KEY = "dependency-radar-graph-mode";
@@ -27,10 +29,28 @@ const FILTER_STORE_KEY = "dependency-radar-graph-filters";
 // stored depth always has a matching option.
 const MAX_DEPTH_OPTION = 5;
 
+/** Signals worth spotlighting: non-matching packages dim in every view. */
+export type HighlightKind =
+  | "vuln"
+  | "maintenance"
+  | "replacement"
+  | "license"
+  | "blocker";
+
+const HIGHLIGHT_KINDS: HighlightKind[] = [
+  "vuln",
+  "maintenance",
+  "replacement",
+  "license",
+  "blocker",
+];
+
 const MODE_HINTS: Record<GraphMode, string> = {
   graph: "click a node to inspect · drag to pan · scroll to zoom",
   flame:
     "hover a bar · click to zoom in · click a pinned ancestor to climb back out · double-click to reset",
+  treemap:
+    "click a box to inspect · double-click to drill in · double-click the zoomed box to climb back out",
   balloon: "drag to pan · scroll to zoom · click a body · double-click space to fit",
   hyperbolic: "drag to warp · scroll to zoom · click a blip to focus · double-click space to reset",
 };
@@ -60,6 +80,8 @@ export interface GraphModesOptions {
     replacements: string[];
     docUrl?: string;
   } | null;
+  /** Whether the package matches a highlight signal (from the full report). */
+  highlightMatch?: (slug: string, kind: HighlightKind) => boolean;
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
 }
@@ -87,10 +109,14 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   let dimQuery = "";
 
   const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
+  /** Active highlight signals: non-matching packages render dimmed. */
+  const highlights = new Set<HighlightKind>();
   try {
     const raw = localStorage.getItem(FILTER_STORE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<GraphFilters>;
+      const parsed = JSON.parse(raw) as Partial<GraphFilters> & {
+        highlights?: string[];
+      };
       if (typeof parsed.runtime === "boolean") filters.runtime = parsed.runtime;
       if (typeof parsed.dev === "boolean") filters.dev = parsed.dev;
       if (typeof parsed.sub === "boolean") filters.sub = parsed.sub;
@@ -101,6 +127,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         parsed.maxDepth <= MAX_DEPTH_OPTION
       ) {
         filters.maxDepth = parsed.maxDepth;
+      }
+      if (Array.isArray(parsed.highlights)) {
+        for (const kind of parsed.highlights) {
+          if (HIGHLIGHT_KINDS.includes(kind as HighlightKind)) {
+            highlights.add(kind as HighlightKind);
+          }
+        }
       }
     }
   } catch {
@@ -114,7 +147,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   function persistFilters(): void {
     try {
-      localStorage.setItem(FILTER_STORE_KEY, JSON.stringify(filters));
+      localStorage.setItem(
+        FILTER_STORE_KEY,
+        JSON.stringify({ ...filters, highlights: [...highlights] }),
+      );
     } catch {
       // Best-effort persistence only.
     }
@@ -137,12 +173,76 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     );
     return (Number.isFinite(toolbar) && toolbar > 0 ? toolbar : 50) + 10;
   };
-  const classicKeyNodes = options.keyEl
-    ? Array.from(options.keyEl.childNodes)
-    : [];
+  // Toolbar dropdowns (Key, Filters): a compact toggle opens a panel;
+  // outside-click and Escape close it, and Escape only reclaims focus when
+  // it was inside the component — an Escape aimed at the search box must
+  // not yank focus across the toolbar.
+  const dropdownClosers: Array<() => void> = [];
+  function bindDropdown(
+    container: HTMLElement | null,
+    toggle: HTMLButtonElement | null,
+    panel: HTMLElement | null,
+  ): void {
+    if (!container || !toggle || !panel) return;
+    const setOpen = (open: boolean): void => {
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.classList.toggle("open", open);
+    };
+    dropdownClosers.push(() => setOpen(false));
+    toggle.addEventListener("click", () => {
+      const willOpen = panel.hidden === true;
+      // One dropdown at a time — keyboard activation fires no pointerdown,
+      // so the outside-click closer alone can't guarantee it.
+      if (willOpen) for (const close of dropdownClosers) close();
+      setOpen(willOpen);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (panel.hidden) return;
+      if (container.contains(event.target as Node)) return;
+      setOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || panel.hidden) return;
+      setOpen(false);
+      if (container.contains(document.activeElement)) toggle.focus();
+    });
+  }
+
+  const keyToggle =
+    options.keyEl?.querySelector<HTMLButtonElement>(".graph-key-toggle") ?? null;
+  const keyPanel =
+    options.keyEl?.querySelector<HTMLElement>(".graph-key-panel") ?? null;
+  const keyItemsEl =
+    options.keyEl?.querySelector<HTMLElement>(".graph-key-items") ?? null;
+  const classicKeyNodes = keyItemsEl ? Array.from(keyItemsEl.childNodes) : [];
+  bindDropdown(options.keyEl, keyToggle, keyPanel);
+
+  const filterWrap = document.getElementById("graph-filter-wrap");
+  bindDropdown(
+    filterWrap,
+    document.getElementById("graph-filters-toggle") as HTMLButtonElement | null,
+    document.getElementById("graph-filters-panel"),
+  );
+  const filtersBadge = document.getElementById("graph-filters-badge");
+
+  function syncFiltersBadge(): void {
+    if (!filtersBadge) return;
+    const shown =
+      Number(!filters.runtime) +
+      Number(!filters.dev) +
+      Number(!filters.sub) +
+      // The depth cap is inert (and its control disabled) with sub-deps off.
+      Number(filters.sub && filters.maxDepth !== null) +
+      highlights.size;
+    filtersBadge.hidden = shown === 0;
+    filtersBadge.textContent = String(shown);
+  }
 
   // Floating reset for the alternative views (flame resets via double-click
-  // and its pinned ancestors, so it opts out).
+  // and its pinned ancestors, so it opts out; the treemap tiles the whole
+  // stage, so the button appears only while zoomed — there is no "empty
+  // space to double-click" once you have drilled in).
   const resetBtn = document.createElement("button");
   resetBtn.type = "button";
   resetBtn.className = "graph-alt-reset";
@@ -152,13 +252,20 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     activeView?.resetView?.();
   });
   shell?.appendChild(resetBtn);
+  let treemapZoomed = false;
+  function syncResetBtn(): void {
+    resetBtn.hidden =
+      mode === "graph" ||
+      mode === "flame" ||
+      (mode === "treemap" && !treemapZoomed);
+  }
 
-  function keyItem(color: string, label: string): HTMLElement {
+  function keyItem(color: string, label: string, line = false): HTMLElement {
     const item = document.createElement("span");
     item.className = "graph-key-item";
     if (color) {
       const dot = document.createElement("span");
-      dot.className = "graph-key-dot";
+      dot.className = line ? "graph-key-line" : "graph-key-dot";
       dot.style.background = color;
       dot.setAttribute("aria-hidden", "true");
       item.appendChild(dot);
@@ -169,34 +276,68 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     return item;
   }
 
+  const LINEAGE_SWATCH =
+    "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))";
+
   function updateKey(): void {
-    const keyEl = options.keyEl;
-    if (!keyEl) return;
+    if (!keyItemsEl) return;
     if (mode === "graph") {
-      keyEl.replaceChildren(...classicKeyNodes);
+      keyItemsEl.replaceChildren(...classicKeyNodes);
       return;
     }
-    const label = document.createElement("span");
-    label.className = "graph-workspace-label";
-    label.textContent = "Key";
     const items = document.createElement("div");
     items.className = "graph-key-items";
     if (mode === "hyperbolic") {
-      items.appendChild(keyItem("#ff9a58", "Direct dependency"));
-      items.appendChild(keyItem("#5b7186", "Sub-dependency"));
-    } else {
+      items.appendChild(
+        keyItem("var(--graph-hyp-direct-swatch, #ff9a58)", "Direct dependency"),
+      );
+      items.appendChild(
+        keyItem("var(--graph-hyp-sub-swatch, #5b7186)", "Sub-dependency"),
+      );
+      items.appendChild(keyItem("", "Blip size — packages beneath it"));
       items.appendChild(
         keyItem(
-          "conic-gradient(from 0deg, hsl(28 60% 55%), hsl(152 60% 45%), hsl(268 60% 60%), hsl(322 60% 55%), hsl(28 60% 55%))",
-          "One colour per direct dependency's subtree",
+          "var(--graph-hyp-route-swatch, #f59e0b)",
+          "Selection: route back to the project",
+          true,
         ),
       );
+      items.appendChild(
+        keyItem("var(--accent, #06b6d4)", "Selection: what it depends on", true),
+      );
+    } else if (mode === "flame" || mode === "treemap") {
+      items.appendChild(
+        keyItem(
+          "",
+          mode === "flame"
+            ? "Bar width — packages that leave node_modules if you delete it"
+            : "Box area — packages that leave node_modules if you delete it",
+        ),
+      );
+      items.appendChild(keyItem(LINEAGE_SWATCH, "One colour per direct dependency"));
+      items.appendChild(
+        keyItem(
+          "var(--graph-shared-swatch, #3d4c5c)",
+          "Shared — kept by several dependencies; deleting one frees nothing",
+        ),
+      );
+    } else {
+      items.appendChild(
+        keyItem(LINEAGE_SWATCH, "One colour per direct dependency's system"),
+      );
+      items.appendChild(keyItem("", "Circle size — packages in its subtree"));
     }
-    items.appendChild(keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable"));
     if (mode === "balloon") {
       items.appendChild(keyItem("", "\u2191 required by \u00b7 \u2193 depends on"));
+      items.appendChild(
+        keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable (red outline)"),
+      );
+    } else {
+      items.appendChild(
+        keyItem("var(--graph-vuln-high, #ef4444)", "Vulnerable (high severity)"),
+      );
     }
-    keyEl.replaceChildren(label, items);
+    keyItemsEl.replaceChildren(...Array.from(items.children));
   }
 
   function ensureModel(): VizModel {
@@ -212,17 +353,56 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     return model;
   }
 
+  // Dim = name-filter miss OR (highlights active AND no signal match).
+  // Canvas views ask per node per frame — memoise per model index; the
+  // cache resets whenever the query, highlights, or model change.
+  let dimCache: Int8Array | null = null;
+  /** Slug-keyed twin for the classic graph, which redraws per frame. */
+  const slugDimCache = new Map<string, boolean>();
+  function resetDimCache(): void {
+    dimCache = null;
+    slugDimCache.clear();
+  }
+
+  function matchesHighlights(slug: string): boolean {
+    if (highlights.size === 0) return true;
+    if (!options.highlightMatch) return true;
+    for (const kind of highlights) {
+      if (options.highlightMatch(slug, kind)) return true;
+    }
+    return false;
+  }
+
   function isDimmedIndex(index: number): boolean {
-    if (!dimQuery || !model) return false;
-    const name = model.lowerNames[index];
-    return name !== undefined && !name.includes(dimQuery);
+    if (!model) return false;
+    if (!dimQuery && highlights.size === 0) return false;
+    if (!dimCache || dimCache.length !== model.count) {
+      dimCache = new Int8Array(model.count).fill(-1);
+    }
+    const cached = dimCache[index];
+    if (cached >= 0) return cached === 1;
+    let dimmed = false;
+    if (dimQuery) {
+      const name = model.lowerNames[index];
+      if (name !== undefined && !name.includes(dimQuery)) dimmed = true;
+    }
+    if (!dimmed && !matchesHighlights(model.slugs[index])) dimmed = true;
+    dimCache[index] = dimmed ? 1 : 0;
+    return dimmed;
   }
 
   function isNameDimmed(slug: string): boolean {
-    if (!dimQuery) return false;
-    const ref = options.dataset.dependencies[slug];
-    if (!ref) return false;
-    return !ref.name.toLowerCase().includes(dimQuery);
+    if (!dimQuery && highlights.size === 0) return false;
+    const cached = slugDimCache.get(slug);
+    if (cached !== undefined) return cached;
+    let dimmed = false;
+    if (dimQuery) {
+      const ref = options.dataset.dependencies[slug];
+      if (ref && !ref.name.toLowerCase().includes(dimQuery)) dimmed = true;
+    }
+    if (!dimmed) dimmed = !matchesHighlights(slug);
+    slugDimCache.set(slug, dimmed);
+    return dimmed;
   }
 
   // ----- status line ---------------------------------------------------
@@ -239,10 +419,17 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const m = model;
     const last = trail[trail.length - 1];
     options.statusLine.classList.remove("dim");
+    // Impact facts come from the unfiltered graph: hover numbers must not
+    // change when display filters do.
+    const imp = m.impact(last);
+    const freesText =
+      imp.manifestFrees !== null
+        ? `removing frees ${imp.manifestFrees.toLocaleString()}`
+        : `deleting frees ${imp.exclusiveCount.toLocaleString()}`;
     options.statusLine.textContent =
       `${m.projectName} › ${trail.map((id) => m.refs[id].name).join(" › ")}` +
-      ` · ${m.uniqueCount(last).toLocaleString()} package${m.uniqueCount(last) === 1 ? "" : "s"} (${Math.round(m.subSize[last]).toLocaleString()} path${Math.round(m.subSize[last]) === 1 ? "" : "s"}) in subtree` +
-      ` · reached via ${Math.round(m.occ[last]).toLocaleString()} path${m.occ[last] === 1 ? "" : "s"}`;
+      ` · ${imp.subtreeCount.toLocaleString()} package${imp.subtreeCount === 1 ? "" : "s"} in subtree` +
+      ` · ${freesText}`;
   }
 
   // ----- dossier --------------------------------------------------------
@@ -284,7 +471,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mode === "graph"
         ? "Select a node to inspect it."
         : mode === "flame"
-          ? "Click a bar. Width is the share of the whole dependency tree beneath it — the widest bars in the first row are the direct dependencies that cost you the most. Counts are paths, flame-graph style: a package shared by several parents is counted once per route, so path counts run higher than unique package counts."
+          ? "Click a bar. Width is the number of packages that would leave node_modules if you deleted it — each package is counted exactly once. The grey band holds packages shared by several dependencies: deleting any one of them frees nothing there."
+          : mode === "treemap"
+            ? "Click a box to inspect it; double-click to drill in. Area is the number of packages deleting it would free. The grey block is shared by several dependencies — no single one of them owns it."
           : mode === "balloon"
             ? "Click a body. Each direct dependency is a system orbiting the project; its sub-dependencies fan out behind it."
             : "Click a blip. Drag toward the centre to grow that part of the tree — nothing ever leaves the disk.",
@@ -323,8 +512,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       facts.appendChild(chip);
     };
 
+    // Impact facts (and the direct/sub kind chip) come from the UNFILTERED
+    // workspace graph: hiding dev deps must not relabel a direct dev
+    // dependency as a sub-dependency while its removal fact still speaks
+    // manifest language.
+    const imp = m.impact(index);
     fact("", null, ref.version ? `v${ref.version}` : "version unknown");
-    if (m.isRoot[index]) {
+    if (imp.manifestFrees !== null) {
       if (m.isDev[index]) {
         fact("fact-dev", null, "direct dev dependency", "var(--graph-direct-dev, #f59e0b)");
       } else {
@@ -369,13 +563,38 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     fact(
       "",
       "\u03a3",
-      `${m.uniqueCount(index).toLocaleString()} package${m.uniqueCount(index) === 1 ? "" : "s"} in subtree (${Math.round(m.subSize[index]).toLocaleString()} path${Math.round(m.subSize[index]) === 1 ? "" : "s"})`,
+      `${imp.subtreeCount.toLocaleString()} package${imp.subtreeCount === 1 ? "" : "s"} in subtree`,
     );
-    fact(
-      "",
-      "\u2295",
-      `reached via ${Math.round(m.occ[index]).toLocaleString()} path${m.occ[index] === 1 ? "" : "s"}`,
-    );
+    if (imp.manifestFrees === null) {
+      // Sub-dependency: nothing to uninstall directly; the number answers the
+      // what-if of the package itself going away.
+      fact(
+        "",
+        "\u2702",
+        imp.exclusiveCount > 1
+          ? `deleting frees ${imp.exclusiveCount.toLocaleString()} packages`
+          : "deleting frees only itself",
+      );
+    } else if (imp.manifestFrees === 0) {
+      // Direct dependency that other packages also pull in: removing the
+      // package.json entry uninstalls nothing.
+      const names = imp.keptBy.slice(0, 2).join(", ");
+      const suffix = imp.keptBy.length > 2 ? ` +${imp.keptBy.length - 2}` : "";
+      fact("fact-note", "\u2702", `removing it frees nothing \u2014 still needed by ${names}${suffix}`);
+    } else {
+      fact(
+        "",
+        "\u2702",
+        imp.manifestFrees > 1
+          ? `removing it frees ${imp.manifestFrees.toLocaleString()} packages`
+          : "removing it frees only itself",
+      );
+    }
+    if (imp.cycleWith.length > 0) {
+      const names = imp.cycleWith.slice(0, 3);
+      const suffix = imp.cycleWith.length > 3 ? ` +${imp.cycleWith.length - 3}` : "";
+      fact("fact-note", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
+    }
     options.dossier.appendChild(facts);
 
     chipRow(options.dossier, "Depends on", m.kidsOf[index]);
@@ -408,6 +627,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   }
 
   function mountActive(): void {
+    // A fresh mount always starts unzoomed — filter and workspace changes
+    // remount without passing through setMode, and a stale zoom flag would
+    // leave the Reset button showing over an unzoomed treemap.
+    treemapZoomed = false;
+    syncResetBtn();
     const m = ensureModel();
     const callbacks = {
       onHoverTrail: statusTrail,
@@ -419,8 +643,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       insetRight,
       insetTop,
       isDimmed: isDimmedIndex,
+      onZoomChanged: (zoomed: boolean) => {
+        treemapZoomed = zoomed;
+        syncResetBtn();
+      },
     };
     if (mode === "flame") activeView = mountFlameView(options.altHost, m, callbacks);
+    else if (mode === "treemap") activeView = mountTreemapView(options.altHost, m, callbacks);
     else if (mode === "balloon") activeView = mountBalloonView(options.altHost, m, callbacks);
     else if (mode === "hyperbolic") {
       activeView = mountHyperbolicView(options.altHost, m, callbacks);
@@ -441,7 +670,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       });
     options.altHost.hidden = classic;
     options.altHost.parentElement?.classList.toggle("alt-active", !classic);
-    resetBtn.hidden = classic || mode === "flame";
+    treemapZoomed = false; // fresh mounts start unzoomed
+    syncResetBtn();
     for (const elc of options.classicOnly) elc.classList.toggle("hidden", !classic);
     const handle = options.getClassicHandle();
     if (classic) {
@@ -473,6 +703,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   options.workspaceSelect.addEventListener("change", () => {
     model = null;
+    resetDimCache();
     // Stale results hold closures over the previous model's indices.
     options.searchInput.value = "";
     options.searchResults.textContent = "";
@@ -511,6 +742,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const nextDim = q.length >= 2 ? q : "";
     const dimChanged = nextDim !== dimQuery;
     dimQuery = nextDim;
+    if (dimChanged) resetDimCache();
     if (q.length >= 2) {
       const m = ensureModel();
       const matches: number[] = [];
@@ -547,7 +779,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   function applyFilters(): void {
     persistFilters();
     syncFilterControls();
+    syncFiltersBadge();
     model = null;
+    resetDimCache();
     // The dossier and search results hold indices into the previous model.
     renderDossierEmpty();
     options.getClassicHandle()?.refreshFilters();
@@ -582,7 +816,41 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     applyFilters();
   });
 
+  // Highlight chips: dimming only — the graph structure never changes, so
+  // no model rebuild, just a repaint of whichever view is active.
+  function syncHighlightChips(): void {
+    for (const kind of HIGHLIGHT_KINDS) {
+      document
+        .getElementById(`graph-hl-${kind}`)
+        ?.setAttribute("aria-pressed", String(highlights.has(kind)));
+    }
+  }
+
+  function bindHighlightChip(kind: HighlightKind): void {
+    const btn = document.getElementById(`graph-hl-${kind}`);
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      if (highlights.has(kind)) highlights.delete(kind);
+      else highlights.add(kind);
+      btn.setAttribute("aria-pressed", String(highlights.has(kind)));
+      persistFilters();
+      syncFiltersBadge();
+      resetDimCache();
+      repaintForDim();
+    });
+  }
+  for (const kind of HIGHLIGHT_KINDS) bindHighlightChip(kind);
+  syncHighlightChips();
+
+  document.getElementById("graph-filters-reset")?.addEventListener("click", () => {
+    Object.assign(filters, DEFAULT_GRAPH_FILTERS);
+    highlights.clear();
+    syncHighlightChips();
+    applyFilters();
+  });
+
   syncFilterControls();
+  syncFiltersBadge();
 
   statusHint();
   renderDossierEmpty();

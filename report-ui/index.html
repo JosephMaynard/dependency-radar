@@ -483,6 +483,8 @@
                   <option value="install">Install</option>
                   <option value="maintenance">Maintenance</option>
                   <option value="depth">Depth</option>
+                  <option value="subdeps">Sub-deps</option>
+                  <option value="frees">Frees</option>
                 </select>
                 <button
                   type="button"
@@ -599,6 +601,14 @@
               <button
                 type="button"
                 class="graph-mode-btn"
+                data-graph-mode="treemap"
+                aria-pressed="false"
+              >
+                Treemap
+              </button>
+              <button
+                type="button"
+                class="graph-mode-btn"
                 data-graph-mode="balloon"
                 aria-pressed="false"
               >
@@ -613,88 +623,193 @@
                 Hyperbolic
               </button>
             </div>
-            <div class="graph-key" id="graph-key" aria-label="Graph key">
-              <span class="graph-workspace-label">Key</span>
-              <div class="graph-key-items">
-                <span class="graph-key-item">
-                  <span
-                    class="graph-key-dot dependency"
-                    aria-hidden="true"
-                  ></span>
-                  <span>Dependency</span>
-                </span>
-                <span class="graph-key-item">
-                  <span
-                    class="graph-key-dot dev-dependency"
-                    aria-hidden="true"
-                  ></span>
-                  <span>Dev-Dependency</span>
-                </span>
-                <span class="graph-key-item">
-                  <span
-                    class="graph-key-dot sub-dependency"
-                    aria-hidden="true"
-                  ></span>
-                  <span>Sub-Dependency</span>
-                </span>
+            <div class="graph-key" id="graph-key">
+              <button
+                type="button"
+                class="graph-key-toggle"
+                id="graph-key-toggle"
+                aria-expanded="false"
+                aria-controls="graph-key-panel"
+              >
+                Key
+                <span class="chevron" aria-hidden="true">▼</span>
+              </button>
+              <div
+                class="graph-key-panel"
+                id="graph-key-panel"
+                role="group"
+                aria-label="Graph key"
+                hidden
+              >
+                <div class="graph-key-items">
+                  <span class="graph-key-item">
+                    <span
+                      class="graph-key-dot dependency"
+                      aria-hidden="true"
+                    ></span>
+                    <span>Dependency</span>
+                  </span>
+                  <span class="graph-key-item">
+                    <span
+                      class="graph-key-dot dev-dependency"
+                      aria-hidden="true"
+                    ></span>
+                    <span>Dev-Dependency</span>
+                  </span>
+                  <span class="graph-key-item">
+                    <span
+                      class="graph-key-dot sub-dependency"
+                      aria-hidden="true"
+                    ></span>
+                    <span>Sub-Dependency</span>
+                  </span>
+                </div>
               </div>
             </div>
-            <div
-              class="graph-filter-wrap"
-              id="graph-filter-wrap"
-              role="group"
-              aria-label="Graph filters"
-            >
-              <span class="graph-workspace-label">Filters</span>
-              <div class="graph-filter-items">
+            <div class="graph-filter-wrap" id="graph-filter-wrap">
+              <button
+                type="button"
+                class="graph-key-toggle"
+                id="graph-filters-toggle"
+                aria-expanded="false"
+                aria-controls="graph-filters-panel"
+              >
+                Filters
+                <span
+                  class="graph-toggle-badge"
+                  id="graph-filters-badge"
+                  hidden
+                ></span>
+                <span class="chevron" aria-hidden="true">▼</span>
+              </button>
+              <div
+                class="graph-key-panel graph-filters-panel"
+                id="graph-filters-panel"
+                role="group"
+                aria-label="Graph filters"
+                hidden
+              >
+                <div class="graph-panel-section-title">Show</div>
+                <div class="graph-filter-items">
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-filter-runtime"
+                    aria-pressed="true"
+                  >
+                    <span
+                      class="graph-key-dot dependency"
+                      aria-hidden="true"
+                    ></span>
+                    Runtime
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-filter-dev"
+                    aria-pressed="true"
+                  >
+                    <span
+                      class="graph-key-dot dev-dependency"
+                      aria-hidden="true"
+                    ></span>
+                    Dev
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-filter-sub"
+                    aria-pressed="true"
+                  >
+                    <span
+                      class="graph-key-dot sub-dependency"
+                      aria-hidden="true"
+                    ></span>
+                    Sub-deps
+                  </button>
+                  <select
+                    id="graph-filter-depth"
+                    class="graph-workspace-select graph-depth-select"
+                    aria-label="Maximum dependency depth"
+                  >
+                    <option value="">All depths</option>
+                    <option value="1">Depth ≤ 1</option>
+                    <option value="2">Depth ≤ 2</option>
+                    <option value="3">Depth ≤ 3</option>
+                    <option value="4">Depth ≤ 4</option>
+                    <option value="5">Depth ≤ 5</option>
+                  </select>
+                </div>
+                <div class="graph-panel-section-title">Highlight</div>
+                <div class="graph-filter-items">
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-vuln"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-vuln"
+                      aria-hidden="true"
+                    ></span>
+                    Vulnerable
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-maintenance"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-maintenance"
+                      aria-hidden="true"
+                    ></span>
+                    Maintenance concern
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-replacement"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-replacement"
+                      aria-hidden="true"
+                    ></span>
+                    Replacement suggested
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-license"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-license"
+                      aria-hidden="true"
+                    ></span>
+                    Licence issue
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-blocker"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-blocker"
+                      aria-hidden="true"
+                    ></span>
+                    Upgrade blocker
+                  </button>
+                </div>
                 <button
                   type="button"
-                  class="graph-filter-chip"
-                  id="graph-filter-runtime"
-                  aria-pressed="true"
+                  class="graph-panel-reset"
+                  id="graph-filters-reset"
                 >
-                  <span
-                    class="graph-key-dot dependency"
-                    aria-hidden="true"
-                  ></span>
-                  Runtime
+                  Reset filters
                 </button>
-                <button
-                  type="button"
-                  class="graph-filter-chip"
-                  id="graph-filter-dev"
-                  aria-pressed="true"
-                >
-                  <span
-                    class="graph-key-dot dev-dependency"
-                    aria-hidden="true"
-                  ></span>
-                  Dev
-                </button>
-                <button
-                  type="button"
-                  class="graph-filter-chip"
-                  id="graph-filter-sub"
-                  aria-pressed="true"
-                >
-                  <span
-                    class="graph-key-dot sub-dependency"
-                    aria-hidden="true"
-                  ></span>
-                  Sub-deps
-                </button>
-                <select
-                  id="graph-filter-depth"
-                  class="graph-workspace-select graph-depth-select"
-                  aria-label="Maximum dependency depth"
-                >
-                  <option value="">All depths</option>
-                  <option value="1">Depth ≤ 1</option>
-                  <option value="2">Depth ≤ 2</option>
-                  <option value="3">Depth ≤ 3</option>
-                  <option value="4">Depth ≤ 4</option>
-                  <option value="5">Depth ≤ 5</option>
-                </select>
               </div>
             </div>
             <div class="graph-workspace-wrap" id="graph-workspace-wrap">

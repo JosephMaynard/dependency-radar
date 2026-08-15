@@ -11,6 +11,42 @@ const SHRINK = 0.52; // each level is a scaled-down copy: series must converge
 const CENTER_R = 64;
 const CELL = 64; // spatial hash cell, world units
 const MAJOR_ENC = 150; // roots at least this enclosing radius arc-pack the outer ring
+/** Big fans split across concentric shells instead of one distant arc —
+ *  otherwise a 40-child hub orbits its children so far out that the parent
+ *  is a speck in a sea of empty space. Used identically by the enclosing-
+ *  radius memo and the placement pass, so sibling systems still never
+ *  overlap. */
+const SHELL_STEP = 0.32;
+const shellsFor = (kidCount: number): number =>
+  kidCount > 12 ? 3 : kidCount > 6 ? 2 : 1;
+
+/**
+ * Shell count + base orbit for a fan. Shells are only accepted while the
+ * radial gap between adjacent rings (SHELL_STEP * dist) can hold any two
+ * child enclosures — otherwise children on neighbouring rings would
+ * overlap. IDENTICAL maths in the enclosing-radius memo and the placement
+ * pass, or sibling systems collide. All quantities in local units.
+ */
+const fanGeometry = (
+  kidCount: number,
+  r: number,
+  arc: number,
+  maxKid: number,
+): { shells: number; dist: number } => {
+  for (let s = shellsFor(kidCount); s >= 2; s -= 1) {
+    const dist = Math.max(r + maxKid + 6, arc / (FAN * s));
+    // Accept extra shells only while (a) adjacent rings keep radial
+    // clearance for any two child enclosures and (b) the LARGEST child fits
+    // a single ring's angular capacity — one dominant child among many
+    // small siblings would otherwise overflow its ring and get compressed
+    // into overlap by the span clamp.
+    if (SHELL_STEP * dist >= 2 * maxKid && 2 * maxKid * 1.12 <= FAN * dist) {
+      return { shells: s, dist };
+    }
+  }
+  // Single ring always fits by construction: dist >= arc / FAN.
+  return { shells: 1, dist: Math.max(r + maxKid + 6, arc / FAN) };
+};
 
 export function mountBalloonView(
   host: HTMLElement,
@@ -19,7 +55,18 @@ export function mountBalloonView(
 ): VizHandle {
   const canvas = document.createElement("canvas");
   canvas.className = "graph-alt-canvas";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute(
+    "aria-label",
+    "Balloon view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+  );
   host.appendChild(canvas);
+  // Cursor tooltip, as in the treemap/flame views: deep leaves render as
+  // tiny dots, so the name travels with the pointer.
+  const tip = document.createElement("div");
+  tip.className = "graph-cursor-tip";
+  tip.hidden = true;
+  host.appendChild(tip);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
@@ -27,8 +74,9 @@ export function mountBalloonView(
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // Sub-linear node size: one monster can't blow out the dynamic range.
+  // Weighted by unique packages beneath (honest reach), not path counts.
   const nodeRadius = (id: number): number =>
-    Math.min(70, 2.2 + Math.pow(model.subSize[id], 0.34) * 1.1);
+    Math.min(70, 2.2 + Math.pow(model.uniqueCount(id), 0.34) * 1.1);
 
   // Enclosing radius of a subtree's balloon in local units, memoised.
   // Iterative with an explicit stack: dependency chains can be thousands of
@@ -78,8 +126,14 @@ export function mountBalloonView(
       }
       onPath.delete(frame.id);
       const r = nodeRadius(frame.id);
-      const dist = Math.max(r + frame.maxKid + 6, frame.arc / FAN);
-      encMemo[frame.id] = dist + frame.maxKid;
+      const geom = fanGeometry(
+        model.kidsOf[frame.id].length,
+        r,
+        frame.arc,
+        frame.maxKid,
+      );
+      encMemo[frame.id] =
+        geom.dist * (1 + SHELL_STEP * (geom.shells - 1)) + frame.maxKid;
       stack.pop();
       contribute(stack[stack.length - 1], encMemo[frame.id]);
     }
@@ -94,6 +148,9 @@ export function mountBalloonView(
   const pparent: number[] = [];
   const pdepth: number[] = [];
   const phue: number[] = [];
+  /** True layout unit per placement (pr decays SLOWER than this for
+   *  legibility, so it cannot be recovered from pr). */
+  const punit: number[] = [];
   function place(
     id: number,
     x: number,
@@ -108,11 +165,15 @@ export function mountBalloonView(
     const idx = px.length;
     px.push(x);
     py.push(y);
-    pr.push(nodeRadius(id) * unit);
+    // Render radius decays slower than the layout unit: with the raw unit,
+    // nodes three levels down were specks long before their spacing ran
+    // out. The boost is capped, or deep siblings inflate into each other.
+    pr.push(nodeRadius(id) * unit * Math.min(Math.pow(unit, -0.18), 1.45));
     pid.push(id);
     pparent.push(parentIdx);
     pdepth.push(depthIdx);
     phue.push(hue);
+    punit.push(unit);
     if (path.has(id)) return idx;
     const kids = model.kidsOf[id];
     if (!kids.length || px.length >= MAX_PLACEMENTS) return idx;
@@ -124,19 +185,78 @@ export function mountBalloonView(
       arc += 2 * e * 1.12;
       maxKid = Math.max(maxKid, e);
     }
-    const dist = Math.max(nodeRadius(id) + maxKid + 6, arc / FAN) * unit;
-    let a = dir - Math.min(FAN, (arc * unit) / dist) / 2;
+    const geom = fanGeometry(kids.length, nodeRadius(id), arc, maxKid);
+    const shells = geom.shells;
+    const distBase = geom.dist * unit;
+    // Fans whose children only need a fraction of the available arc spread
+    // out to use it (capped so a two-child fan doesn't go antipodal):
+    // sibling enclosing circles are radial bounds, so widening the angles
+    // within FAN never leaks into a neighbouring subtree's space. Large
+    // fans split across concentric shells, each with its own angular
+    // cursor, so children hug their parent instead of orbiting at a
+    // distance dictated by one ring's arc capacity.
+    const fanUsed = Math.min(FAN, (arc * unit) / (shells * distBase));
+    // The spread cap keeps a two-child fan from going antipodal, but fans
+    // with many children may widen much further into empty arc — a narrow
+    // 25-child spike with open space around it helps nobody.
+    const spreadCap = kids.length >= 9 ? 8 : kids.length >= 5 ? 4 : 2.2;
+    const spread = fanUsed > 1e-9 ? Math.min(spreadCap, FAN / fanUsed) : 1;
+    // Shell assignment: first-fit inner-to-outer against each ring's
+    // angular budget, so heavy children (kids arrive heaviest-first) claim
+    // the INNER rings and long outer-shell spokes go to lightweight ones.
+    // Capacity-balanced greedy is only the overflow fallback.
+    const arcAccum: number[] = new Array(shells).fill(0);
+    const shellOf: number[] = new Array(kids.length).fill(0);
+    kids.forEach((kid, i) => {
+      const kidArc = 2 * SHRINK * encMemo[kid] * 1.12 * unit;
+      let best = -1;
+      for (let s = 0; s < shells; s += 1) {
+        if (arcAccum[s] + kidArc <= fanUsed * distBase * (1 + SHELL_STEP * s)) {
+          best = s;
+          break;
+        }
+      }
+      if (best < 0) {
+        let bestScore = Infinity;
+        for (let s = 0; s < shells; s += 1) {
+          const score = (arcAccum[s] + kidArc) / (1 + SHELL_STEP * s);
+          if (score < bestScore - 1e-9) {
+            bestScore = score;
+            best = s;
+          }
+        }
+      }
+      shellOf[i] = best;
+      arcAccum[best] += kidArc;
+    });
+    // Each ring's cursor is centred on the fan direction from its own real
+    // span (clamped to FAN so a skew-loaded ring can never wrap the circle).
+    const cursors: number[] = new Array(shells).fill(0);
+    const shellSpanScale: number[] = new Array(shells).fill(1);
+    for (let s = 0; s < shells; s += 1) {
+      const d = distBase * (1 + SHELL_STEP * s);
+      const span = (arcAccum[s] * spread) / d;
+      shellSpanScale[s] = span > FAN ? FAN / span : 1;
+      cursors[s] = dir - (span * shellSpanScale[s]) / 2;
+    }
+    let kidIndex = 0;
     for (const kid of kids) {
-      const share = (2 * SHRINK * encMemo[kid] * 1.12 * unit) / dist;
-      const ang = a + share / 2;
-      a += share;
+      const shell = shellOf[kidIndex];
+      kidIndex += 1;
+      const d = distBase * (1 + SHELL_STEP * shell);
+      const share =
+        ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / d) *
+        spread *
+        shellSpanScale[shell];
+      const ang = cursors[shell] + share / 2;
+      cursors[shell] += share;
       // Bound materialisation: skip subtrees whose whole balloon stays below
       // half a pixel even at the wheel's maximum zoom (600x).
       if (SHRINK * unit * encMemo[kid] * 600 < 0.5) continue;
       place(
         kid,
-        x + Math.cos(ang) * dist,
-        y + Math.sin(ang) * dist,
+        x + Math.cos(ang) * d,
+        y + Math.sin(ang) * d,
         ang,
         depthIdx + 1,
         idx,
@@ -170,20 +290,30 @@ export function mountBalloonView(
     }
     // Arc-pack the minor orbit too: each root gets angular share proportional
     // to its enclosing radius (even-by-count spacing let larger minors overlap
-    // their neighbours into a solid rope on real monorepos).
-    const minorShare = (r: number): number => 2 * Math.max(encMemo[r], 34) * 1.15;
+    // their neighbours into a solid rope on real monorepos). Minors also
+    // stagger across three orbit shells: at fit zoom their on-screen floor
+    // size exceeds their world spacing, so a single orbit renders as a solid
+    // rope no matter how it is packed — three shells triple the room.
+    const minorShare = (r: number): number => 2 * Math.max(encMemo[r], 40) * 1.15;
     const minorArc = minors.reduce((s2, r) => s2 + minorShare(r), 0);
     const minorDist = Math.max(
       majors.length ? dist * 0.34 : 0,
       CENTER_R + 120,
       minorArc / (Math.PI * 2),
     );
+    // When the packed minors need less than the full circle, spread them
+    // around the whole orbit instead of clumping in one wedge.
+    const minorSpread =
+      minorArc > 0 ? Math.max(1, (Math.PI * 2 * minorDist) / minorArc) : 1;
     let am = -Math.PI / 2;
+    let minorIndex = 0;
     for (const r of minors) {
-      const share = minorShare(r) / minorDist;
+      const share = (minorShare(r) / minorDist) * minorSpread;
       const ang = am + share / 2;
       am += share;
-      place(r, Math.cos(ang) * minorDist, Math.sin(ang) * minorDist, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
+      const d = minorDist * (1 + (minorIndex % 3) * 0.18);
+      minorIndex += 1;
+      place(r, Math.cos(ang) * d, Math.sin(ang) * d, ang, 0, -1, model.rootHue.get(r) ?? 210, 1, new Set());
     }
   }
   const COUNT = px.length;
@@ -248,29 +378,46 @@ export function mountBalloonView(
     );
     minScale = Math.min(0.05, scale);
   }
-  const sx = (x: number): number => (x - vx) * scale + usableW() / 2;
-  const sy = (y: number): number => (y - vy) * scale + centreY();
+  // Screen mapping. The offsets are cached ONCE per frame: usableW()/centreY()
+  // read CSS variables via getComputedStyle, and calling them per placement
+  // (250k of them on a monorepo) froze every draw for hundreds of ms.
+  let sxOff = 0;
+  let syOff = 0;
+  const syncScreenOffsets = (): void => {
+    sxOff = usableW() / 2;
+    syOff = centreY();
+  };
+  const sx = (x: number): number => (x - vx) * scale + sxOff;
+  const sy = (y: number): number => (y - vy) * scale + syOff;
 
   function draw(): void {
     if (!ctx || destroyed) return;
     const theme = cb.theme();
+    syncScreenOffsets();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     const lodMin = interacting ? 0.9 : 0.35;
     const mono = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
-    const bodyL = theme.isDark ? [30, 20] : [72, 82];
+    // Sub-hub bodies at 20% lightness disappeared into the dark background
+    // once zoomed past the dot stage; 27% keeps them clearly present.
+    const bodyL = theme.isDark ? [30, 27] : [72, 80];
     const strokeL = theme.isDark ? 64 : 38;
 
-    // Edges first — always visible, satellite style.
-    ctx.lineWidth = 0.6;
+    // Edges first — always visible, satellite style. Batched by
+    // (hue, quantised alpha): one stroke() per edge froze monorepo-scale
+    // graphs for ~half a second per frame.
+    const edgeGroups = new Map<string, number[]>();
     for (let i = 0; i < COUNT; i += 1) {
       const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? Math.min(hubFloor, 2.4) : pdepth[i] === 1 ? 2.4 : 0);
-      if (r < 1.1) continue;
       const x = sx(px[i]);
       const y = sy(py[i]);
       const pIdx = pparent[i];
       const pxs = pIdx < 0 ? sx(0) : sx(px[pIdx]);
       const pys = pIdx < 0 ? sy(0) : sy(py[pIdx]);
+      // Zoomed in, a connector matters because it is LONG on screen, not
+      // because its child is a big body — gate on either.
+      const len = Math.abs(x - pxs) + Math.abs(y - pys);
+      if (r < 1.1 && len < 30) continue;
       if (
         (x < -60 && pxs < -60) ||
         (x > W + 60 && pxs > W + 60) ||
@@ -279,19 +426,43 @@ export function mountBalloonView(
       ) {
         continue;
       }
-      ctx.strokeStyle = `hsla(${phue[i]} 30% ${theme.isDark ? 62 : 45}% / ${Math.min(0.5, 0.16 + r * 0.01)})`;
+      const alpha =
+        Math.round(Math.min(0.5, 0.16 + r * 0.01 + Math.min(len, 400) * 0.0006) * 25) / 25;
+      // Connecting lines thin out level by level, like the branches they are.
+      const width = Math.max(0.25, Math.round(1.05 * Math.pow(0.68, pdepth[i]) * 100) / 100);
+      const key = `${phue[i]}|${alpha}|${width}`;
+      let seg = edgeGroups.get(key);
+      if (!seg) {
+        seg = [];
+        edgeGroups.set(key, seg);
+      }
+      seg.push(pxs, pys, x, y);
+    }
+    for (const [key, seg] of edgeGroups) {
+      const [hue, alpha, width] = key.split("|");
+      ctx.lineWidth = Number(width);
+      ctx.strokeStyle = `hsla(${hue} 30% ${theme.isDark ? 62 : 45}% / ${alpha})`;
       ctx.beginPath();
-      ctx.moveTo(pxs, pys);
-      ctx.lineTo(x, y);
+      for (let k = 0; k < seg.length; k += 4) {
+        ctx.moveTo(seg[k], seg[k + 1]);
+        ctx.lineTo(seg[k + 2], seg[k + 3]);
+      }
       ctx.stroke();
     }
 
     // Bodies — hubs keep a minimum screen size like cities on a map, and at
     // idle every node keeps at least a visible dot so the fitted overview
-    // shows the whole tree.
+    // shows the whole tree. Sub-1.6px dots batch into one fill per
+    // (hue, dev, dimmed) group for the same reason as the edges.
+    const dotGroups = new Map<string, number[]>();
     for (let i = 0; i < COUNT; i += 1) {
       const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : interacting ? 0 : 0.85;
-      const r = Math.max(pr[i] * scale, minR);
+      // Selection and hover always render at a graspable size.
+      const r = Math.max(
+        pr[i] * scale,
+        minR,
+        i === hovered || i === selectedIdx ? 5 : 0,
+      );
       if (r < lodMin) continue;
       const x = sx(px[i]);
       const y = sy(py[i]);
@@ -299,16 +470,20 @@ export function mountBalloonView(
       const hue = phue[i];
       const id = pid[i];
       const dev = model.isDev[id];
-      const vuln = model.refs[id].vulnerabilitySeverity;
       const hl = i === hovered || i === selectedIdx;
       const dim = !hl && cb.isDimmed(id);
-      if (dim) ctx.globalAlpha = 0.16;
-      if (r < 1.6) {
-        ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev ? 0.35 : 0.55})`;
-        ctx.fillRect(x - r / 2, y - r / 2, r, r);
-        ctx.globalAlpha = 1;
+      if (r < 1.3) {
+        const key = `${hue}|${dev ? 1 : 0}|${dim ? 1 : 0}`;
+        let arr = dotGroups.get(key);
+        if (!arr) {
+          arr = [];
+          dotGroups.set(key, arr);
+        }
+        arr.push(x, y, r);
         continue;
       }
+      const vuln = model.refs[id].vulnerabilitySeverity;
+      if (dim) ctx.globalAlpha = 0.16;
       ctx.beginPath();
       ctx.arc(x, y, Math.max(0.01, r), 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${hue} 32% ${pdepth[i] === 0 ? bodyL[0] : bodyL[1]}% / ${dev ? 0.62 : 0.9})`;
@@ -322,6 +497,19 @@ export function mountBalloonView(
             ? theme.vulnModerate
             : `hsla(${hue} 42% ${strokeL - pdepth[i] * 4}% / 0.9)`;
       ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    for (const [key, arr] of dotGroups) {
+      const [hue, dev, dim] = key.split("|");
+      ctx.globalAlpha = dim === "1" ? 0.16 : 1;
+      // Firm enough that sub-2px leaves read as points, not dust.
+      ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev === "1" ? 0.45 : 0.7})`;
+      ctx.beginPath();
+      for (let k = 0; k < arr.length; k += 3) {
+        const rr = arr[k + 2];
+        ctx.rect(arr[k] - rr / 2, arr[k + 1] - rr / 2, rr, rr);
+      }
+      ctx.fill();
       ctx.globalAlpha = 1;
     }
 
@@ -356,13 +544,7 @@ export function mountBalloonView(
           x,
           y + lineGap * 0.35,
         );
-        ctx.font = `${metaFont}px ${mono}`;
-        ctx.fillStyle = theme.muted;
-        ctx.fillText(
-          `(${Math.round(model.totalSize).toLocaleString()} path${Math.round(model.totalSize) === 1 ? "" : "s"})`,
-          x,
-          y + lineGap * 1.45,
-        );
+
         ctx.textAlign = "left";
       }
     }
@@ -447,13 +629,36 @@ export function mountBalloonView(
     const cx = Math.floor(wx / CELL);
     const cyy = Math.floor(wy / CELL);
     let best = -1;
-    let bestD = Math.min(10 / scale, CELL);
-    for (let gx = cx - PICK_REACH; gx <= cx + PICK_REACH; gx += 1) {
-      for (let gy = cyy - PICK_REACH; gy <= cyy + PICK_REACH; gy += 1) {
+    // SCREEN-space distances, against the radius the node actually renders
+    // at (including the depth floors): zoomed out, nodes are drawn far
+    // larger than their world radius, and the pick target must match what
+    // the eye sees or clicks land on "nothing".
+    let bestD = 8;
+    const reach = Math.max(PICK_REACH, Math.ceil(20 / scale / CELL));
+    if ((2 * reach + 1) ** 2 > COUNT) {
+      // Zoomed far out the grid walk would touch more (mostly empty) cells
+      // than there are placements — test every placement directly instead.
+      for (let i = 0; i < COUNT; i += 1) {
+        const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : 0.85;
+        const rScreen = Math.max(pr[i] * scale, minR);
+        const d =
+          Math.hypot((px[i] - wx) * scale, (py[i] - wy) * scale) - rScreen;
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return best;
+    }
+    for (let gx = cx - reach; gx <= cx + reach; gx += 1) {
+      for (let gy = cyy - reach; gy <= cyy + reach; gy += 1) {
         const list = grid.get(`${gx},${gy}`);
         if (!list) continue;
         for (const i of list) {
-          const d = Math.hypot(px[i] - wx, py[i] - wy) - pr[i];
+          const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : 0.85;
+          const rScreen = Math.max(pr[i] * scale, minR);
+          const d =
+            Math.hypot((px[i] - wx) * scale, (py[i] - wy) * scale) - rScreen;
           if (d < bestD) {
             bestD = d;
             best = i;
@@ -483,6 +688,25 @@ export function mountBalloonView(
     }, 160);
   }
 
+  function moveTip(e: PointerEvent, i: number): void {
+    if (i < 0 || dragging) {
+      tip.hidden = true;
+      return;
+    }
+    const id = pid[i];
+    const count = model.uniqueCount(id);
+    tip.textContent =
+      count > 1 ? `${model.refs[id].name} · ${count.toLocaleString()}` : model.refs[id].name;
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let x = e.offsetX + 14;
+    let y = e.offsetY + 18;
+    if (x + tw > usableW() - 8) x = e.offsetX - tw - 10;
+    if (y + th > H - 34) y = e.offsetY - th - 10;
+    tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
+  }
+
   let dragging = false;
   let movedInDrag = false;
   let lastX = 0;
@@ -494,6 +718,14 @@ export function mountBalloonView(
     (e) => {
       dragging = true;
       movedInDrag = false;
+      tip.hidden = true;
+      // The drag branch skips hover recomputation, so a stale highlight
+      // would survive the whole pan otherwise.
+      if (hovered >= 0) {
+        hovered = -1;
+        cb.onHoverTrail(null);
+        draw();
+      }
       lastX = e.offsetX;
       lastY = e.offsetY;
       downX = e.offsetX;
@@ -509,8 +741,10 @@ export function mountBalloonView(
       if (dragging) {
         const dx = e.offsetX - lastX;
         const dy = e.offsetY - lastY;
-        // Cumulative from pointerdown: slow pans must not read as clicks.
-        if (Math.abs(e.offsetX - downX) + Math.abs(e.offsetY - downY) > 3) movedInDrag = true;
+        // Cumulative from pointerdown: slow pans must not read as clicks —
+        // but the threshold allows the drift of a human hand across a slow
+        // frame, or taps read as micro-drags.
+        if (Math.abs(e.offsetX - downX) + Math.abs(e.offsetY - downY) > 6) movedInDrag = true;
         vx -= dx / scale;
         vy -= dy / scale;
         lastX = e.offsetX;
@@ -520,6 +754,7 @@ export function mountBalloonView(
         return;
       }
       const h = pickAt(e.offsetX, e.offsetY);
+      moveTip(e, h);
       if (h !== hovered) {
         hovered = h;
         canvas.style.cursor = h >= 0 ? "pointer" : "grab";
@@ -535,6 +770,17 @@ export function mountBalloonView(
       dragging = false;
       movedInDrag = false;
       canvas.classList.remove("dragging");
+    },
+    { signal },
+  );
+  canvas.addEventListener(
+    "pointerleave",
+    () => {
+      tip.hidden = true;
+      if (hovered < 0) return;
+      hovered = -1;
+      cb.onHoverTrail(null);
+      draw();
     },
     { signal },
   );
@@ -562,6 +808,7 @@ export function mountBalloonView(
       scale = Math.min(600, Math.max(minScale, scale * f));
       vx = wx - (e.offsetX - usableW() / 2) / scale;
       vy = wy - (e.offsetY - centreY()) / scale;
+      tip.hidden = true; // whatever it named is no longer under the cursor
       poke();
       draw();
     },
@@ -574,6 +821,7 @@ export function mountBalloonView(
       fitView();
       selectedIdx = -1;
       cb.onSelect(-1);
+      tip.hidden = true;
       draw();
     },
     { signal },
@@ -581,8 +829,15 @@ export function mountBalloonView(
 
   function flyTo(idx: number): void {
     cancelAnimationFrame(flyFrame);
-    // Zoom in far enough to see the body, but never zoom OUT on selection.
-    const targetScale = Math.max(scale, Math.min(24, Math.max(1.2, 42 / pr[idx])));
+    syncScreenOffsets();
+    // Fit the node's WHOLE SYSTEM (its enclosing balloon) into view — the
+    // point of selecting a hub is seeing its children, not filling the
+    // screen with one giant circle. Leaves fall back to a readable size.
+    // Zooming out to achieve this is fine.
+    const encWorld = Math.max(pr[idx], encMemo[pid[idx]] * punit[idx]);
+    const fitScale = (Math.min(usableW(), usableH()) * 0.42) / Math.max(1e-6, encWorld);
+    const nodeCap = Math.max(1.2, 42 / Math.max(1e-6, pr[idx]));
+    const targetScale = Math.min(600, Math.max(minScale, Math.min(fitScale, nodeCap)));
     const fromS = scale;
     // Animate the TARGET'S SCREEN POSITION on a straight path to centre while
     // the scale eases; interpolating pan and zoom independently can throw the
@@ -601,6 +856,7 @@ export function mountBalloonView(
       scale = sNow;
       vx = px[idx] - (sxNow - usableW() / 2) / sNow;
       vy = py[idx] - (syNow - centreY()) / sNow;
+      if (u < 1) poke(); // in-flight frames use the cheap interaction LOD
       draw();
       if (u < 1) flyFrame = requestAnimationFrame(step);
     };
@@ -631,6 +887,7 @@ export function mountBalloonView(
       cancelAnimationFrame(flyFrame);
       window.clearTimeout(idleTimer);
       aborter.abort();
+      tip.remove();
       canvas.remove();
     },
     resize,
@@ -649,6 +906,11 @@ export function mountBalloonView(
       flyTo(idx);
     },
     resetView() {
+      if (selectedIdx >= 0) {
+        selectedIdx = -1;
+        cb.onSelect(-1);
+      }
+      tip.hidden = true;
       fitView();
       draw();
     },
