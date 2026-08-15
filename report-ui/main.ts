@@ -3788,6 +3788,29 @@ async function init(): Promise<void> {
             if (!dep?.replacement?.replacements?.length) return null;
             return dep.replacement;
           },
+          highlightMatch: (slug: string, kind: string) => {
+            const key = resolveDepKey(slug);
+            const dep = key ? depByKey.get(key) : undefined;
+            if (!dep) return false;
+            switch (kind) {
+              case "vuln":
+                return (
+                  getColumnHighestSeverity(
+                    getColumnNormalizeSecurity(dep).summary,
+                  ) !== "none"
+                );
+              case "maintenance":
+                return hasMaintenanceConcern(dep);
+              case "replacement":
+                return hasReplacementSuggestion(dep);
+              case "license":
+                return hasLicenseIssue(dep);
+              case "blocker":
+                return hasUpgradeBlocker(dep);
+              default:
+                return false;
+            }
+          },
           onOpenList: (slug: string) => {
             openListFromGraph(slug);
           },

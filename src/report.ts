@@ -430,29 +430,59 @@ ${safeCssContent}
               </div>
             </div>
           </div>
-          <div class="graph-filter-wrap" id="graph-filter-wrap" role="group" aria-label="Graph filters">
-            <span class="graph-workspace-label">Filters</span>
-            <div class="graph-filter-items">
-              <button type="button" class="graph-filter-chip" id="graph-filter-runtime" aria-pressed="true">
-                <span class="graph-key-dot dependency" aria-hidden="true"></span>
-                Runtime
-              </button>
-              <button type="button" class="graph-filter-chip" id="graph-filter-dev" aria-pressed="true">
-                <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
-                Dev
-              </button>
-              <button type="button" class="graph-filter-chip" id="graph-filter-sub" aria-pressed="true">
-                <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
-                Sub-deps
-              </button>
-              <select id="graph-filter-depth" class="graph-workspace-select graph-depth-select" aria-label="Maximum dependency depth">
-                <option value="">All depths</option>
-                <option value="1">Depth ≤ 1</option>
-                <option value="2">Depth ≤ 2</option>
-                <option value="3">Depth ≤ 3</option>
-                <option value="4">Depth ≤ 4</option>
-                <option value="5">Depth ≤ 5</option>
-              </select>
+          <div class="graph-filter-wrap" id="graph-filter-wrap">
+            <button type="button" class="graph-key-toggle" id="graph-filters-toggle" aria-expanded="false" aria-controls="graph-filters-panel">
+              Filters
+              <span class="graph-toggle-badge" id="graph-filters-badge" hidden></span>
+              <span class="chevron" aria-hidden="true">▼</span>
+            </button>
+            <div class="graph-key-panel graph-filters-panel" id="graph-filters-panel" role="group" aria-label="Graph filters" hidden>
+              <div class="graph-panel-section-title">Show</div>
+              <div class="graph-filter-items">
+                <button type="button" class="graph-filter-chip" id="graph-filter-runtime" aria-pressed="true">
+                  <span class="graph-key-dot dependency" aria-hidden="true"></span>
+                  Runtime
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-filter-dev" aria-pressed="true">
+                  <span class="graph-key-dot dev-dependency" aria-hidden="true"></span>
+                  Dev
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-filter-sub" aria-pressed="true">
+                  <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
+                  Sub-deps
+                </button>
+                <select id="graph-filter-depth" class="graph-workspace-select graph-depth-select" aria-label="Maximum dependency depth">
+                  <option value="">All depths</option>
+                  <option value="1">Depth ≤ 1</option>
+                  <option value="2">Depth ≤ 2</option>
+                  <option value="3">Depth ≤ 3</option>
+                  <option value="4">Depth ≤ 4</option>
+                  <option value="5">Depth ≤ 5</option>
+                </select>
+              </div>
+              <div class="graph-panel-section-title">Highlight</div>
+              <div class="graph-filter-items">
+                <button type="button" class="graph-filter-chip" id="graph-hl-vuln" aria-pressed="false">
+                  <span class="graph-key-dot hl-vuln" aria-hidden="true"></span>
+                  Vulnerable
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-maintenance" aria-pressed="false">
+                  <span class="graph-key-dot hl-maintenance" aria-hidden="true"></span>
+                  Maintenance concern
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-replacement" aria-pressed="false">
+                  <span class="graph-key-dot hl-replacement" aria-hidden="true"></span>
+                  Replacement suggested
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-license" aria-pressed="false">
+                  <span class="graph-key-dot hl-license" aria-hidden="true"></span>
+                  Licence issue
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-blocker" aria-pressed="false">
+                  <span class="graph-key-dot hl-blocker" aria-hidden="true"></span>
+                  Upgrade blocker
+                </button>
+              </div>
             </div>
           </div>
           <div class="graph-workspace-wrap" id="graph-workspace-wrap">

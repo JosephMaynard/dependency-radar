@@ -165,9 +165,29 @@ export function mountBalloonView(
     const spread = fanUsed > 1e-9 ? Math.min(2.2, FAN / fanUsed) : 1;
     const startAngle = dir - (fanUsed * spread) / 2;
     const cursors: number[] = Array.from({ length: shells }, () => startAngle);
+    // Greedy shell assignment balanced by ring capacity: kids arrive
+    // heaviest-first, so the big systems claim the inner rings and the long
+    // outer-shell spokes go to the lightweight ones — a heavy subtree on a
+    // conspicuously long leash read as a layout mistake.
+    const arcAccum: number[] = new Array(shells).fill(0);
+    const shellOf: number[] = new Array(kids.length).fill(0);
+    kids.forEach((kid, i) => {
+      const kidArc = 2 * SHRINK * encMemo[kid] * 1.12 * unit;
+      let best = 0;
+      let bestScore = Infinity;
+      for (let s = 0; s < shells; s += 1) {
+        const score = (arcAccum[s] + kidArc) / (1 + SHELL_STEP * s);
+        if (score < bestScore - 1e-9) {
+          bestScore = score;
+          best = s;
+        }
+      }
+      shellOf[i] = best;
+      arcAccum[best] += kidArc;
+    });
     let kidIndex = 0;
     for (const kid of kids) {
-      const shell = kidIndex % shells;
+      const shell = shellOf[kidIndex];
       kidIndex += 1;
       const d = distBase * (1 + SHELL_STEP * shell);
       const share = ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / d) * spread;
@@ -395,7 +415,7 @@ export function mountBalloonView(
       const dev = model.isDev[id];
       const hl = i === hovered || i === selectedIdx;
       const dim = !hl && cb.isDimmed(id);
-      if (r < 1.6) {
+      if (r < 1.3) {
         const key = `${hue}|${dev ? 1 : 0}|${dim ? 1 : 0}`;
         let arr = dotGroups.get(key);
         if (!arr) {
@@ -425,7 +445,8 @@ export function mountBalloonView(
     for (const [key, arr] of dotGroups) {
       const [hue, dev, dim] = key.split("|");
       ctx.globalAlpha = dim === "1" ? 0.16 : 1;
-      ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev === "1" ? 0.35 : 0.55})`;
+      // Firm enough that sub-2px leaves read as points, not dust.
+      ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev === "1" ? 0.45 : 0.7})`;
       ctx.beginPath();
       for (let k = 0; k < arr.length; k += 3) {
         const rr = arr[k + 2];

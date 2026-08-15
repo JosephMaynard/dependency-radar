@@ -29,6 +29,22 @@ const FILTER_STORE_KEY = "dependency-radar-graph-filters";
 // stored depth always has a matching option.
 const MAX_DEPTH_OPTION = 5;
 
+/** Signals worth spotlighting: non-matching packages dim in every view. */
+export type HighlightKind =
+  | "vuln"
+  | "maintenance"
+  | "replacement"
+  | "license"
+  | "blocker";
+
+const HIGHLIGHT_KINDS: HighlightKind[] = [
+  "vuln",
+  "maintenance",
+  "replacement",
+  "license",
+  "blocker",
+];
+
 const MODE_HINTS: Record<GraphMode, string> = {
   graph: "click a node to inspect · drag to pan · scroll to zoom",
   flame:
@@ -64,6 +80,8 @@ export interface GraphModesOptions {
     replacements: string[];
     docUrl?: string;
   } | null;
+  /** Whether the package matches a highlight signal (from the full report). */
+  highlightMatch?: (slug: string, kind: HighlightKind) => boolean;
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
 }
@@ -91,10 +109,14 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   let dimQuery = "";
 
   const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
+  /** Active highlight signals: non-matching packages render dimmed. */
+  const highlights = new Set<HighlightKind>();
   try {
     const raw = localStorage.getItem(FILTER_STORE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<GraphFilters>;
+      const parsed = JSON.parse(raw) as Partial<GraphFilters> & {
+        highlights?: string[];
+      };
       if (typeof parsed.runtime === "boolean") filters.runtime = parsed.runtime;
       if (typeof parsed.dev === "boolean") filters.dev = parsed.dev;
       if (typeof parsed.sub === "boolean") filters.sub = parsed.sub;
@@ -105,6 +127,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         parsed.maxDepth <= MAX_DEPTH_OPTION
       ) {
         filters.maxDepth = parsed.maxDepth;
+      }
+      if (Array.isArray(parsed.highlights)) {
+        for (const kind of parsed.highlights) {
+          if (HIGHLIGHT_KINDS.includes(kind as HighlightKind)) {
+            highlights.add(kind as HighlightKind);
+          }
+        }
       }
     }
   } catch {
@@ -118,7 +147,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   function persistFilters(): void {
     try {
-      localStorage.setItem(FILTER_STORE_KEY, JSON.stringify(filters));
+      localStorage.setItem(
+        FILTER_STORE_KEY,
+        JSON.stringify({ ...filters, highlights: [...highlights] }),
+      );
     } catch {
       // Best-effort persistence only.
     }
@@ -141,8 +173,36 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     );
     return (Number.isFinite(toolbar) && toolbar > 0 ? toolbar : 50) + 10;
   };
-  // The key lives in a dropdown: a compact "Key" toggle in the toolbar opens
-  // a panel whose entries switch per mode.
+  // Toolbar dropdowns (Key, Filters): a compact toggle opens a panel;
+  // outside-click and Escape close it, and Escape only reclaims focus when
+  // it was inside the component — an Escape aimed at the search box must
+  // not yank focus across the toolbar.
+  function bindDropdown(
+    container: HTMLElement | null,
+    toggle: HTMLButtonElement | null,
+    panel: HTMLElement | null,
+  ): void {
+    if (!container || !toggle || !panel) return;
+    const setOpen = (open: boolean): void => {
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.classList.toggle("open", open);
+    };
+    toggle.addEventListener("click", () => {
+      setOpen(panel.hidden === true);
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (panel.hidden) return;
+      if (container.contains(event.target as Node)) return;
+      setOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || panel.hidden) return;
+      setOpen(false);
+      if (container.contains(document.activeElement)) toggle.focus();
+    });
+  }
+
   const keyToggle =
     options.keyEl?.querySelector<HTMLButtonElement>(".graph-key-toggle") ?? null;
   const keyPanel =
@@ -150,28 +210,27 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const keyItemsEl =
     options.keyEl?.querySelector<HTMLElement>(".graph-key-items") ?? null;
   const classicKeyNodes = keyItemsEl ? Array.from(keyItemsEl.childNodes) : [];
+  bindDropdown(options.keyEl, keyToggle, keyPanel);
 
-  function setKeyOpen(open: boolean): void {
-    if (!keyToggle || !keyPanel) return;
-    keyPanel.hidden = !open;
-    keyToggle.setAttribute("aria-expanded", String(open));
-    keyToggle.classList.toggle("open", open);
+  const filterWrap = document.getElementById("graph-filter-wrap");
+  bindDropdown(
+    filterWrap,
+    document.getElementById("graph-filters-toggle") as HTMLButtonElement | null,
+    document.getElementById("graph-filters-panel"),
+  );
+  const filtersBadge = document.getElementById("graph-filters-badge");
+
+  function syncFiltersBadge(): void {
+    if (!filtersBadge) return;
+    const shown =
+      Number(!filters.runtime) +
+      Number(!filters.dev) +
+      Number(!filters.sub) +
+      Number(filters.maxDepth !== null) +
+      highlights.size;
+    filtersBadge.hidden = shown === 0;
+    filtersBadge.textContent = String(shown);
   }
-  keyToggle?.addEventListener("click", () => {
-    setKeyOpen(Boolean(keyPanel?.hidden));
-  });
-  document.addEventListener("pointerdown", (event) => {
-    if (!keyPanel || keyPanel.hidden) return;
-    if (options.keyEl?.contains(event.target as Node)) return;
-    setKeyOpen(false);
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !keyPanel || keyPanel.hidden) return;
-    setKeyOpen(false);
-    // Only reclaim focus when it was inside the key component — an Escape
-    // aimed at the search box must not yank focus across the toolbar.
-    if (options.keyEl?.contains(document.activeElement)) keyToggle?.focus();
-  });
 
   // Floating reset for the alternative views (flame resets via double-click
   // and its pinned ancestors, so it opts out; the treemap tiles the whole
@@ -287,17 +346,47 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     return model;
   }
 
+  // Dim = name-filter miss OR (highlights active AND no signal match).
+  // Canvas views ask per node per frame — memoise per model index; the
+  // cache resets whenever the query, highlights, or model change.
+  let dimCache: Int8Array | null = null;
+  function resetDimCache(): void {
+    dimCache = null;
+  }
+
+  function matchesHighlights(slug: string): boolean {
+    if (highlights.size === 0) return true;
+    if (!options.highlightMatch) return true;
+    for (const kind of highlights) {
+      if (options.highlightMatch(slug, kind)) return true;
+    }
+    return false;
+  }
+
   function isDimmedIndex(index: number): boolean {
-    if (!dimQuery || !model) return false;
-    const name = model.lowerNames[index];
-    return name !== undefined && !name.includes(dimQuery);
+    if (!model) return false;
+    if (!dimQuery && highlights.size === 0) return false;
+    if (!dimCache || dimCache.length !== model.count) {
+      dimCache = new Int8Array(model.count).fill(-1);
+    }
+    const cached = dimCache[index];
+    if (cached >= 0) return cached === 1;
+    let dimmed = false;
+    if (dimQuery) {
+      const name = model.lowerNames[index];
+      if (name !== undefined && !name.includes(dimQuery)) dimmed = true;
+    }
+    if (!dimmed && !matchesHighlights(model.slugs[index])) dimmed = true;
+    dimCache[index] = dimmed ? 1 : 0;
+    return dimmed;
   }
 
   function isNameDimmed(slug: string): boolean {
-    if (!dimQuery) return false;
-    const ref = options.dataset.dependencies[slug];
-    if (!ref) return false;
-    return !ref.name.toLowerCase().includes(dimQuery);
+    if (dimQuery) {
+      const ref = options.dataset.dependencies[slug];
+      if (ref && !ref.name.toLowerCase().includes(dimQuery)) return true;
+    }
+    return !matchesHighlights(slug);
   }
 
   // ----- status line ---------------------------------------------------
@@ -591,6 +680,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   options.workspaceSelect.addEventListener("change", () => {
     model = null;
+    resetDimCache();
     // Stale results hold closures over the previous model's indices.
     options.searchInput.value = "";
     options.searchResults.textContent = "";
@@ -629,6 +719,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const nextDim = q.length >= 2 ? q : "";
     const dimChanged = nextDim !== dimQuery;
     dimQuery = nextDim;
+    if (dimChanged) resetDimCache();
     if (q.length >= 2) {
       const m = ensureModel();
       const matches: number[] = [];
@@ -665,7 +756,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   function applyFilters(): void {
     persistFilters();
     syncFilterControls();
+    syncFiltersBadge();
     model = null;
+    resetDimCache();
     // The dossier and search results hold indices into the previous model.
     renderDossierEmpty();
     options.getClassicHandle()?.refreshFilters();
@@ -700,7 +793,26 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     applyFilters();
   });
 
+  // Highlight chips: dimming only — the graph structure never changes, so
+  // no model rebuild, just a repaint of whichever view is active.
+  function bindHighlightChip(kind: HighlightKind): void {
+    const btn = document.getElementById(`graph-hl-${kind}`);
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", String(highlights.has(kind)));
+    btn.addEventListener("click", () => {
+      if (highlights.has(kind)) highlights.delete(kind);
+      else highlights.add(kind);
+      btn.setAttribute("aria-pressed", String(highlights.has(kind)));
+      persistFilters();
+      syncFiltersBadge();
+      resetDimCache();
+      repaintForDim();
+    });
+  }
+  for (const kind of HIGHLIGHT_KINDS) bindHighlightChip(kind);
+
   syncFilterControls();
+  syncFiltersBadge();
 
   statusHint();
   renderDossierEmpty();

@@ -1258,6 +1258,66 @@ select.graph-workspace-select:focus {
   display: none;
 }
 
+/* Section headings inside toolbar dropdown panels. */
+.graph-panel-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 2px 0 8px;
+}
+
+.graph-panel-section-title + .graph-filter-items {
+  margin-bottom: 12px;
+}
+
+.graph-panel-section-title:last-of-type + .graph-filter-items {
+  margin-bottom: 0;
+}
+
+.graph-filters-panel {
+  min-width: 300px;
+}
+
+/* Active-count pill on a dropdown toggle. */
+.graph-toggle-badge {
+  min-width: 16px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent-subtle, rgba(34, 211, 238, 0.15));
+  color: var(--accent, #22d3ee);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.graph-toggle-badge[hidden] {
+  display: none;
+}
+
+/* Highlight-signal swatches. */
+.graph-key-dot.hl-vuln {
+  background: var(--graph-vuln-high, #ef4444);
+}
+
+.graph-key-dot.hl-maintenance {
+  background: var(--graph-vuln-medium, #f59e0b);
+}
+
+.graph-key-dot.hl-replacement {
+  background: #a78bfa;
+}
+
+.graph-key-dot.hl-license {
+  background: #fb7185;
+}
+
+.graph-key-dot.hl-blocker {
+  background: #94a3b8;
+}
+
 .graph-key-items {
   display: flex;
   flex-direction: column;

@@ -403,6 +403,8 @@ export function mountHyperbolicView(
     // The route back to the project and the selection's own dependencies are
     // different questions, so they get different colours (see the key).
     const depEdges: Array<[number, number]> = [];
+    /** One level further out (dep → dep-of-dep), drawn at half strength. */
+    const depEdges2: Array<[number, number]> = [];
     const pathEdges: Array<[number, number]> = [];
     let pathTop = -1;
     const focusSet = new Set<number>();
@@ -411,6 +413,9 @@ export function mountHyperbolicView(
       for (const dep of model.depsOut[selected]) {
         focusSet.add(dep);
         depEdges.push([selected, dep]);
+        for (const grand of model.depsOut[dep]) {
+          if (grand !== selected) depEdges2.push([dep, grand]);
+        }
       }
       for (const from of model.depsIn[selected]) focusSet.add(from);
       let walk = selected;
@@ -453,6 +458,13 @@ export function mountHyperbolicView(
       beginWarpPath();
       for (const [a, b] of depEdges) geodesic(pos[a], pos[b]);
       strokeWarpPath();
+      // One level further, at half strength: where those dependencies go next.
+      ctx.lineWidth = 0.7;
+      ctx.globalAlpha = 0.4;
+      beginWarpPath();
+      for (const [a, b] of depEdges2) geodesic(pos[a], pos[b]);
+      strokeWarpPath();
+      ctx.globalAlpha = 0.85;
       // The route that keeps it installed — warm amber, including the last
       // hop from the direct dependency to the project hub.
       ctx.lineWidth = 1.1;
@@ -474,6 +486,13 @@ export function mountHyperbolicView(
         beginWarpPath();
         for (const [a, b] of depEdges) geodesic(pos[a], pos[b]);
         strokeWarpPath();
+        // The faded second hop carries a fainter version of the same flow.
+        ctx.lineWidth = 1.3;
+        ctx.globalAlpha = 0.35;
+        beginWarpPath();
+        for (const [a, b] of depEdges2) geodesic(pos[a], pos[b]);
+        strokeWarpPath();
+        ctx.globalAlpha = 0.8;
         // Route edges are drawn parent→child, so the same negative offset
         // makes the flow arrive FROM the project into the selection —
         // dependencies flow down from the things that require them.
