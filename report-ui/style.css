@@ -361,10 +361,11 @@ body {
 }
 
 /* Scan-evidence notice: a dismissible toast floating over the content, never
-   part of the document flow. */
+   part of the document flow. Bottom-left in BOTH views, so it doesn't jump
+   corners when entering the graph (whose docked panel owns bottom-right). */
 .scan-status-banner {
   position: fixed;
-  right: 16px;
+  left: 16px;
   bottom: 16px;
   z-index: 60;
   width: min(380px, calc(100vw - 32px));
@@ -389,19 +390,13 @@ body {
   padding: 0;
 }
 
-/* In graph mode the docked side panel owns the bottom-right corner, so the
-   toast sits bottom-left instead, clear of the status line — parking it
-   mid-canvas (right of centre, left of the panel) read as broken. */
+/* In graph mode the status line hugs the bottom edge; sit just above it. */
 .graph-mode .scan-status-banner {
-  right: auto;
-  left: 16px;
   bottom: 44px;
 }
 
 @media (max-width: 900px) {
   .graph-mode .scan-status-banner {
-    left: auto;
-    right: 16px;
     bottom: 44%;
   }
 }

@@ -100,6 +100,9 @@ export function mountBalloonView(
   const pparent: number[] = [];
   const pdepth: number[] = [];
   const phue: number[] = [];
+  /** True layout unit per placement (pr decays SLOWER than this for
+   *  legibility, so it cannot be recovered from pr). */
+  const punit: number[] = [];
   function place(
     id: number,
     x: number,
@@ -114,11 +117,15 @@ export function mountBalloonView(
     const idx = px.length;
     px.push(x);
     py.push(y);
-    pr.push(nodeRadius(id) * unit);
+    // Render radius decays slower than the layout unit (unit^0.82): with the
+    // raw unit, nodes three levels down were specks long before their
+    // spacing ran out.
+    pr.push(nodeRadius(id) * Math.pow(unit, 0.82));
     pid.push(id);
     pparent.push(parentIdx);
     pdepth.push(depthIdx);
     phue.push(hue);
+    punit.push(unit);
     if (path.has(id)) return idx;
     const kids = model.kidsOf[id];
     if (!kids.length || px.length >= MAX_PLACEMENTS) return idx;
@@ -314,7 +321,9 @@ export function mountBalloonView(
         continue;
       }
       const alpha = Math.round(Math.min(0.5, 0.16 + r * 0.01) * 25) / 25;
-      const key = `${phue[i]}|${alpha}`;
+      // Connecting lines thin out level by level, like the branches they are.
+      const width = Math.max(0.25, Math.round(1.05 * Math.pow(0.68, pdepth[i]) * 100) / 100);
+      const key = `${phue[i]}|${alpha}|${width}`;
       let seg = edgeGroups.get(key);
       if (!seg) {
         seg = [];
@@ -322,9 +331,9 @@ export function mountBalloonView(
       }
       seg.push(pxs, pys, x, y);
     }
-    ctx.lineWidth = 0.6;
     for (const [key, seg] of edgeGroups) {
-      const [hue, alpha] = key.split("|");
+      const [hue, alpha, width] = key.split("|");
+      ctx.lineWidth = Number(width);
       ctx.strokeStyle = `hsla(${hue} 30% ${theme.isDark ? 62 : 45}% / ${alpha})`;
       ctx.beginPath();
       for (let k = 0; k < seg.length; k += 4) {
@@ -652,8 +661,14 @@ export function mountBalloonView(
   function flyTo(idx: number): void {
     cancelAnimationFrame(flyFrame);
     syncScreenOffsets();
-    // Zoom in far enough to see the body, but never zoom OUT on selection.
-    const targetScale = Math.max(scale, Math.min(24, Math.max(1.2, 42 / pr[idx])));
+    // Fit the node's WHOLE SYSTEM (its enclosing balloon) into view — the
+    // point of selecting a hub is seeing its children, not filling the
+    // screen with one giant circle. Leaves fall back to a readable size.
+    // Zooming out to achieve this is fine.
+    const encWorld = Math.max(pr[idx], encMemo[pid[idx]] * punit[idx]);
+    const fitScale = (Math.min(usableW(), usableH()) * 0.42) / Math.max(1e-6, encWorld);
+    const nodeCap = Math.max(1.2, 42 / Math.max(1e-6, pr[idx]));
+    const targetScale = Math.min(600, Math.max(minScale, Math.min(fitScale, nodeCap)));
     const fromS = scale;
     // Animate the TARGET'S SCREEN POSITION on a straight path to centre while
     // the scale eases; interpolating pan and zoom independently can throw the

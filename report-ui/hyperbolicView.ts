@@ -44,7 +44,7 @@ export function mountHyperbolicView(
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const N = model.count;
-  const { parent, children, leaves, roots } = model;
+  const { parent, children, leaves, depsOut } = model;
 
   const pos: C[] = Array.from({ length: N }, () => ({ x: 0, y: 0 }));
   let hubPos: C = { x: 0, y: 0 };
@@ -66,18 +66,97 @@ export function mountHyperbolicView(
   for (let i = 0; i < N; i += 1) if (parent[i] === -1) hubKids.push(i);
   const totalLeaves = hubKids.reduce((sum, r) => sum + leaves[r], 0) || 1;
 
+  /**
+   * Focus context: when the layout is centred on a package, the spanning
+   * tree is RE-ROOTED there — a BFS from the focus over the real dependency
+   * edges claims everything it can reach, so the focused package's true
+   * dependency tree fans out around it (shared deps included), instead of
+   * staying wherever the hub-rooted tree's first claimer happened to put
+   * them. Everything unreachable from the focus keeps the original
+   * structure and hangs off the context wedge via the hub.
+   */
+  interface FocusCtx {
+    center: number;
+    inFocus: Uint8Array;
+    fKids: number[][];
+    fParent: Int32Array;
+    fLeaves: Float32Array;
+    outsideWeight: number;
+  }
+
+  function buildFocusCtx(center: number): FocusCtx {
+    const inFocus = new Uint8Array(N);
+    const fParent = new Int32Array(N).fill(-2);
+    const fKids: number[][] = Array.from({ length: N }, () => []);
+    const order: number[] = [center];
+    inFocus[center] = 1;
+    fParent[center] = -1;
+    for (let head = 0; head < order.length; head += 1) {
+      const u = order[head];
+      for (const v of depsOut[u]) {
+        if (inFocus[v]) continue;
+        inFocus[v] = 1;
+        fParent[v] = u;
+        fKids[u].push(v);
+        order.push(v);
+      }
+    }
+    const fLeaves = new Float32Array(N).fill(1);
+    for (let i = order.length - 1; i >= 0; i -= 1) {
+      const u = order[i];
+      if (fKids[u].length) {
+        fLeaves[u] = fKids[u].reduce((sum, c) => sum + fLeaves[c], 0);
+      }
+    }
+    const byFLeaves = (a: number, b: number): number =>
+      fLeaves[b] - fLeaves[a] || a - b;
+    for (const list of fKids) if (list.length > 1) list.sort(byFLeaves);
+    return {
+      center,
+      inFocus,
+      fKids,
+      fParent,
+      fLeaves,
+      outsideWeight: Math.max(N - order.length, 1),
+    };
+  }
+
   function neighborsFrom(
     id: number,
     cameFrom: number,
+    fc: FocusCtx | null,
   ): Array<{ next: number; weight: number }> {
     if (id === HUB) {
       return hubKids
-        .filter((r) => r !== cameFrom)
+        .filter((r) => r !== cameFrom && !(fc && fc.inFocus[r]))
         .map((r) => ({ next: r, weight: rootWeight(r) }));
     }
     const list: Array<{ next: number; weight: number }> = [];
+    if (fc && fc.inFocus[id]) {
+      for (const kid of fc.fKids[id]) {
+        if (kid !== cameFrom) {
+          list.push({ next: kid, weight: Math.max(fc.fLeaves[kid], 0.5) });
+        }
+      }
+      // The way out of the focus subtree: the centre connects the rest of
+      // the graph through the hub; interior nodes walk up the focus tree.
+      const upId = id === fc.center ? HUB : fc.fParent[id];
+      if (upId !== cameFrom) {
+        list.push({
+          next: upId,
+          weight:
+            id === fc.center
+              ? fc.outsideWeight
+              : Math.max(fc.fLeaves[fc.center] - fc.fLeaves[id], 1),
+        });
+      }
+      return list;
+    }
     for (const kid of children[id]) {
-      if (kid !== cameFrom) list.push({ next: kid, weight: Math.max(leaves[kid], 0.5) });
+      // Skip children the focus tree already claimed — they are placed.
+      if (kid !== cameFrom && !(fc && fc.inFocus[kid])) {
+        list.push({ next: kid, weight: Math.max(leaves[kid], 0.5) });
+      }
     }
     const upId = parent[id] === -1 ? HUB : parent[id];
     if (upId !== cameFrom) {
@@ -87,9 +166,18 @@ export function mountHyperbolicView(
     return list;
   }
 
+  interface Layout {
+    positions: C[];
+    hub: C;
+    /** Tree edge per node for drawing: parent index, -1 = hub spoke, -2 = none. */
+    parentMap: Int32Array;
+  }
+
   /** Lay the whole tree out around `centerId` (HUB or a package index). */
-  function computeLayout(centerId: number): { positions: C[]; hub: C } {
+  function computeLayout(centerId: number): Layout {
+    const fc = centerId === HUB ? null : buildFocusCtx(centerId);
     const positions: C[] = Array.from({ length: N }, () => ({ x: 0, y: 0 }));
+    const parentMap = new Int32Array(N).fill(-2);
     let hub: C = { x: 0, y: 0 };
     const setP = (id: number, p: C): void => {
       if (id === HUB) hub = p;
@@ -101,13 +189,30 @@ export function mountHyperbolicView(
     const stack: Array<{ id: number; cameFrom: number; mid: number; wedge: number }> = [
       { id: centerId, cameFrom: CAME_NONE, mid: -Math.PI / 2, wedge: Math.PI * 2 },
     ];
+    // At the focused node, the way-back-up direction holds nearly the whole
+    // graph, so weight-proportional wedges would hand it nearly the whole
+    // circle and squeeze the subtree the user actually focused into a
+    // sliver. Cap the context's share of the centre ring; the children keep
+    // the rest of the space.
+    const UP_FRACTION_MAX = 0.4;
     while (stack.length > 0) {
       const frame = stack.pop();
       if (!frame) break;
       const { id, cameFrom, mid, wedge } = frame;
-      const around = neighborsFrom(id, cameFrom);
+      let around = neighborsFrom(id, cameFrom, fc);
       if (around.length === 0) continue;
       const isCenter = cameFrom === CAME_NONE;
+      if (isCenter && id !== HUB && around.length > 1) {
+        // neighborsFrom appends the parent-direction entry last.
+        const up = around[around.length - 1];
+        const childSum = around
+          .slice(0, -1)
+          .reduce((sum, n) => sum + n.weight, 0);
+        const maxUp = (childSum * UP_FRACTION_MAX) / (1 - UP_FRACTION_MAX);
+        if (childSum > 0 && up.weight > maxUp) {
+          around = [...around.slice(0, -1), { next: up.next, weight: maxUp }];
+        }
+      }
       // Short links keep systems visually attached to their parents.
       const rhoBase = isCenter
         ? 0.4
@@ -129,18 +234,28 @@ export function mountHyperbolicView(
         const local = { x: rho * Math.cos(ang), y: rho * Math.sin(ang) };
         const g = mobius(getP(id), local);
         setP(next, g);
+        if (next === HUB) {
+          // The centre's way-out edge renders as its hub spoke.
+          if (parentMap[id] === -2) parentMap[id] = -1;
+        } else {
+          parentMap[next] = id;
+        }
         // Outward direction in the neighbour's own frame: away from here.
         const parentLocal = mobiusNeg(g, getP(id));
         const out = Math.atan2(parentLocal.y, parentLocal.x) + Math.PI;
         stack.push({ id: next, cameFrom: id, mid: out, wedge: Math.min(share * 0.95, 2.8) });
       }
     }
-    return { positions, hub };
+    return { positions, hub, parentMap };
   }
 
-  function applyLayout(layout: { positions: C[]; hub: C }): void {
+  /** Tree edges of the layout currently on screen (drawing follows these). */
+  let activeParent: Int32Array = new Int32Array(N).fill(-2);
+
+  function applyLayout(layout: Layout): void {
     for (let i = 0; i < N; i += 1) pos[i] = layout.positions[i];
     hubPos = layout.hub;
+    activeParent = layout.parentMap;
   }
 
   applyLayout(computeLayout(HUB));
@@ -164,6 +279,32 @@ export function mountHyperbolicView(
   let animating = false;
   let animFrame = 0;
   let destroyed = false;
+
+  // Flow-pulse animation along the focus paths — ~30fps, running only while
+  // something is selected (and never under prefers-reduced-motion).
+  let flowPhase = 0;
+  let flowFrame = 0;
+  let flowRunning = false;
+  let flowLast = 0;
+  function tickFlow(t: number): void {
+    if (destroyed || selected < 0 || reduced) {
+      flowRunning = false;
+      return;
+    }
+    if (t - flowLast >= 33) {
+      flowLast = t;
+      flowPhase = (flowPhase + 0.9) % 26.5;
+      // The layout transition already redraws every frame with the fresh
+      // phase; drawing twice per frame would just double the work.
+      if (!animating) draw();
+    }
+    flowFrame = requestAnimationFrame(tickFlow);
+  }
+  function ensureFlow(): void {
+    if (flowRunning || reduced || selected < 0) return;
+    flowRunning = true;
+    flowFrame = requestAnimationFrame(tickFlow);
+  }
 
   const effR = (): number => R * viewScale;
   const toScreen = (z: C): C => ({
@@ -281,22 +422,27 @@ export function mountHyperbolicView(
       pathTop = walk;
     }
 
-    // Spanning-tree edges. Selection dims the context only gently — keeping
-    // the whole tree visible around the focus is the point of this view.
+    // Tree edges of the layout on screen (the focus layout re-parents
+    // packages, so drawing must follow the same tree the walk placed).
+    // Selection dims the context only gently — keeping the whole tree
+    // visible around the focus is the point of this view.
     ctx.lineWidth = 0.7;
     const edgeBase = theme.isDark ? "59, 76, 94" : "148, 163, 184";
     ctx.strokeStyle = `rgba(${edgeBase}, ${selected >= 0 ? 0.32 : 0.45})`;
     beginWarpPath();
     for (let id = 0; id < N; id += 1) {
-      if (parent[id] < 0) continue;
-      if (conformal(pos[id]) < 0.004 && conformal(pos[parent[id]]) < 0.004) continue;
-      geodesic(pos[parent[id]], pos[id]);
+      const p = activeParent[id];
+      if (p < 0) continue;
+      if (conformal(pos[id]) < 0.004 && conformal(pos[p]) < 0.004) continue;
+      geodesic(pos[p], pos[id]);
     }
     strokeWarpPath();
     // Spokes from the project hub to the first ring.
     ctx.strokeStyle = `rgba(${edgeBase}, ${selected >= 0 ? 0.28 : 0.4})`;
     beginWarpPath();
-    for (const r of roots) geodesic(hubPos, pos[r]);
+    for (let id = 0; id < N; id += 1) {
+      if (activeParent[id] === -1) geodesic(hubPos, pos[id]);
+    }
     strokeWarpPath();
 
     if (selected >= 0) {
@@ -315,6 +461,28 @@ export function mountHyperbolicView(
       for (const [a, b] of pathEdges) geodesic(pos[a], pos[b]);
       if (pathTop >= 0) geodesic(hubPos, pos[pathTop]);
       strokeWarpPath();
+      // Gentle flow pulses drifting along the focus paths (skipped under
+      // prefers-reduced-motion): outward on the dependency links, homeward
+      // on the route to the project.
+      if (!reduced) {
+        ctx.lineCap = "round";
+        ctx.setLineDash([2.5, 24]);
+        ctx.lineWidth = 1.7;
+        ctx.globalAlpha = 0.8;
+        ctx.strokeStyle = theme.accent;
+        ctx.lineDashOffset = -flowPhase;
+        beginWarpPath();
+        for (const [a, b] of depEdges) geodesic(pos[a], pos[b]);
+        strokeWarpPath();
+        ctx.strokeStyle = theme.isDark ? "#fbbf24" : "#b45309";
+        ctx.lineDashOffset = flowPhase;
+        beginWarpPath();
+        for (const [a, b] of pathEdges) geodesic(pos[a], pos[b]);
+        if (pathTop >= 0) geodesic(hubPos, pos[pathTop]);
+        strokeWarpPath();
+        ctx.setLineDash([]);
+        ctx.lineCap = "butt";
+      }
       ctx.globalAlpha = 1;
     }
 
@@ -423,7 +591,7 @@ export function mountHyperbolicView(
     hubPos = fn(hubPos);
   }
 
-  let pendingLayout: { positions: C[]; hub: C } | null = null;
+  let pendingLayout: Layout | null = null;
 
   function cancelAnim(): void {
     if (!animating) return;
@@ -450,7 +618,7 @@ export function mountHyperbolicView(
    * whole picture flipping to a canonical "everything up" orientation.
    */
   function orientLayout(
-    layout: { positions: C[]; hub: C },
+    layout: Layout,
     carry: C,
     anchorId: number,
   ): void {
@@ -508,7 +676,7 @@ export function mountHyperbolicView(
    * anything. Phase 2 blends the small residual differences into the freshly
    * computed layout (which has the same node at the origin), then snaps.
    */
-  function startLayoutTransition(carry: C, layout: { positions: C[]; hub: C }): void {
+  function startLayoutTransition(carry: C, layout: Layout): void {
     const fromOffX = offX;
     const fromOffY = offY;
     if (reduced) {
@@ -662,8 +830,10 @@ export function mountHyperbolicView(
       const id = downHit;
       selected = id;
       cb.onSelect(id);
-      if (id >= 0) focusOn(id);
-      else draw();
+      if (id >= 0) {
+        focusOn(id);
+        ensureFlow();
+      } else draw();
     },
     { signal },
   );
@@ -744,6 +914,7 @@ export function mountHyperbolicView(
     destroy() {
       destroyed = true;
       cancelAnimationFrame(animFrame);
+      cancelAnimationFrame(flowFrame);
       aborter.abort();
       canvas.remove();
     },
@@ -752,6 +923,7 @@ export function mountHyperbolicView(
       if (index < 0 || index >= N) return;
       selected = index;
       focusOn(index);
+      ensureFlow();
     },
     resetView() {
       viewScale = 1;
