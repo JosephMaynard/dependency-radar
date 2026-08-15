@@ -69,6 +69,17 @@ export interface DependencyRecord {
     version: string;
     description?: string;
     fileCount?: number;
+    installSize?: {
+      totalBytes: number;
+      codeBytes: number;
+      typesBytes: number;
+      mapBytes: number;
+      otherBytes: number;
+    };
+    platform?: {
+      os?: string[];
+      cpu?: string[];
+    };
     hasBin?: true;
     deprecated: boolean;
     links: {

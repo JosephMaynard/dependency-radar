@@ -32,6 +32,10 @@ interface Block {
   w: number;
   h: number;
   anc?: number;
+  /** Lineage root for fill colour — set on hover-eligible bars. */
+  rootId?: number;
+  /** Depth index for fill colour — set on hover-eligible bars. */
+  depth?: number;
 }
 
 /** Canvas-safe alpha applied to a #rrggbb (or #rgb) colour. */
@@ -173,6 +177,7 @@ export function mountFlameView(
   }
 
   function drawBar(
+    g: CanvasRenderingContext2D,
     x: number,
     y: number,
     w: number,
@@ -182,25 +187,24 @@ export function mountFlameView(
     labelAlpha: number,
     dimmed = false,
   ): void {
-    if (!ctx) return;
     const theme = cb.theme();
     if (dimmed) {
-      ctx.globalAlpha = 0.22;
+      g.globalAlpha = 0.22;
       labelAlpha *= 0.5;
     }
-    ctx.fillStyle = fill;
-    ctx.fillRect(x + PAD / 2, y, Math.max(0.5, w - PAD), h - 1.5);
-    ctx.globalAlpha = 1;
+    g.fillStyle = fill;
+    g.fillRect(x + PAD / 2, y, Math.max(0.5, w - PAD), h - 1.5);
+    g.globalAlpha = 1;
     if (label && w > 34) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x + 5, y, w - 10, h);
-      ctx.clip();
-      ctx.globalAlpha = labelAlpha;
-      ctx.fillStyle = theme.isDark ? "#e6eef8" : "#1e293b";
-      ctx.fillText(label, x + 6, y + h / 2);
-      ctx.restore();
-      ctx.globalAlpha = 1;
+      g.save();
+      g.beginPath();
+      g.rect(x + 5, y, w - 10, h);
+      g.clip();
+      g.globalAlpha = labelAlpha;
+      g.fillStyle = theme.isDark ? "#e6eef8" : "#1e293b";
+      g.fillText(label, x + 6, y + h / 2);
+      g.restore();
+      g.globalAlpha = 1;
     }
   }
 
@@ -212,6 +216,7 @@ export function mountFlameView(
    * sum alone (the virtual root has no self weight).
    */
   function drawLevel(
+    g: CanvasRenderingContext2D,
     ids: number[],
     rootFor: number | null,
     x0: number,
@@ -221,7 +226,7 @@ export function mountFlameView(
     parentBlock: number,
     parentWeight: number,
   ): void {
-    if (!ctx || y > H || ids.length === 0) return;
+    if (y > H || ids.length === 0) return;
     const childSum = ids.reduce((sum, id) => sum + weightOf(id), 0);
     const total = parentWeight > 0 ? parentWeight : childSum;
     if (total <= 0) return;
@@ -235,38 +240,30 @@ export function mountFlameView(
       }
       const rootId = rootFor ?? id;
       const idx = blocks.length;
-      blocks.push({ id, parent: parentBlock, x, y, w, h: rowH });
-      const hl = idx === hoveredBlock || id === selectedId;
+      blocks.push({ id, parent: parentBlock, x, y, w, h: rowH, rootId, depth: depthIdx });
       drawBar(
+        g,
         x,
         y,
         w,
         rowH,
-        fillFor(id, rootId, depthIdx, hl),
+        fillFor(id, rootId, depthIdx, false),
         barLabel(id),
-        hl ? 1 : 0.82,
-        !hl && cb.isDimmed(id),
+        0.82,
+        cb.isDimmed(id),
       );
-      if (hl) {
-        ctx.strokeStyle = cb.theme().accent;
-        ctx.lineWidth = 1.2;
-        ctx.strokeRect(x + 0.5, y + 0.5, w - PAD, rowH - 2.5);
-      }
       // The dominator tree is a real tree — no cycle guard needed.
-      drawLevel(dom.children[id], rootId, x, x + w, y + rowH, depthIdx + 1, idx, weightOf(id));
+      drawLevel(g, dom.children[id], rootId, x, x + w, y + rowH, depthIdx + 1, idx, weightOf(id));
       x += w;
     }
     if (sprayW > 0.4) {
-      ctx.fillStyle = "rgba(90, 110, 130, 0.22)";
-      ctx.fillRect(x, y + rowH * 0.3, Math.max(0.5, sprayW - PAD / 2), rowH * 0.4);
+      g.fillStyle = "rgba(90, 110, 130, 0.22)";
+      g.fillRect(x, y + rowH * 0.3, Math.max(0.5, sprayW - PAD / 2), rowH * 0.4);
     }
   }
 
-  function draw(): void {
-    if (!ctx || destroyed) return;
+  function renderScene(g: CanvasRenderingContext2D): void {
     const theme = cb.theme();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
     blocks = [];
     let y = cb.insetTop();
 
@@ -324,12 +321,13 @@ export function mountFlameView(
         Math.min(ROW_MAX, Math.floor(avail / Math.max(1, levels))),
       );
     }
-    ctx.font = monoFont();
-    ctx.textBaseline = "middle";
+    g.font = monoFont();
+    g.textBaseline = "middle";
     // Pinned lineage: project bar, then each ancestor of the focus, full width.
     const UW = usableW();
     blocks.push({ id: PROJECT_BAR, parent: -1, x: 0, y, w: UW, h: pinned ? ANC : rowH });
     drawBar(
+      g,
       0,
       y,
       UW,
@@ -344,8 +342,8 @@ export function mountFlameView(
       // Zoomed into the shared band: its members across the full width.
       const idx = blocks.length;
       blocks.push({ id: SHARED_BAR, parent: idx - 1, x: 0, y, w: UW, h: rowH });
-      drawBar(0, y, UW, rowH, sharedFill(true), sharedBandLabel(), 1);
-      drawLevel(sharedMembers, null, 0, UW, y + rowH, 1, idx, 0);
+      drawBar(g, 0, y, UW, rowH, sharedFill(true), sharedBandLabel(), 1);
+      drawLevel(g, sharedMembers, null, 0, UW, y + rowH, 1, idx, 0);
       return;
     }
 
@@ -354,6 +352,7 @@ export function mountFlameView(
       const id = focusPath[i];
       blocks.push({ id, parent: blocks.length - 1, x: 0, y, w: UW, h: ANC, anc: i });
       drawBar(
+        g,
         0,
         y,
         UW,
@@ -379,44 +378,98 @@ export function mountFlameView(
           continue;
         }
         const idx = blocks.length;
-        blocks.push({ id, parent: 0, x, y, w, h: rowH });
-        const hl = idx === hoveredBlock || id === selectedId;
-        drawBar(x, y, w, rowH, fillFor(id, id, 0, hl), barLabel(id), hl ? 1 : 0.82, !hl && cb.isDimmed(id));
-        if (hl) {
-          ctx.strokeStyle = theme.accent;
-          ctx.lineWidth = 1.2;
-          ctx.strokeRect(x + 0.5, y + 0.5, w - PAD, rowH - 2.5);
-        }
-        drawLevel(dom.children[id], id, x, x + w, y + rowH, 1, idx, weightOf(id));
+        blocks.push({ id, parent: 0, x, y, w, h: rowH, rootId: id, depth: 0 });
+        drawBar(g, x, y, w, rowH, fillFor(id, id, 0, false), barLabel(id), 0.82, cb.isDimmed(id));
+        drawLevel(g, dom.children[id], id, x, x + w, y + rowH, 1, idx, weightOf(id));
         x += w;
       }
       if (sharedTotal > 0) {
         const w = (UW * sharedTotal) / total;
         const idx = blocks.length;
         blocks.push({ id: SHARED_BAR, parent: 0, x, y, w, h: rowH });
-        const hl = idx === hoveredBlock;
-        drawBar(x, y, w, rowH, sharedFill(hl), sharedBandLabel(), hl ? 1 : 0.85);
-        drawLevel(sharedMembers, null, x, x + w, y + rowH, 1, idx, 0);
+        drawBar(g, x, y, w, rowH, sharedFill(false), sharedBandLabel(), 0.85);
+        drawLevel(g, sharedMembers, null, x, x + w, y + rowH, 1, idx, 0);
         x += w;
       }
       if (topSprayW > 0.4) {
-        ctx.fillStyle = "rgba(90, 110, 130, 0.22)";
-        ctx.fillRect(x, y + rowH * 0.3, Math.max(0.5, topSprayW - PAD / 2), rowH * 0.4);
+        g.fillStyle = "rgba(90, 110, 130, 0.22)";
+        g.fillRect(x, y + rowH * 0.3, Math.max(0.5, topSprayW - PAD / 2), rowH * 0.4);
       }
       return;
     }
 
     const focus = focusPath[focusPath.length - 1];
     const idx = blocks.length;
-    blocks.push({ id: focus, parent: idx - 1, x: 0, y, w: UW, h: rowH });
-    const hl = focus === selectedId;
-    drawBar(0, y, UW, rowH, fillFor(focus, focusShared ? focus : rootId, 1, true), barLabel(focus), 1);
-    if (hl) {
+    const focusRoot = focusShared ? focus : rootId;
+    blocks.push({ id: focus, parent: idx - 1, x: 0, y, w: UW, h: rowH, rootId: focusRoot, depth: 1 });
+    drawBar(g, 0, y, UW, rowH, fillFor(focus, focusRoot, 1, true), barLabel(focus), 1);
+    drawLevel(g, dom.children[focus], focusRoot, 0, UW, y + rowH, 2, idx, weightOf(focus));
+  }
+
+  // Hover changes blit a cached base scene and restyle only the highlighted
+  // bars — replaying the full recursive scene per mouse move chopped on
+  // monorepo-scale trees. Anything that changes geometry, focus, theme, or
+  // dim state goes through draw(), which rebuilds the base.
+  const baseLayer = document.createElement("canvas");
+
+  function overlayHl(): void {
+    if (!ctx) return;
+    const theme = cb.theme();
+    const idxs = new Set<number>();
+    if (hoveredBlock >= 0) idxs.add(hoveredBlock);
+    if (selectedId >= 0) {
+      for (let i = 0; i < blocks.length; i += 1) {
+        if (blocks[i].id === selectedId) idxs.add(i);
+      }
+    }
+    if (idxs.size === 0) return;
+    ctx.font = monoFont();
+    ctx.textBaseline = "middle";
+    for (const i of idxs) {
+      const b = blocks[i];
+      // Ancestor breadcrumbs and the project bar never highlighted before
+      // the cache split either.
+      if (!b || b.anc !== undefined || b.id === PROJECT_BAR) continue;
+      if (b.id === SHARED_BAR) {
+        if (i === hoveredBlock) {
+          drawBar(ctx, b.x, b.y, b.w, b.h, sharedFill(true), sharedBandLabel(), 1);
+        }
+        continue;
+      }
+      drawBar(
+        ctx,
+        b.x,
+        b.y,
+        b.w,
+        b.h,
+        fillFor(b.id, b.rootId ?? b.id, b.depth ?? 0, true),
+        barLabel(b.id),
+        1,
+      );
       ctx.strokeStyle = theme.accent;
       ctx.lineWidth = 1.2;
-      ctx.strokeRect(0.5, y + 0.5, UW - 1, rowH - 2.5);
+      ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - PAD, b.h - 2.5);
     }
-    drawLevel(dom.children[focus], focusShared ? focus : rootId, 0, UW, y + rowH, 2, idx, weightOf(focus));
+  }
+
+  function blitAndOverlay(): void {
+    if (!ctx || destroyed) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(baseLayer, 0, 0, W, H);
+    overlayHl();
+  }
+
+  function draw(): void {
+    if (!ctx || destroyed) return;
+    baseLayer.width = W * dpr;
+    baseLayer.height = H * dpr;
+    const bctx = baseLayer.getContext("2d");
+    if (!bctx) return;
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bctx.clearRect(0, 0, W, H);
+    renderScene(bctx);
+    blitAndOverlay();
   }
 
   function pick(px: number, py: number): number {
@@ -474,7 +527,7 @@ export function mountFlameView(
       hoveredBlock = i;
       canvas.style.cursor = i >= 0 ? "pointer" : "default";
       cb.onHoverTrail(i >= 0 && blocks[i].id >= 0 ? pathOfBlock(i) : null);
-      draw();
+      blitAndOverlay();
     },
     { signal },
   );
@@ -484,7 +537,7 @@ export function mountFlameView(
       hoveredBlock = -1;
       tip.hidden = true;
       cb.onHoverTrail(null);
-      draw();
+      blitAndOverlay();
     },
     { signal },
   );

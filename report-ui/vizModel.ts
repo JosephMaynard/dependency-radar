@@ -73,6 +73,28 @@ export interface VizModel {
   /** True when display filters are at their defaults, i.e. the filtered
    *  graph IS the full graph and on-canvas counts equal true impact. */
   filtersAreDefault: boolean;
+  /**
+   * Full removal preview over the UNFILTERED workspace graph: exactly which
+   * packages leave, which of its subtree survives and who keeps each one,
+   * and (for a direct dep others still pull in) who blocks the removal.
+   */
+  simulateRemoval: (index: number) => RemovalSim;
+}
+
+export interface RemovalSimEntry {
+  slug: string;
+  name: string;
+}
+
+export interface RemovalSim {
+  /** Packages that leave node_modules (includes the package itself). */
+  freed: RemovalSimEntry[];
+  /** Subtree members that survive, each with one example keeper. */
+  retained: Array<RemovalSimEntry & { keptBy: string }>;
+  /** Direct dep only: dependents that make the manifest removal a no-op. */
+  blockedBy: string[];
+  /** True when the package is a direct dependency (manifest semantics). */
+  isDirect: boolean;
 }
 
 export interface PackageImpact {
@@ -308,6 +330,8 @@ export function buildVizModel(
     /** Filtered-model index -> full-graph index (-1 when absent). */
     toFull: Int32Array;
     refsF: GraphDependency[];
+    slugsF: string[];
+    depsOutF: number[][];
     depsInF: number[][];
     isRootF: boolean[];
     dom: DomTree;
@@ -323,6 +347,8 @@ export function buildVizModel(
       impactGraphMemo = {
         toFull,
         refsF: refs,
+        slugsF: slugs,
+        depsOutF: depsOut,
         depsInF: depsIn,
         isRootF: isRoot,
         dom: domTree(),
@@ -371,12 +397,83 @@ export function buildVizModel(
     impactGraphMemo = {
       toFull,
       refsF,
+      slugsF,
+      depsOutF,
       depsInF,
       isRootF,
       dom: buildDomTree(countF, depsOutF, rootsF),
       reach: computeReachCounts(countF, depsOutF),
     };
     return impactGraphMemo;
+  };
+
+  const EMPTY_SIM: RemovalSim = { freed: [], retained: [], blockedBy: [], isDirect: false };
+  const simMemo = new Map<number, RemovalSim>();
+  const simulateRemoval = (index: number): RemovalSim => {
+    if (index < 0 || index >= count) return EMPTY_SIM;
+    const g = impactGraph();
+    const full = g.toFull[index];
+    if (full < 0) return EMPTY_SIM;
+    const cached = simMemo.get(full);
+    if (cached) return cached;
+    // Freed = the dominator subtree (everything only it keeps installed).
+    const dominated = new Set<number>([full]);
+    const stack = [full];
+    while (stack.length > 0) {
+      const cur = stack.pop() as number;
+      for (const kid of g.dom.children[cur]) {
+        dominated.add(kid);
+        stack.push(kid);
+      }
+    }
+    // Subtree = everything reachable from it; survivors are kept by a
+    // dependent outside the freed set (or by the project manifest itself).
+    const reachable = new Set<number>([full]);
+    const queue = [full];
+    while (queue.length > 0) {
+      const cur = queue.pop() as number;
+      for (const next of g.depsOutF[cur]) {
+        if (!reachable.has(next)) {
+          reachable.add(next);
+          queue.push(next);
+        }
+      }
+    }
+    const entry = (i: number): RemovalSimEntry => ({ slug: g.slugsF[i], name: g.refsF[i].name });
+    const retained: RemovalSim["retained"] = [];
+    for (const node of reachable) {
+      if (dominated.has(node)) continue;
+      const keeper = g.depsInF[node].find((pred) => !dominated.has(pred));
+      retained.push({
+        ...entry(node),
+        keptBy: keeper !== undefined ? g.refsF[keeper].name : "the project manifest",
+      });
+    }
+    retained.sort((a, b) => a.name.localeCompare(b.name));
+    const isDirect = g.isRootF[full];
+    const blockedBy = isDirect
+      ? (() => {
+          const chainHits = (node: number): boolean => {
+            let cur = node;
+            let guard = 0;
+            while (cur >= 0 && guard < 100_000) {
+              if (cur === full) return true;
+              cur = g.dom.idom[cur];
+              guard += 1;
+            }
+            return false;
+          };
+          return g.depsInF[full]
+            .filter((pred) => !chainHits(pred))
+            .map((pred) => g.refsF[pred].name);
+        })()
+      : [];
+    const freed = [...dominated]
+      .map(entry)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const result: RemovalSim = { freed, retained, blockedBy, isDirect };
+    simMemo.set(full, result);
+    return result;
   };
 
   const EMPTY_IMPACT: PackageImpact = {
@@ -449,6 +546,7 @@ export function buildVizModel(
     uniqueCount,
     impact,
     filtersAreDefault,
+    simulateRemoval,
   };
 }
 

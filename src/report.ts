@@ -336,6 +336,16 @@ ${safeCssContent}
                 <span id="upgrade-blockers-label">Upgrade blockers</span>
               </label>
 
+              <label class="checkbox-filter">
+                <input type="checkbox" id="no-imports" />
+                <span id="no-imports-label">No imports found</span>
+              </label>
+
+              <label class="checkbox-filter">
+                <input type="checkbox" id="duplicate-versions" />
+                <span id="duplicate-versions-label">Duplicate versions</span>
+              </label>
+
               <label class="checkbox-filter" id="has-replacement-wrap" hidden>
                 <input type="checkbox" id="has-replacement" />
                 <span id="has-replacement-label">Has replacement suggestion</span>

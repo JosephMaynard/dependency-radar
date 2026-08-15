@@ -173,6 +173,7 @@ export function mountTreemapView(
 
   /** Lay out the tree iteratively; deep chains must not recurse. */
   function layout(): void {
+    invalidateBase();
     rects = [];
     const UW = usableW();
     const top = cb.insetTop();
@@ -304,43 +305,92 @@ export function mountTreemapView(
     return frees > 1 ? `${name} · ${frees.toLocaleString()}${suffix}` : name;
   }
 
+  function drawRect(
+    target: CanvasRenderingContext2D,
+    rect: Rect,
+    hl: boolean,
+    theme: ReturnType<VizCallbacks["theme"]>,
+  ): void {
+    const dimmed = rect.id >= 0 && !hl && cb.isDimmed(rect.id);
+    target.globalAlpha = dimmed ? 0.25 : 1;
+    target.fillStyle = fillFor(rect, hl);
+    target.fillRect(rect.x, rect.y, rect.w, rect.h);
+    target.strokeStyle = theme.isDark ? "rgba(10, 16, 24, 0.85)" : "rgba(255, 255, 255, 0.9)";
+    target.lineWidth = 1;
+    target.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
+    if (hl) {
+      target.strokeStyle = theme.accent;
+      target.lineWidth = 1.4;
+      target.strokeRect(rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2);
+    }
+    if (rect.w >= MIN_LABEL_W && rect.h >= MIN_LABEL_H) {
+      target.save();
+      target.beginPath();
+      target.rect(rect.x + 4, rect.y, rect.w - 8, Math.min(rect.h, HEADER + 2));
+      target.clip();
+      target.globalAlpha = dimmed ? 0.4 : 0.92;
+      target.fillStyle = theme.isDark ? "#dfe9f5" : "#22303e";
+      target.fillText(rectLabel(rect), rect.x + 5, rect.y + Math.min(rect.h / 2, 9.5));
+      target.restore();
+    }
+    target.globalAlpha = 1;
+  }
+
+  // Hover changes redraw only the highlighted rects over a cached base
+  // scene — repainting thousands of rects per mouse move made monorepo
+  // hovers visibly chop.
+  const baseLayer = document.createElement("canvas");
+  let baseValid = false;
+  function invalidateBase(): void {
+    baseValid = false;
+  }
+
   function draw(): void {
     if (!ctx || destroyed) return;
     const theme = cb.theme();
+    if (!baseValid) {
+      baseLayer.width = W * dpr;
+      baseLayer.height = H * dpr;
+      const bctx = baseLayer.getContext("2d");
+      if (!bctx) return;
+      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bctx.clearRect(0, 0, W, H);
+      bctx.textBaseline = "middle";
+      bctx.font = `600 10.5px ${mono}`;
+      for (const rect of rects) drawRect(bctx, rect, false, theme);
+      baseValid = true;
+    }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(baseLayer, 0, 0, W, H);
     ctx.textBaseline = "middle";
     ctx.font = `600 10.5px ${mono}`;
-
+    const hlIdx = new Set<number>();
     for (let i = 0; i < rects.length; i += 1) {
       const rect = rects[i];
-      const hl =
-        i === hovered ||
-        (rect.id >= 0 && rect.id === selected) ||
-        (rect.id === SHARED_RECT && hovered === i);
-      const dimmed = rect.id >= 0 && !hl && cb.isDimmed(rect.id);
-      ctx.globalAlpha = dimmed ? 0.25 : 1;
-      ctx.fillStyle = fillFor(rect, hl);
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      ctx.strokeStyle = theme.isDark ? "rgba(10, 16, 24, 0.85)" : "rgba(255, 255, 255, 0.9)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
-      if (hl) {
-        ctx.strokeStyle = theme.accent;
-        ctx.lineWidth = 1.4;
-        ctx.strokeRect(rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2);
-      }
-      if (rect.w >= MIN_LABEL_W && rect.h >= MIN_LABEL_H) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(rect.x + 4, rect.y, rect.w - 8, Math.min(rect.h, HEADER + 2));
-        ctx.clip();
-        ctx.globalAlpha = dimmed ? 0.4 : 0.92;
-        ctx.fillStyle = theme.isDark ? "#dfe9f5" : "#22303e";
-        ctx.fillText(rectLabel(rect), rect.x + 5, rect.y + Math.min(rect.h / 2, 9.5));
-        ctx.restore();
-      }
-      ctx.globalAlpha = 1;
+      if (i === hovered || (rect.id >= 0 && rect.id === selected)) hlIdx.add(i);
+    }
+    if (hlIdx.size === 0) return;
+    // A highlighted parent's fill would cover its nested children, so redraw
+    // everything inside a highlighted rect in original order — children were
+    // pushed after their parent, which keeps them on top just like the old
+    // full-scene pass did.
+    const containers: Rect[] = [];
+    for (const i of hlIdx) containers.push(rects[i]);
+    const inside = (r: Rect): boolean =>
+      containers.some(
+        (p) =>
+          r !== p &&
+          r.depth > p.depth &&
+          r.x >= p.x &&
+          r.y >= p.y &&
+          r.x + r.w <= p.x + p.w &&
+          r.y + r.h <= p.y + p.h,
+      );
+    for (let i = 0; i < rects.length; i += 1) {
+      const rect = rects[i];
+      if (hlIdx.has(i)) drawRect(ctx, rect, true, theme);
+      else if (inside(rect)) drawRect(ctx, rect, false, theme);
     }
   }
 

@@ -86,6 +86,14 @@ export interface GraphModesOptions {
   } | null;
   /** Whether the package matches a highlight signal (from the full report). */
   highlightMatch?: (slug: string, kind: HighlightKind) => boolean;
+  /** Extra per-package facts derived from the full report record. */
+  getPackageExtras?: (slug: string) => {
+    sizeBytes?: number;
+    codeBytes?: number;
+    platformNote?: string;
+    phantom?: boolean;
+    importFileCount?: number;
+  };
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
 }
@@ -448,6 +456,86 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     return node;
   }
 
+  // ----- fine print ----------------------------------------------------
+  // Measured numbers and static-analysis leads carry caveats; each gets a
+  // small (i) affordance opening an anchored note, and the Key panel links
+  // a collected "About these numbers" view.
+  const FINE_PRINT: Record<string, { title: string; body: string }> = {
+    size: {
+      title: "Measured install size",
+      body:
+        "Measured on disk as installed (uncompressed). Not download size and not bundle impact — bundlers tree-shake and compress. With pnpm, files are hard-linked to a shared store, so deleting reclaims less physical disk. Each installed version is measured once.",
+    },
+    imports: {
+      title: "Import evidence",
+      body:
+        "From static scanning of this project's source. CLI binaries, config-file references, and framework conventions are invisible to it — treat \u201cno imports found\u201d as a lead to check, not a verdict.",
+    },
+    impact: {
+      title: "Removal impact",
+      body:
+        "\u201cRemoving it frees\u201d counts packages nothing else keeps installed, computed over the full workspace graph — display filters never change it. A direct dependency that other packages still pull in frees nothing until those dependents drop it.",
+    },
+  };
+  const finePop = document.createElement("div");
+  finePop.className = "graph-fineprint-pop";
+  finePop.hidden = true;
+  shell?.appendChild(finePop);
+  document.addEventListener("pointerdown", (event) => {
+    if (finePop.hidden) return;
+    if (finePop.contains(event.target as Node)) return;
+    finePop.hidden = true;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !finePop.hidden) finePop.hidden = true;
+  });
+  function openFinePrint(topic: string, anchorEl: HTMLElement): void {
+    const note = FINE_PRINT[topic];
+    if (!note || !shell) return;
+    finePop.textContent = "";
+    finePop.appendChild(el("strong", "", note.title));
+    finePop.appendChild(el("p", "", note.body));
+    finePop.hidden = false;
+    const shellRect = shell.getBoundingClientRect();
+    const a = anchorEl.getBoundingClientRect();
+    finePop.style.top = `${a.bottom - shellRect.top + 6}px`;
+    const left = Math.max(
+      8,
+      Math.min(a.left - shellRect.left - 140, shell.clientWidth - 296),
+    );
+    finePop.style.left = `${left}px`;
+  }
+  function infoButton(topic: string): HTMLElement {
+    const btn = el("button", "graph-fineprint-btn", "\u24d8");
+    (btn as HTMLButtonElement).type = "button";
+    btn.setAttribute("aria-label", `About: ${FINE_PRINT[topic]?.title ?? topic}`);
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openFinePrint(topic, btn);
+    });
+    return btn;
+  }
+  // "About these numbers" collected view at the foot of the Key panel.
+  if (keyPanel) {
+    const aboutBtn = el("button", "graph-panel-reset", "About these numbers");
+    (aboutBtn as HTMLButtonElement).type = "button";
+    aboutBtn.addEventListener("click", () => {
+      options.dossier.textContent = "";
+      options.dossier.appendChild(el("h2", "graph-dossier-name", "About these numbers"));
+      for (const note of Object.values(FINE_PRINT)) {
+        options.dossier.appendChild(el("h3", "graph-dossier-subtitle", note.title));
+        options.dossier.appendChild(el("p", "graph-dossier-empty", note.body));
+      }
+    });
+    keyPanel.appendChild(aboutBtn);
+  }
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
+    return `${bytes} B`;
+  };
+
   function chipRow(container: HTMLElement, title: string, ids: number[]): void {
     if (!model || ids.length === 0) return;
     const m = model;
@@ -599,15 +687,204 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       const suffix = imp.cycleWith.length > 3 ? ` +${imp.cycleWith.length - 3}` : "";
       fact("fact-note", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
     }
+    // Measured/derived extras from the full report record.
+    const extras = options.getPackageExtras?.(m.slugs[index]);
+    if (extras?.sizeBytes !== undefined) {
+      const chip = el("span", "graph-dossier-fact");
+      chip.appendChild(el("span", "fact-icon", "\u26c1"));
+      const codePart =
+        extras.codeBytes !== undefined && extras.codeBytes > 0
+          ? ` \u00b7 ${formatBytes(extras.codeBytes)} code`
+          : "";
+      chip.appendChild(
+        el("span", "", `${formatBytes(extras.sizeBytes)} on disk${codePart}`),
+      );
+      chip.appendChild(infoButton("size"));
+      facts.appendChild(chip);
+    }
+    if (imp.manifestFrees !== null) {
+      const files = extras?.importFileCount ?? 0;
+      const chip = el(
+        "span",
+        files === 0 ? "graph-dossier-fact fact-dev" : "graph-dossier-fact",
+      );
+      chip.appendChild(el("span", "fact-icon", "\u2338"));
+      chip.appendChild(
+        el(
+          "span",
+          "",
+          files > 0
+            ? `imported in ${files} file${files === 1 ? "" : "s"}`
+            : "no imports found in project source",
+        ),
+      );
+      chip.appendChild(infoButton("imports"));
+      facts.appendChild(chip);
+    }
+    if (extras?.platformNote) {
+      fact("fact-dev", "\u26a0\ufe0e", extras.platformNote);
+    }
+    if (extras?.phantom) {
+      fact(
+        "fact-note fact-bad",
+        "\u26a0\ufe0e",
+        "imported by project code but not declared in any workspace manifest",
+      );
+    }
     options.dossier.appendChild(facts);
 
     chipRow(options.dossier, "Depends on", m.kidsOf[index]);
     chipRow(options.dossier, "Required by", m.depsIn[index]);
 
+    const simBtn = el("button", "graph-dossier-open", "Simulate removal");
+    simBtn.type = "button";
+    simBtn.addEventListener("click", () => renderSimulation(index));
+    options.dossier.appendChild(simBtn);
+
     const open = el("button", "graph-dossier-open", "Open in List");
     open.type = "button";
     open.addEventListener("click", () => options.onOpenList(m.slugs[index]));
     options.dossier.appendChild(open);
+  }
+
+  // ----- removal simulator ---------------------------------------------
+  // Results are pure functions of the report data, so they are cached for
+  // the page lifetime per workspace+package — jumping around costs nothing.
+  interface SimUi {
+    sim: ReturnType<VizModel["simulateRemoval"]>;
+    freedBytes: number;
+    sizedCount: number;
+    rollups: Array<[string, number]>;
+  }
+  const simUiCache = new Map<string, SimUi>();
+
+  function simChip(slug: string, name: string): HTMLElement {
+    const m = ensureModel();
+    const chip = el("button", "graph-dossier-chip", name);
+    (chip as HTMLButtonElement).type = "button";
+    chip.addEventListener("click", () => {
+      const idx = m.indexOfSlug.get(slug);
+      if (idx !== undefined) focusPackage(idx);
+    });
+    return chip;
+  }
+
+  function chipCloud(
+    container: HTMLElement,
+    title: string,
+    entries: Array<{ slug: string; name: string; note?: string }>,
+    cap: number,
+  ): void {
+    const block = el("div", "graph-dossier-block");
+    block.appendChild(el("h3", "graph-dossier-subtitle", title));
+    const chips = el("div", "graph-dossier-chips");
+    for (const item of entries.slice(0, cap)) {
+      chips.appendChild(simChip(item.slug, item.name));
+      if (item.note) chips.appendChild(el("span", "graph-dossier-more", item.note));
+    }
+    if (entries.length > cap) {
+      chips.appendChild(el("span", "graph-dossier-more", `+${entries.length - cap} more`));
+    }
+    block.appendChild(chips);
+    container.appendChild(block);
+  }
+
+  function renderSimulation(index: number): void {
+    const m = ensureModel();
+    const slug = m.slugs[index];
+    const key = `${m.workspaceName}|${slug}`;
+    let data = simUiCache.get(key);
+    if (!data) {
+      const sim = m.simulateRemoval(index);
+      let freedBytes = 0;
+      let sizedCount = 0;
+      for (const f of sim.freed) {
+        const bytes = options.getPackageExtras?.(f.slug)?.sizeBytes;
+        if (bytes !== undefined) {
+          freedBytes += bytes;
+          sizedCount += 1;
+        }
+      }
+      const rollups: Array<[string, number]> = [];
+      if (options.highlightMatch) {
+        const countKind = (kind: HighlightKind): number =>
+          sim.freed.reduce(
+            (n, f) => n + (options.highlightMatch!(f.slug, kind) ? 1 : 0),
+            0,
+          );
+        const vulns = countKind("vuln");
+        const licenses = countKind("license");
+        const maint = countKind("maintenance");
+        if (vulns) rollups.push(["vulnerable", vulns]);
+        if (licenses) rollups.push([licenses === 1 ? "licence issue" : "licence issues", licenses]);
+        if (maint) rollups.push([maint === 1 ? "maintenance concern" : "maintenance concerns", maint]);
+      }
+      data = { sim, freedBytes, sizedCount, rollups };
+      simUiCache.set(key, data);
+    }
+    const { sim, freedBytes, rollups } = data;
+    const d = options.dossier;
+    d.textContent = "";
+
+    const back = el("button", "graph-dossier-open", "\u2190 Package details");
+    (back as HTMLButtonElement).type = "button";
+    back.addEventListener("click", () => renderDossier(index));
+    d.appendChild(back);
+
+    d.appendChild(el("h2", "graph-dossier-name", m.refs[index].name));
+    d.appendChild(el("h3", "graph-dossier-subtitle", "Removal preview"));
+
+    const blocked = sim.isDirect && sim.blockedBy.length > 0;
+    if (blocked) {
+      const names = sim.blockedBy.slice(0, 4).join(", ");
+      const suffix = sim.blockedBy.length > 4 ? ` +${sim.blockedBy.length - 4}` : "";
+      d.appendChild(
+        el(
+          "p",
+          "graph-dossier-empty",
+          `Removing the manifest entry frees nothing today \u2014 still required by ${names}${suffix}. If those dependents dropped it, removal would free:`,
+        ),
+      );
+    }
+
+    const headline = el("div", "graph-dossier-facts");
+    const headChip = el("span", "graph-dossier-fact");
+    headChip.appendChild(el("span", "fact-icon", "\u2702"));
+    headChip.appendChild(
+      el(
+        "span",
+        "",
+        `${blocked ? "would free" : "frees"} ${sim.freed.length.toLocaleString()} package${sim.freed.length === 1 ? "" : "s"}` +
+          (freedBytes > 0 ? ` \u00b7 ${formatBytes(freedBytes)} on disk` : ""),
+      ),
+    );
+    headChip.appendChild(infoButton("impact"));
+    headline.appendChild(headChip);
+    if (rollups.length > 0) {
+      headline.appendChild(
+        el(
+          "span",
+          "graph-dossier-fact fact-note",
+          `including ${rollups.map(([label, n]) => `${n} ${label}`).join(" \u00b7 ")}`,
+        ),
+      );
+    }
+    d.appendChild(headline);
+
+    chipCloud(
+      d,
+      `Freed (${sim.freed.length})`,
+      sim.freed,
+      40,
+    );
+    if (sim.retained.length > 0) {
+      chipCloud(
+        d,
+        `Retained (${sim.retained.length})`,
+        sim.retained.map((r) => ({ slug: r.slug, name: r.name, note: `kept by ${r.keptBy}` })),
+        24,
+      );
+    }
   }
 
   // ----- focus routing --------------------------------------------------

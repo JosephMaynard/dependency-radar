@@ -2062,6 +2062,31 @@ function getFreesCount(depKey: string): number | undefined {
   return getDepStats(depKey)?.frees;
 }
 
+interface DupDependent {
+  name: string;
+  version: string;
+  range: string | null;
+}
+interface DupVersion {
+  version: string;
+  direct: boolean;
+  dependents: DupDependent[];
+}
+let dupGroupsByName: Map<string, DupVersion[]> | null = null;
+let dupGroupsBuilder: (() => Map<string, DupVersion[]>) | null = null;
+function getDuplicateGroup(name: string): DupVersion[] | undefined {
+  if (!dupGroupsByName && dupGroupsBuilder) {
+    dupGroupsByName = dupGroupsBuilder();
+  }
+  return dupGroupsByName?.get(name);
+}
+
+function formatByteSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${bytes} B`;
+}
+
 function renderDepDetails(
   dep: DependencyRecord,
   linkableKeys: Set<string>,
@@ -2110,9 +2135,39 @@ function renderDepDetails(
         dep.usage.direct && stats.frees === 0
           ? "Nothing (still required by other packages)"
           : stats.frees;
+      const size = dep.package.installSize;
+      const sizeRows = size
+        ? renderKvItem(
+            "Install size (measured, uncompressed)",
+            `${formatByteSize(size.totalBytes)}${size.codeBytes > 0 ? ` (${formatByteSize(size.codeBytes)} code)` : ""}`,
+          ) +
+          (typeof dep.package.fileCount === "number"
+            ? renderKvItem("Files on disk", dep.package.fileCount)
+            : "")
+        : "";
+      const group = getDuplicateGroup(dep.package.name);
+      let dupRow = "";
+      if (group && group.length >= 2) {
+        const parts = group
+          .filter((v) => v.version !== dep.package.version)
+          .map((v) => {
+            const via = v.dependents
+              .slice(0, 3)
+              .map((d) => `${d.name}${d.range ? ` (${d.range})` : ""}`)
+              .join(", ");
+            const extra = v.dependents.length > 3 ? ` +${v.dependents.length - 3}` : "";
+            const why = via ? ` — via ${via}${extra}` : v.direct ? " — direct dependency" : "";
+            return `${v.version}${why}`;
+          });
+        if (parts.length > 0) {
+          dupRow = renderKvItem("Also installed as", parts.join("  ·  "));
+        }
+      }
       return (
         renderKvItem("Sub-dependencies", stats.subs) +
-        renderKvItem("Removal frees", freesLabel)
+        renderKvItem("Removal frees", freesLabel) +
+        sizeRows +
+        dupRow
       );
     })(),
     !dep.usage.direct
@@ -2547,6 +2602,12 @@ async function init(): Promise<void> {
     ) as HTMLInputElement | null,
     hasReplacement: document.getElementById(
       "has-replacement",
+    ) as HTMLInputElement | null,
+    noImports: document.getElementById(
+      "no-imports",
+    ) as HTMLInputElement | null,
+    duplicateVersions: document.getElementById(
+      "duplicate-versions",
     ) as HTMLInputElement | null,
     hasReplacementWrap: document.getElementById(
       "has-replacement-wrap",
@@ -3170,6 +3231,8 @@ async function init(): Promise<void> {
       const targets: Record<string, HTMLInputElement | null | undefined> = {
         "has-vulns": controls.hasVulns,
         "maintenance-concerns": controls.maintenanceConcerns,
+        "no-imports": controls.noImports,
+        "duplicate-versions": controls.duplicateVersions,
         "license-issues": controls.licenseIssues,
         "upgrade-blockers": controls.upgradeBlockers,
         "has-replacement": controls.hasReplacement,
@@ -3263,6 +3326,48 @@ async function init(): Promise<void> {
       map.set(slug, { subs: Math.max(0, counts[index] - 1), frees });
     });
     return map;
+  };
+  dupGroupsByName = null;
+  dupGroupsBuilder = () => {
+    const groups = new Map<string, DupVersion[]>();
+    for (const dep of allDependencies) {
+      if ((duplicateVersionNames.get(dep.package.name) ?? 0) < 2) continue;
+      const list = groups.get(dep.package.name) ?? [];
+      list.push({
+        version: dep.package.version,
+        direct: dep.usage.direct,
+        dependents: [],
+      });
+      groups.set(dep.package.name, list);
+    }
+    // Who links to which installed version, with the declared range —
+    // subDeps entries carry [range, resolvedVersion].
+    for (const parent of allDependencies) {
+      const sections = parent.graph.subDeps;
+      if (!sections) continue;
+      for (const section of [sections.dep, sections.dev, sections.opt, sections.peer]) {
+        if (!section) continue;
+        for (const [childName, entry] of Object.entries(section)) {
+          const group = groups.get(childName);
+          if (!group || !Array.isArray(entry)) continue;
+          const [range, resolved] = entry;
+          const target = resolved
+            ? group.find((v) => v.version === resolved)
+            : undefined;
+          if (target) {
+            target.dependents.push({
+              name: parent.package.name,
+              version: parent.package.version,
+              range: typeof range === "string" ? range : null,
+            });
+          }
+        }
+      }
+    }
+    for (const list of groups.values()) {
+      list.sort((a, b) => b.dependents.length - a.dependents.length);
+    }
+    return groups;
   };
   const depKeysByName = getDepKeysByNameIndex(knownDepKeys);
   const supplyChainSignalsByKey = buildSupplyChainSignalIndex(
@@ -3372,6 +3477,8 @@ async function init(): Promise<void> {
     const licenseIssuesOnly = controls.licenseIssues?.checked ?? false;
     const upgradeBlockersOnly = controls.upgradeBlockers?.checked ?? false;
     const replacementOnly = controls.hasReplacement?.checked ?? false;
+    const noImportsOnly = controls.noImports?.checked ?? false;
+    const duplicatesOnly = controls.duplicateVersions?.checked ?? false;
 
     const showPermissive = controls.licensePermissive.checked;
     const showWeakCopyleft = controls.licenseWeakCopyleft.checked;
@@ -3416,6 +3523,20 @@ async function init(): Promise<void> {
       if (licenseIssuesOnly && !hasLicenseIssue(dep)) return false;
       if (upgradeBlockersOnly && !hasUpgradeBlocker(dep)) return false;
       if (replacementOnly && !hasReplacementSuggestion(dep)) return false;
+      if (
+        noImportsOnly &&
+        !(
+          importsCollectorRan &&
+          dep.usage.direct &&
+          !(dep.usage.importUsage?.fileCount ?? 0)
+        )
+      )
+        return false;
+      if (
+        duplicatesOnly &&
+        (duplicateVersionNames.get(dep.package.name) ?? 0) < 2
+      )
+        return false;
 
       const licenseCategory = getLicenseCategory(primaryLicense.value);
       if (licenseCategory === "permissive" && !showPermissive) return false;
@@ -3591,6 +3712,24 @@ async function init(): Promise<void> {
         label: "Licence issues",
         remove: () => {
           if (controls.licenseIssues) controls.licenseIssues.checked = false;
+        },
+      });
+    }
+    if (controls.noImports?.checked) {
+      chips.push({
+        id: "no-imports",
+        label: "No imports found",
+        remove: () => {
+          if (controls.noImports) controls.noImports.checked = false;
+        },
+      });
+    }
+    if (controls.duplicateVersions?.checked) {
+      chips.push({
+        id: "duplicate-versions",
+        label: "Duplicate versions",
+        remove: () => {
+          if (controls.duplicateVersions) controls.duplicateVersions.checked = false;
         },
       });
     }
@@ -3877,6 +4016,37 @@ async function init(): Promise<void> {
             const dep = key ? depByKey.get(key) : undefined;
             if (!dep?.replacement?.replacements?.length) return null;
             return dep.replacement;
+          },
+          getPackageExtras: (slug: string) => {
+            const key = resolveDepKey(slug);
+            const dep = key ? depByKey.get(key) : undefined;
+            if (!dep) return {};
+            const size = dep.package.installSize;
+            const platform = dep.package.platform;
+            let platformNote: string | undefined;
+            if (platform && (platform.os?.length || platform.cpu?.length)) {
+              const here = report.environment;
+              const osMiss =
+                platform.os && here?.platform && !platform.os.includes(here.platform);
+              const cpuMiss =
+                platform.cpu && here?.arch && !platform.cpu.includes(here.arch);
+              const target = [
+                ...(platform.os ?? []),
+                ...(platform.cpu ?? []),
+              ].join("/");
+              platformNote =
+                osMiss || cpuMiss
+                  ? `built for ${target} \u2014 not this machine`
+                  : `platform-specific: ${target}`;
+            }
+            return {
+              ...(size ? { sizeBytes: size.totalBytes, codeBytes: size.codeBytes } : {}),
+              ...(platformNote ? { platformNote } : {}),
+              ...(!dep.usage.direct && (dep.usage.importUsage?.fileCount ?? 0) > 0
+                ? { phantom: true }
+                : {}),
+              importFileCount: dep.usage.importUsage?.fileCount ?? 0,
+            };
           },
           highlightMatch: (slug: string, kind: string) => {
             const key = resolveDepKey(slug);
