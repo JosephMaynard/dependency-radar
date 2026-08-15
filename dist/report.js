@@ -478,6 +478,9 @@ ${safeCssContent}
                   Upgrade blocker
                 </button>
               </div>
+              <button type="button" class="graph-panel-reset" id="graph-filters-reset">
+                Reset filters
+              </button>
             </div>
           </div>
           <div class="graph-workspace-wrap" id="graph-workspace-wrap">

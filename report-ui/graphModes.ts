@@ -795,10 +795,17 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   // Highlight chips: dimming only — the graph structure never changes, so
   // no model rebuild, just a repaint of whichever view is active.
+  function syncHighlightChips(): void {
+    for (const kind of HIGHLIGHT_KINDS) {
+      document
+        .getElementById(`graph-hl-${kind}`)
+        ?.setAttribute("aria-pressed", String(highlights.has(kind)));
+    }
+  }
+
   function bindHighlightChip(kind: HighlightKind): void {
     const btn = document.getElementById(`graph-hl-${kind}`);
     if (!btn) return;
-    btn.setAttribute("aria-pressed", String(highlights.has(kind)));
     btn.addEventListener("click", () => {
       if (highlights.has(kind)) highlights.delete(kind);
       else highlights.add(kind);
@@ -810,6 +817,14 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     });
   }
   for (const kind of HIGHLIGHT_KINDS) bindHighlightChip(kind);
+  syncHighlightChips();
+
+  document.getElementById("graph-filters-reset")?.addEventListener("click", () => {
+    Object.assign(filters, DEFAULT_GRAPH_FILTERS);
+    highlights.clear();
+    syncHighlightChips();
+    applyFilters();
+  });
 
   syncFilterControls();
   syncFiltersBadge();

@@ -507,7 +507,7 @@ button.stat-chip:focus-visible {
 }
 
 .view-switch-btn {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   border-radius: 999px;
@@ -516,12 +516,14 @@ button.stat-chip:focus-visible {
   cursor: pointer;
   transition:
     color var(--transition),
-    background var(--transition);
+    background var(--transition),
+    border-color var(--transition);
   white-space: nowrap;
 }
 
 .view-switch-btn:hover {
-  color: var(--text-primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .view-switch-btn.active {
@@ -1191,36 +1193,33 @@ select.graph-workspace-select:focus {
   position: relative;
 }
 
+/* Same recipe as the list view's Filters/Metadata toggles — one button
+   language across both views. */
 .graph-key-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 13px;
   line-height: 1.1;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    background var(--transition),
-    border-color var(--transition);
+  transition: all var(--transition);
 }
 
 .graph-key-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(100, 116, 139, 0.4);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-[data-theme="light"] .graph-key-toggle {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(100, 116, 139, 0.2);
-}
-
-[data-theme="light"] .graph-key-toggle:hover {
-  background: rgba(0, 0, 0, 0.06);
+.graph-key-toggle.open {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-subtle);
 }
 
 .graph-key-toggle .chevron {
@@ -1280,21 +1279,40 @@ select.graph-workspace-select:focus {
   min-width: 300px;
 }
 
-/* Active-count pill on a dropdown toggle. */
+/* Active-count pill on a dropdown toggle — same as the list view's badge. */
 .graph-toggle-badge {
-  min-width: 16px;
-  padding: 1px 5px;
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
-  background: var(--accent-subtle, rgba(34, 211, 238, 0.15));
-  color: var(--accent, #22d3ee);
-  font-size: 10px;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1.4;
-  text-align: center;
+  padding: 0 5px;
 }
 
 .graph-toggle-badge[hidden] {
   display: none;
+}
+
+.graph-panel-reset {
+  margin-top: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.graph-panel-reset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Highlight-signal swatches. */
@@ -1440,7 +1458,7 @@ select.graph-workspace-select:focus {
 
 .graph-filter-chip:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(100, 116, 139, 0.4);
+  border-color: var(--accent);
 }
 
 .graph-filter-chip[aria-pressed="false"] {
@@ -1527,8 +1545,8 @@ select.graph-depth-select:disabled {
 
 .graph-back-btn:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(100, 116, 139, 0.4);
-  color: var(--text-primary);
+  border-color: var(--accent);
+  color: var(--accent);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
@@ -1866,17 +1884,23 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 
 .graph-mode-btn {
   all: unset;
+  box-sizing: border-box;
+  border: 1px solid transparent;
   font-size: 12px;
   color: var(--text-secondary);
-  padding: 5px 10px;
+  padding: 4px 9px;
   border-radius: 7px;
   cursor: pointer;
   user-select: none;
+  transition:
+    color var(--transition),
+    border-color var(--transition);
 }
 
 .graph-mode-btn:hover,
 .graph-mode-btn:focus-visible {
-  color: var(--text-primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Small phones: the five modes scroll horizontally instead of clipping. */

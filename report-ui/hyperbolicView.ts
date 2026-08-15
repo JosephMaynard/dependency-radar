@@ -594,6 +594,17 @@ export function mountHyperbolicView(
       }
       if (collides && id !== selected && id !== hovered) continue;
       placed.push([x0, y0, x1, y1]);
+      if (id === selected) {
+        // The selection's label sits amid its own bright focus lines — give
+        // it a tooltip-style backing plate so it stays readable.
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = theme.isDark
+          ? "rgba(6, 10, 16, 0.78)"
+          : "rgba(255, 255, 255, 0.85)";
+        ctx.beginPath();
+        ctx.roundRect(x0 - 5, p.y - 10, w + 10, 20, 5);
+        ctx.fill();
+      }
       ctx.globalAlpha = selected >= 0 && !focusSet.has(id) && id !== hovered ? 0.45 : 0.9;
       ctx.fillStyle = id === selected ? theme.accent : theme.muted;
       ctx.fillText(name, x0, p.y);

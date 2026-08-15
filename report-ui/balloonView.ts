@@ -162,7 +162,11 @@ export function mountBalloonView(
     // cursor, so children hug their parent instead of orbiting at a
     // distance dictated by one ring's arc capacity.
     const fanUsed = Math.min(FAN, (arc * unit) / (shells * distBase));
-    const spread = fanUsed > 1e-9 ? Math.min(2.2, FAN / fanUsed) : 1;
+    // The spread cap keeps a two-child fan from going antipodal, but fans
+    // with many children may widen much further into empty arc — a narrow
+    // 25-child spike with open space around it helps nobody.
+    const spreadCap = kids.length >= 9 ? 8 : kids.length >= 5 ? 4 : 2.2;
+    const spread = fanUsed > 1e-9 ? Math.min(spreadCap, FAN / fanUsed) : 1;
     const startAngle = dir - (fanUsed * spread) / 2;
     const cursors: number[] = Array.from({ length: shells }, () => startAngle);
     // Greedy shell assignment balanced by ring capacity: kids arrive
