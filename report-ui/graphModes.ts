@@ -473,7 +473,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       // package.json entry uninstalls nothing.
       const names = imp.keptBy.slice(0, 2).join(", ");
       const suffix = imp.keptBy.length > 2 ? ` +${imp.keptBy.length - 2}` : "";
-      fact("", "\u2702", `removing it frees nothing \u2014 still needed by ${names}${suffix}`);
+      fact("fact-note", "\u2702", `removing it frees nothing \u2014 still needed by ${names}${suffix}`);
     } else {
       fact(
         "",
@@ -486,7 +486,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     if (imp.cycleWith.length > 0) {
       const names = imp.cycleWith.slice(0, 3);
       const suffix = imp.cycleWith.length > 3 ? ` +${imp.cycleWith.length - 3}` : "";
-      fact("", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
+      fact("fact-note", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
     }
     options.dossier.appendChild(facts);
 

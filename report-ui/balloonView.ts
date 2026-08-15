@@ -297,7 +297,9 @@ export function mountBalloonView(
     ctx.clearRect(0, 0, W, H);
     const lodMin = interacting ? 0.9 : 0.35;
     const mono = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
-    const bodyL = theme.isDark ? [30, 20] : [72, 82];
+    // Sub-hub bodies at 20% lightness disappeared into the dark background
+    // once zoomed past the dot stage; 27% keeps them clearly present.
+    const bodyL = theme.isDark ? [30, 27] : [72, 80];
     const strokeL = theme.isDark ? 64 : 38;
 
     // Edges first — always visible, satellite style. Batched by
@@ -306,12 +308,15 @@ export function mountBalloonView(
     const edgeGroups = new Map<string, number[]>();
     for (let i = 0; i < COUNT; i += 1) {
       const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? Math.min(hubFloor, 2.4) : pdepth[i] === 1 ? 2.4 : 0);
-      if (r < 1.1) continue;
       const x = sx(px[i]);
       const y = sy(py[i]);
       const pIdx = pparent[i];
       const pxs = pIdx < 0 ? sx(0) : sx(px[pIdx]);
       const pys = pIdx < 0 ? sy(0) : sy(py[pIdx]);
+      // Zoomed in, a connector matters because it is LONG on screen, not
+      // because its child is a big body — gate on either.
+      const len = Math.abs(x - pxs) + Math.abs(y - pys);
+      if (r < 1.1 && len < 30) continue;
       if (
         (x < -60 && pxs < -60) ||
         (x > W + 60 && pxs > W + 60) ||
@@ -320,7 +325,8 @@ export function mountBalloonView(
       ) {
         continue;
       }
-      const alpha = Math.round(Math.min(0.5, 0.16 + r * 0.01) * 25) / 25;
+      const alpha =
+        Math.round(Math.min(0.5, 0.16 + r * 0.01 + Math.min(len, 400) * 0.0006) * 25) / 25;
       // Connecting lines thin out level by level, like the branches they are.
       const width = Math.max(0.25, Math.round(1.05 * Math.pow(0.68, pdepth[i]) * 100) / 100);
       const key = `${phue[i]}|${alpha}|${width}`;
@@ -350,7 +356,12 @@ export function mountBalloonView(
     const dotGroups = new Map<string, number[]>();
     for (let i = 0; i < COUNT; i += 1) {
       const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : interacting ? 0 : 0.85;
-      const r = Math.max(pr[i] * scale, minR);
+      // Selection and hover always render at a graspable size.
+      const r = Math.max(
+        pr[i] * scale,
+        minR,
+        i === hovered || i === selectedIdx ? 5 : 0,
+      );
       if (r < lodMin) continue;
       const x = sx(px[i]);
       const y = sy(py[i]);

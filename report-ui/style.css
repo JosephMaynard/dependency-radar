@@ -1671,6 +1671,20 @@ select.graph-depth-select:disabled {
   line-height: 1;
 }
 
+/* Long prose facts (cycle membership, "still needed by …") read as broken
+   pills when bordered and icon-centred; render them as full-width notes. */
+.graph-dossier-fact.fact-note {
+  width: 100%;
+  border: none;
+  padding: 2px 0 2px 2px;
+  align-items: flex-start;
+}
+
+.graph-dossier-fact.fact-note .fact-icon {
+  line-height: 1.4;
+  flex: none;
+}
+
 .graph-dossier-fact.fact-runtime {
   border-color: rgba(16, 185, 129, 0.45);
   color: var(--graph-direct-runtime, #10b981);

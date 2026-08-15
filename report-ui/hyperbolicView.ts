@@ -293,7 +293,7 @@ export function mountHyperbolicView(
     }
     if (t - flowLast >= 33) {
       flowLast = t;
-      flowPhase = (flowPhase + 0.9) % 26.5;
+      flowPhase = (flowPhase + 0.3) % 26.5;
       // The layout transition already redraws every frame with the fresh
       // phase; drawing twice per frame would just double the work.
       if (!animating) draw();
@@ -474,8 +474,11 @@ export function mountHyperbolicView(
         beginWarpPath();
         for (const [a, b] of depEdges) geodesic(pos[a], pos[b]);
         strokeWarpPath();
+        // Route edges are drawn parent→child, so the same negative offset
+        // makes the flow arrive FROM the project into the selection —
+        // dependencies flow down from the things that require them.
         ctx.strokeStyle = theme.isDark ? "#fbbf24" : "#b45309";
-        ctx.lineDashOffset = flowPhase;
+        ctx.lineDashOffset = -flowPhase;
         beginWarpPath();
         for (const [a, b] of pathEdges) geodesic(pos[a], pos[b]);
         if (pathTop >= 0) geodesic(hubPos, pos[pathTop]);
