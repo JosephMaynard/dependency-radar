@@ -20,6 +20,26 @@ const SHELL_STEP = 0.32;
 const shellsFor = (kidCount: number): number =>
   kidCount > 12 ? 3 : kidCount > 6 ? 2 : 1;
 
+/**
+ * Shell count + base orbit for a fan. Shells are only accepted while the
+ * radial gap between adjacent rings (SHELL_STEP * dist) can hold any two
+ * child enclosures — otherwise children on neighbouring rings would
+ * overlap. IDENTICAL maths in the enclosing-radius memo and the placement
+ * pass, or sibling systems collide. All quantities in local units.
+ */
+const fanGeometry = (
+  kidCount: number,
+  r: number,
+  arc: number,
+  maxKid: number,
+): { shells: number; dist: number } => {
+  for (let s = shellsFor(kidCount); s >= 2; s -= 1) {
+    const dist = Math.max(r + maxKid + 6, arc / (FAN * s));
+    if (SHELL_STEP * dist >= 2 * maxKid) return { shells: s, dist };
+  }
+  return { shells: 1, dist: Math.max(r + maxKid + 6, arc / FAN) };
+};
+
 export function mountBalloonView(
   host: HTMLElement,
   model: VizModel,
@@ -98,9 +118,14 @@ export function mountBalloonView(
       }
       onPath.delete(frame.id);
       const r = nodeRadius(frame.id);
-      const shells = shellsFor(model.kidsOf[frame.id].length);
-      const dist = Math.max(r + frame.maxKid + 6, frame.arc / (FAN * shells));
-      encMemo[frame.id] = dist * (1 + SHELL_STEP * (shells - 1)) + frame.maxKid;
+      const geom = fanGeometry(
+        model.kidsOf[frame.id].length,
+        r,
+        frame.arc,
+        frame.maxKid,
+      );
+      encMemo[frame.id] =
+        geom.dist * (1 + SHELL_STEP * (geom.shells - 1)) + frame.maxKid;
       stack.pop();
       contribute(stack[stack.length - 1], encMemo[frame.id]);
     }
@@ -152,13 +177,14 @@ export function mountBalloonView(
       arc += 2 * e * 1.12;
       maxKid = Math.max(maxKid, e);
     }
-    const shells = shellsFor(kids.length);
-    const distBase = Math.max(nodeRadius(id) + maxKid + 6, arc / (FAN * shells)) * unit;
+    const geom = fanGeometry(kids.length, nodeRadius(id), arc, maxKid);
+    const shells = geom.shells;
+    const distBase = geom.dist * unit;
     // Fans whose children only need a fraction of the available arc spread
     // out to use it (capped so a two-child fan doesn't go antipodal):
     // sibling enclosing circles are radial bounds, so widening the angles
     // within FAN never leaks into a neighbouring subtree's space. Large
-    // fans round-robin across concentric shells, each with its own angular
+    // fans split across concentric shells, each with its own angular
     // cursor, so children hug their parent instead of orbiting at a
     // distance dictated by one ring's arc capacity.
     const fanUsed = Math.min(FAN, (arc * unit) / (shells * distBase));
@@ -167,34 +193,53 @@ export function mountBalloonView(
     // 25-child spike with open space around it helps nobody.
     const spreadCap = kids.length >= 9 ? 8 : kids.length >= 5 ? 4 : 2.2;
     const spread = fanUsed > 1e-9 ? Math.min(spreadCap, FAN / fanUsed) : 1;
-    const startAngle = dir - (fanUsed * spread) / 2;
-    const cursors: number[] = Array.from({ length: shells }, () => startAngle);
-    // Greedy shell assignment balanced by ring capacity: kids arrive
-    // heaviest-first, so the big systems claim the inner rings and the long
-    // outer-shell spokes go to the lightweight ones — a heavy subtree on a
-    // conspicuously long leash read as a layout mistake.
+    // Shell assignment: first-fit inner-to-outer against each ring's
+    // angular budget, so heavy children (kids arrive heaviest-first) claim
+    // the INNER rings and long outer-shell spokes go to lightweight ones.
+    // Capacity-balanced greedy is only the overflow fallback.
     const arcAccum: number[] = new Array(shells).fill(0);
     const shellOf: number[] = new Array(kids.length).fill(0);
     kids.forEach((kid, i) => {
       const kidArc = 2 * SHRINK * encMemo[kid] * 1.12 * unit;
-      let best = 0;
-      let bestScore = Infinity;
+      let best = -1;
       for (let s = 0; s < shells; s += 1) {
-        const score = (arcAccum[s] + kidArc) / (1 + SHELL_STEP * s);
-        if (score < bestScore - 1e-9) {
-          bestScore = score;
+        if (arcAccum[s] + kidArc <= fanUsed * distBase * (1 + SHELL_STEP * s)) {
           best = s;
+          break;
+        }
+      }
+      if (best < 0) {
+        let bestScore = Infinity;
+        for (let s = 0; s < shells; s += 1) {
+          const score = (arcAccum[s] + kidArc) / (1 + SHELL_STEP * s);
+          if (score < bestScore - 1e-9) {
+            bestScore = score;
+            best = s;
+          }
         }
       }
       shellOf[i] = best;
       arcAccum[best] += kidArc;
     });
+    // Each ring's cursor is centred on the fan direction from its own real
+    // span (clamped to FAN so a skew-loaded ring can never wrap the circle).
+    const cursors: number[] = new Array(shells).fill(0);
+    const shellSpanScale: number[] = new Array(shells).fill(1);
+    for (let s = 0; s < shells; s += 1) {
+      const d = distBase * (1 + SHELL_STEP * s);
+      const span = (arcAccum[s] * spread) / d;
+      shellSpanScale[s] = span > FAN ? FAN / span : 1;
+      cursors[s] = dir - (span * shellSpanScale[s]) / 2;
+    }
     let kidIndex = 0;
     for (const kid of kids) {
       const shell = shellOf[kidIndex];
       kidIndex += 1;
       const d = distBase * (1 + SHELL_STEP * shell);
-      const share = ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / d) * spread;
+      const share =
+        ((2 * SHRINK * encMemo[kid] * 1.12 * unit) / d) *
+        spread *
+        shellSpanScale[shell];
       const ang = cursors[shell] + share / 2;
       cursors[shell] += share;
       // Bound materialisation: skip subtrees whose whole balloon stays below
@@ -582,6 +627,21 @@ export function mountBalloonView(
     // the eye sees or clicks land on "nothing".
     let bestD = 8;
     const reach = Math.max(PICK_REACH, Math.ceil(20 / scale / CELL));
+    if ((2 * reach + 1) ** 2 > COUNT) {
+      // Zoomed far out the grid walk would touch more (mostly empty) cells
+      // than there are placements — test every placement directly instead.
+      for (let i = 0; i < COUNT; i += 1) {
+        const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : 0.85;
+        const rScreen = Math.max(pr[i] * scale, minR);
+        const d =
+          Math.hypot((px[i] - wx) * scale, (py[i] - wy) * scale) - rScreen;
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return best;
+    }
     for (let gx = cx - reach; gx <= cx + reach; gx += 1) {
       for (let gy = cyy - reach; gy <= cyy + reach; gy += 1) {
         const list = grid.get(`${gx},${gy}`);
@@ -733,6 +793,7 @@ export function mountBalloonView(
       scale = Math.min(600, Math.max(minScale, scale * f));
       vx = wx - (e.offsetX - usableW() / 2) / scale;
       vy = wy - (e.offsetY - centreY()) / scale;
+      tip.hidden = true; // whatever it named is no longer under the cursor
       poke();
       draw();
     },
@@ -830,6 +891,11 @@ export function mountBalloonView(
       flyTo(idx);
     },
     resetView() {
+      if (selectedIdx >= 0) {
+        selectedIdx = -1;
+        cb.onSelect(-1);
+      }
+      tip.hidden = true;
       fitView();
       draw();
     },

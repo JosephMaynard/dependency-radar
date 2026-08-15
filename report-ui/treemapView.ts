@@ -293,12 +293,15 @@ export function mountTreemapView(
   }
 
   function rectLabel(rect: Rect): string {
+    // Under non-default filters the counts cover only what is SHOWN; the
+    // dossier carries the unfiltered removal cost.
+    const suffix = model.filtersAreDefault ? "" : " shown";
     if (rect.id === SHARED_RECT) {
-      return `shared · ${sharedTotal.toLocaleString()}`;
+      return `shared · ${sharedTotal.toLocaleString()}${suffix}`;
     }
     const frees = dom.exclusiveCount[rect.id];
     const name = model.refs[rect.id].name;
-    return frees > 1 ? `${name} · ${frees.toLocaleString()}` : name;
+    return frees > 1 ? `${name} · ${frees.toLocaleString()}${suffix}` : name;
   }
 
   function draw(): void {
@@ -531,7 +534,10 @@ export function mountTreemapView(
     },
     resetView() {
       setZoom(-1);
-      selected = -1;
+      if (selected >= 0) {
+        selected = -1;
+        cb.onSelect(-1); // otherwise the dossier stays open on a reset view
+      }
       hovered = -1;
       tip.hidden = true;
       layout();

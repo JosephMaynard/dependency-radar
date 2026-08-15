@@ -414,7 +414,11 @@ export function mountHyperbolicView(
         focusSet.add(dep);
         depEdges.push([selected, dep]);
         for (const grand of model.depsOut[dep]) {
-          if (grand !== selected) depEdges2.push([dep, grand]);
+          // Bounded: a hub-of-hubs selection must not spawn thousands of
+          // faded edges per frame.
+          if (grand !== selected && depEdges2.length < 600) {
+            depEdges2.push([dep, grand]);
+          }
         }
       }
       for (const from of model.depsIn[selected]) focusSet.add(from);
@@ -815,6 +819,10 @@ export function mountHyperbolicView(
   /** Hit under the cursor at pointerdown, BEFORE cancelAnim snaps an
    *  in-flight transition: a stationary click must select what was seen. */
   let downHit = -1;
+  /** When a click last triggered a focus transition: the second click of a
+   *  double-click lands mid-flight, picks nothing, and must not read as
+   *  "deselect and reset home". */
+  let focusClickAt = 0;
   canvas.addEventListener(
     "pointerdown",
     (e) => {
@@ -861,12 +869,17 @@ export function mountHyperbolicView(
       canvas.classList.remove("dragging");
       if (movedInDrag) return;
       const id = downHit;
-      selected = id;
-      cb.onSelect(id);
       if (id >= 0) {
+        focusClickAt = performance.now();
+        selected = id;
+        cb.onSelect(id);
         focusOn(id);
         ensureFlow();
-      } else draw();
+      } else if (performance.now() - focusClickAt > 500) {
+        selected = -1;
+        cb.onSelect(-1);
+        draw();
+      }
     },
     { signal },
   );
@@ -895,6 +908,9 @@ export function mountHyperbolicView(
     "wheel",
     (e) => {
       e.preventDefault();
+      // A zoom mid-transition would be clobbered by the animation's own
+      // offset writes each frame — settle the layout first, like drags do.
+      cancelAnim();
       const f = Math.exp(-e.deltaY * 0.0016);
       const next = Math.min(12, Math.max(1, viewScale * f));
       if (next === viewScale) return;
@@ -911,6 +927,10 @@ export function mountHyperbolicView(
   canvas.addEventListener(
     "dblclick",
     (e) => {
+      // A double-click on a node: the first click already started the focus
+      // transition, and the re-pick below would miss (the node has glided
+      // away) — keep the zoom instead of resetting home.
+      if (performance.now() - focusClickAt < 500) return;
       if (pick(e.offsetX, e.offsetY) >= 0) return;
       selected = -1;
       cb.onSelect(-1);
@@ -959,6 +979,12 @@ export function mountHyperbolicView(
       ensureFlow();
     },
     resetView() {
+      // Mirror the double-click reset: a "reset" that keeps the selection
+      // (and its flow animation) running is only half a reset.
+      if (selected >= 0) {
+        selected = -1;
+        cb.onSelect(-1);
+      }
       viewScale = 1;
       resetLayout();
     },

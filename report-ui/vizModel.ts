@@ -70,6 +70,9 @@ export interface VizModel {
    * Display filters change what renders, never what a package costs.
    */
   impact: (index: number) => PackageImpact;
+  /** True when display filters are at their defaults, i.e. the filtered
+   *  graph IS the full graph and on-canvas counts equal true impact. */
+  filtersAreDefault: boolean;
 }
 
 export interface PackageImpact {
@@ -445,6 +448,7 @@ export function buildVizModel(
     hueOf,
     uniqueCount,
     impact,
+    filtersAreDefault,
   };
 }
 

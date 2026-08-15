@@ -161,7 +161,11 @@ export function mountFlameView(
   function barLabel(id: number): string {
     const name = model.refs[id].name;
     const frees = weightOf(id);
-    return frees > 1 ? `${name} · ${frees.toLocaleString()}` : name;
+    // Under non-default filters the dominator weights count only what is
+    // SHOWN — flag it so the number isn't read as true removal cost (the
+    // dossier always carries the unfiltered figure).
+    const suffix = model.filtersAreDefault ? "" : " shown";
+    return frees > 1 ? `${name} · ${frees.toLocaleString()}${suffix}` : name;
   }
 
   function sharedBandLabel(): string {

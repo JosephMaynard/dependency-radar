@@ -177,6 +177,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   // outside-click and Escape close it, and Escape only reclaims focus when
   // it was inside the component — an Escape aimed at the search box must
   // not yank focus across the toolbar.
+  const dropdownClosers: Array<() => void> = [];
   function bindDropdown(
     container: HTMLElement | null,
     toggle: HTMLButtonElement | null,
@@ -188,8 +189,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       toggle.setAttribute("aria-expanded", String(open));
       toggle.classList.toggle("open", open);
     };
+    dropdownClosers.push(() => setOpen(false));
     toggle.addEventListener("click", () => {
-      setOpen(panel.hidden === true);
+      const willOpen = panel.hidden === true;
+      // One dropdown at a time — keyboard activation fires no pointerdown,
+      // so the outside-click closer alone can't guarantee it.
+      if (willOpen) for (const close of dropdownClosers) close();
+      setOpen(willOpen);
     });
     document.addEventListener("pointerdown", (event) => {
       if (panel.hidden) return;
@@ -226,7 +232,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       Number(!filters.runtime) +
       Number(!filters.dev) +
       Number(!filters.sub) +
-      Number(filters.maxDepth !== null) +
+      // The depth cap is inert (and its control disabled) with sub-deps off.
+      Number(filters.sub && filters.maxDepth !== null) +
       highlights.size;
     filtersBadge.hidden = shown === 0;
     filtersBadge.textContent = String(shown);
@@ -350,8 +357,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   // Canvas views ask per node per frame — memoise per model index; the
   // cache resets whenever the query, highlights, or model change.
   let dimCache: Int8Array | null = null;
+  /** Slug-keyed twin for the classic graph, which redraws per frame. */
+  const slugDimCache = new Map<string, boolean>();
   function resetDimCache(): void {
     dimCache = null;
+    slugDimCache.clear();
   }
 
   function matchesHighlights(slug: string): boolean {
@@ -382,11 +392,17 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   }
 
   function isNameDimmed(slug: string): boolean {
+    if (!dimQuery && highlights.size === 0) return false;
+    const cached = slugDimCache.get(slug);
+    if (cached !== undefined) return cached;
+    let dimmed = false;
     if (dimQuery) {
       const ref = options.dataset.dependencies[slug];
-      if (ref && !ref.name.toLowerCase().includes(dimQuery)) return true;
+      if (ref && !ref.name.toLowerCase().includes(dimQuery)) dimmed = true;
     }
-    return !matchesHighlights(slug);
+    if (!dimmed) dimmed = !matchesHighlights(slug);
+    slugDimCache.set(slug, dimmed);
+    return dimmed;
   }
 
   // ----- status line ---------------------------------------------------
@@ -496,8 +512,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       facts.appendChild(chip);
     };
 
+    // Impact facts (and the direct/sub kind chip) come from the UNFILTERED
+    // workspace graph: hiding dev deps must not relabel a direct dev
+    // dependency as a sub-dependency while its removal fact still speaks
+    // manifest language.
+    const imp = m.impact(index);
     fact("", null, ref.version ? `v${ref.version}` : "version unknown");
-    if (m.isRoot[index]) {
+    if (imp.manifestFrees !== null) {
       if (m.isDev[index]) {
         fact("fact-dev", null, "direct dev dependency", "var(--graph-direct-dev, #f59e0b)");
       } else {
@@ -539,9 +560,6 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         facts.appendChild(chip);
       }
     }
-    // Impact facts come from the UNFILTERED workspace graph \u2014 display
-    // filters change what renders, never what removing a package frees.
-    const imp = m.impact(index);
     fact(
       "",
       "\u03a3",
@@ -609,6 +627,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   }
 
   function mountActive(): void {
+    // A fresh mount always starts unzoomed — filter and workspace changes
+    // remount without passing through setMode, and a stale zoom flag would
+    // leave the Reset button showing over an unzoomed treemap.
+    treemapZoomed = false;
+    syncResetBtn();
     const m = ensureModel();
     const callbacks = {
       onHoverTrail: statusTrail,

@@ -58,6 +58,10 @@
   --graph-hyp-direct-swatch: #ff9a58;
   --graph-hyp-sub-swatch: #5b7186;
   --graph-hyp-route-swatch: #f59e0b;
+  /* Highlight-signal swatches (light theme darkens them for contrast). */
+  --hl-replacement: #a78bfa;
+  --hl-license: #fb7185;
+  --hl-blocker: #94a3b8;
 }
 
 :root.light {
@@ -81,6 +85,9 @@
   --graph-hyp-direct-swatch: #f97316;
   --graph-hyp-sub-swatch: #94a8bc;
   --graph-hyp-route-swatch: #d97706;
+  --hl-replacement: #7c3aed;
+  --hl-license: #e11d48;
+  --hl-blocker: #64748b;
 }
 
 [data-theme="light"] {
@@ -90,6 +97,9 @@
   --graph-hyp-direct-swatch: #f97316;
   --graph-hyp-sub-swatch: #94a8bc;
   --graph-hyp-route-swatch: #d97706;
+  --hl-replacement: #7c3aed;
+  --hl-license: #e11d48;
+  --hl-blocker: #64748b;
 }
 
 html {
@@ -591,7 +601,8 @@ button.stat-chip:focus-visible {
   justify-content: center;
   border-radius: 999px;
   background: var(--accent);
-  color: white;
+  /* Dark text: white on the accent cyan fails AA contrast in both themes. */
+  color: #0c1222;
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -1279,7 +1290,18 @@ select.graph-workspace-select:focus {
   min-width: 300px;
 }
 
-/* Active-count pill on a dropdown toggle — same as the list view's badge. */
+/* Narrow screens: anchor the filters panel to its wrap's right edge so the
+   clamped max-width keeps it on-screen instead of spilling past the right
+   viewport edge from its mid-toolbar position. */
+@media (max-width: 640px) {
+  .graph-filters-panel {
+    left: auto;
+    right: 0;
+  }
+}
+
+/* Active-count pill on a dropdown toggle — same as the list view's badge.
+   Dark text: white on the accent cyan fails AA contrast in both themes. */
 .graph-toggle-badge {
   display: inline-flex;
   min-width: 18px;
@@ -1288,7 +1310,7 @@ select.graph-workspace-select:focus {
   justify-content: center;
   border-radius: 999px;
   background: var(--accent);
-  color: white;
+  color: #0c1222;
   font-size: 11px;
   font-weight: 700;
   padding: 0 5px;
@@ -1325,15 +1347,15 @@ select.graph-workspace-select:focus {
 }
 
 .graph-key-dot.hl-replacement {
-  background: #a78bfa;
+  background: var(--hl-replacement, #a78bfa);
 }
 
 .graph-key-dot.hl-license {
-  background: #fb7185;
+  background: var(--hl-license, #fb7185);
 }
 
 .graph-key-dot.hl-blocker {
-  background: #94a3b8;
+  background: var(--hl-blocker, #94a3b8);
 }
 
 .graph-key-items {
@@ -1501,7 +1523,9 @@ select.graph-depth-select:disabled {
 .graph-overlay-top {
   align-items: center;
   position: absolute;
-  z-index: 8;
+  /* Above the docked side panel (z 9): open toolbar dropdowns must paint
+     over it, and the toolbar itself never overlaps the panel's area. */
+  z-index: 10;
   top: 0;
   left: 0;
   right: 0;
@@ -1583,8 +1607,8 @@ select.graph-depth-select:disabled {
 
 :root {
   /* Horizontal space the floating graph side panel occupies; fit-to-view
-     logic in every mode subtracts this so content centres in the uncovered
-     area, and the fixed scan-status toast dodges it in graph mode. */
+     logic in every mode subtracts this so content centres in the
+     uncovered area. */
   --graph-panel-space: 324px;
 }
 
@@ -1684,6 +1708,8 @@ select.graph-depth-select:disabled {
 .graph-mode-btn:focus-visible,
 .graph-filter-chip:focus-visible,
 .graph-key-toggle:focus-visible,
+.graph-panel-reset:focus-visible,
+.graph-alt-reset:focus-visible,
 .scan-status-dismiss:focus-visible {
   outline: 2px solid var(--graph-highlight, #22d3ee);
   outline-offset: 1px;
