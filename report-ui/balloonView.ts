@@ -35,8 +35,16 @@ const fanGeometry = (
 ): { shells: number; dist: number } => {
   for (let s = shellsFor(kidCount); s >= 2; s -= 1) {
     const dist = Math.max(r + maxKid + 6, arc / (FAN * s));
-    if (SHELL_STEP * dist >= 2 * maxKid) return { shells: s, dist };
+    // Accept extra shells only while (a) adjacent rings keep radial
+    // clearance for any two child enclosures and (b) the LARGEST child fits
+    // a single ring's angular capacity — one dominant child among many
+    // small siblings would otherwise overflow its ring and get compressed
+    // into overlap by the span clamp.
+    if (SHELL_STEP * dist >= 2 * maxKid && 2 * maxKid * 1.12 <= FAN * dist) {
+      return { shells: s, dist };
+    }
   }
+  // Single ring always fits by construction: dist >= arc / FAN.
   return { shells: 1, dist: Math.max(r + maxKid + 6, arc / FAN) };
 };
 
@@ -711,6 +719,13 @@ export function mountBalloonView(
       dragging = true;
       movedInDrag = false;
       tip.hidden = true;
+      // The drag branch skips hover recomputation, so a stale highlight
+      // would survive the whole pan otherwise.
+      if (hovered >= 0) {
+        hovered = -1;
+        cb.onHoverTrail(null);
+        draw();
+      }
       lastX = e.offsetX;
       lastY = e.offsetY;
       downX = e.offsetX;

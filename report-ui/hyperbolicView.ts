@@ -623,7 +623,13 @@ export function mountHyperbolicView(
           ? "rgba(6, 10, 16, 0.55)"
           : "rgba(255, 255, 255, 0.65)";
         ctx.beginPath();
-        ctx.roundRect(x0 - 5, p.y - 10, w + 10, 20, 5);
+        if (typeof ctx.roundRect === "function") {
+          ctx.roundRect(x0 - 5, p.y - 10, w + 10, 20, 5);
+        } else {
+          // roundRect needs Safari 16.4+/Firefox 112+; square corners beat
+          // a render crash on anything older.
+          ctx.rect(x0 - 5, p.y - 10, w + 10, 20);
+        }
         ctx.fill();
       }
       ctx.globalAlpha = selected >= 0 && !focusSet.has(id) && id !== hovered ? 0.45 : 0.9;

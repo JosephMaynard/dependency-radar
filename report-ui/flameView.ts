@@ -564,6 +564,10 @@ export function mountFlameView(
     canvas.height = H * dpr;
     canvas.style.width = `${W}px`;
     canvas.style.height = `${H}px`;
+    // hoveredBlock indexes into blocks, which the redraw rebuilds against
+    // the NEW geometry — a stale index would highlight the wrong bar.
+    hoveredBlock = -1;
+    tip.hidden = true;
     draw();
   }
   window.addEventListener("resize", resize, { signal });
