@@ -25,6 +25,12 @@ export function mountBalloonView(
     "Balloon view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
+  // Cursor tooltip, as in the treemap/flame views: deep leaves render as
+  // tiny dots, so the name travels with the pointer.
+  const tip = document.createElement("div");
+  tip.className = "graph-cursor-tip";
+  tip.hidden = true;
+  host.appendChild(tip);
   const ctx = canvas.getContext("2d");
   let dpr = Math.min(window.devicePixelRatio || 1, 2);
   const aborter = new AbortController();
@@ -571,6 +577,25 @@ export function mountBalloonView(
     }, 160);
   }
 
+  function moveTip(e: PointerEvent, i: number): void {
+    if (i < 0 || dragging) {
+      tip.hidden = true;
+      return;
+    }
+    const id = pid[i];
+    const count = model.uniqueCount(id);
+    tip.textContent =
+      count > 1 ? `${model.refs[id].name} · ${count.toLocaleString()}` : model.refs[id].name;
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let x = e.offsetX + 14;
+    let y = e.offsetY + 18;
+    if (x + tw > usableW() - 8) x = e.offsetX - tw - 10;
+    if (y + th > H - 34) y = e.offsetY - th - 10;
+    tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
+  }
+
   let dragging = false;
   let movedInDrag = false;
   let lastX = 0;
@@ -582,6 +607,7 @@ export function mountBalloonView(
     (e) => {
       dragging = true;
       movedInDrag = false;
+      tip.hidden = true;
       lastX = e.offsetX;
       lastY = e.offsetY;
       downX = e.offsetX;
@@ -610,6 +636,7 @@ export function mountBalloonView(
         return;
       }
       const h = pickAt(e.offsetX, e.offsetY);
+      moveTip(e, h);
       if (h !== hovered) {
         hovered = h;
         canvas.style.cursor = h >= 0 ? "pointer" : "grab";
@@ -625,6 +652,17 @@ export function mountBalloonView(
       dragging = false;
       movedInDrag = false;
       canvas.classList.remove("dragging");
+    },
+    { signal },
+  );
+  canvas.addEventListener(
+    "pointerleave",
+    () => {
+      tip.hidden = true;
+      if (hovered < 0) return;
+      hovered = -1;
+      cb.onHoverTrail(null);
+      draw();
     },
     { signal },
   );
@@ -664,6 +702,7 @@ export function mountBalloonView(
       fitView();
       selectedIdx = -1;
       cb.onSelect(-1);
+      tip.hidden = true;
       draw();
     },
     { signal },
@@ -729,6 +768,7 @@ export function mountBalloonView(
       cancelAnimationFrame(flyFrame);
       window.clearTimeout(idleTimer);
       aborter.abort();
+      tip.remove();
       canvas.remove();
     },
     resize,
