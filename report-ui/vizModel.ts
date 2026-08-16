@@ -146,9 +146,15 @@ export function buildVizModel(
           ]
         : []
     ).filter((slug) => Boolean(dataset.dependencies[slug]));
-    if (list.length === 0 && unfilteredCount === 0) {
-      // Parity with the classic graph view: a workspace with no direct deps
-      // (e.g. a hoisting-only monorepo root) falls back to parentless packages.
+    if (
+      list.length === 0 &&
+      unfilteredCount === 0 &&
+      (workspace?.name ?? "root") === "root"
+    ) {
+      // Parity with the classic graph view: a hoisting-only monorepo ROOT
+      // falls back to parentless packages. Named workspaces stay empty —
+      // borrowing the root's packages there was misleading, and the empty-
+      // workspace screen explains the state instead.
       const hasParent = new Set<string>();
       for (const dep of Object.values(dataset.dependencies)) {
         for (const child of dep.dependencies || []) {

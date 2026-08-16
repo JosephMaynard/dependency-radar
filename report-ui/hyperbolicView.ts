@@ -138,9 +138,16 @@ export function mountHyperbolicView(
           list.push({ next: kid, weight: Math.max(fc.fLeaves[kid], 0.5) });
         }
       }
-      // The way out of the focus subtree: the centre connects the rest of
-      // the graph through the hub; interior nodes walk up the focus tree.
-      const upId = id === fc.center ? HUB : fc.fParent[id];
+      // The way out of the focus subtree: the centre walks up its actual
+      // route to the project (spanning parent), so the amber route stays
+      // monotone on screen instead of doubling back — the parent used to
+      // sit in the hub's generic fan on the far side. Interior nodes walk
+      // up the focus tree; a cycle-claimed parent falls back to the hub.
+      const centerUp =
+        parent[fc.center] >= 0 && !fc.inFocus[parent[fc.center]]
+          ? parent[fc.center]
+          : HUB;
+      const upId = id === fc.center ? centerUp : fc.fParent[id];
       if (upId !== cameFrom) {
         list.push({
           next: upId,

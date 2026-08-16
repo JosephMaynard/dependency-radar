@@ -96,6 +96,9 @@ export interface GraphModesOptions {
   };
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
+  /** Shared default-filters model cache (also used by the list view), so
+   *  removal-simulation memos are shared across views. */
+  getSharedModel?: (workspace: string) => VizModel;
   /** Notify the hash router that user-visible graph state changed. */
   onRouteChange?: () => void;
 }
@@ -192,6 +195,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const shell = options.altHost.parentElement as HTMLElement | null;
   const insetRight = (): number => {
     if (!shell) return 0;
+    // Fullscreen hides the side panel — the canvas owns the full width.
+    if (shell.classList.contains("graph-fullscreen")) return 0;
     return (
       parseFloat(
         getComputedStyle(shell).getPropertyValue("--graph-panel-space"),
@@ -200,6 +205,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   };
   const insetTop = (): number => {
     if (!shell) return 60;
+    // Fullscreen hides the toolbar too.
+    if (shell.classList.contains("graph-fullscreen")) return 10;
     const toolbar = parseFloat(
       getComputedStyle(shell).getPropertyValue("--graph-toolbar-height"),
     );
@@ -284,6 +291,87 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     activeView?.resetView?.();
   });
   shell?.appendChild(resetBtn);
+
+  const emptyWsEl = document.createElement("div");
+  emptyWsEl.className = "graph-empty-ws";
+  emptyWsEl.hidden = true;
+  shell?.appendChild(emptyWsEl);
+  /** A workspace with no dependencies renders as a lone project dot —
+   *  show an explanation and clickable alternatives instead. */
+  function syncEmptyState(): void {
+    const m = ensureModel();
+    if (m.count > 0) {
+      emptyWsEl.hidden = true;
+      return;
+    }
+    const wsName = options.workspaceSelect.value || m.workspaceName || "this workspace";
+    emptyWsEl.textContent = "";
+    const card = el("div", "graph-empty-ws-card");
+    // Distinguish a genuinely empty manifest from one the display filters
+    // emptied — the fix differs (pick another workspace vs reset filters).
+    const wsEntry = options.dataset.workspaces.find((w) => w.name === wsName);
+    const declared = wsEntry
+      ? wsEntry.directDependencies.length + wsEntry.directDevDependencies.length
+      : 0;
+    if (declared > 0) {
+      card.appendChild(
+        el("h2", "graph-empty-ws-title", `Nothing to show in ${wsName}`),
+      );
+      card.appendChild(
+        el(
+          "p",
+          "graph-empty-ws-note",
+          "The current display filters hide every dependency in this workspace.",
+        ),
+      );
+      const reset = el("button", "graph-empty-ws-item", "Reset filters");
+      (reset as HTMLButtonElement).type = "button";
+      reset.addEventListener("click", () => {
+        document.getElementById("graph-filters-reset")?.click();
+      });
+      card.appendChild(reset);
+      emptyWsEl.appendChild(card);
+      emptyWsEl.hidden = false;
+      return;
+    }
+    card.appendChild(el("h2", "graph-empty-ws-title", `No dependencies in ${wsName}`));
+    const ranked = options.dataset.workspaces
+      .map((w) => ({
+        name: w.name,
+        count: w.directDependencies.length + w.directDevDependencies.length,
+      }))
+      .filter((w) => w.count > 0 && w.name !== wsName)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    card.appendChild(
+      el(
+        "p",
+        "graph-empty-ws-note",
+        ranked.length > 0
+          ? "This workspace declares no external dependencies. Workspaces that do:"
+          : "This workspace declares no external dependencies.",
+      ),
+    );
+    if (ranked.length > 0) {
+      const list = el("div", "graph-empty-ws-list");
+      for (const w of ranked) {
+        const btn = el(
+          "button",
+          "graph-empty-ws-item",
+          `${w.name} (${w.count.toLocaleString()})`,
+        );
+        (btn as HTMLButtonElement).type = "button";
+        btn.addEventListener("click", () => {
+          options.workspaceSelect.value = w.name;
+          options.workspaceSelect.dispatchEvent(new Event("change"));
+        });
+        list.appendChild(btn);
+      }
+      card.appendChild(list);
+    }
+    emptyWsEl.appendChild(card);
+    emptyWsEl.hidden = false;
+  }
 
   // Full screen (presentation mode): the shell fullscreens; CSS hides the
   // toolbar and side panel, keeping the canvas, status line, per-view
@@ -427,13 +515,19 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     keyItemsEl.replaceChildren(...Array.from(items.children));
   }
 
+  const DEFAULT_FILTER_KEY = JSON.stringify(DEFAULT_GRAPH_FILTERS);
   function ensureModel(): VizModel {
     const workspace = options.workspaceSelect.value || "";
     const filterKey = JSON.stringify(filters);
     if (!model || modelWorkspace !== workspace || modelFilterKey !== filterKey) {
-      model = buildVizModel(options.dataset, workspace, options.projectName, {
-        ...filters,
-      });
+      // At default filters the model is identical to the list view's — use
+      // the shared cache so simulation memos carry across views.
+      model =
+        filterKey === DEFAULT_FILTER_KEY && options.getSharedModel
+          ? options.getSharedModel(workspace)
+          : buildVizModel(options.dataset, workspace, options.projectName, {
+              ...filters,
+            });
       modelWorkspace = workspace;
       modelFilterKey = filterKey;
     }
@@ -766,6 +860,38 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         facts.appendChild(chip);
       }
     }
+    const sim = m.simulateRemoval(index);
+    const simSummary = (() => {
+      let freedBytes = 0;
+      let sized = 0;
+      for (const f of sim.freed) {
+        const bytes = options.getPackageExtras?.(f.slug)?.sizeBytes;
+        if (bytes !== undefined) {
+          freedBytes += bytes;
+          sized += 1;
+        }
+      }
+      const bytesPart =
+        freedBytes > 0
+          ? ` \u00b7 ${formatBytes(freedBytes)} on disk${
+              sized < sim.freed.length
+                ? ` (${sized.toLocaleString()} of ${sim.freed.length.toLocaleString()} measured)`
+                : ""
+            }`
+          : "";
+      const detailPart =
+        sim.freed.length > 1 || sim.retained.length > 0
+          ? " (see list view for more details)"
+          : "";
+      return `${bytesPart}${detailPart}`;
+    })();
+    const impactChip = (text: string, className = ""): void => {
+      const chip = el("span", `graph-dossier-fact ${className}`.trim());
+      chip.appendChild(el("span", "fact-icon", "\u2702"));
+      chip.appendChild(el("span", "", text));
+      chip.appendChild(infoButton("impact"));
+      facts.appendChild(chip);
+    };
     fact(
       "",
       "\u03a3",
@@ -773,27 +899,28 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     );
     if (imp.manifestFrees === null) {
       // Sub-dependency: nothing to uninstall directly; the number answers the
-      // what-if of the package itself going away.
-      fact(
-        "",
-        "\u2702",
+      // what-if of the package itself going away. The removal simulation is
+      // memoised on the (shared) model, so summarising it here is free; the
+      // full freed/retained preview lives in the list view.
+      impactChip(
         imp.exclusiveCount > 1
-          ? `deleting frees ${imp.exclusiveCount.toLocaleString()} packages`
-          : "deleting frees only itself",
+          ? `deleting frees ${imp.exclusiveCount.toLocaleString()} packages${simSummary}`
+          : `deleting frees only itself${simSummary}`,
       );
     } else if (imp.manifestFrees === 0) {
       // Direct dependency that other packages also pull in: removing the
       // package.json entry uninstalls nothing.
       const names = imp.keptBy.slice(0, 2).join(", ");
       const suffix = imp.keptBy.length > 2 ? ` +${imp.keptBy.length - 2}` : "";
-      fact("fact-note", "\u2702", `removing it frees nothing \u2014 still needed by ${names}${suffix}`);
+      impactChip(
+        `removing it frees nothing \u2014 still needed by ${names}${suffix}`,
+        "fact-note",
+      );
     } else {
-      fact(
-        "",
-        "\u2702",
+      impactChip(
         imp.manifestFrees > 1
-          ? `removing it frees ${imp.manifestFrees.toLocaleString()} packages`
-          : "removing it frees only itself",
+          ? `removing it frees ${imp.manifestFrees.toLocaleString()} packages${simSummary}`
+          : `removing it frees only itself${simSummary}`,
       );
     }
     if (imp.cycleWith.length > 0) {
@@ -850,179 +977,12 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     chipRow(options.dossier, "Depends on", m.kidsOf[index]);
     chipRow(options.dossier, "Required by", m.depsIn[index]);
 
-    const simBtn = el("button", "graph-dossier-open", "Simulate removal");
-    simBtn.type = "button";
-    simBtn.addEventListener("click", () => renderSimulation(index));
-    options.dossier.appendChild(simBtn);
-
     const open = el("button", "graph-dossier-open", "Open in List");
     open.type = "button";
     open.addEventListener("click", () => options.onOpenList(m.slugs[index]));
     options.dossier.appendChild(open);
   }
 
-  // ----- removal simulator ---------------------------------------------
-  // Results are pure functions of the report data, so they are cached for
-  // the page lifetime per workspace+package — jumping around costs nothing.
-  interface SimUi {
-    sim: ReturnType<VizModel["simulateRemoval"]>;
-    freedBytes: number;
-    sizedCount: number;
-    rollups: Array<[string, number]>;
-  }
-  const simUiCache = new Map<string, SimUi>();
-
-  function simChip(slug: string, name: string): HTMLElement {
-    const chip = el("button", "graph-dossier-chip", name);
-    (chip as HTMLButtonElement).type = "button";
-    chip.addEventListener("click", () => {
-      // Resolve at click time — the simulation spans the FULL graph, so a
-      // freed package can sit outside the current display filters. Those
-      // open in the list view, which shows everything.
-      const idx = ensureModel().indexOfSlug.get(slug);
-      if (idx !== undefined) {
-        focusPackage(idx);
-      } else {
-        options.onOpenList(slug);
-      }
-    });
-    return chip;
-  }
-
-  function chipCloud(
-    container: HTMLElement,
-    title: string,
-    entries: Array<{ slug: string; name: string; note?: string }>,
-    cap: number,
-  ): void {
-    const block = el("div", "graph-dossier-block");
-    block.appendChild(el("h3", "graph-dossier-subtitle", title));
-    const chips = el("div", "graph-dossier-chips");
-    for (const item of entries.slice(0, cap)) {
-      chips.appendChild(simChip(item.slug, item.name));
-      if (item.note) chips.appendChild(el("span", "graph-dossier-more", item.note));
-    }
-    if (entries.length > cap) {
-      chips.appendChild(el("span", "graph-dossier-more", `+${entries.length - cap} more`));
-    }
-    block.appendChild(chips);
-    container.appendChild(block);
-  }
-
-  function renderSimulation(index: number): void {
-    const m = ensureModel();
-    const slug = m.slugs[index];
-    const key = `${m.workspaceName}|${slug}`;
-    let data = simUiCache.get(key);
-    if (!data) {
-      const sim = m.simulateRemoval(index);
-      let freedBytes = 0;
-      let sizedCount = 0;
-      for (const f of sim.freed) {
-        const bytes = options.getPackageExtras?.(f.slug)?.sizeBytes;
-        if (bytes !== undefined) {
-          freedBytes += bytes;
-          sizedCount += 1;
-        }
-      }
-      const rollups: Array<[string, number]> = [];
-      if (options.highlightMatch) {
-        const countKind = (kind: HighlightKind): number =>
-          sim.freed.reduce(
-            (n, f) => n + (options.highlightMatch!(f.slug, kind) ? 1 : 0),
-            0,
-          );
-        const vulns = countKind("vuln");
-        const licenses = countKind("license");
-        const maint = countKind("maintenance");
-        if (vulns) rollups.push(["vulnerable", vulns]);
-        if (licenses) rollups.push([licenses === 1 ? "licence issue" : "licence issues", licenses]);
-        if (maint) rollups.push([maint === 1 ? "maintenance concern" : "maintenance concerns", maint]);
-      }
-      data = { sim, freedBytes, sizedCount, rollups };
-      simUiCache.set(key, data);
-    }
-    const { sim, freedBytes, sizedCount, rollups } = data;
-    const d = options.dossier;
-    d.textContent = "";
-
-    const back = el("button", "graph-dossier-open", "\u2190 Package details");
-    (back as HTMLButtonElement).type = "button";
-    back.addEventListener("click", () => renderDossier(index));
-    d.appendChild(back);
-
-    d.appendChild(el("h2", "graph-dossier-name", m.refs[index].name));
-
-    // Everything the simulation produced sits in one bordered block so the
-    // result is unmistakably separate from the regular dossier content.
-    const panel = el("div", "graph-sim-panel");
-    panel.appendChild(el("h3", "graph-sim-title", "\u2702 Removal preview"));
-    d.appendChild(panel);
-
-    const blocked = sim.isDirect && sim.blockedBy.length > 0;
-    if (blocked) {
-      const names = sim.blockedBy.slice(0, 4).join(", ");
-      const suffix = sim.blockedBy.length > 4 ? ` +${sim.blockedBy.length - 4}` : "";
-      panel.appendChild(
-        el(
-          "p",
-          "graph-dossier-empty",
-          `Removing the manifest entry frees nothing today \u2014 still required by ${names}${suffix}. If those dependents dropped it, removal would free:`,
-        ),
-      );
-    }
-
-    const headline = el("div", "graph-dossier-facts");
-    const headChip = el("span", "graph-dossier-fact");
-    headChip.appendChild(el("span", "fact-icon", "\u2702"));
-    headChip.appendChild(
-      el(
-        "span",
-        "",
-        `${blocked ? "would free" : "frees"} ${sim.freed.length.toLocaleString()} package${sim.freed.length === 1 ? "" : "s"}` +
-          (freedBytes > 0
-            ? ` \u00b7 ${formatBytes(freedBytes)} on disk${
-                sizedCount < sim.freed.length
-                  ? ` (${sizedCount.toLocaleString()} of ${sim.freed.length.toLocaleString()} measured)`
-                  : ""
-              }`
-            : ""),
-      ),
-    );
-    headChip.appendChild(infoButton("impact"));
-    headline.appendChild(headChip);
-    if (rollups.length > 0) {
-      headline.appendChild(
-        el(
-          "span",
-          "graph-dossier-fact fact-note",
-          `including ${rollups.map(([label, n]) => `${n} ${label}`).join(" \u00b7 ")}`,
-        ),
-      );
-    }
-    panel.appendChild(headline);
-
-    const nameCounts = new Map<string, number>();
-    for (const f of [...sim.freed, ...sim.retained]) {
-      nameCounts.set(f.name, (nameCounts.get(f.name) ?? 0) + 1);
-    }
-    const label = (entry: { slug: string; name: string }): string =>
-      (nameCounts.get(entry.name) ?? 0) > 1 ? entry.slug : entry.name;
-    chipCloud(
-      panel,
-      `Freed (${sim.freed.length})`,
-      sim.freed.map((f) => ({ slug: f.slug, name: label(f) })),
-      40,
-    );
-    if (sim.retained.length > 0) {
-      chipCloud(
-        panel,
-        `Retained (${sim.retained.length})`,
-        sim.retained.map((r) => ({ slug: r.slug, name: label(r), note: `kept by ${r.keptBy}` })),
-        24,
-      );
-    }
-  }
 
   // ----- focus routing --------------------------------------------------
   function focusPackage(index: number): void {
@@ -1103,6 +1063,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     updateKey();
     statusHint();
     renderDossierEmpty();
+    syncEmptyState();
     try {
       localStorage.setItem(MODE_STORE_KEY, mode);
     } catch {
@@ -1134,6 +1095,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mountActive();
       statusHint();
     }
+    syncEmptyState();
   });
 
   // Theme flips repaint the active canvas view.
@@ -1211,6 +1173,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       statusHint();
     }
     runSearch();
+    syncEmptyState();
     options.onRouteChange?.();
   }
 
@@ -1276,6 +1239,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   statusHint();
   renderDossierEmpty();
+  syncEmptyState();
 
   // Restore the last-used layout (persisted in setMode).
   try {

@@ -3891,29 +3891,6 @@ details[open] > summary .expand-icon {
   right: 12px;
 }
 
-/* --- Removal-preview result panel -------------------------------------- */
-.graph-sim-panel {
-  margin-top: 10px;
-  border: 1px solid color-mix(in srgb, var(--accent-primary, #38bdf8) 45%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent-primary, #38bdf8) 7%, transparent);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.graph-sim-title {
-  margin: 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--accent-primary, #38bdf8);
-}
-
-.graph-sim-panel .graph-dossier-block {
-  margin: 0;
-}
 
 /* --- List-view removal preview ----------------------------------------- */
 .list-sim-panel {
@@ -3925,21 +3902,6 @@ details[open] > summary .expand-icon {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.sim-run-btn {
-  border: 1px solid rgba(100, 116, 139, 0.35);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  border-radius: 8px;
-  padding: 7px 14px;
-  cursor: pointer;
-}
-
-.sim-run-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--accent-primary, #38bdf8);
 }
 
 .list-sim-headline {
@@ -3983,4 +3945,64 @@ details[open] > summary .expand-icon {
   font-size: 11px;
   color: var(--text-secondary);
   align-self: center;
+}
+
+/* --- Empty-workspace screen --------------------------------------------- */
+.graph-empty-ws {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+}
+
+.graph-empty-ws[hidden] {
+  display: none;
+}
+
+.graph-empty-ws-card {
+  max-width: 460px;
+  padding: 24px 28px;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 12px;
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.graph-empty-ws-title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.graph-empty-ws-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.graph-empty-ws-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.graph-empty-ws-item {
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.graph-empty-ws-item:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary, #38bdf8);
 }

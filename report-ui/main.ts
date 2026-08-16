@@ -2469,7 +2469,7 @@ function renderDepDetails(
       "What deleting this package would actually free",
       '<div class="list-sim" data-sim-key="' +
         escapeHtml(`${dep.package.name}@${dep.package.version}`) +
-        '"><button type="button" class="sim-run-btn">Simulate removal</button></div>',
+        '"></div>',
     ),
     '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary>' +
       '<div class="raw-data-pane">' +
@@ -3300,9 +3300,28 @@ async function init(): Promise<void> {
       if (label) label.title = reason;
     }
   }
+  // One graph dataset and one default-filters model per workspace, shared
+  // by the list view, the graph views, and the removal simulator — so the
+  // simulation memos are computed once no matter where you look first.
+  let sharedDatasetMemo: ReturnType<typeof adaptDataset> | null = null;
+  const getSharedDataset = (): ReturnType<typeof adaptDataset> =>
+    (sharedDatasetMemo ??= adaptDataset(report, knownDepKeys, resolveDepKey));
+  const fullModels = new Map<string, VizModel>();
+  const getFullModel = (workspaceName: string): VizModel => {
+    let m = fullModels.get(workspaceName);
+    if (!m) {
+      m = buildVizModel(getSharedDataset(), workspaceName, listSimProjectName);
+      fullModels.set(workspaceName, m);
+    }
+    return m;
+  };
+  const listSimProjectName =
+    (report.project as { name?: string } | undefined)?.name ||
+    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+    "project";
   depStatsByKey = null;
   depStatsBuilder = () => {
-    const dataset = adaptDataset(report, knownDepKeys, resolveDepKey);
+    const dataset = getSharedDataset();
     const slugs = Object.keys(dataset.dependencies);
     const indexOf = new Map(slugs.map((slug, index) => [slug, index]));
     const out = slugs.map((slug) =>
@@ -3445,6 +3464,12 @@ async function init(): Promise<void> {
       );
       detailsBody.dataset.rendered = "true";
       detailsBody.removeAttribute("aria-busy");
+      // The removal preview fills in as soon as the card opens — the
+      // simulation is memoised on the shared model, so this is instant
+      // after the first look at a workspace.
+      const simHolder = detailsBody.querySelector<HTMLElement>(".list-sim");
+      const simKey = simHolder?.dataset.simKey;
+      if (simHolder && simKey) runListSimulation(simHolder, simKey);
     });
   }
 
@@ -4035,7 +4060,8 @@ async function init(): Promise<void> {
         controls.graphWorkspaceSelect
       ) {
         graphModes = initGraphModes({
-          dataset: adaptDataset(report, knownDepKeys, resolveDepKey),
+          dataset: getSharedDataset(),
+          getSharedModel: (workspace: string) => getFullModel(workspace),
           projectName:
             (report.project as { name?: string } | undefined)?.name ||
             report.project?.projectDir?.split("/").filter(Boolean).pop() ||
@@ -4325,31 +4351,22 @@ async function init(): Promise<void> {
   );
 
   // ----- list-view removal simulator -----------------------------------
-  // Same maths as the graph dossier's preview, computed against the full
-  // per-workspace graph and cached; rendered inline in the card.
-  let listSimDataset: ReturnType<typeof adaptDataset> | null = null;
-  const listSimModels = new Map<string, VizModel>();
-  const listSimProjectName =
-    (report.project as { name?: string } | undefined)?.name ||
-    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
-    "project";
-  function listSimModel(workspaceName: string): VizModel {
-    let m = listSimModels.get(workspaceName);
-    if (!m) {
-      listSimDataset ??= adaptDataset(report, knownDepKeys, resolveDepKey);
-      m = buildVizModel(listSimDataset, workspaceName, listSimProjectName);
-      listSimModels.set(workspaceName, m);
-    }
-    return m;
-  }
+  // Same maths as the graph dossier's summary, computed against the shared
+  // full per-workspace models; rendered inline in the card as it opens.
   function runListSimulation(holder: HTMLElement, simKey: string): void {
-    listSimDataset ??= adaptDataset(report, knownDepKeys, resolveDepKey);
-    // The package may only exist in some workspaces' graphs — use the first
-    // that contains it (the root workspace comes first).
+    const dataset = getSharedDataset();
+    // The package may only exist in some workspaces' graphs. Try the root
+    // workspace first — it is the graph view's default, so the two views
+    // quote the same numbers — then the named workspaces (they are sorted
+    // alphabetically in the dataset).
     let model: VizModel | null = null;
     let index = -1;
-    for (const ws of listSimDataset.workspaces) {
-      const m = listSimModel(ws.name);
+    const ordered = [
+      ...dataset.workspaces.filter((w) => w.name === "root"),
+      ...dataset.workspaces.filter((w) => w.name !== "root"),
+    ];
+    for (const ws of ordered) {
+      const m = getFullModel(ws.name);
       const idx = m.indexOfSlug.get(simKey);
       if (idx !== undefined) {
         model = m;
@@ -4467,7 +4484,7 @@ async function init(): Promise<void> {
         12,
       );
     }
-    if (model.workspaceName && listSimDataset.workspaces.length > 1) {
+    if (model.workspaceName && dataset.workspaces.length > 1) {
       addP("list-sim-note", `Computed for the ${model.workspaceName} workspace graph.`);
     }
     holder.appendChild(panel);
@@ -4479,14 +4496,6 @@ async function init(): Promise<void> {
     if (rootLink) {
       event.preventDefault();
       activateRootPackageLink(rootLink);
-      return;
-    }
-    const simButton = target.closest(".sim-run-btn") as HTMLButtonElement | null;
-    if (simButton) {
-      event.preventDefault();
-      const holder = simButton.closest(".list-sim") as HTMLElement | null;
-      const simKey = holder?.dataset.simKey;
-      if (holder && simKey) runListSimulation(holder, simKey);
       return;
     }
     const copyButton = target.closest(
