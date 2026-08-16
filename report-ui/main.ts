@@ -11,6 +11,8 @@ import {
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
+import { buildVizModel, type VizModel } from "./vizModel";
+import type { GraphRoute } from "./graphModes";
 import { buildDomTree, computeReachCounts } from "./domTree";
 import { initGraphModes, type GraphModesHandle } from "./graphModes";
 import { DEFAULT_GRAPH_FILTERS } from "./vizModel";
@@ -2462,6 +2464,13 @@ function renderDepDetails(
     riskSection,
     upgradeSection,
     declaredSection,
+    renderSection(
+      "Removal preview",
+      "What deleting this package would actually free",
+      '<div class="list-sim" data-sim-key="' +
+        escapeHtml(`${dep.package.name}@${dep.package.version}`) +
+        '"><button type="button" class="sim-run-btn">Simulate removal</button></div>',
+    ),
     '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary>' +
       '<div class="raw-data-pane">' +
       "<pre>" +
@@ -3936,6 +3945,11 @@ async function init(): Promise<void> {
     );
   }
 
+  let currentView: "list" | "graph" = "list";
+  let applyingRoute = false;
+  let routerReady = false;
+  let lastSyncedHash = "";
+  let routeExpandedKey: string | null = null;
   function setActiveView(view: "list" | "graph"): void {
     if (!controls.listViewPanel || !controls.graphViewPanel) {
       console.warn(
@@ -3962,11 +3976,26 @@ async function init(): Promise<void> {
     }
     controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
+    currentView = view;
     if (isList) {
       graphView?.setActive(false);
+      routeSync(true);
       return;
     }
     if (!graphInitialized) {
+      // Small brand mark at the head of the graph toolbar. Cloned from the
+      // header logo with its <defs> stripped: the gradient/style definitions
+      // stay unique in the document and resolve from the original.
+      const overlayTop = document.querySelector(".graph-overlay-top");
+      const headerLogo = document.querySelector(".top-header svg.logo");
+      if (overlayTop && headerLogo && !overlayTop.querySelector(".graph-logo")) {
+        const brand = headerLogo.cloneNode(true) as SVGElement;
+        brand.querySelector("defs")?.remove();
+        brand.classList.remove("logo");
+        brand.classList.add("graph-logo");
+        brand.setAttribute("aria-hidden", "true");
+        overlayTop.insertBefore(brand, overlayTop.firstChild);
+      }
       graphView = initGraphView({
         report,
         knownDepKeys,
@@ -4024,6 +4053,7 @@ async function init(): Promise<void> {
             (node): node is HTMLElement => Boolean(node),
           ),
           getClassicHandle: () => graphView,
+          onRouteChange: () => routeSync(true),
           filterRuntime: controls.graphFilterRuntime,
           filterDev: controls.graphFilterDev,
           filterSub: controls.graphFilterSub,
@@ -4131,6 +4161,7 @@ async function init(): Promise<void> {
     } else {
       graphModes.refresh();
     }
+    routeSync(true);
   }
 
   function getStickyFilterBarOffset(): number {
@@ -4209,16 +4240,20 @@ async function init(): Promise<void> {
     controls.noImports,
     controls.duplicateVersions,
   ];
-  const handleFilterControlChange = (): void => {
+  const handleFilterControlChange = (pushRoute = true): void => {
     // User-driven filtering should return to normal behavior.
     forcedVisibleDepKeys.clear();
     renderList();
+    // Search keystrokes replace the current history entry; discrete filter
+    // changes get their own entry so back/forward walks them.
+    routeSync(pushRoute);
   };
 
   filterControls.forEach((ctrl) => {
     if (!ctrl) return;
-    ctrl.addEventListener("input", handleFilterControlChange);
-    ctrl.addEventListener("change", handleFilterControlChange);
+    const handler = (): void => handleFilterControlChange(ctrl !== controls.search);
+    ctrl.addEventListener("input", handler);
+    ctrl.addEventListener("change", handler);
   });
 
   controls.activeFilterChips?.addEventListener("click", (event) => {
@@ -4279,12 +4314,164 @@ async function init(): Promise<void> {
       if (target.open) {
         openDepKeys.add(depKey);
         ensureDepDetailsRendered(target);
+        routeExpandedKey = depKey;
       } else {
         openDepKeys.delete(depKey);
+        if (routeExpandedKey === depKey) routeExpandedKey = null;
       }
+      routeSync(true);
     },
     true,
   );
+
+  // ----- list-view removal simulator -----------------------------------
+  // Same maths as the graph dossier's preview, computed against the full
+  // per-workspace graph and cached; rendered inline in the card.
+  let listSimDataset: ReturnType<typeof adaptDataset> | null = null;
+  const listSimModels = new Map<string, VizModel>();
+  const listSimProjectName =
+    (report.project as { name?: string } | undefined)?.name ||
+    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+    "project";
+  function listSimModel(workspaceName: string): VizModel {
+    let m = listSimModels.get(workspaceName);
+    if (!m) {
+      listSimDataset ??= adaptDataset(report, knownDepKeys, resolveDepKey);
+      m = buildVizModel(listSimDataset, workspaceName, listSimProjectName);
+      listSimModels.set(workspaceName, m);
+    }
+    return m;
+  }
+  function runListSimulation(holder: HTMLElement, simKey: string): void {
+    listSimDataset ??= adaptDataset(report, knownDepKeys, resolveDepKey);
+    // The package may only exist in some workspaces' graphs — use the first
+    // that contains it (the root workspace comes first).
+    let model: VizModel | null = null;
+    let index = -1;
+    for (const ws of listSimDataset.workspaces) {
+      const m = listSimModel(ws.name);
+      const idx = m.indexOfSlug.get(simKey);
+      if (idx !== undefined) {
+        model = m;
+        index = idx;
+        break;
+      }
+    }
+    holder.textContent = "";
+    if (!model || index < 0) {
+      const note = document.createElement("p");
+      note.className = "list-sim-empty";
+      note.textContent =
+        "Not part of any workspace dependency graph — nothing to simulate.";
+      holder.appendChild(note);
+      return;
+    }
+    const sim = model.simulateRemoval(index);
+    let freedBytes = 0;
+    let sizedCount = 0;
+    let vulns = 0;
+    let licenses = 0;
+    let maint = 0;
+    for (const f of sim.freed) {
+      const key = resolveDepKey(f.slug);
+      const dep = key ? depByKey.get(key) : undefined;
+      if (!dep) continue;
+      if (dep.package.installSize) {
+        freedBytes += dep.package.installSize.totalBytes;
+        sizedCount += 1;
+      }
+      if (hasVulnerabilities(dep)) vulns += 1;
+      if (hasLicenseIssue(dep)) licenses += 1;
+      if (hasMaintenanceConcern(dep)) maint += 1;
+    }
+    const panel = document.createElement("div");
+    panel.className = "list-sim-panel";
+    const addP = (cls: string, text: string): HTMLElement => {
+      const node = document.createElement("p");
+      node.className = cls;
+      node.textContent = text;
+      panel.appendChild(node);
+      return node;
+    };
+    const blocked = sim.isDirect && sim.blockedBy.length > 0;
+    if (blocked) {
+      const names = sim.blockedBy.slice(0, 4).join(", ");
+      const suffix =
+        sim.blockedBy.length > 4 ? ` +${sim.blockedBy.length - 4}` : "";
+      addP(
+        "list-sim-blocked",
+        `Removing the manifest entry frees nothing today \u2014 still required by ${names}${suffix}. If those dependents dropped it, removal would free:`,
+      );
+    }
+    const sizeText =
+      freedBytes > 0
+        ? ` \u00b7 ${formatByteSize(freedBytes)} on disk${
+            sizedCount < sim.freed.length
+              ? ` (${sizedCount.toLocaleString()} of ${sim.freed.length.toLocaleString()} measured)`
+              : ""
+          }`
+        : "";
+    const rollups = [
+      ...(vulns ? [`${vulns} vulnerable`] : []),
+      ...(licenses ? [`${licenses} licence issue${licenses === 1 ? "" : "s"}`] : []),
+      ...(maint ? [`${maint} maintenance concern${maint === 1 ? "" : "s"}`] : []),
+    ];
+    addP(
+      "list-sim-headline",
+      `\u2702 ${blocked ? "Would free" : "Frees"} ${sim.freed.length.toLocaleString()} package${sim.freed.length === 1 ? "" : "s"}${sizeText}${
+        rollups.length > 0 ? ` \u00b7 including ${rollups.join(" \u00b7 ")}` : ""
+      }`,
+    );
+    const nameList = (
+      title: string,
+      entries: Array<{ name: string; note?: string }>,
+      cap: number,
+    ): void => {
+      const head = document.createElement("p");
+      head.className = "list-sim-subtitle";
+      head.textContent = title;
+      panel.appendChild(head);
+      const wrap = document.createElement("div");
+      wrap.className = "list-sim-chips";
+      for (const entry of entries.slice(0, cap)) {
+        const chip = document.createElement("span");
+        chip.className = "list-sim-chip";
+        chip.textContent = entry.note
+          ? `${entry.name} \u2014 ${entry.note}`
+          : entry.name;
+        wrap.appendChild(chip);
+      }
+      if (entries.length > cap) {
+        const more = document.createElement("span");
+        more.className = "list-sim-more";
+        more.textContent = `+${entries.length - cap} more`;
+        wrap.appendChild(more);
+      }
+      panel.appendChild(wrap);
+    };
+    const nameCounts = new Map<string, number>();
+    for (const entry of [...sim.freed, ...sim.retained]) {
+      nameCounts.set(entry.name, (nameCounts.get(entry.name) ?? 0) + 1);
+    }
+    const simLabel = (entry: { slug: string; name: string }): string =>
+      (nameCounts.get(entry.name) ?? 0) > 1 ? entry.slug : entry.name;
+    nameList(
+      `Freed (${sim.freed.length})`,
+      sim.freed.map((f) => ({ name: simLabel(f) })),
+      30,
+    );
+    if (sim.retained.length > 0) {
+      nameList(
+        `Retained (${sim.retained.length})`,
+        sim.retained.map((r) => ({ name: simLabel(r), note: `kept by ${r.keptBy}` })),
+        12,
+      );
+    }
+    if (model.workspaceName && listSimDataset.workspaces.length > 1) {
+      addP("list-sim-note", `Computed for the ${model.workspaceName} workspace graph.`);
+    }
+    holder.appendChild(panel);
+  }
 
   container.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
@@ -4292,6 +4479,14 @@ async function init(): Promise<void> {
     if (rootLink) {
       event.preventDefault();
       activateRootPackageLink(rootLink);
+      return;
+    }
+    const simButton = target.closest(".sim-run-btn") as HTMLButtonElement | null;
+    if (simButton) {
+      event.preventDefault();
+      const holder = simButton.closest(".list-sim") as HTMLElement | null;
+      const simKey = holder?.dataset.simKey;
+      if (holder && simKey) runListSimulation(holder, simKey);
       return;
     }
     const copyButton = target.closest(
@@ -4312,10 +4507,148 @@ async function init(): Promise<void> {
       activateRootPackageLink(rootLink);
     }
   });
+  // ----- hash router ----------------------------------------------------
+  // Discrete UI transitions (view switch, filters, selection, graph mode,
+  // workspace) are mirrored into location.hash so browser back/forward
+  // walks them. Camera panning/zooming is deliberately NOT recorded.
+  function buildRouteHash(): string {
+    const params = new URLSearchParams();
+    if (currentView === "graph" && graphModes) {
+      const r = graphModes.routeState();
+      params.set("mode", r.mode);
+      if (r.workspace) params.set("ws", r.workspace);
+      if (r.selected) params.set("pkg", r.selected);
+      if (r.highlights.length > 0) params.set("hl", r.highlights.join(","));
+      if (!r.runtime) params.set("rt", "0");
+      if (!r.dev) params.set("dev", "0");
+      if (!r.sub) params.set("sub", "0");
+      if (r.depth !== null) params.set("depth", String(r.depth));
+      const query = params.toString();
+      return "#/graph" + (query ? `?${query}` : "");
+    }
+    if (controls.search.value) params.set("q", controls.search.value);
+    if (controls.direct.value !== "all") params.set("type", controls.direct.value);
+    if (controls.runtime.value !== "all") params.set("scope", controls.runtime.value);
+    if (controls.workspace && controls.workspace.value !== "all") {
+      params.set("ws", controls.workspace.value);
+    }
+    const flagParams: Array<[string, HTMLInputElement | null | undefined]> = [
+      ["vuln", controls.hasVulns],
+      ["maint", controls.maintenanceConcerns],
+      ["lic", controls.licenseIssues],
+      ["blockers", controls.upgradeBlockers],
+      ["repl", controls.hasReplacement],
+      ["noimports", controls.noImports],
+      ["dups", controls.duplicateVersions],
+    ];
+    for (const [key, ctrl] of flagParams) if (ctrl?.checked) params.set(key, "1");
+    const licenseParams: Array<[string, HTMLInputElement]> = [
+      ["lp", controls.licensePermissive],
+      ["lw", controls.licenseWeakCopyleft],
+      ["ls", controls.licenseStrongCopyleft],
+      ["lu", controls.licenseUnknown],
+    ];
+    for (const [key, ctrl] of licenseParams) if (!ctrl.checked) params.set(key, "0");
+    if (routeExpandedKey) params.set("pkg", routeExpandedKey);
+    const query = params.toString();
+    return "#/list" + (query ? `?${query}` : "");
+  }
+
+  function routeSync(pushRoute: boolean): void {
+    if (applyingRoute || !routerReady) return;
+    const hash = buildRouteHash();
+    if (hash === location.hash) return;
+    lastSyncedHash = hash;
+    const url = location.pathname + location.search + hash;
+    try {
+      if (pushRoute) history.pushState(null, "", url);
+      else history.replaceState(null, "", url);
+    } catch {
+      // Some file:// contexts refuse pushState — fall back to the hash
+      // itself (lastSyncedHash stops the hashchange listener re-applying).
+      location.hash = hash.slice(1);
+    }
+  }
+
+  function applyRouteFromHash(): void {
+    const hash = location.hash;
+    if (!hash.startsWith("#/")) return;
+    applyingRoute = true;
+    try {
+      const queryIndex = hash.indexOf("?");
+      const path = queryIndex < 0 ? hash.slice(2) : hash.slice(2, queryIndex);
+      const params = new URLSearchParams(
+        queryIndex < 0 ? "" : hash.slice(queryIndex + 1),
+      );
+      if (path === "graph") {
+        setActiveView("graph");
+        if (graphModes) {
+          const fallback = graphModes.routeState();
+          graphModes.applyRoute({
+            mode: (params.get("mode") as GraphRoute["mode"]) || fallback.mode,
+            workspace: params.get("ws") ?? "",
+            selected: params.get("pkg"),
+            highlights: (params.get("hl") ?? "").split(",").filter(Boolean),
+            runtime: params.get("rt") !== "0",
+            dev: params.get("dev") !== "0",
+            sub: params.get("sub") !== "0",
+            depth: params.has("depth")
+              ? Number.parseInt(params.get("depth") ?? "", 10) || null
+              : null,
+          });
+        }
+        return;
+      }
+      setActiveView("list");
+      controls.search.value = params.get("q") ?? "";
+      controls.direct.value = params.get("type") ?? "all";
+      controls.runtime.value = params.get("scope") ?? "all";
+      if (controls.workspace) controls.workspace.value = params.get("ws") ?? "all";
+      const setChecked = (
+        ctrl: HTMLInputElement | null | undefined,
+        value: boolean,
+      ): void => {
+        if (ctrl && !ctrl.disabled) ctrl.checked = value;
+      };
+      setChecked(controls.hasVulns, params.get("vuln") === "1");
+      setChecked(controls.maintenanceConcerns, params.get("maint") === "1");
+      setChecked(controls.licenseIssues, params.get("lic") === "1");
+      setChecked(controls.upgradeBlockers, params.get("blockers") === "1");
+      setChecked(controls.hasReplacement, params.get("repl") === "1");
+      setChecked(controls.noImports, params.get("noimports") === "1");
+      setChecked(controls.duplicateVersions, params.get("dups") === "1");
+      controls.licensePermissive.checked = params.get("lp") !== "0";
+      controls.licenseWeakCopyleft.checked = params.get("lw") !== "0";
+      controls.licenseStrongCopyleft.checked = params.get("ls") !== "0";
+      controls.licenseUnknown.checked = params.get("lu") !== "0";
+      forcedVisibleDepKeys.clear();
+      renderList();
+      const pkg = params.get("pkg");
+      routeExpandedKey = pkg;
+      if (pkg && depByKey.has(pkg)) openListFromGraph(pkg);
+    } finally {
+      applyingRoute = false;
+    }
+  }
+
+  window.addEventListener("popstate", handleRouteNavigation);
+  window.addEventListener("hashchange", handleRouteNavigation);
+  function handleRouteNavigation(): void {
+    if (location.hash === lastSyncedHash) return;
+    lastSyncedHash = location.hash;
+    applyRouteFromHash();
+  }
+
   // Initial render
   updateColumnHeaders();
   renderList();
   setActiveView("list");
+  // Restore a deep link, then start mirroring state into the hash.
+  if (location.hash.startsWith("#/")) {
+    lastSyncedHash = location.hash;
+    applyRouteFromHash();
+  }
+  routerReady = true;
 }
 
 // Initialize on DOM ready

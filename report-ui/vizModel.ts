@@ -163,6 +163,16 @@ export function buildVizModel(
   };
   const rootSlugs = rootSlugsFor(filters.runtime, filters.dev);
   const rootSet = new Set(rootSlugs);
+  // Fallback roots (parentless packages standing in for an empty manifest)
+  // traverse and render like roots, but they are NOT manifest entries — only
+  // the workspace's actual direct lists support manifest-removal claims.
+  const manifestSet = new Set(
+    workspace
+      ? [...workspace.directDependencies, ...workspace.directDevDependencies].filter(
+          (slug) => Boolean(dataset.dependencies[slug]),
+        )
+      : [],
+  );
 
   // Reachability sweep gives the index space; BFS depth enforces the
   // depth filter (sub=false means the direct ring only).
@@ -334,6 +344,8 @@ export function buildVizModel(
     depsOutF: number[][];
     depsInF: number[][];
     isRootF: boolean[];
+    /** True when the package is in the workspace manifest (never fallback roots). */
+    manifestF: boolean[];
     dom: DomTree;
     reach: Int32Array;
   }
@@ -351,6 +363,7 @@ export function buildVizModel(
         depsOutF: depsOut,
         depsInF: depsIn,
         isRootF: isRoot,
+        manifestF: slugs.map((slug) => manifestSet.has(slug)),
         dom: domTree(),
         reach: reachMemo,
       };
@@ -385,6 +398,7 @@ export function buildVizModel(
       }
     }
     const isRootF = slugsF.map((slug) => fullRootSet.has(slug));
+    const manifestF = slugsF.map((slug) => manifestSet.has(slug));
     const rootsF: number[] = [];
     isRootF.forEach((flag, i) => {
       if (flag) rootsF.push(i);
@@ -401,6 +415,7 @@ export function buildVizModel(
       depsOutF,
       depsInF,
       isRootF,
+      manifestF,
       dom: buildDomTree(countF, depsOutF, rootsF),
       reach: computeReachCounts(countF, depsOutF),
     };
@@ -450,7 +465,7 @@ export function buildVizModel(
       });
     }
     retained.sort((a, b) => a.name.localeCompare(b.name));
-    const isDirect = g.isRootF[full];
+    const isDirect = g.manifestF[full];
     const blockedBy = isDirect
       ? (() => {
           const chainHits = (node: number): boolean => {
@@ -490,7 +505,7 @@ export function buildVizModel(
     if (full < 0) return EMPTY_IMPACT;
     let manifestFrees: number | null = null;
     let keptBy: string[] = [];
-    if (g.isRootF[full]) {
+    if (g.manifestF[full]) {
       // A predecessor whose idom-chain does NOT pass through this package has
       // a route from the project that survives the manifest removal — it
       // keeps the package (and therefore its whole subtree) installed.

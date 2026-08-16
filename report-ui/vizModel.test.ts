@@ -291,6 +291,47 @@ describe('simulateRemoval', () => {
     ]);
   });
 
+  it('never presents fallback roots as removable manifest entries', () => {
+    // A hoisting-only monorepo root: the workspace has NO direct deps, so
+    // parentless packages become traversal roots — but there is no manifest
+    // entry to remove, and no removal claim should be made for them.
+    const dependencies: GraphDataset['dependencies'] = {};
+    const add = (name: string, deps: string[]): void => {
+      const slug = `${name}@1.0.0`;
+      dependencies[slug] = {
+        slug,
+        name,
+        version: '1.0.0',
+        dependencies: deps.map((d) => `${d}@1.0.0`),
+        license: 'MIT',
+        vulnerabilityCount: 0,
+        vulnerabilitySeverity: 'none',
+        isDevOnly: false,
+        workspaceOrigins: ['root'],
+      };
+    };
+    add('hoisted-a', ['hoisted-b']);
+    add('hoisted-b', []);
+    const model = buildVizModel(
+      {
+        workspaces: [
+          { name: 'root', directDependencies: [], directDevDependencies: [] },
+        ],
+        dependencies,
+      },
+      'root',
+      'hoist-only',
+    );
+    const idx = model.indexOfSlug.get('hoisted-a@1.0.0') as number;
+    // Fallback root still traverses (whole tree visible)…
+    expect(model.count).toBe(2);
+    // …but carries no manifest-removal semantics.
+    expect(model.impact(idx).manifestFrees).toBeNull();
+    const sim = model.simulateRemoval(idx);
+    expect(sim.isDirect).toBe(false);
+    expect(sim.blockedBy).toEqual([]);
+  });
+
   it('does not list a cycle-mate inside the freed subtree as a blocker', () => {
     const cyclic = impactDataset();
     cyclic.dependencies['solo-dep@1.0.0'].dependencies = ['solo@1.0.0'];

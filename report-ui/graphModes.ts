@@ -96,11 +96,29 @@ export interface GraphModesOptions {
   };
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
+  /** Notify the hash router that user-visible graph state changed. */
+  onRouteChange?: () => void;
+}
+
+/** Serializable graph state for the hash router. */
+export interface GraphRoute {
+  mode: GraphMode;
+  workspace: string;
+  selected: string | null;
+  highlights: string[];
+  runtime: boolean;
+  dev: boolean;
+  sub: boolean;
+  depth: number | null;
 }
 
 export interface GraphModesHandle {
   /** Current mode. */
   mode(): GraphMode;
+  /** Current serializable state for the hash router. */
+  routeState(): GraphRoute;
+  /** Restore a previously serialized state (history navigation). */
+  applyRoute(route: GraphRoute): void;
   /** Selection relay from the classic graph view. */
   handleClassicSelect(slug: string | null): void;
   /** Current display filters, shared with the classic graph view. */
@@ -123,6 +141,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
   /** Active highlight signals: non-matching packages render dimmed. */
   const highlights = new Set<HighlightKind>();
+  /** Slug of the package currently in the dossier (for the hash router). */
+  let routeSelected: string | null = null;
   try {
     const raw = localStorage.getItem(FILTER_STORE_KEY);
     if (raw) {
@@ -264,6 +284,61 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     activeView?.resetView?.();
   });
   shell?.appendChild(resetBtn);
+
+  // Full screen (presentation mode): the shell fullscreens; CSS hides the
+  // toolbar and side panel, keeping the canvas, status line, per-view
+  // controls, and this button (as the exit affordance).
+  const fsBtn = document.createElement("button");
+  fsBtn.type = "button";
+  fsBtn.className = "graph-fullscreen-btn";
+  fsBtn.textContent = "\u26f6 Full screen";
+  fsBtn.setAttribute("aria-label", "Show the graph full screen");
+  /** True while the fixed-position fallback (no Fullscreen API) is active. */
+  let fsFallback = false;
+  function setFullscreenUi(active: boolean): void {
+    shell?.classList.toggle("graph-fullscreen", active);
+    fsBtn.textContent = active ? "\u26f6 Exit full screen" : "\u26f6 Full screen";
+    fsBtn.setAttribute(
+      "aria-label",
+      active ? "Exit full screen" : "Show the graph full screen",
+    );
+    // The shell's dimensions change; every view sizes off its host. Fire
+    // again on the next tick — native fullscreen transitions settle late.
+    window.dispatchEvent(new Event("resize"));
+    window.setTimeout(() => window.dispatchEvent(new Event("resize")), 120);
+  }
+  function exitFsFallback(): void {
+    fsFallback = false;
+    shell?.classList.remove("graph-fullscreen-fallback");
+    setFullscreenUi(false);
+  }
+  fsBtn.addEventListener("click", () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    if (fsFallback) {
+      exitFsFallback();
+      return;
+    }
+    const request = shell?.requestFullscreen
+      ? shell.requestFullscreen()
+      : Promise.reject(new Error("unsupported"));
+    request.catch(() => {
+      // No Fullscreen API (iframe without allowfullscreen, permission
+      // denied): pin the shell over the viewport instead.
+      fsFallback = true;
+      shell?.classList.add("graph-fullscreen-fallback");
+      setFullscreenUi(true);
+    });
+  });
+  shell?.appendChild(fsBtn);
+  document.addEventListener("fullscreenchange", () => {
+    setFullscreenUi(document.fullscreenElement === shell);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && fsFallback) exitFsFallback();
+  });
   let treemapZoomed = false;
   function syncResetBtn(): void {
     resetBtn.hidden =
@@ -587,6 +662,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   }
 
   function renderDossierEmpty(): void {
+    if (routeSelected !== null) {
+      routeSelected = null;
+      options.onRouteChange?.();
+    }
     options.dossier.textContent = "";
     const empty = el(
       "p",
@@ -609,6 +688,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     if (index < 0 || index >= m.count) {
       renderDossierEmpty();
       return;
+    }
+    if (routeSelected !== m.slugs[index]) {
+      routeSelected = m.slugs[index];
+      options.onRouteChange?.();
     }
     const ref = m.refs[index];
     options.dossier.textContent = "";
@@ -869,13 +952,18 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     d.appendChild(back);
 
     d.appendChild(el("h2", "graph-dossier-name", m.refs[index].name));
-    d.appendChild(el("h3", "graph-dossier-subtitle", "Removal preview"));
+
+    // Everything the simulation produced sits in one bordered block so the
+    // result is unmistakably separate from the regular dossier content.
+    const panel = el("div", "graph-sim-panel");
+    panel.appendChild(el("h3", "graph-sim-title", "\u2702 Removal preview"));
+    d.appendChild(panel);
 
     const blocked = sim.isDirect && sim.blockedBy.length > 0;
     if (blocked) {
       const names = sim.blockedBy.slice(0, 4).join(", ");
       const suffix = sim.blockedBy.length > 4 ? ` +${sim.blockedBy.length - 4}` : "";
-      d.appendChild(
+      panel.appendChild(
         el(
           "p",
           "graph-dossier-empty",
@@ -912,19 +1000,25 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         ),
       );
     }
-    d.appendChild(headline);
+    panel.appendChild(headline);
 
+    const nameCounts = new Map<string, number>();
+    for (const f of [...sim.freed, ...sim.retained]) {
+      nameCounts.set(f.name, (nameCounts.get(f.name) ?? 0) + 1);
+    }
+    const label = (entry: { slug: string; name: string }): string =>
+      (nameCounts.get(entry.name) ?? 0) > 1 ? entry.slug : entry.name;
     chipCloud(
-      d,
+      panel,
       `Freed (${sim.freed.length})`,
-      sim.freed,
+      sim.freed.map((f) => ({ slug: f.slug, name: label(f) })),
       40,
     );
     if (sim.retained.length > 0) {
       chipCloud(
-        d,
+        panel,
         `Retained (${sim.retained.length})`,
-        sim.retained.map((r) => ({ slug: r.slug, name: r.name, note: `kept by ${r.keptBy}` })),
+        sim.retained.map((r) => ({ slug: r.slug, name: label(r), note: `kept by ${r.keptBy}` })),
         24,
       );
     }
@@ -1014,6 +1108,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     } catch {
       // Best-effort persistence only.
     }
+    options.onRouteChange?.();
   }
 
   // ----- wiring ---------------------------------------------------------
@@ -1026,6 +1121,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   });
 
   options.workspaceSelect.addEventListener("change", () => {
+    options.onRouteChange?.();
     model = null;
     resetDimCache();
     // Stale results hold closures over the previous model's indices.
@@ -1115,6 +1211,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       statusHint();
     }
     runSearch();
+    options.onRouteChange?.();
   }
 
   function bindKindChip(
@@ -1161,6 +1258,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       syncFiltersBadge();
       resetDimCache();
       repaintForDim();
+      options.onRouteChange?.();
     });
   }
   for (const kind of HIGHLIGHT_KINDS) bindHighlightChip(kind);
@@ -1218,6 +1316,79 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     },
     refresh() {
       activeView?.resize();
+    },
+    routeState() {
+      return {
+        mode,
+        workspace: options.workspaceSelect.value || "",
+        selected: routeSelected,
+        highlights: [...highlights],
+        runtime: filters.runtime,
+        dev: filters.dev,
+        sub: filters.sub,
+        depth: filters.maxDepth,
+      };
+    },
+    applyRoute(route) {
+      // Workspace first — its change handler resets the model and remounts
+      // exactly as a user change would (classic view listens on the same
+      // select).
+      if (
+        route.workspace &&
+        options.workspaceSelect.value !== route.workspace &&
+        Array.from(options.workspaceSelect.options).some(
+          (opt) => opt.value === route.workspace,
+        )
+      ) {
+        options.workspaceSelect.value = route.workspace;
+        options.workspaceSelect.dispatchEvent(new Event("change"));
+      }
+      // Display filters (keep at least one root kind, like the chips do).
+      let runtime = route.runtime;
+      const dev = route.dev;
+      if (!runtime && !dev) runtime = true;
+      const depth =
+        Number.isInteger(route.depth) && (route.depth as number) >= 1
+          ? route.depth
+          : null;
+      const filtersChanged =
+        filters.runtime !== runtime ||
+        filters.dev !== dev ||
+        filters.sub !== route.sub ||
+        filters.maxDepth !== depth;
+      filters.runtime = runtime;
+      filters.dev = dev;
+      filters.sub = route.sub;
+      filters.maxDepth = depth;
+      // Highlights.
+      const nextHl = route.highlights.filter((kind) =>
+        HIGHLIGHT_KINDS.includes(kind as HighlightKind),
+      ) as HighlightKind[];
+      const hlChanged =
+        nextHl.length !== highlights.size ||
+        nextHl.some((kind) => !highlights.has(kind));
+      if (hlChanged) {
+        highlights.clear();
+        for (const kind of nextHl) highlights.add(kind);
+        syncHighlightChips();
+      }
+      if (filtersChanged) {
+        applyFilters();
+      } else if (hlChanged) {
+        persistFilters();
+        syncFiltersBadge();
+        resetDimCache();
+        repaintForDim();
+      }
+      if (route.mode !== mode) setMode(route.mode);
+      // Selection last, against the final model.
+      if (route.selected) {
+        const idx = ensureModel().indexOfSlug.get(route.selected);
+        if (idx !== undefined) focusPackage(idx);
+        else renderDossierEmpty();
+      } else if (routeSelected !== null) {
+        renderDossierEmpty();
+      }
     },
   };
 }

@@ -448,7 +448,8 @@ export function mountFlameView(
         if (b.id === selectedId) {
           ctx.strokeStyle = cb.theme().accent;
           ctx.lineWidth = 1.2;
-          ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 2.5);
+          // Same geometry as drawBar's fill (PAD/2 inset each side).
+          ctx.strokeRect(b.x + PAD / 2, b.y + 0.5, b.w - PAD, b.h - 2.5);
         }
         continue;
       }
