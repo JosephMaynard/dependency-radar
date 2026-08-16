@@ -4505,7 +4505,12 @@ async function init(): Promise<void> {
       );
     }
     if (model.workspaceName && dataset.workspaces.length > 1) {
-      addP("list-sim-note", `Computed for the ${model.workspaceName} workspace graph.`);
+      addP(
+        "list-sim-note",
+        model.workspaceName === "root"
+          ? "Computed over the whole project graph."
+          : `Computed for the ${model.workspaceName} workspace graph.`,
+      );
     }
     holder.appendChild(panel);
   }

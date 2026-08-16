@@ -21,6 +21,9 @@ export type GraphDependency = {
 export type GraphDataset = {
   workspaces: GraphWorkspace[];
   dependencies: Record<string, GraphDependency>;
+  /** Workspace name of the monorepo root package itself (relativePath "."),
+   *  when the root manifest declares dependencies of its own. */
+  rootPackageWorkspace?: string;
 };
 
 type GraphNodeKind = "direct-runtime" | "direct-dev" | "transitive";
@@ -913,13 +916,14 @@ export function adaptDataset(
   };
 
   ensureWorkspace("root");
-  // The monorepo ROOT package (relativePath ".") is presented as the "root"
-  // workspace, not under its own (often synthetic) name.
+  // The monorepo ROOT package (relativePath ".") keeps its own workspace
+  // entry (labelled "(root package.json)" in the selector) so its manifest
+  // can be inspected alone; "root" is the whole-project aggregate.
   const rootPackageName = (report.workspaces.workspacePackages || []).find(
     (workspace) => workspace.relativePath === ".",
   )?.name;
   (report.workspaces.workspacePackages || []).forEach((workspace) => {
-    if (workspace.name !== rootPackageName) ensureWorkspace(workspace.name);
+    ensureWorkspace(workspace.name);
   });
 
   records.forEach((dep) => {
@@ -929,9 +933,7 @@ export function adaptDataset(
       ? dep.usage.origins.workspaces
       : ["root"];
     origins.forEach((workspaceName) => {
-      const workspace = ensureWorkspace(
-        workspaceName === rootPackageName ? "root" : workspaceName,
-      );
+      const workspace = ensureWorkspace(workspaceName);
       if (dep.usage.scope === "dev") {
         workspace.directDevDependencies.add(slug);
       } else {
@@ -940,8 +942,8 @@ export function adaptDataset(
     });
   });
 
-  // "Workspace root" is the whole-project view: the root manifest's own
-  // deps plus the union of every workspace's directs. (It used to hold only
+  // "root" is the whole-project view: the union of every workspace's
+  // directs, including the root manifest's own. (It used to hold only
   // unattributed deps, leaving the root view to a parentless-package
   // fallback that silently capped at 40 roots.)
   const rootWorkspace = ensureWorkspace("root");
@@ -968,7 +970,11 @@ export function adaptDataset(
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return { workspaces, dependencies };
+  return {
+    workspaces,
+    dependencies,
+    ...(rootPackageName ? { rootPackageWorkspace: rootPackageName } : {}),
+  };
 }
 
 /**
@@ -3214,7 +3220,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const option = document.createElement("option");
       option.value = workspace.name;
       option.textContent =
-        workspace.name === "root" ? "Workspace root" : workspace.name;
+        workspace.name === "root"
+          ? "Whole project"
+          : workspace.name === dataset.rootPackageWorkspace
+            ? `${workspace.name} (root package.json)`
+            : workspace.name;
       options.workspaceSelect.appendChild(option);
 
       if (

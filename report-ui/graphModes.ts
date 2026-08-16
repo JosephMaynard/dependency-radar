@@ -359,7 +359,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         const btn = el(
           "button",
           "graph-empty-ws-item",
-          `${w.name} (${w.count.toLocaleString()})`,
+          `${w.name === "root" ? "Whole project" : w.name} (${w.count.toLocaleString()})`,
         );
         (btn as HTMLButtonElement).type = "button";
         btn.addEventListener("click", () => {
