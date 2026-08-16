@@ -145,6 +145,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
   /** Active highlight signals: non-matching packages render dimmed. */
   const highlights = new Set<HighlightKind>();
+  /** A highlight can be restored only when its evidence exists — main.ts
+   *  disables the chip when a collector was skipped or incomplete. */
+  const highlightAvailable = (kind: HighlightKind): boolean =>
+    !(document.getElementById(`graph-hl-${kind}`) as HTMLButtonElement | null)
+      ?.disabled;
   /** Slug of the package currently in the dossier (for the hash router). */
   let routeSelected: string | null = null;
   try {
@@ -166,7 +171,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       }
       if (Array.isArray(parsed.highlights)) {
         for (const kind of parsed.highlights) {
-          if (HIGHLIGHT_KINDS.includes(kind as HighlightKind)) {
+          if (
+            HIGHLIGHT_KINDS.includes(kind as HighlightKind) &&
+            highlightAvailable(kind as HighlightKind)
+          ) {
             highlights.add(kind as HighlightKind);
           }
         }
@@ -869,6 +877,21 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
           : "";
       return `${bytesPart}${detailPart}`;
     })();
+    // In the "Whole project" aggregate, a package can be declared by several
+    // workspaces' manifests at once — freeing it means removing it from each,
+    // and the wording must say so instead of implying one manifest entry.
+    const declaringWorkspaces =
+      (options.workspaceSelect.value || "root") === "root"
+        ? options.dataset.workspaces.reduce(
+            (n, w) =>
+              w.name !== "root" &&
+              (w.directDependencies.includes(m.slugs[index]) ||
+                w.directDevDependencies.includes(m.slugs[index]))
+                ? n + 1
+                : n,
+            0,
+          )
+        : 0;
     const impactChip = (text: string, className = ""): void => {
       const chip = el("span", `graph-dossier-fact ${className}`.trim());
       chip.appendChild(el("span", "fact-icon", "\u2702"));
@@ -901,10 +924,14 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         "fact-note",
       );
     } else {
+      const removePhrase =
+        declaringWorkspaces > 1
+          ? `removing it from all ${declaringWorkspaces} declaring workspaces frees`
+          : "removing it frees";
       impactChip(
         imp.manifestFrees > 1
-          ? `removing it frees ${imp.manifestFrees.toLocaleString()} packages${simSummary}`
-          : `removing it frees only itself${simSummary}`,
+          ? `${removePhrase} ${imp.manifestFrees.toLocaleString()} packages${simSummary}`
+          : `${removePhrase} only itself${simSummary}`,
       );
     }
     if (imp.cycleWith.length > 0) {
@@ -1308,9 +1335,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       filters.dev = dev;
       filters.sub = route.sub;
       filters.maxDepth = depth;
-      // Highlights.
-      const nextHl = route.highlights.filter((kind) =>
-        HIGHLIGHT_KINDS.includes(kind as HighlightKind),
+      // Highlights (only kinds whose evidence is available).
+      const nextHl = route.highlights.filter(
+        (kind) =>
+          HIGHLIGHT_KINDS.includes(kind as HighlightKind) &&
+          highlightAvailable(kind as HighlightKind),
       ) as HighlightKind[];
       const hlChanged =
         nextHl.length !== highlights.size ||
@@ -1328,7 +1357,11 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         resetDimCache();
         repaintForDim();
       }
-      if (route.mode !== mode) setMode(route.mode);
+      // 4) An unknown mode must not reach setMode — it would deactivate
+      // every button and mount nothing.
+      if (route.mode !== mode && GRAPH_MODES.includes(route.mode)) {
+        setMode(route.mode);
+      }
       // Selection last, against the final model.
       if (route.selected) {
         const idx = ensureModel().indexOfSlug.get(route.selected);

@@ -4505,10 +4505,23 @@ async function init(): Promise<void> {
       );
     }
     if (model.workspaceName && dataset.workspaces.length > 1) {
+      const declaring =
+        model.workspaceName === "root" && sim.isDirect
+          ? dataset.workspaces.filter(
+              (w) =>
+                w.name !== "root" &&
+                (w.directDependencies.includes(simKey) ||
+                  w.directDevDependencies.includes(simKey)),
+            ).length
+          : 0;
       addP(
         "list-sim-note",
         model.workspaceName === "root"
-          ? "Computed over the whole project graph."
+          ? `Computed over the whole project graph.${
+              declaring > 1
+                ? ` Declared directly by ${declaring} workspaces \u2014 freeing requires removing it from each.`
+                : ""
+            }`
           : `Computed for the ${model.workspaceName} workspace graph.`,
       );
     }
@@ -4670,8 +4683,9 @@ async function init(): Promise<void> {
   }
 
   function applyRouteFromHash(): void {
-    const hash = location.hash;
-    if (!hash.startsWith("#/")) return;
+    // The pre-router base entry has no hash — treat it as the default list
+    // route so Back past the first recorded state still resets the UI.
+    const hash = location.hash.startsWith("#/") ? location.hash : "#/list";
     applyingRoute = true;
     try {
       const queryIndex = hash.indexOf("?");
@@ -4720,10 +4734,14 @@ async function init(): Promise<void> {
       controls.licenseWeakCopyleft.checked = params.get("lw") !== "0";
       controls.licenseStrongCopyleft.checked = params.get("ls") !== "0";
       controls.licenseUnknown.checked = params.get("lu") !== "0";
-      forcedVisibleDepKeys.clear();
-      renderList();
       const pkg = params.get("pkg");
       routeExpandedKey = pkg;
+      // Reconcile expanded cards with the route: anything else closes.
+      for (const key of [...openDepKeys]) {
+        if (key !== pkg) openDepKeys.delete(key);
+      }
+      forcedVisibleDepKeys.clear();
+      renderList();
       if (pkg && depByKey.has(pkg)) openListFromGraph(pkg);
     } finally {
       applyingRoute = false;
