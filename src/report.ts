@@ -438,7 +438,18 @@ ${safeCssContent}
                   <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
                   <span>Sub-Dependency</span>
                 </span>
-              </div>
+              <span class="graph-key-item">
+            <span>Circle size &mdash; packages its removal frees</span>
+          </span>
+          <span class="graph-key-item">
+            <span class="graph-key-line route" aria-hidden="true"></span>
+            <span>Selection: routes keeping it installed</span>
+          </span>
+          <span class="graph-key-item">
+            <span class="graph-key-line deps" aria-hidden="true"></span>
+            <span>Selection: what it depends on</span>
+          </span>
+        </div>
             </div>
           </div>
           <div class="graph-filter-wrap" id="graph-filter-wrap">
@@ -525,14 +536,6 @@ ${safeCssContent}
             <button type="button" class="graph-control-btn" data-action="zoom-out" aria-label="Zoom Out">−</button>
           </div>
           <button type="button" class="graph-control-btn reset-btn" data-action="reset">reset</button>
-        </div>
-        <div class="graph-popover" id="graph-popover" hidden>
-          <div class="graph-popover-name" id="graph-popover-name"></div>
-          <div class="graph-popover-meta" id="graph-popover-version"></div>
-          <div class="graph-popover-meta" id="graph-popover-license"></div>
-          <div class="graph-popover-meta" id="graph-popover-vulns"></div>
-          <div class="graph-popover-meta" id="graph-popover-amplification"></div>
-          <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
         </div>
         <aside class="graph-side-panel" id="graph-side-panel" aria-label="Selection details">
           <div class="graph-side-search">

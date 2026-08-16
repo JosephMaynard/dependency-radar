@@ -2121,9 +2121,6 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 }
 
 /* The floating popover is superseded by the docked side panel. */
-.graph-popover {
-  display: none !important;
-}
 
 @media (max-width: 900px) {
   /* Bottom-sheet panel on small screens; no horizontal fit inset. */
@@ -2264,70 +2261,12 @@ a.graph-dossier-fact.fact-swap:focus-visible {
   display: none;
 }
 
-.graph-popover {
-  position: absolute;
-  z-index: 9;
-  min-width: 220px;
-  max-width: min(320px, calc(100% - 24px));
-  padding: 12px 14px;
-  border: 1px solid var(--border-color-strong);
-  background: rgba(
-    15,
-    23,
-    42,
-    0.85
-  ); /* Slightly more transparent for glass effect */
 
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 12px;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  pointer-events: auto;
-}
 
-[data-theme="light"] .graph-popover {
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
 
-.graph-popover[hidden] {
-  display: none;
-}
 
-.graph-popover-name {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-primary);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
 
-.graph-popover-meta {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 3px;
-}
 
-.graph-popover-action {
-  margin-top: 8px;
-  width: 100%;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 12px;
-  padding: 7px 8px;
-  cursor: pointer;
-}
-
-.graph-popover-action:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 #graph-canvas {
   width: 100%;
@@ -4020,4 +3959,25 @@ details[open] > summary .expand-icon {
 .fine-print-pop {
   position: fixed;
   z-index: 200;
+}
+
+/* Classic-graph key: selection line swatches. */
+.graph-key-line {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  flex: 0 0 auto;
+}
+
+.graph-key-line.route {
+  background: #f59e0b;
+}
+
+.graph-key-line.deps {
+  background: var(--graph-highlight, #38bdf8);
+}
+
+[data-theme="light"] .graph-key-line.route {
+  background: #d97706;
 }

@@ -1002,7 +1002,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     if (mode === "graph") {
       const handle = options.getClassicHandle();
       handle?.applyFocus(m.slugs[index]);
-      handle?.showPopover(m.slugs[index]);
+      handle?.select(m.slugs[index]);
       handle?.requestRender();
       return;
     }
@@ -1067,7 +1067,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       handle?.setActive(true);
       handle?.requestRender();
     } else {
-      handle?.hidePopover();
+      handle?.clearSelection();
       handle?.setActive(false);
       mountActive();
     }

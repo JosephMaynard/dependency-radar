@@ -2737,27 +2737,6 @@ async function init(): Promise<void> {
     graphCanvasShell: document.getElementById(
       "graph-canvas-shell",
     ) as HTMLElement | null,
-    graphPopover: document.getElementById(
-      "graph-popover",
-    ) as HTMLElement | null,
-    graphPopoverName: document.getElementById(
-      "graph-popover-name",
-    ) as HTMLElement | null,
-    graphPopoverVersion: document.getElementById(
-      "graph-popover-version",
-    ) as HTMLElement | null,
-    graphPopoverLicense: document.getElementById(
-      "graph-popover-license",
-    ) as HTMLElement | null,
-    graphPopoverVulns: document.getElementById(
-      "graph-popover-vulns",
-    ) as HTMLElement | null,
-    graphPopoverAmplification: document.getElementById(
-      "graph-popover-amplification",
-    ) as HTMLElement | null,
-    graphOpenList: document.getElementById(
-      "graph-open-list",
-    ) as HTMLButtonElement | null,
     graphModeSwitch: document.getElementById(
       "graph-mode-switch",
     ) as HTMLElement | null,
@@ -3978,14 +3957,7 @@ async function init(): Promise<void> {
       controls.graphWorkspaceWrap &&
       controls.graphControls &&
       controls.graphCanvas &&
-      controls.graphCanvasShell &&
-      controls.graphPopover &&
-      controls.graphPopoverName &&
-      controls.graphPopoverVersion &&
-      controls.graphPopoverLicense &&
-      controls.graphPopoverVulns &&
-      controls.graphPopoverAmplification &&
-      controls.graphOpenList,
+      controls.graphCanvasShell,
     );
   }
 
@@ -4049,15 +4021,13 @@ async function init(): Promise<void> {
         controlsRoot: controls.graphControls as HTMLElement,
         canvas: controls.graphCanvas as HTMLCanvasElement,
         canvasHost: controls.graphCanvasShell as HTMLElement,
-        popover: controls.graphPopover as HTMLElement,
-        popoverName: controls.graphPopoverName as HTMLElement,
-        popoverVersion: controls.graphPopoverVersion as HTMLElement,
-        popoverLicense: controls.graphPopoverLicense as HTMLElement,
-        popoverVulns: controls.graphPopoverVulns as HTMLElement,
-        popoverAmplification: controls.graphPopoverAmplification as HTMLElement,
-        popoverOpenButton: controls.graphOpenList as HTMLButtonElement,
         onOpenList: (slug: string) => {
           openListFromGraph(slug);
+        },
+        getImpactWeight: (slug: string, workspaceName: string) => {
+          const m = getFullModel(workspaceName || "root");
+          const idx = m.indexOfSlug.get(slug);
+          return idx === undefined ? 1 : m.domTree().exclusiveCount[idx];
         },
         onSelect: (slug: string | null) => {
           graphModes?.handleClassicSelect(slug);
