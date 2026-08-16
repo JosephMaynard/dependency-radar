@@ -330,6 +330,11 @@ describe('simulateRemoval', () => {
     const sim = model.simulateRemoval(idx);
     expect(sim.isDirect).toBe(false);
     expect(sim.blockedBy).toEqual([]);
+    // The dominator subtree still frees correctly under fallback roots.
+    expect(sim.freed.map((f) => f.name).sort()).toEqual([
+      'hoisted-a',
+      'hoisted-b',
+    ]);
   });
 
   it('does not list a cycle-mate inside the freed subtree as a blocker', () => {

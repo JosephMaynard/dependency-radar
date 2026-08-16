@@ -460,10 +460,22 @@
                   <span id="upgrade-blockers-label">Upgrade blockers</span>
                 </label>
 
-                <label class="checkbox-filter">
+                <span class="checkbox-filter">
                   <input type="checkbox" id="no-imports" />
-                  <span id="no-imports-label">No imports found <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence">ⓘ</button></span>
-                </label>
+                  <label for="no-imports" id="no-imports-label"
+                    >No imports found</label
+                  >
+                  <button
+                    type="button"
+                    class="fine-print-btn"
+                    data-fine-topic="imports"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    aria-label="About: Import evidence"
+                  >
+                    ⓘ
+                  </button>
+                </span>
 
                 <label class="checkbox-filter">
                   <input type="checkbox" id="duplicate-versions" />
@@ -676,7 +688,7 @@
                     <span>Sub-Dependency</span>
                   </span>
                   <span class="graph-key-item">
-                    <span>Circle size: packages its removal frees</span>
+                    <span>Circle size: removal impact and connection count</span>
                   </span>
                   <span class="graph-key-item">
                     <span

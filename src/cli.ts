@@ -457,26 +457,24 @@ async function detectWorkspace(
   // Always include the root when it is a real package: named, OR declaring
   // dependencies of its own (many monorepo roots are nameless but still
   // carry shared tooling deps — those must be scanned and attributed).
-  if (await pathExists(path.join(projectPath, "package.json"))) {
-    // root may already be in the list; keep unique
-    if (!packagePaths.includes(projectPath)) {
-      const root = await readJsonFile(path.join(projectPath, "package.json"));
-      const declaresDeps =
-        root &&
-        ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"].some(
-          (section) =>
-            root[section] &&
-            typeof root[section] === "object" &&
-            Object.keys(root[section]).length > 0,
-        );
-      if (
-        (root &&
-          typeof root.name === "string" &&
-          root.name.trim().length > 0) ||
-        declaresDeps
-      ) {
-        packagePaths.push(projectPath);
-      }
+  // rootPkg was parsed at the top of detectWorkspace; reuse it.
+  if (rootPkg && !packagePaths.includes(projectPath)) {
+    const declaresDeps = [
+      "dependencies",
+      "devDependencies",
+      "optionalDependencies",
+      "peerDependencies",
+    ].some(
+      (section) =>
+        rootPkg[section] &&
+        typeof rootPkg[section] === "object" &&
+        Object.keys(rootPkg[section]).length > 0,
+    );
+    if (
+      (typeof rootPkg.name === "string" && rootPkg.name.trim().length > 0) ||
+      declaresDeps
+    ) {
+      packagePaths.push(projectPath);
     }
   }
 

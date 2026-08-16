@@ -531,7 +531,7 @@ export function mountBalloonView(
         const titleW = g.measureText(model.centerLabel).width;
         const maxTitleW = r * 1.7;
         if (titleW > maxTitleW) {
-          titleFont = Math.max(8, (titleFont * maxTitleW) / titleW);
+          titleFont = (titleFont * maxTitleW) / titleW;
         }
         // Line gaps follow the (capped) font size, not the radius — zoomed
         // in, the title and stats stay one tight block instead of drifting

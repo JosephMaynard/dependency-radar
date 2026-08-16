@@ -658,7 +658,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   }
   document.addEventListener("pointerdown", (event) => {
     if (finePop.hidden) return;
-    if (finePop.contains(event.target as Node)) return;
+    const target = event.target as Node;
+    if (finePop.contains(target) || fineAnchor?.contains(target)) return;
     closeFinePrint();
   });
   document.addEventListener("keydown", (event) => {

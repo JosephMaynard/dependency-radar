@@ -3304,6 +3304,10 @@ async function init(): Promise<void> {
   let sharedDatasetMemo: ReturnType<typeof adaptDataset> | null = null;
   const getSharedDataset = (): ReturnType<typeof adaptDataset> =>
     (sharedDatasetMemo ??= adaptDataset(report, knownDepKeys, resolveDepKey));
+  const listSimProjectName =
+    (report.project as { name?: string } | undefined)?.name ||
+    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+    "project";
   const fullModels = new Map<string, VizModel>();
   const getFullModel = (workspaceName: string): VizModel => {
     let m = fullModels.get(workspaceName);
@@ -3313,10 +3317,6 @@ async function init(): Promise<void> {
     }
     return m;
   };
-  const listSimProjectName =
-    (report.project as { name?: string } | undefined)?.name ||
-    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
-    "project";
   depStatsByKey = null;
   depStatsBuilder = () => {
     const dataset = getSharedDataset();
@@ -3391,9 +3391,13 @@ async function init(): Promise<void> {
           const group = groups.get(childName);
           if (!group || !Array.isArray(entry)) continue;
           const [range, resolved] = entry;
-          // resolved is a dep key ("name@version"), not a bare version.
-          const target = resolved
-            ? group.find((v) => `${childName}@${v.version}` === resolved)
+          // resolved is a dep key ("name@version"), not a bare version;
+          // normalise through resolveDepKey so npm aliases still match.
+          const resolvedKey = resolved
+            ? (resolveDepKey(resolved) ?? resolved)
+            : null;
+          const target = resolvedKey
+            ? group.find((v) => `${childName}@${v.version}` === resolvedKey)
             : undefined;
           if (target) {
             target.dependents.push({
@@ -4000,6 +4004,12 @@ async function init(): Promise<void> {
       return;
     }
     if (!graphInitialized) {
+      // Init restores the persisted layout, which fires onRouteChange while
+      // the graphModes variable is still unassigned; buildRouteHash would
+      // serialise the list route and push a spurious entry. Save/restore so
+      // an outer applyRouteFromHash guard is never released early.
+      const wasApplyingRoute = applyingRoute;
+      applyingRoute = true;
       // Small brand mark at the head of the graph toolbar. Cloned from the
       // header logo with its <defs> stripped: the gradient/style definitions
       // stay unique in the document and resolve from the original.
@@ -4170,7 +4180,7 @@ async function init(): Promise<void> {
           graphView?.refreshFilters();
         }
       }
-      applyingRoute = false;
+      applyingRoute = wasApplyingRoute;
     }
     if (!graphModes || graphModes.mode() === "graph") {
       graphView?.setActive(true);
@@ -4269,9 +4279,12 @@ async function init(): Promise<void> {
 
   filterControls.forEach((ctrl) => {
     if (!ctrl) return;
-    const handler = (): void => handleFilterControlChange(ctrl !== controls.search);
-    ctrl.addEventListener("input", handler);
-    ctrl.addEventListener("change", handler);
+    const isSearch = ctrl === controls.search;
+    // One event per control: text inputs and checkboxes both fire input AND
+    // change — double-binding rendered the list twice per interaction.
+    ctrl.addEventListener(isSearch ? "input" : "change", () =>
+      handleFilterControlChange(!isSearch),
+    );
   });
 
   controls.activeFilterChips?.addEventListener("click", (event) => {
@@ -4347,6 +4360,17 @@ async function init(): Promise<void> {
   // full per-workspace models; rendered inline in the card as it opens.
   function runListSimulation(holder: HTMLElement, simKey: string): void {
     const dataset = getSharedDataset();
+    if (!dataset.dependencies[simKey]) {
+      // Not in the dependency graph at all: don't build every workspace's
+      // model just to discover that.
+      holder.textContent = "";
+      const note = document.createElement("p");
+      note.className = "list-sim-empty";
+      note.textContent =
+        "Not part of any workspace dependency graph, so nothing to simulate.";
+      holder.appendChild(note);
+      return;
+    }
     // The package may only exist in some workspaces' graphs. Try the root
     // workspace first — it is the graph view's default, so the two views
     // quote the same numbers — then the named workspaces (they are sorted
