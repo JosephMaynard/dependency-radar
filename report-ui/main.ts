@@ -2177,7 +2177,7 @@ function renderDepDetails(
               .map((d) => `${d.name}${d.range ? ` (${d.range})` : ""}`)
               .join(", ");
             const extra = v.dependents.length > 3 ? ` +${v.dependents.length - 3}` : "";
-            const why = via ? ` — via ${via}${extra}` : v.direct ? " — direct dependency" : "";
+            const why = via ? ` \u00b7 via ${via}${extra}` : v.direct ? " \u00b7 direct dependency" : "";
             return `${v.version}${why}`;
           });
         if (parts.length > 0) {
@@ -3166,7 +3166,7 @@ async function init(): Promise<void> {
       "stat-vulnerable",
       vulnerable,
       "red",
-      "Dependencies with known vulnerabilities — click to filter",
+      "Dependencies with known vulnerabilities (click to filter)",
     );
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;
@@ -3186,13 +3186,13 @@ async function init(): Promise<void> {
       "stat-license",
       licenseIssues,
       "amber",
-      "Dependencies with licence review flags — click to filter",
+      "Dependencies with licence review flags (click to filter)",
     );
     setChip(
       "stat-blockers",
       blockers,
       "amber",
-      "Dependencies with upgrade blockers — click to filter",
+      "Dependencies with upgrade blockers (click to filter)",
     );
     // Only surfaced when the scan matched at least one dependency against
     // the e18e module-replacements catalogue.
@@ -3208,7 +3208,7 @@ async function init(): Promise<void> {
           "stat-replacements",
           replacements,
           undefined,
-          "Dependencies with community-suggested replacements (e18e) — click to filter",
+          "Dependencies with community-suggested replacements from e18e (click to filter)",
         );
       }
     }
@@ -3224,7 +3224,7 @@ async function init(): Promise<void> {
           "stat-maintenance",
           maintenanceConcernCount,
           maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
-          "Deprecated, archived, unmaintained, or stale dependencies — click to filter",
+          "Deprecated, archived, unmaintained, or stale dependencies (click to filter)",
         );
       }
     }
@@ -4104,7 +4104,7 @@ async function init(): Promise<void> {
               ].join("/");
               platformNote =
                 osMiss || cpuMiss
-                  ? `built for ${target} \u2014 not this machine`
+                  ? `built for ${target}, not this machine`
                   : `platform-specific: ${target}`;
             }
             return {
@@ -4368,7 +4368,7 @@ async function init(): Promise<void> {
       const note = document.createElement("p");
       note.className = "list-sim-empty";
       note.textContent =
-        "Not part of any workspace dependency graph — nothing to simulate.";
+        "Not part of any workspace dependency graph, so nothing to simulate.";
       holder.appendChild(note);
       return;
     }
@@ -4406,7 +4406,7 @@ async function init(): Promise<void> {
         sim.blockedBy.length > 4 ? ` +${sim.blockedBy.length - 4}` : "";
       addP(
         "list-sim-blocked",
-        `Removing the manifest entry frees nothing today \u2014 still required by ${names}${suffix}. If those dependents dropped it, removal would free:`,
+        `Removing the manifest entry frees nothing today: still required by ${names}${suffix}. If those dependents dropped it, removal would free:`,
       );
     }
     const sizeText =
@@ -4444,7 +4444,7 @@ async function init(): Promise<void> {
         const chip = document.createElement("span");
         chip.className = "list-sim-chip";
         chip.textContent = entry.note
-          ? `${entry.name} \u2014 ${entry.note}`
+          ? `${entry.name} \u00b7 ${entry.note}`
           : entry.name;
         wrap.appendChild(chip);
       }
@@ -4489,7 +4489,7 @@ async function init(): Promise<void> {
         model.workspaceName === "root"
           ? `Computed over the whole project graph.${
               declaring > 1
-                ? ` Declared directly by ${declaring} workspaces \u2014 freeing requires removing it from each.`
+                ? ` Declared directly by ${declaring} workspaces; freeing requires removing it from each.`
                 : ""
             }`
           : `Computed for the ${model.workspaceName} workspace graph.`,

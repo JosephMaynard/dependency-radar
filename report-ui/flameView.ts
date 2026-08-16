@@ -61,7 +61,7 @@ export function mountFlameView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Flame view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+    "Flame view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
   // Cursor tooltip, as in the treemap: deep bars are often too narrow to
@@ -175,7 +175,7 @@ export function mountFlameView(
   }
 
   function sharedBandLabel(): string {
-    return `shared — ${sharedTotal.toLocaleString()} package${sharedTotal === 1 ? "" : "s"} kept by more than one dependency`;
+    return `shared: ${sharedTotal.toLocaleString()} package${sharedTotal === 1 ? "" : "s"} kept by more than one dependency`;
   }
 
   function drawBar(
@@ -335,7 +335,7 @@ export function mountFlameView(
       UW,
       pinned ? ANC : rowH,
       theme.isDark ? "#1c2836" : "#dbe4ef",
-      `${model.centerLabel}  —  ${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
+      `${model.centerLabel} \u00b7 ${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
       0.9,
     );
     y += pinned ? ANC : rowH;

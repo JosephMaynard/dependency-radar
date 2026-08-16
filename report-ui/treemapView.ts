@@ -121,7 +121,7 @@ export function mountTreemapView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Treemap of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+    "Treemap of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
   // Cursor tooltip: most rects are too small to carry a label, so the name

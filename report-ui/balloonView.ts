@@ -58,7 +58,7 @@ export function mountBalloonView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Balloon view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+    "Balloon view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
   // Cursor tooltip, as in the treemap/flame views: deep leaves render as

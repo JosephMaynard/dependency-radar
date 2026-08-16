@@ -34,7 +34,7 @@ export function mountHyperbolicView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Hyperbolic view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+    "Hyperbolic view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");

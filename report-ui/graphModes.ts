@@ -478,7 +478,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       items.appendChild(
         keyItem("var(--graph-hyp-sub-swatch, #5b7186)", "Sub-dependency"),
       );
-      items.appendChild(keyItem("", "Blip size — packages beneath it"));
+      items.appendChild(keyItem("", "Blip size: packages beneath it"));
       items.appendChild(
         keyItem(
           "var(--graph-hyp-route-swatch, #f59e0b)",
@@ -494,22 +494,22 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         keyItem(
           "",
           mode === "flame"
-            ? "Bar width — packages that leave node_modules if you delete it"
-            : "Box area — packages that leave node_modules if you delete it",
+            ? "Bar width: packages that leave node_modules if you delete it"
+            : "Box area: packages that leave node_modules if you delete it",
         ),
       );
       items.appendChild(keyItem(LINEAGE_SWATCH, "One colour per direct dependency"));
       items.appendChild(
         keyItem(
           "var(--graph-shared-swatch, #3d4c5c)",
-          "Shared — kept by several dependencies; deleting one frees nothing",
+          "Shared: kept by several dependencies; deleting one frees nothing",
         ),
       );
     } else {
       items.appendChild(
         keyItem(LINEAGE_SWATCH, "One colour per direct dependency's system"),
       );
-      items.appendChild(keyItem("", "Circle size — packages in its subtree"));
+      items.appendChild(keyItem("", "Circle size: packages in its subtree"));
     }
     if (mode === "balloon") {
       items.appendChild(keyItem("", "\u2191 required by \u00b7 \u2193 depends on"));
@@ -759,12 +759,12 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mode === "graph"
         ? "Select a node to inspect it."
         : mode === "flame"
-          ? "Click a bar. Width is the number of packages that would leave node_modules if you deleted it — each package is counted exactly once. The grey band holds packages shared by several dependencies: deleting any one of them frees nothing there."
+          ? "Click a bar. Width is the number of packages that would leave node_modules if you deleted it; each package is counted exactly once. The grey band holds packages shared by several dependencies: deleting any one of them frees nothing there."
           : mode === "treemap"
-            ? "Click a box to inspect it; double-click to drill in. Area is the number of packages deleting it would free. The grey block is shared by several dependencies — no single one of them owns it."
+            ? "Click a box to inspect it; double-click to drill in. Area is the number of packages deleting it would free. The grey block is shared by several dependencies; no single one of them owns it."
           : mode === "balloon"
             ? "Click a body. Each direct dependency is a system orbiting the project; its sub-dependencies fan out behind it."
-            : "Click a blip. Drag toward the centre to grow that part of the tree — nothing ever leaves the disk.",
+            : "Click a blip. Drag toward the centre to grow that part of the tree. Nothing ever leaves the disk.",
     );
     options.dossier.appendChild(empty);
   }
@@ -840,7 +840,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         chip.href = rep.docUrl;
         chip.target = "_blank";
         chip.rel = "noopener noreferrer";
-        chip.title = `${hint} — opens migration guidance`;
+        chip.title = `${hint} (opens migration guidance)`;
         chip.appendChild(el("span", "fact-icon", "\u21c4"));
         chip.appendChild(el("span", "", swapText));
         facts.appendChild(chip);
@@ -920,7 +920,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       const names = imp.keptBy.slice(0, 2).join(", ");
       const suffix = imp.keptBy.length > 2 ? ` +${imp.keptBy.length - 2}` : "";
       impactChip(
-        `removing it frees nothing \u2014 still needed by ${names}${suffix}`,
+        `removing it frees nothing: still needed by ${names}${suffix}`,
         "fact-note",
       );
     } else {

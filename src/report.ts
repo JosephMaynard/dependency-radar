@@ -551,7 +551,7 @@ ${safeCssContent}
   <footer class="report-footer">
     <p><strong>About this report</strong></p>
     <p>Dependency Radar does not perform malware scanning or security auditing. It surfaces factual signals from dependency metadata, known vulnerabilities (npm audit), dependency graphs, and install-time behaviour to support informed review.</p>
-    <p class="report-footer-vintage">Dependency Radar v${escapeHtml(data.dependencyRadarVersion)} — report created ${escapeHtml(formattedDate)}. Bundled definitions: SPDX licence list (${SPDX_LICENSE_LIST_RELEASE_DATE}) · e18e module-replacements ${MODULE_REPLACEMENTS_VERSION} (${MODULE_REPLACEMENTS_DATE}).</p>
+    <p class="report-footer-vintage">Dependency Radar v${escapeHtml(data.dependencyRadarVersion)} \u00b7 report created ${escapeHtml(formattedDate)}. Bundled definitions: SPDX licence list (${SPDX_LICENSE_LIST_RELEASE_DATE}) · e18e module-replacements ${MODULE_REPLACEMENTS_VERSION} (${MODULE_REPLACEMENTS_DATE}).</p>
   </footer>
   
   <script type="application/json" id="radar-data">${json}</script>
