@@ -335,7 +335,7 @@ export function mountFlameView(
       UW,
       pinned ? ANC : rowH,
       theme.isDark ? "#1c2836" : "#dbe4ef",
-      `${model.projectName}  —  ${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
+      `${model.centerLabel}  —  ${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
       0.9,
     );
     y += pinned ? ANC : rowH;

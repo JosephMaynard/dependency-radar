@@ -25,6 +25,9 @@ export const DEFAULT_GRAPH_FILTERS: GraphFilters = {
 
 export interface VizModel {
   projectName: string;
+  /** Label for the centre/hub: the workspace name, or the project name for
+   *  the whole-project aggregate. */
+  centerLabel: string;
   workspaceName: string;
   /** Package index -> dataset slug / record. */
   slugs: string[];
@@ -541,6 +544,8 @@ export function buildVizModel(
 
   return {
     projectName,
+    centerLabel:
+      workspace && workspace.name !== "root" ? workspace.name : projectName,
     workspaceName: workspace ? workspace.name : workspaceName,
     slugs,
     refs,

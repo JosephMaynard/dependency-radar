@@ -647,7 +647,7 @@ export function mountHyperbolicView(
     if (hubR > 1.8) {
       ctx.fillStyle = theme.ink;
       ctx.textAlign = "center";
-      ctx.fillText(model.projectName, hub.x, hub.y - hubR - 7);
+      ctx.fillText(model.centerLabel, hub.x, hub.y - hubR - 7);
       ctx.textAlign = "left";
     }
   }

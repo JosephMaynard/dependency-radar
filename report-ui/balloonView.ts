@@ -524,21 +524,29 @@ export function mountBalloonView(
       if (r > 22) {
         g.textAlign = "center";
         g.textBaseline = "middle";
-        const titleFont = Math.min(15, r * 0.24);
+        let titleFont = Math.min(15, r * 0.24);
         const metaFont = Math.min(11, r * 0.16);
+        // Long workspace names must stay inside the circle.
+        g.font = `600 ${titleFont}px ${mono}`;
+        const titleW = g.measureText(model.centerLabel).width;
+        const maxTitleW = r * 1.7;
+        if (titleW > maxTitleW) {
+          titleFont = Math.max(8, (titleFont * maxTitleW) / titleW);
+        }
         // Line gaps follow the (capped) font size, not the radius — zoomed
         // in, the title and stats stay one tight block instead of drifting
-        // toward the poles of the circle.
+        // toward the poles of the circle. Both lines sit symmetrically
+        // around the centre so the block reads as one balanced label.
         const lineGap = metaFont * 1.55;
         g.font = `600 ${titleFont}px ${mono}`;
         g.fillStyle = theme.panelText;
-        g.fillText(model.projectName, x, y - lineGap);
+        g.fillText(model.centerLabel, x, y - lineGap * 0.6);
         g.font = `600 ${metaFont}px ${mono}`;
         g.fillStyle = theme.panelText;
         g.fillText(
           `${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
           x,
-          y + lineGap * 0.35,
+          y + lineGap * 0.6,
         );
 
         g.textAlign = "left";
