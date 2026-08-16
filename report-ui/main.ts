@@ -12,6 +12,7 @@ import {
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
 import { buildVizModel, type VizModel } from "./vizModel";
+import { FINE_PRINT } from "./finePrint";
 import type { GraphRoute } from "./graphModes";
 import { buildDomTree, computeReachCounts } from "./domTree";
 import { initGraphModes, type GraphModesHandle } from "./graphModes";
@@ -894,6 +895,18 @@ function renderSingleColumnHeader(
     sortIndicator +
     "</span>" +
     "</button>"
+  );
+}
+
+/** Inline (i) button opening the shared fine-print note for a topic. */
+function finePrintBtnHtml(topic: keyof typeof FINE_PRINT): string {
+  const note = FINE_PRINT[topic];
+  return (
+    '<button type="button" class="fine-print-btn" data-fine-topic="' +
+    escapeHtml(String(topic)) +
+    '" aria-haspopup="true" aria-expanded="false" aria-label="About: ' +
+    escapeHtml(note?.title ?? String(topic)) +
+    '">\u24d8</button>'
   );
 }
 
@@ -2139,9 +2152,11 @@ function renderDepDetails(
           : stats.frees;
       const size = dep.package.installSize;
       const sizeRows = size
-        ? renderKvItem(
+        ? renderKvItemHtml(
             "Install size (measured, uncompressed)",
-            `${formatByteSize(size.totalBytes)}${size.codeBytes > 0 ? ` (${formatByteSize(size.codeBytes)} code)` : ""}`,
+            escapeHtml(
+              `${formatByteSize(size.totalBytes)}${size.codeBytes > 0 ? ` (${formatByteSize(size.codeBytes)} code)` : ""}`,
+            ) + finePrintBtnHtml("size"),
           ) +
           (typeof dep.package.fileCount === "number"
             ? renderKvItem("Files on disk", dep.package.fileCount)
@@ -4433,12 +4448,13 @@ async function init(): Promise<void> {
       ...(licenses ? [`${licenses} licence issue${licenses === 1 ? "" : "s"}`] : []),
       ...(maint ? [`${maint} maintenance concern${maint === 1 ? "" : "s"}`] : []),
     ];
-    addP(
+    const headlineP = addP(
       "list-sim-headline",
       `\u2702 ${blocked ? "Would free" : "Frees"} ${sim.freed.length.toLocaleString()} package${sim.freed.length === 1 ? "" : "s"}${sizeText}${
         rollups.length > 0 ? ` \u00b7 including ${rollups.join(" \u00b7 ")}` : ""
       }`,
     );
+    headlineP.insertAdjacentHTML("beforeend", finePrintBtnHtml("impact"));
     const nameList = (
       title: string,
       entries: Array<{ name: string; note?: string }>,
@@ -4489,6 +4505,71 @@ async function init(): Promise<void> {
     }
     holder.appendChild(panel);
   }
+
+  // ----- fine-print popover (list view) ---------------------------------
+  const listFinePop = document.createElement("div");
+  listFinePop.className = "fine-print-pop";
+  listFinePop.hidden = true;
+  listFinePop.setAttribute("role", "note");
+  listFinePop.tabIndex = -1;
+  document.body.appendChild(listFinePop);
+  let listFineAnchor: HTMLElement | null = null;
+  function closeListFinePrint(refocus = false): void {
+    if (listFinePop.hidden) return;
+    listFinePop.hidden = true;
+    listFineAnchor?.setAttribute("aria-expanded", "false");
+    if (refocus) listFineAnchor?.focus();
+    listFineAnchor = null;
+  }
+  function openListFinePrint(topic: string, anchor: HTMLElement): void {
+    const note = FINE_PRINT[topic];
+    if (!note) return;
+    if (!listFinePop.hidden && listFineAnchor === anchor) {
+      closeListFinePrint(true);
+      return;
+    }
+    listFineAnchor?.setAttribute("aria-expanded", "false");
+    listFineAnchor = anchor;
+    anchor.setAttribute("aria-expanded", "true");
+    listFinePop.textContent = "";
+    const strong = document.createElement("strong");
+    strong.textContent = note.title;
+    const body = document.createElement("p");
+    body.textContent = note.body;
+    listFinePop.append(strong, body);
+    listFinePop.hidden = false;
+    const rect = anchor.getBoundingClientRect();
+    const popH = listFinePop.offsetHeight;
+    const popW = 288;
+    let top = rect.bottom + 6;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+    listFinePop.style.top = `${Math.max(8, top)}px`;
+    listFinePop.style.left = `${Math.max(8, Math.min(rect.left - 140, window.innerWidth - popW - 8))}px`;
+    listFinePop.focus({ preventScroll: true });
+  }
+  document.addEventListener("pointerdown", (event) => {
+    if (listFinePop.hidden) return;
+    const target = event.target as Node;
+    if (listFinePop.contains(target) || listFineAnchor?.contains(target)) return;
+    closeListFinePrint();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !listFinePop.hidden) closeListFinePrint(true);
+  });
+  // A fixed-position note drifts from its anchor on any scroll — close it.
+  document.addEventListener("scroll", () => closeListFinePrint(), {
+    capture: true,
+    passive: true,
+  });
+  document.addEventListener("click", (event) => {
+    const btn = (event.target as HTMLElement).closest<HTMLElement>(
+      ".fine-print-btn[data-fine-topic]",
+    );
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openListFinePrint(btn.dataset.fineTopic || "", btn);
+  });
 
   container.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;

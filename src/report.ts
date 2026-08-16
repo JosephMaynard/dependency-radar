@@ -338,7 +338,7 @@ ${safeCssContent}
 
               <label class="checkbox-filter">
                 <input type="checkbox" id="no-imports" />
-                <span id="no-imports-label">No imports found</span>
+                <span id="no-imports-label">No imports found <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence">ⓘ</button></span>
               </label>
 
               <label class="checkbox-filter">

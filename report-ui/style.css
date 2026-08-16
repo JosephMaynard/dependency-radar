@@ -1344,6 +1344,7 @@ select.graph-workspace-select:focus {
   display: none;
 }
 
+.fine-print-btn,
 .graph-fineprint-btn {
   all: unset;
   cursor: pointer;
@@ -1353,11 +1354,14 @@ select.graph-workspace-select:focus {
   margin-left: 2px;
 }
 
+.fine-print-btn:hover,
+.fine-print-btn:focus-visible,
 .graph-fineprint-btn:hover,
 .graph-fineprint-btn:focus-visible {
   color: var(--accent);
 }
 
+.fine-print-pop,
 .graph-fineprint-pop {
   position: absolute;
   z-index: 30;
@@ -1372,6 +1376,7 @@ select.graph-workspace-select:focus {
   color: var(--text-secondary);
 }
 
+.fine-print-pop strong,
 .graph-fineprint-pop strong {
   display: block;
   color: var(--text-primary);
@@ -1379,16 +1384,19 @@ select.graph-workspace-select:focus {
   font-size: 12px;
 }
 
+.fine-print-pop p,
 .graph-fineprint-pop p {
   margin: 0;
 }
 
+[data-theme="light"] .fine-print-pop,
 [data-theme="light"] .graph-fineprint-pop {
   background: rgba(255, 255, 255, 0.98);
   border-color: rgba(100, 116, 139, 0.25);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
 }
 
+.fine-print-pop[hidden],
 .graph-fineprint-pop[hidden] {
   display: none;
 }
@@ -4005,4 +4013,10 @@ details[open] > summary .expand-icon {
 .graph-empty-ws-item:hover {
   color: var(--text-primary);
   border-color: var(--accent-primary, #38bdf8);
+}
+
+/* List-view fine-print pop is viewport-anchored. */
+.fine-print-pop {
+  position: fixed;
+  z-index: 60;
 }

@@ -1,5 +1,6 @@
 import type { GraphDataset, GraphViewHandle } from "./graphView";
 import type { GraphFilters, VizHandle, VizModel } from "./vizModel";
+import { FINE_PRINT } from "./finePrint";
 import {
   buildVizModel,
   DEFAULT_GRAPH_FILTERS,
@@ -629,23 +630,6 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   // Measured numbers and static-analysis leads carry caveats; each gets a
   // small (i) affordance opening an anchored note, and the Key panel links
   // a collected "About these numbers" view.
-  const FINE_PRINT: Record<string, { title: string; body: string }> = {
-    size: {
-      title: "Measured install size",
-      body:
-        "Measured on disk as installed (uncompressed). Not download size and not bundle impact — bundlers tree-shake and compress. With pnpm, files are hard-linked to a shared store, so deleting reclaims less physical disk. Each installed version is measured once.",
-    },
-    imports: {
-      title: "Import evidence",
-      body:
-        "From static scanning of this project's source. CLI binaries, config-file references, and framework conventions are invisible to it — treat \u201cno imports found\u201d as a lead to check, not a verdict.",
-    },
-    impact: {
-      title: "Removal impact",
-      body:
-        "\u201cRemoving it frees\u201d counts packages nothing else keeps installed, computed over the full workspace graph — display filters never change it. A direct dependency that other packages still pull in frees nothing until those dependents drop it.",
-    },
-  };
   const finePop = document.createElement("div");
   finePop.className = "graph-fineprint-pop";
   finePop.hidden = true;

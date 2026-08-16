@@ -774,7 +774,9 @@ export function mountBalloonView(
     const id = pid[i];
     const count = model.uniqueCount(id);
     tip.textContent =
-      count > 1 ? `${model.refs[id].name} · ${count.toLocaleString()}` : model.refs[id].name;
+      count > 1
+        ? `${model.refs[id].name} · ${count.toLocaleString()} in subtree`
+        : model.refs[id].name;
     tip.hidden = false;
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;

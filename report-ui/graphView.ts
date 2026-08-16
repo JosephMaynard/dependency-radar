@@ -913,8 +913,13 @@ export function adaptDataset(
   };
 
   ensureWorkspace("root");
+  // The monorepo ROOT package (relativePath ".") is presented as the "root"
+  // workspace, not under its own (often synthetic) name.
+  const rootPackageName = (report.workspaces.workspacePackages || []).find(
+    (workspace) => workspace.relativePath === ".",
+  )?.name;
   (report.workspaces.workspacePackages || []).forEach((workspace) => {
-    ensureWorkspace(workspace.name);
+    if (workspace.name !== rootPackageName) ensureWorkspace(workspace.name);
   });
 
   records.forEach((dep) => {
@@ -924,7 +929,9 @@ export function adaptDataset(
       ? dep.usage.origins.workspaces
       : ["root"];
     origins.forEach((workspaceName) => {
-      const workspace = ensureWorkspace(workspaceName);
+      const workspace = ensureWorkspace(
+        workspaceName === rootPackageName ? "root" : workspaceName,
+      );
       if (dep.usage.scope === "dev") {
         workspace.directDevDependencies.add(slug);
       } else {
@@ -932,6 +939,26 @@ export function adaptDataset(
       }
     });
   });
+
+  // "Workspace root" is the whole-project view: the root manifest's own
+  // deps plus the union of every workspace's directs. (It used to hold only
+  // unattributed deps, leaving the root view to a parentless-package
+  // fallback that silently capped at 40 roots.)
+  const rootWorkspace = ensureWorkspace("root");
+  for (const [name, deps] of workspaceMap) {
+    if (name === "root") continue;
+    deps.directDependencies.forEach((slug) =>
+      rootWorkspace.directDependencies.add(slug),
+    );
+    deps.directDevDependencies.forEach((slug) =>
+      rootWorkspace.directDevDependencies.add(slug),
+    );
+  }
+  // A dep that is runtime somewhere and dev elsewhere counts as runtime in
+  // the aggregate.
+  rootWorkspace.directDependencies.forEach((slug) =>
+    rootWorkspace.directDevDependencies.delete(slug),
+  );
 
   const workspaces: GraphWorkspace[] = [...workspaceMap.entries()]
     .map(([name, deps]) => ({
