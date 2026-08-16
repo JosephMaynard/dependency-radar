@@ -4015,8 +4015,9 @@ details[open] > summary .expand-icon {
   border-color: var(--accent-primary, #38bdf8);
 }
 
-/* List-view fine-print pop is viewport-anchored. */
+/* List-view fine-print pop is viewport-anchored; it must paint above the
+   filter/metadata dropdowns (z 120) and the sticky filter bar (z 100). */
 .fine-print-pop {
   position: fixed;
-  z-index: 60;
+  z-index: 200;
 }

@@ -2154,9 +2154,13 @@ function renderDepDetails(
       const sizeRows = size
         ? renderKvItemHtml(
             "Install size (measured, uncompressed)",
-            escapeHtml(
-              `${formatByteSize(size.totalBytes)}${size.codeBytes > 0 ? ` (${formatByteSize(size.codeBytes)} code)` : ""}`,
-            ) + finePrintBtnHtml("size"),
+            '<span class="kv-value">' +
+              escapeHtml(
+                `${formatByteSize(size.totalBytes)}${size.codeBytes > 0 ? ` (${formatByteSize(size.codeBytes)} code)` : ""}`,
+              ) +
+              " " +
+              finePrintBtnHtml("size") +
+              "</span>",
           ) +
           (typeof dep.package.fileCount === "number"
             ? renderKvItem("Files on disk", dep.package.fileCount)
