@@ -614,7 +614,19 @@ function buildWorkspaceClassification(
   localDependencyNames: Set<string>;
   workspaceMajorsByName: Map<string, string[]>;
 } {
-  const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+  // Only packages with a REAL manifest name participate in name-based
+  // locality: a nameless root is keyed by its directory basename, and that
+  // basename colliding with an npm package must not mark it local.
+  const workspacePackageNames = new Set(
+    packageMetas
+      .filter(
+        (meta) =>
+          meta.pkg &&
+          typeof meta.pkg.name === "string" &&
+          meta.pkg.name.trim().length > 0,
+      )
+      .map((meta) => meta.name),
+  );
   const workspaceMajorsByName = new Map<string, string[]>();
   for (const meta of packageMetas) {
     const version =

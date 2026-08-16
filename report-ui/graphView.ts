@@ -1112,6 +1112,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     typeof window.matchMedia === "function"
       ? window.matchMedia("(prefers-reduced-motion: reduce)")
       : null;
+  reducedMotionQuery?.addEventListener?.("change", () => syncFlowTimer());
   let themeColors: ThemeColors = {
     runtime: "#10b981",
     runtimeHighlight: "#34d399",
@@ -1642,7 +1643,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const roots = new Set<string>([...directRuntime, ...directDev]);
     const unfilteredDirectCount =
       workspace.directDependencies.length + workspace.directDevDependencies.length;
-    if (roots.size === 0 && unfilteredDirectCount === 0) {
+    // Parentless-package fallback for the ROOT workspace only, matching
+    // vizModel: an empty named workspace stays empty (the empty-workspace
+    // screen explains it) instead of borrowing the root's packages.
+    if (
+      roots.size === 0 &&
+      unfilteredDirectCount === 0 &&
+      workspace.name === "root"
+    ) {
       Object.keys(dataset.dependencies)
         .filter((slug) => (parentsBySlug.get(slug) || []).length === 0)
         .slice(0, 40)

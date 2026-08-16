@@ -512,7 +512,14 @@ function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames,
 }
 function buildWorkspaceClassification(rootPath, packageMetas) {
     var _a, _b, _c, _d, _e, _f;
-    const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+    // Only packages with a REAL manifest name participate in name-based
+    // locality: a nameless root is keyed by its directory basename, and that
+    // basename colliding with an npm package must not mark it local.
+    const workspacePackageNames = new Set(packageMetas
+        .filter((meta) => meta.pkg &&
+        typeof meta.pkg.name === "string" &&
+        meta.pkg.name.trim().length > 0)
+        .map((meta) => meta.name));
     const workspaceMajorsByName = new Map();
     for (const meta of packageMetas) {
         const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" ? meta.pkg.version.trim() : "";

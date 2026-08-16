@@ -123,6 +123,8 @@ export interface GraphModesHandle {
   routeState(): GraphRoute;
   /** Restore a previously serialized state (history navigation). */
   applyRoute(route: GraphRoute): void;
+  /** Leave fullscreen (native or fallback), e.g. when switching views. */
+  exitFullscreen(): void;
   /** Selection relay from the classic graph view. */
   handleClassicSelect(slug: string | null): void;
   /** Current display filters, shared with the classic graph view. */
@@ -314,6 +316,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       return;
     }
     const wsName = options.workspaceSelect.value || m.workspaceName || "this workspace";
+    const wsLabel = wsName === "root" ? "Whole project" : wsName;
     emptyWsEl.textContent = "";
     const card = el("div", "graph-empty-ws-card");
     // Distinguish a genuinely empty manifest from one the display filters
@@ -324,7 +327,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       : 0;
     if (declared > 0) {
       card.appendChild(
-        el("h2", "graph-empty-ws-title", `Nothing to show in ${wsName}`),
+        el("h2", "graph-empty-ws-title", `Nothing to show in ${wsLabel}`),
       );
       card.appendChild(
         el(
@@ -343,7 +346,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       emptyWsEl.hidden = false;
       return;
     }
-    card.appendChild(el("h2", "graph-empty-ws-title", `No dependencies in ${wsName}`));
+    card.appendChild(el("h2", "graph-empty-ws-title", `No dependencies in ${wsLabel}`));
     const ranked = options.dataset.workspaces
       .map((w) => ({
         name: w.name,
@@ -1068,6 +1071,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       handle?.requestRender();
     } else {
       handle?.clearSelection();
+      handle?.clearFocus();
       handle?.setActive(false);
       mountActive();
     }
@@ -1093,7 +1097,6 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   });
 
   options.workspaceSelect.addEventListener("change", () => {
-    options.onRouteChange?.();
     model = null;
     resetDimCache();
     // Stale results hold closures over the previous model's indices.
@@ -1107,6 +1110,9 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       statusHint();
     }
     syncEmptyState();
+    // After the resets: serialising earlier recorded the new workspace with
+    // the previous selection still attached.
+    options.onRouteChange?.();
   });
 
   // Theme flips repaint the active canvas view.
@@ -1292,6 +1298,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     refresh() {
       activeView?.resize();
     },
+    exitFullscreen() {
+      if (document.fullscreenElement) void document.exitFullscreen();
+      if (fsFallback) exitFsFallback();
+    },
     routeState() {
       return {
         mode,
@@ -1312,7 +1322,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         route.workspace &&
         options.workspaceSelect.value !== route.workspace &&
         Array.from(options.workspaceSelect.options).some(
-          (opt) => opt.value === route.workspace,
+          (opt) => opt.value === route.workspace && !opt.disabled,
         )
       ) {
         options.workspaceSelect.value = route.workspace;
@@ -1363,12 +1373,18 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         setMode(route.mode);
       }
       // Selection last, against the final model.
+      const clearCanvasSelection = (): void => {
+        const handle = options.getClassicHandle();
+        handle?.clearSelection();
+        handle?.clearFocus();
+        renderDossierEmpty();
+      };
       if (route.selected) {
         const idx = ensureModel().indexOfSlug.get(route.selected);
         if (idx !== undefined) focusPackage(idx);
-        else renderDossierEmpty();
+        else clearCanvasSelection();
       } else if (routeSelected !== null) {
-        renderDossierEmpty();
+        clearCanvasSelection();
       }
     },
   };

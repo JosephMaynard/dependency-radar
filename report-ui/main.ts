@@ -3994,6 +3994,7 @@ async function init(): Promise<void> {
     document.body.classList.toggle("graph-mode", !isList);
     currentView = view;
     if (isList) {
+      graphModes?.exitFullscreen();
       graphView?.setActive(false);
       routeSync(true);
       return;
@@ -4169,6 +4170,7 @@ async function init(): Promise<void> {
           graphView?.refreshFilters();
         }
       }
+      applyingRoute = false;
     }
     if (!graphModes || graphModes.mode() === "graph") {
       graphView?.setActive(true);
@@ -4214,6 +4216,7 @@ async function init(): Promise<void> {
   }
 
   function openListFromGraph(slug: string): void {
+    if (depByKey.has(slug)) routeExpandedKey = slug;
     setActiveView("list");
     let target = document.getElementById(getDepDomId(slug));
     if (!target && depByKey.has(slug)) {

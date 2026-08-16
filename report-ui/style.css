@@ -2233,7 +2233,7 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 /* Floating reset for the alternative views (balloon / hyperbolic). */
 .graph-alt-reset {
   position: absolute;
-  z-index: 8;
+  z-index: 10;
   top: calc(var(--graph-toolbar-height, 50px) + 12px);
   right: max(var(--graph-panel-space, 0px), 12px);
   border: 1px solid rgba(100, 116, 139, 0.25);
@@ -3789,7 +3789,8 @@ details[open] > summary .expand-icon {
 /* --- Fullscreen presentation mode -------------------------------------- */
 .graph-fullscreen-btn {
   position: absolute;
-  z-index: 8;
+  /* Above the empty-workspace overlay (z 9), which spans the shell. */
+  z-index: 10;
   bottom: 40px;
   right: max(var(--graph-panel-space, 0px), 12px);
   border: 1px solid rgba(100, 116, 139, 0.25);
@@ -3817,6 +3818,11 @@ details[open] > summary .expand-icon {
    controls, and the exit button. */
 .graph-canvas-shell:fullscreen {
   background: var(--bg-primary);
+}
+
+.graph-canvas-shell.graph-fullscreen {
+  /* The classic view's fit maths reads this var; the panel is hidden. */
+  --graph-panel-space: 0px;
 }
 
 .graph-canvas-shell.graph-fullscreen .graph-overlay-top,

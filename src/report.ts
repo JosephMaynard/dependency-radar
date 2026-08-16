@@ -439,7 +439,7 @@ ${safeCssContent}
                   <span>Sub-Dependency</span>
                 </span>
               <span class="graph-key-item">
-            <span>Circle size &mdash; packages its removal frees</span>
+            <span>Circle size: packages its removal frees</span>
           </span>
           <span class="graph-key-item">
             <span class="graph-key-line route" aria-hidden="true"></span>
