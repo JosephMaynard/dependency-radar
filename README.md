@@ -25,16 +25,16 @@ You can see a [Dependency Radar example report](https://www.dependency-radar.com
 ---
 
 ![Dependency Radar – dependency list view](./docs/screenshot-01.jpg)
-*List view: search, filter, and drill into every dependency, licence, vulnerabilities, install risk, depth, origins, and more.*
+*List view: search, filter, and drill into every dependency, with licence, vulnerabilities, install risk, sub-dependency and removal counts, and more.*
 
 ![Dependency Radar – expanded dependency](./docs/screenshot-03.jpg)
-*Expanded dependency view: scan the key risk signals first, then drill into status, scope, origins, install behaviour, licence, vulnerabilities, and upgrade blockers.*
+*Expanded dependency view: key risk signals first, then status, origins, measured install size, removal preview, licence, vulnerabilities, and upgrade blockers.*
 
 ![Dependency Radar – interactive dependency graph view](./docs/screenshot-02.jpg)
-*Graph view: explore the full dependency tree visually, with a docked side panel for search and per-package details — no tooltips covering the graph.*
+*Graph view: explore the full dependency tree visually. Selecting a package colours the routes that keep it installed in amber and what it depends on in blue, with a docked side panel for search and per-package details.*
 
 ![Dependency Radar – flame view](./docs/screenshot-04.jpg)
-*Flame view: a profiler-style icicle of your dependency tree. Bar width is the share of the tree beneath it, so the heaviest direct dependencies are obvious at a glance.*
+*Flame view: a profiler-style icicle over the dominator tree. Bar width is the number of packages that would leave node_modules if you deleted it, so the heaviest direct dependencies are obvious at a glance.*
 
 ![Dependency Radar – balloon view](./docs/screenshot-05.jpg)
 *Balloon view: every direct dependency is a system orbiting your project, its sub-dependencies fanning out behind it, coloured by lineage.*
@@ -79,6 +79,8 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 
 - **Vulnerability scanning** — runs `npm audit` / `pnpm audit` / `yarn audit` and surfaces advisories with severity, fix availability, installed-version matching, and direct static-import evidence
 - **License analysis** — validates SPDX declarations, infers licences from `LICENSE` files, and flags mismatches, unknown licences, and strong copyleft
+- **Measured install size** and per-package byte buckets (code, type declarations, source maps, other): exact on-disk numbers, never estimates
+- **Removal previews**: for any package, what deleting it would actually free (packages and measured bytes), what survives and who keeps it, and which dependents block a direct dependency's removal
 - **Five interactive graph layouts** — the classic dependency graph plus flame (removal-cost icicle over the dominator tree), treemap (disk-usage style, area = what deleting frees), balloon (orbital constellation), and hyperbolic (focus+context with re-rooting) views, switchable from the graph toolbar, with a shared docked side panel and package search
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
 - **Maintenance signals** — flags deprecated, repo-archived, unmaintained, stale, and slowing dependencies from npm registry metadata (plus repository push activity when available), with a local 7-day cache
@@ -206,7 +208,7 @@ It is recomputed after registry enrichment so a registry-discovered deprecation 
 
 The report's Graph View offers five switchable layouts (toolbar buttons), all sharing the same docked side panel and package search:
 
-- **Graph** — the classic layered dependency graph: pan, zoom, and click a node to focus its ancestors and descendants. Focusing zooms to fit the highlighted subtree.
+- **Graph** — the classic layered dependency graph: pan, zoom, and click a node to focus its ancestors and descendants. Focusing zooms to fit the highlighted subtree and colours the two halves of the story separately: amber for the routes that keep the package installed, accent for what it depends on, with gentle flow pulses along both.
 - **Flame** — a profiler-style icicle plot over the *dominator tree*: every package appears exactly once, and a bar's width is the number of packages that would leave `node_modules` if you deleted it. Packages kept alive by more than one dependency sit in a grey **shared** band — no single dependency gets credit for them. Click a bar to zoom in — every ancestor stays pinned above you; double-click to reset.
 - **Treemap** — the disk-usage view of your dependencies: rectangle area is the number of packages deleting it would free, with the shared block greyed out. Click to inspect, double-click to drill in, double-click the zoomed box to climb back out.
 - **Balloon** — an orbital constellation: the project at the centre, direct dependencies orbiting it, each one's sub-dependencies fanning out behind it recursively. Bodies are sized by how many unique packages sit beneath them. Drag to pan, scroll to zoom, click a body to fly to it.
@@ -214,13 +216,15 @@ The report's Graph View offers five switchable layouts (toolbar buttons), all sh
 
 Shared behaviour:
 
-- **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, how many unique packages sit beneath it, what removing it would actually free, and clickable *depends-on* / *required-by* chips that refocus the current view. For a direct dependency that other packages also pull in, the dossier says so honestly — removing its package.json entry frees nothing while something else still needs it. Search results fly to the package in whichever layout you're using.
+- **Side panel** — selecting a package in any layout shows its dossier: version, kind, licence, vulnerabilities, how many unique packages sit beneath it, what removing it would actually free (packages and measured on-disk bytes, with the full freed/retained preview in the list view), measured install size, import evidence, and clickable *depends-on* / *required-by* chips that refocus the current view. Measured numbers carry small (i) notes explaining exactly what was and was not measured. For a direct dependency that other packages also pull in, the dossier says so honestly — removing its package.json entry frees nothing while something else still needs it. Search results fly to the package in whichever layout you're using.
 - **Status line** — in the flame, treemap, balloon, and hyperbolic views, hovering shows the full trail (`project › a › b › c`) along the bottom of the canvas instead of a popover covering the visualization. The treemap adds a small cursor name tag, since most of its boxes are too small to carry a label.
 - **Colours are lineage** — in Flame and Balloon, each direct dependency's entire subtree keeps one hue, so you can trace which root pulled a package in; red always marks vulnerable packages, and dev-only dependencies render dimmer. The toolbar's **Key** dropdown explains each layout's encoding.
-- **Workspaces** — all layouts respect the workspace selector, scoping the tree to that workspace's direct dependencies.
-- **Filters** — a toolbar dropdown with two sections. *Show* toggles runtime dependencies, dev dependencies, and sub-dependencies, and a depth selector caps how deep the tree is expanded (Depth ≤ 1 shows just your direct dependencies and their children). *Highlight* spotlights the signals worth acting on — vulnerable packages, maintenance concerns (deprecated/archived/unmaintained/stale), community replacement suggestions, licence issues, and upgrade blockers — by dimming everything that doesn't match, in all five layouts. Filters change what renders, never the numbers: the dossier's impact facts always come from the full workspace graph.
+- **Workspaces** — all layouts respect the workspace selector. *Whole project* is the aggregate of every workspace's direct dependencies; the monorepo root's own manifest appears as *name (root package.json)*; and selecting a workspace with nothing to show explains itself with a clickable list of workspaces that do.
+- **Filters** — a toolbar dropdown with two sections. *Show* toggles runtime dependencies, dev dependencies, and sub-dependencies, and a depth selector caps how deep the tree is expanded (Depth ≤ 1 shows just your direct dependencies and their children). *Highlight* spotlights the signals worth acting on — vulnerable packages, maintenance concerns (deprecated/archived/unmaintained/stale), community replacement suggestions, licence issues, upgrade blockers, duplicate installed versions, and direct dependencies with no imports found — by dimming everything that doesn't match, in all five layouts. Filters change what renders, never the numbers: the dossier's impact facts always come from the full workspace graph.
 - **Search doubles as a highlight filter** — while a search query is active, packages whose names don't match render dimmed in every layout, so matches stand out across the whole tree.
 - **Replacement suggestions** — if a selected package has a community replacement suggestion (from the [e18e](https://e18e.dev/) [module-replacements](https://github.com/es-tooling/module-replacements) catalogue), the dossier shows a *swap for …* chip, linking to the migration guidance when the catalogue provides it.
+- **Full screen** — a button in the corner of the canvas hides everything except the visualization, for presentations. Escape or the button exits.
+- **Back, forward, and deep links** — view switches, layout changes, workspace changes, filters, and selections mirror into the URL hash, so the browser's Back/Forward buttons walk your exploration and a copied link reopens the report exactly where you were.
 - **Remembered between sessions** — the chosen layout and filters persist in the browser (like the light/dark theme), so the report reopens the way you left it.
 
 ---
@@ -708,7 +712,7 @@ The JSON schema matches the `AggregatedData` TypeScript interface in `src/types.
 
 ```ts
 export interface AggregatedData {
-  schemaVersion: '1.6'; // Report schema version for compatibility checks
+  schemaVersion: '1.8'; // Report schema version for compatibility checks
   generatedAt: string; // ISO timestamp when the scan finished
   dependencyRadarVersion: string; // CLI version that produced the report
   git: {
@@ -827,6 +831,17 @@ export interface DependencyRecord {
     version: string; // Installed version from npm ls
     description?: string; // Description from the installed package.json (if present)
     fileCount?: number; // Number of files in the installed package folder (excluding nested node_modules)
+    installSize?: {
+      totalBytes: number; // Measured on-disk bytes (uncompressed, excluding nested node_modules)
+      codeBytes: number; // Bytes in JS/TS source files
+      typesBytes: number; // Bytes in .d.ts/.d.mts/.d.cts declaration files
+      mapBytes: number; // Bytes in source maps
+      otherBytes: number; // Everything else (assets, manifests, docs)
+    }; // Omitted when any file could not be read, so partial sums are never presented as measurements
+    platform?: {
+      os?: string[]; // package.json#os constraints (npm ! negations preserved)
+      cpu?: string[]; // package.json#cpu constraints
+    };
     hasBin?: true; // True if package.json declares at least one executable in `bin`
     deprecated: boolean; // True when deprecated on the npm registry (installed or latest version), or via a local package.json deprecated flag
     links: {
