@@ -1886,19 +1886,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       1,
     );
 
-    // Tall graphs fit at a tiny uniform zoom; with fixed 240px columns the
-    // fitted layout became a narrow strip in a wide canvas. Widen the column
-    // gap toward the canvas aspect — but on dense graphs keep the columns
-    // close: the tight edge weave ("the hair") is the feature there, and
-    // huge gaps would stretch it into nothing.
-    const layerCount = Math.max(1, graph.layers.length - 1);
-    const canvasAspect = height > 0 ? Math.max(0.8, width / height) : 1.7;
-    const contentHeight = Math.max(1, maxRows * ROW_GAP);
-    const gapCap = maxRows > 400 ? LAYER_GAP * 1.75 : 1600;
-    graph.layerGap = Math.min(
-      gapCap,
-      Math.max(LAYER_GAP, (contentHeight * canvasAspect * 0.82) / layerCount),
-    );
+    // Fixed column gap: aspect-matched widening was tried and rejected —
+    // it overspread small workspaces and disturbed the focus layout's
+    // familiar geometry. The tight columns ARE the look.
+    graph.layerGap = LAYER_GAP;
 
     graph.bounds = {
       minX: Number.POSITIVE_INFINITY,
@@ -1929,7 +1920,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         const impactFactor = options.getImpactWeight
           ? Math.log(
               Math.max(1, options.getImpactWeight(node.slug, graph.workspaceName)),
-            ) * 0.8
+            ) * 0.6
           : node.depth === 0 && graph.directAll.has(node.slug)
             ? Math.log(node.amplification + 1) * 1.05
             : 0;
