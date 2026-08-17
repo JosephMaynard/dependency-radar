@@ -58,7 +58,7 @@ export function mountBalloonView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Balloon view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+    "Balloon view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
   // Cursor tooltip, as in the treemap/flame views: deep leaves render as
@@ -378,6 +378,7 @@ export function mountBalloonView(
     );
     minScale = Math.min(0.05, scale);
   }
+  const mono = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
   // Screen mapping. The offsets are cached ONCE per frame: usableW()/centreY()
   // read CSS variables via getComputedStyle, and calling them per placement
   // (250k of them on a monorepo) froze every draw for hundreds of ms.
@@ -390,14 +391,9 @@ export function mountBalloonView(
   const sx = (x: number): number => (x - vx) * scale + sxOff;
   const sy = (y: number): number => (y - vy) * scale + syOff;
 
-  function draw(): void {
-    if (!ctx || destroyed) return;
+  function drawScene(g: CanvasRenderingContext2D, hover: number, sel: number): void {
     const theme = cb.theme();
-    syncScreenOffsets();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
     const lodMin = interacting ? 0.9 : 0.35;
-    const mono = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
     // Sub-hub bodies at 20% lightness disappeared into the dark background
     // once zoomed past the dot stage; 27% keeps them clearly present.
     const bodyL = theme.isDark ? [30, 27] : [72, 80];
@@ -440,14 +436,14 @@ export function mountBalloonView(
     }
     for (const [key, seg] of edgeGroups) {
       const [hue, alpha, width] = key.split("|");
-      ctx.lineWidth = Number(width);
-      ctx.strokeStyle = `hsla(${hue} 30% ${theme.isDark ? 62 : 45}% / ${alpha})`;
-      ctx.beginPath();
+      g.lineWidth = Number(width);
+      g.strokeStyle = `hsla(${hue} 30% ${theme.isDark ? 62 : 45}% / ${alpha})`;
+      g.beginPath();
       for (let k = 0; k < seg.length; k += 4) {
-        ctx.moveTo(seg[k], seg[k + 1]);
-        ctx.lineTo(seg[k + 2], seg[k + 3]);
+        g.moveTo(seg[k], seg[k + 1]);
+        g.lineTo(seg[k + 2], seg[k + 3]);
       }
-      ctx.stroke();
+      g.stroke();
     }
 
     // Bodies — hubs keep a minimum screen size like cities on a map, and at
@@ -461,7 +457,7 @@ export function mountBalloonView(
       const r = Math.max(
         pr[i] * scale,
         minR,
-        i === hovered || i === selectedIdx ? 5 : 0,
+        i === hover || i === sel ? 5 : 0,
       );
       if (r < lodMin) continue;
       const x = sx(px[i]);
@@ -470,7 +466,7 @@ export function mountBalloonView(
       const hue = phue[i];
       const id = pid[i];
       const dev = model.isDev[id];
-      const hl = i === hovered || i === selectedIdx;
+      const hl = i === hover || i === sel;
       const dim = !hl && cb.isDimmed(id);
       if (r < 1.3) {
         const key = `${hue}|${dev ? 1 : 0}|${dim ? 1 : 0}`;
@@ -483,34 +479,34 @@ export function mountBalloonView(
         continue;
       }
       const vuln = model.refs[id].vulnerabilitySeverity;
-      if (dim) ctx.globalAlpha = 0.16;
-      ctx.beginPath();
-      ctx.arc(x, y, Math.max(0.01, r), 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${hue} 32% ${pdepth[i] === 0 ? bodyL[0] : bodyL[1]}% / ${dev ? 0.62 : 0.9})`;
-      ctx.fill();
-      ctx.lineWidth = hl ? 1.8 : Math.min(1.4, 0.5 + r * 0.02);
-      ctx.strokeStyle = hl
+      if (dim) g.globalAlpha = 0.16;
+      g.beginPath();
+      g.arc(x, y, Math.max(0.01, r), 0, Math.PI * 2);
+      g.fillStyle = `hsla(${hue} 32% ${pdepth[i] === 0 ? bodyL[0] : bodyL[1]}% / ${dev ? 0.62 : 0.9})`;
+      g.fill();
+      g.lineWidth = hl ? 1.8 : Math.min(1.4, 0.5 + r * 0.02);
+      g.strokeStyle = hl
         ? theme.accent
         : vuln === "high"
           ? theme.vulnHigh
           : vuln === "moderate"
             ? theme.vulnModerate
             : `hsla(${hue} 42% ${strokeL - pdepth[i] * 4}% / 0.9)`;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      g.stroke();
+      g.globalAlpha = 1;
     }
     for (const [key, arr] of dotGroups) {
       const [hue, dev, dim] = key.split("|");
-      ctx.globalAlpha = dim === "1" ? 0.16 : 1;
+      g.globalAlpha = dim === "1" ? 0.16 : 1;
       // Firm enough that sub-2px leaves read as points, not dust.
-      ctx.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev === "1" ? 0.45 : 0.7})`;
-      ctx.beginPath();
+      g.fillStyle = `hsla(${hue} 34% ${theme.isDark ? 58 : 44}% / ${dev === "1" ? 0.45 : 0.7})`;
+      g.beginPath();
       for (let k = 0; k < arr.length; k += 3) {
         const rr = arr[k + 2];
-        ctx.rect(arr[k] - rr / 2, arr[k + 1] - rr / 2, rr, rr);
+        g.rect(arr[k] - rr / 2, arr[k + 1] - rr / 2, rr, rr);
       }
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      g.fill();
+      g.globalAlpha = 1;
     }
 
     // Central body.
@@ -518,40 +514,48 @@ export function mountBalloonView(
       const x = sx(0);
       const y = sy(0);
       const r = Math.max(0.01, CENTER_R * scale);
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = theme.isDark ? "#0d1622" : "#f1f5f9";
-      ctx.fill();
-      ctx.lineWidth = 1.6;
-      ctx.strokeStyle = theme.ink;
-      ctx.stroke();
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fillStyle = theme.isDark ? "#0d1622" : "#f1f5f9";
+      g.fill();
+      g.lineWidth = 1.6;
+      g.strokeStyle = theme.ink;
+      g.stroke();
       if (r > 22) {
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const titleFont = Math.min(15, r * 0.24);
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        let titleFont = Math.min(15, r * 0.24);
         const metaFont = Math.min(11, r * 0.16);
+        // Long workspace names must stay inside the circle.
+        g.font = `600 ${titleFont}px ${mono}`;
+        const titleW = g.measureText(model.centerLabel).width;
+        const maxTitleW = r * 1.7;
+        if (titleW > maxTitleW) {
+          titleFont = (titleFont * maxTitleW) / titleW;
+        }
         // Line gaps follow the (capped) font size, not the radius — zoomed
         // in, the title and stats stay one tight block instead of drifting
-        // toward the poles of the circle.
+        // toward the poles of the circle. Both lines sit symmetrically
+        // around the centre so the block reads as one balanced label.
         const lineGap = metaFont * 1.55;
-        ctx.font = `600 ${titleFont}px ${mono}`;
-        ctx.fillStyle = theme.panelText;
-        ctx.fillText(model.projectName, x, y - lineGap);
-        ctx.font = `600 ${metaFont}px ${mono}`;
-        ctx.fillStyle = theme.panelText;
-        ctx.fillText(
+        g.font = `600 ${titleFont}px ${mono}`;
+        g.fillStyle = theme.panelText;
+        g.fillText(model.centerLabel, x, y - lineGap * 0.6);
+        g.font = `600 ${metaFont}px ${mono}`;
+        g.fillStyle = theme.panelText;
+        g.fillText(
           `${model.count.toLocaleString()} package${model.count === 1 ? "" : "s"}`,
           x,
-          y + lineGap * 0.35,
+          y + lineGap * 0.6,
         );
 
-        ctx.textAlign = "left";
+        g.textAlign = "left";
       }
     }
 
     // Labels — satellite style, biggest-on-screen-first budget.
     if (!interacting) {
-      ctx.textBaseline = "middle";
+      g.textBaseline = "middle";
       const candidates: Array<{ i: number; r: number }> = [];
       for (let i = 0; i < COUNT; i += 1) {
         const r = Math.max(pr[i] * scale, pdepth[i] === 0 ? hubFloor : 0);
@@ -559,7 +563,7 @@ export function mountBalloonView(
         // the general threshold; collision pruning keeps the count sane.
         if (r < (pdepth[i] === 0 ? Math.min(7.5, hubFloor) : 7.5)) continue;
         // A live name filter hands the label budget to the matches.
-        if (cb.isDimmed(pid[i]) && i !== hovered && i !== selectedIdx) continue;
+        if (cb.isDimmed(pid[i]) && i !== hover && i !== sel) continue;
         const x = sx(px[i]);
         const y = sy(py[i]);
         if (x < -220 || x > W + 40 || y < -40 || y > H + 40) continue;
@@ -568,7 +572,7 @@ export function mountBalloonView(
       candidates.sort((a, b) => b.r - a.r);
       const placed: Array<[number, number, number, number]> = [];
       let labelsDrawn = 0;
-      ctx.font = `600 10.5px ${mono}`;
+      g.font = `600 10.5px ${mono}`;
       for (const { i, r } of candidates) {
         if (labelsDrawn >= 110) break;
         const x = sx(px[i]);
@@ -585,10 +589,10 @@ export function mountBalloonView(
           ...(fanOut > 0 ? [`\u2193${fanOut.toLocaleString()}`] : []),
         ].join(" ");
         // The collision box must cover BOTH lines — either can be wider.
-        const nameW = ctx.measureText(name).width;
-        ctx.font = `10px ${mono}`;
-        const countW = countText ? ctx.measureText(countText).width : 0;
-        ctx.font = `600 10.5px ${mono}`;
+        const nameW = g.measureText(name).width;
+        g.font = `10px ${mono}`;
+        const countW = countText ? g.measureText(countText).width : 0;
+        g.font = `600 10.5px ${mono}`;
         const w = Math.max(nameW, countW);
         const x0 = x + r + 5;
         const y0 = y - 14;
@@ -603,24 +607,106 @@ export function mountBalloonView(
             break;
           }
         }
-        if (collides && i !== hovered && i !== selectedIdx) continue;
+        if (collides && i !== hover && i !== sel) continue;
         placed.push([x0, y0, x1, y1]);
         labelsDrawn += 1;
-        ctx.font = `600 10.5px ${mono}`;
-        ctx.fillStyle =
-          i === hovered || i === selectedIdx
+        g.font = `600 10.5px ${mono}`;
+        g.fillStyle =
+          i === hover || i === sel
             ? theme.accent
             : theme.isDark
               ? "#aabdd0"
               : "#3f5266";
-        ctx.fillText(name, x0, y - 6);
+        g.fillText(name, x0, y - 6);
         if (countText) {
-          ctx.font = `10px ${mono}`;
-          ctx.fillStyle = theme.muted;
-          ctx.fillText(countText, x0, y + 7);
+          g.font = `10px ${mono}`;
+          g.fillStyle = theme.muted;
+          g.fillText(countText, x0, y + 7);
         }
       }
     }
+  }
+
+  /** Hover/selection ring + accent label drawn over the cached base scene. */
+  function drawNodeOverlay(
+    g: CanvasRenderingContext2D,
+    i: number,
+    theme: ReturnType<VizCallbacks["theme"]>,
+  ): void {
+    const x = sx(px[i]);
+    const y = sy(py[i]);
+    const minR = pdepth[i] === 0 ? hubFloor : pdepth[i] === 1 ? 2.4 : 0.85;
+    const r = Math.max(pr[i] * scale, minR, 5);
+    const id = pid[i];
+    const bodyL = theme.isDark ? [30, 27] : [72, 80];
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fillStyle = `hsla(${phue[i]} 32% ${pdepth[i] === 0 ? bodyL[0] : bodyL[1]}% / ${model.isDev[id] ? 0.62 : 0.9})`;
+    g.fill();
+    g.lineWidth = 1.8;
+    g.strokeStyle = theme.accent;
+    g.stroke();
+    g.textBaseline = "middle";
+    g.font = `600 10.5px ${mono}`;
+    g.fillStyle = theme.accent;
+    const x0 = x + r + 5;
+    g.fillText(model.refs[id].name, x0, y - 6);
+    const fanIn = model.depsIn[id].length;
+    const fanOut = model.depsOut[id].length;
+    const countText = [
+      ...(fanIn > 0 ? [`\u2191${fanIn.toLocaleString()}`] : []),
+      ...(fanOut > 0 ? [`\u2193${fanOut.toLocaleString()}`] : []),
+    ].join(" ");
+    if (countText) {
+      g.font = `10px ${mono}`;
+      g.fillStyle = theme.muted;
+      g.fillText(countText, x0, y + 7);
+    }
+  }
+
+  // Hover changes blit a cached base scene and redraw only the highlighted
+  // node — repainting every body, edge, and label per mouse move cost ~90ms
+  // a frame on monorepo-scale graphs. Camera moves (pan/zoom/fly) keep the
+  // direct interaction-LOD path, which is already cheap.
+  const baseLayer = document.createElement("canvas");
+  let baseKey = "";
+  function invalidateBase(): void {
+    baseKey = "";
+  }
+
+  function draw(): void {
+    if (!ctx || destroyed) return;
+    // A hidden host measures 0x0; drawImage from a 0x0 canvas throws.
+    if (W <= 0 || H <= 0) return;
+    syncScreenOffsets();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (interacting) {
+      baseKey = "";
+      drawScene(ctx, hovered, selectedIdx);
+      return;
+    }
+    const theme = cb.theme();
+    const key = `${vx}|${vy}|${scale}|${W}|${H}|${dpr}|${theme.isDark}`;
+    if (key !== baseKey) {
+      baseLayer.width = W * dpr;
+      baseLayer.height = H * dpr;
+      const bctx = baseLayer.getContext("2d");
+      if (!bctx) {
+        drawScene(ctx, hovered, selectedIdx);
+        return;
+      }
+      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bctx.clearRect(0, 0, W, H);
+      drawScene(bctx, -1, -1);
+      baseKey = key;
+    }
+    // Identity-transform blit: no resampling even at fractional dpr.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(baseLayer, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (selectedIdx >= 0 && selectedIdx !== hovered) drawNodeOverlay(ctx, selectedIdx, theme);
+    if (hovered >= 0) drawNodeOverlay(ctx, hovered, theme);
   }
 
   function pickAt(mx: number, my: number): number {
@@ -696,7 +782,9 @@ export function mountBalloonView(
     const id = pid[i];
     const count = model.uniqueCount(id);
     tip.textContent =
-      count > 1 ? `${model.refs[id].name} · ${count.toLocaleString()}` : model.refs[id].name;
+      count > 1
+        ? `${model.refs[id].name} · ${count.toLocaleString()} in subtree`
+        : model.refs[id].name;
     tip.hidden = false;
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
@@ -876,6 +964,7 @@ export function mountBalloonView(
     canvas.style.height = `${H}px`;
     // Pure repaints (theme flips, tab re-entry) must not wipe pan/zoom.
     if (dimsChanged) fitView();
+    invalidateBase(); // dim/theme repaints arrive with unchanged camera keys
     draw();
   }
   window.addEventListener("resize", resize, { signal });

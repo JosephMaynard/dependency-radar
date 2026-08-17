@@ -69,6 +69,17 @@ export interface DependencyRecord {
     version: string;
     description?: string;
     fileCount?: number;
+    installSize?: {
+      totalBytes: number;
+      codeBytes: number;
+      typesBytes: number;
+      mapBytes: number;
+      otherBytes: number;
+    };
+    platform?: {
+      os?: string[];
+      cpu?: string[];
+    };
     hasBin?: true;
     deprecated: boolean;
     links: {
@@ -201,7 +212,7 @@ export type MaintenanceStatus =
   | 'unknown';
 
 export interface AggregatedData {
-  schemaVersion: '1.2' | '1.3' | '1.4' | '1.5' | '1.6' | '1.7';
+  schemaVersion: '1.2' | '1.3' | '1.4' | '1.5' | '1.6' | '1.7' | '1.8';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

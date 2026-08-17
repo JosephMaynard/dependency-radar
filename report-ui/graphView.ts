@@ -21,6 +21,9 @@ export type GraphDependency = {
 export type GraphDataset = {
   workspaces: GraphWorkspace[];
   dependencies: Record<string, GraphDependency>;
+  /** Workspace name of the monorepo root package itself (relativePath "."),
+   *  when the root manifest declares dependencies of its own. */
+  rootPackageWorkspace?: string;
 };
 
 type GraphNodeKind = "direct-runtime" | "direct-dev" | "transitive";
@@ -56,6 +59,9 @@ type GraphEdge = {
 
 type WorkspaceGraph = {
   workspaceName: string;
+  /** Column gap used by layoutGraph — widened on tall graphs so the fitted
+   *  layout matches the canvas aspect instead of a narrow strip. */
+  layerGap: number;
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
   layers: string[][];
@@ -79,14 +85,10 @@ export type GraphViewOptions = {
   controlsRoot: HTMLElement;
   canvas: HTMLCanvasElement;
   canvasHost: HTMLElement;
-  popover: HTMLElement;
-  popoverName: HTMLElement;
-  popoverVersion: HTMLElement;
-  popoverLicense: HTMLElement;
-  popoverVulns: HTMLElement;
-  popoverAmplification: HTMLElement;
-  popoverOpenButton: HTMLButtonElement;
   onOpenList: (slug: string) => void;
+  /** Packages this node's deletion would free (dominator subtree size) —
+   *  used for subtle impact-aware node sizing. */
+  getImpactWeight?: (slug: string, workspaceName: string) => number;
   // Fired whenever the selected node changes (null on deselect), so the
   // docked side panel can render its dossier for the classic graph view too.
   onSelect?: (slug: string | null) => void;
@@ -109,8 +111,8 @@ export type GraphViewHandle = {
   renderLoop: () => void;
   applyFocus: (slug: string) => void;
   clearFocus: () => void;
-  showPopover: (slug: string) => void;
-  hidePopover: () => void;
+  select: (slug: string) => void;
+  clearSelection: () => void;
   switchWorkspace: (name: string) => void;
   /** Rebuild the current workspace graph after a filter change. */
   refreshFilters: () => void;
@@ -913,6 +915,12 @@ export function adaptDataset(
   };
 
   ensureWorkspace("root");
+  // The monorepo ROOT package (relativePath ".") keeps its own workspace
+  // entry (labelled "(root package.json)" in the selector) so its manifest
+  // can be inspected alone; "root" is the whole-project aggregate.
+  const rootPackageName = (report.workspaces.workspacePackages || []).find(
+    (workspace) => workspace.relativePath === ".",
+  )?.name;
   (report.workspaces.workspacePackages || []).forEach((workspace) => {
     ensureWorkspace(workspace.name);
   });
@@ -933,6 +941,26 @@ export function adaptDataset(
     });
   });
 
+  // "root" is the whole-project view: the union of every workspace's
+  // directs, including the root manifest's own. (It used to hold only
+  // unattributed deps, leaving the root view to a parentless-package
+  // fallback that silently capped at 40 roots.)
+  const rootWorkspace = ensureWorkspace("root");
+  for (const [name, deps] of workspaceMap) {
+    if (name === "root") continue;
+    deps.directDependencies.forEach((slug) =>
+      rootWorkspace.directDependencies.add(slug),
+    );
+    deps.directDevDependencies.forEach((slug) =>
+      rootWorkspace.directDevDependencies.add(slug),
+    );
+  }
+  // A dep that is runtime somewhere and dev elsewhere counts as runtime in
+  // the aggregate.
+  rootWorkspace.directDependencies.forEach((slug) =>
+    rootWorkspace.directDevDependencies.delete(slug),
+  );
+
   const workspaces: GraphWorkspace[] = [...workspaceMap.entries()]
     .map(([name, deps]) => ({
       name,
@@ -941,7 +969,11 @@ export function adaptDataset(
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return { workspaces, dependencies };
+  return {
+    workspaces,
+    dependencies,
+    ...(rootPackageName ? { rootPackageWorkspace: rootPackageName } : {}),
+  };
 }
 
 /**
@@ -950,8 +982,8 @@ export function adaptDataset(
  * Initializes internal dataset adaptation, event handlers, rendering loop, and UI bindings and returns a handle
  * that allows programmatic control of the view and its lifecycle.
  *
- * @param options - Configuration and DOM element references required to render and control the graph view (canvas, host, controls, popover elements, dataset/report and related callbacks).
- * @returns A GraphViewHandle exposing methods to initialize and control the view (for example: `initGraphView`, `buildWorkspaceGraph`, `computeAmplification`, `layoutGraph`, `renderLoop`, `applyFocus`, `clearFocus`, `showPopover`, `hidePopover`, `switchWorkspace`, `setActive`, `requestRender`).
+ * @param options - Configuration and DOM element references required to render and control the graph view (canvas, host, controls, dataset/report and related callbacks).
+ * @returns A GraphViewHandle exposing methods to initialize and control the view (for example: `initGraphView`, `buildWorkspaceGraph`, `computeAmplification`, `layoutGraph`, `renderLoop`, `applyFocus`, `clearFocus`, `select`, `clearSelection`, `switchWorkspace`, `setActive`, `requestRender`).
  */
 export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   const dataset = adaptDataset(
@@ -986,13 +1018,34 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let hoverSlug: string | null = null;
   let focusNodes = new Set<string>();
   let focusEdges = new Set<string>();
+  /** Ancestor-side focus edges (routes keeping the selection installed). */
+  let focusUpEdges = new Set<string>();
+  /** Descendant-side focus edges (what the selection depends on). */
+  let focusDownEdges = new Set<string>();
+  /** Phase for the flow pulses along focus edges (reduced-motion aware). */
+  let flowPhase = 0;
+  let flowTimer = 0;
+  function syncFlowTimer(): void {
+    const shouldRun =
+      active && focusSlug !== null && !(reducedMotionQuery?.matches ?? false);
+    if (shouldRun && flowTimer === 0) {
+      flowTimer = window.setInterval(() => {
+        flowPhase = (flowPhase + 1.1) % 10_000;
+        dirty = true;
+        requestRender();
+      }, 90);
+    } else if (!shouldRun && flowTimer !== 0) {
+      window.clearInterval(flowTimer);
+      flowTimer = 0;
+    }
+  }
   let focusPushNodes = new Set<string>();
   let focusLayoutTargets = new Map<string, FocusLayoutPoint>();
   let focusCenterX: number | null = null;
   let focusCenterY: number | null = null;
   let hoverNodes = new Set<string>();
   let hoverEdges = new Set<string>();
-  let popoverSlug: string | null = null;
+  let selectedSlug: string | null = null;
 
   let zoom = 1;
   let panX = 0;
@@ -1059,6 +1112,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     typeof window.matchMedia === "function"
       ? window.matchMedia("(prefers-reduced-motion: reduce)")
       : null;
+  reducedMotionQuery?.addEventListener?.("change", () => syncFlowTimer());
   let themeColors: ThemeColors = {
     runtime: "#10b981",
     runtimeHighlight: "#34d399",
@@ -1589,7 +1643,14 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     const roots = new Set<string>([...directRuntime, ...directDev]);
     const unfilteredDirectCount =
       workspace.directDependencies.length + workspace.directDevDependencies.length;
-    if (roots.size === 0 && unfilteredDirectCount === 0) {
+    // Parentless-package fallback for the ROOT workspace only, matching
+    // vizModel: an empty named workspace stays empty (the empty-workspace
+    // screen explains it) instead of borrowing the root's packages.
+    if (
+      roots.size === 0 &&
+      unfilteredDirectCount === 0 &&
+      workspace.name === "root"
+    ) {
       Object.keys(dataset.dependencies)
         .filter((slug) => (parentsBySlug.get(slug) || []).length === 0)
         .slice(0, 40)
@@ -1721,6 +1782,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const graph: WorkspaceGraph = {
       workspaceName: name,
+      layerGap: LAYER_GAP,
       nodes,
       edges,
       layers,
@@ -1832,6 +1894,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       1,
     );
 
+    // Fixed column gap: aspect-matched widening was tried and rejected —
+    // it overspread small workspaces and disturbed the focus layout's
+    // familiar geometry. The tight columns ARE the look.
+    graph.layerGap = LAYER_GAP;
+
     graph.bounds = {
       minX: Number.POSITIVE_INFINITY,
       maxX: Number.NEGATIVE_INFINITY,
@@ -1846,7 +1913,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         const node = graph.nodes.get(slug);
         if (!node) return;
         node.order = index;
-        node.baseX = PADDING_X + depth * LAYER_GAP;
+        node.baseX = PADDING_X + depth * graph.layerGap;
         node.baseY = top + index * ROW_GAP;
         node.targetX = node.baseX;
         node.targetY = node.baseY;
@@ -1855,11 +1922,17 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
         const relationshipFactor =
           Math.log(node.children.size + node.parents.size + 1) * 0.55;
-        const amplificationFactor =
-          node.depth === 0 && graph.directAll.has(node.slug)
+        // Subtle impact-aware sizing: what deleting the node frees
+        // (dominator subtree), log-compressed so hubs read slightly
+        // heavier without ballooning.
+        const impactFactor = options.getImpactWeight
+          ? Math.log(
+              Math.max(1, options.getImpactWeight(node.slug, graph.workspaceName)),
+            ) * 0.6
+          : node.depth === 0 && graph.directAll.has(node.slug)
             ? Math.log(node.amplification + 1) * 1.05
             : 0;
-        node.radius = 6.7 + relationshipFactor + amplificationFactor;
+        node.radius = 6.7 + relationshipFactor + impactFactor;
         node.targetRadius = node.radius;
         node.renderRadius = node.radius;
         node.targetLabelChars = targetGraphLabelChars(node.labelGraphemes);
@@ -2016,7 +2089,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    *
    * Stops any inertia, builds the sets of focused nodes (ancestors, descendants, and the node itself),
    * focused edges (ancestor and descendant edge chains), and focus push nodes (focused set plus direct
-   * neighbors). Preserves the existing focus center when the previously opened popover node remains
+   * neighbors). Preserves the existing focus center when the previously selected node remains
    * within the new focus set; otherwise centers on the selected node. Computes focus layout targets,
    * fits the viewport to the focused subtree's bounding box, marks the view dirty, and requests a render.
    *
@@ -2026,6 +2099,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (!currentGraph || !currentGraph.nodes.has(slug)) return;
     stopInertia();
     focusSlug = slug;
+    focusUpEdges = new Set();
+    focusDownEdges = new Set();
     const ancestors = collectAncestors(currentGraph, slug);
     const descendants = collectDescendants(currentGraph, slug);
 
@@ -2048,6 +2123,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (!node) continue;
       node.parents.forEach((parent) => {
         focusEdges.add(edgeKey(parent, current));
+        focusUpEdges.add(edgeKey(parent, current));
         if (ancestorSeen.has(parent)) return;
         ancestorSeen.add(parent);
         ancestorStack.push(parent);
@@ -2063,6 +2139,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       if (!node) continue;
       node.children.forEach((child) => {
         focusEdges.add(edgeKey(current, child));
+        focusDownEdges.add(edgeKey(current, child));
         if (descendantSeen.has(child)) return;
         descendantSeen.add(child);
         descendantStack.push(child);
@@ -2070,6 +2147,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
 
     focusPushNodes = new Set(focusNodes);
+    syncFlowTimer();
     const selected = currentGraph.nodes.get(slug)!;
     selected.parents.forEach((nodeSlug) => {
       focusPushNodes.add(nodeSlug);
@@ -2080,7 +2158,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
 
     const firstFocus = focusCenterX === null || focusCenterY === null;
     const previousFocusStillConnected =
-      !firstFocus && popoverSlug !== null && focusNodes.has(popoverSlug);
+      !firstFocus && selectedSlug !== null && focusNodes.has(selectedSlug);
     if (firstFocus || !previousFocusStillConnected) {
       focusCenterX = selected.renderX;
       focusCenterY = selected.renderY;
@@ -2111,6 +2189,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     focusSlug = null;
     focusNodes = new Set();
     focusEdges = new Set();
+    focusUpEdges = new Set();
+    focusDownEdges = new Set();
+    syncFlowTimer();
     focusPushNodes = new Set();
     focusLayoutTargets = new Map();
     focusCenterX = null;
@@ -2248,58 +2329,20 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     requestRender();
   }
 
-  function showPopover(slug: string): void {
-    if (!currentGraph) return;
-    const node = currentGraph.nodes.get(slug);
-    if (!node) return;
-    const isDirect = node.depth === 0 && currentGraph.directAll.has(node.slug);
-    popoverSlug = slug;
-    options.popoverName.textContent = node.ref.name;
-    options.popoverVersion.textContent = `Version: ${node.ref.version}`;
-    options.popoverLicense.textContent = `License: ${node.ref.license || "Unknown"}`;
-    options.popoverVulns.textContent = `Vulnerabilities: ${node.ref.vulnerabilityCount || 0}`;
-    if (isDirect) {
-      options.popoverAmplification.textContent = `Amplification: ${node.amplification}`;
-    } else {
-      options.popoverAmplification.textContent = `Dependencies: ${node.children.size} • Dependents: ${node.parents.size}`;
-    }
-    options.popover.hidden = false;
-    updatePopoverPosition();
+  function select(slug: string): void {
+    if (!currentGraph || !currentGraph.nodes.has(slug)) return;
+    selectedSlug = slug;
+    dirty = true;
+    requestRender();
     options.onSelect?.(slug);
   }
 
-  function hidePopover(): void {
-    const hadSelection = popoverSlug !== null;
-    popoverSlug = null;
-    options.popover.hidden = true;
+  function clearSelection(): void {
+    const hadSelection = selectedSlug !== null;
+    selectedSlug = null;
+    dirty = true;
+    requestRender();
     if (hadSelection) options.onSelect?.(null);
-  }
-
-  function updatePopoverPosition(): void {
-    // The popover element is retained (though CSS-hidden) because showPopover
-    // drives options.onSelect for the docked dossier; skip layout work when
-    // it is not actually rendered.
-    if (!currentGraph || !popoverSlug || options.popover.hidden) return;
-    if (options.popover.offsetParent === null) return;
-    const node = currentGraph.nodes.get(popoverSlug);
-    if (!node) {
-      hidePopover();
-      return;
-    }
-
-    const x = node.renderX * zoom + panX;
-    const y = node.renderY * zoom + panY;
-
-    const hostRect = options.canvasHost.getBoundingClientRect();
-    const popoverRect = options.popover.getBoundingClientRect();
-    const maxLeft = Math.max(8, hostRect.width - popoverRect.width - 8);
-    const maxTop = Math.max(8, hostRect.height - popoverRect.height - 8);
-
-    const left = clamp(x + 14, 8, maxLeft);
-    const top = clamp(y + 14, 8, maxTop);
-
-    options.popover.style.left = `${left}px`;
-    options.popover.style.top = `${top}px`;
   }
 
   function nodeOpacity(slug: string): number {
@@ -2345,7 +2388,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   /**
    * Renders the active workspace dependency graph onto the canvas using the current pan, zoom, theme, and interaction state.
    *
-   * Clears the canvas, culls nodes outside the viewport, sorts and routes edges, and draws muted and highlighted edges, node bodies, vulnerability rings, and labels in the correct visual stacking order. Also updates the popover position after drawing.
+   * Clears the canvas, culls nodes outside the viewport, sorts and routes edges, and draws muted and highlighted edges, node bodies, vulnerability rings, and labels in the correct visual stacking order.
    */
   function renderGraph(): void {
     if (!context) return;
@@ -2422,7 +2465,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       detourInset: DETOUR_INSET,
       detourNodeClearance: DETOUR_NODE_CLEARANCE,
       paddingX: PADDING_X,
-      layerGap: LAYER_GAP,
+      layerGap: graph.layerGap,
       edgeCurve: EDGE_CURVE,
     };
 
@@ -2461,16 +2504,52 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     });
     context.stroke();
 
+    // With a selection, the two halves of the focus cone answer different
+    // questions and get different colours (parity with the hyperbolic view):
+    // amber = the routes that keep it installed, accent = what it depends on.
+    const routeColor =
+      document.documentElement.getAttribute("data-theme") === "light"
+        ? "#d97706"
+        : "#f59e0b";
+    const upSelected = (edge: RenderEdge): boolean =>
+      focusSlug !== null && focusUpEdges.has(edgeKey(edge.from.slug, edge.to.slug));
     context.globalCompositeOperation = "lighter";
-    context.strokeStyle = colorHighlight;
     context.lineWidth = 1.2;
     context.globalAlpha = highlightedEdgeOpacity();
-    context.beginPath();
-    renderEdges.forEach((edge) => {
-      if (!edge.highlighted) return;
-      drawGraphEdge(context, edge, edgeRoutingConfig, Boolean(focusSlug));
-    });
-    context.stroke();
+    for (const pass of ["down", "up"] as const) {
+      context.strokeStyle =
+        pass === "up" && focusSlug ? routeColor : colorHighlight;
+      context.beginPath();
+      renderEdges.forEach((edge) => {
+        if (!edge.highlighted) return;
+        if (focusSlug && (pass === "up") !== upSelected(edge)) return;
+        if (!focusSlug && pass === "up") return;
+        drawGraphEdge(context, edge, edgeRoutingConfig, Boolean(focusSlug));
+      });
+      context.stroke();
+    }
+    // Gentle flow pulses along the focus edges: outward on dependency
+    // links, homeward on the routes to the project (skipped under
+    // prefers-reduced-motion — the timer never runs there).
+    if (focusSlug && flowTimer !== 0) {
+      context.save();
+      context.lineCap = "round";
+      context.setLineDash([2.5, 24]);
+      context.lineWidth = 1.9;
+      context.globalAlpha = 0.8;
+      context.lineDashOffset = -flowPhase;
+      for (const pass of ["down", "up"] as const) {
+        context.strokeStyle = pass === "up" ? routeColor : colorHighlight;
+        context.beginPath();
+        renderEdges.forEach((edge) => {
+          if (!edge.highlighted) return;
+          if ((pass === "up") !== upSelected(edge)) return;
+          drawGraphEdge(context, edge, edgeRoutingConfig, true);
+        });
+        context.stroke();
+      }
+      context.restore();
+    }
 
     context.globalCompositeOperation = "source-over";
 
@@ -2630,7 +2709,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     });
 
     context.globalAlpha = 1;
-    updatePopoverPosition();
   }
 
   /**
@@ -2674,7 +2752,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   /**
    * Activate the workspace with the given name and update the view to reflect it.
    *
-   * Stops any active inertia, rebuilds the workspace graph, resets focus and hover state, hides the popover,
+   * Stops any active inertia, rebuilds the workspace graph, resets focus, hover, and selection state,
    * fits the graph to the viewport, and schedules a render for the newly active workspace.
    *
    * @param name - The workspace name to switch to
@@ -2686,7 +2764,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     currentWorkspace = name;
     currentGraph = graph;
     clearFocus();
-    hidePopover();
+    clearSelection();
     hoverSlug = null;
     hoverNodes = new Set();
     hoverEdges = new Set();
@@ -2752,7 +2830,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   }
 
   /**
-   * Finalize a window-level mouseup: end a pan (starting inertia when moved) or treat it as a click to update hover, focus, and the popover.
+   * Finalize a window-level mouseup: end a pan (starting inertia when moved) or treat it as a click to update hover, focus, and selection.
    *
    * @param event - The MouseEvent from the window used to determine client coordinates and whether the interaction was a pan or a click
    */
@@ -2777,12 +2855,12 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     if (!node) {
       clearHover(false);
       clearFocus();
-      hidePopover();
+      clearSelection();
       return;
     }
 
     applyFocus(node.slug);
-    showPopover(node.slug);
+    select(node.slug);
   }
 
   /**
@@ -2912,7 +2990,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    *
    * If the touch sequence was canceled, stops any inertial panning, resets interaction visuals, and clears touch anchors.
    * If all touches ended: resets interaction visuals and anchors; if no pan movement occurred and a single touch ended,
-   * performs a hit test to either focus and show the node popover or clear hover/focus/popover; if pan movement occurred,
+   * performs a hit test to either focus and select the node or clear hover/focus/selection; if pan movement occurred,
    * initiates inertial panning.
    * If the interaction transitions from a multi-touch pinch to a single-touch pan, updates the touch start/pan anchors
    * and resets the inertia sampling for continued panning.
@@ -2946,10 +3024,10 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
         if (!node) {
           clearHover(false);
           clearFocus();
-          hidePopover();
+          clearSelection();
         } else {
           applyFocus(node.slug);
-          showPopover(node.slug);
+          select(node.slug);
         }
       } else if (panState.moved) {
         startInertia();
@@ -2974,15 +3052,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     resetInteractionVisualState();
   }
 
-  function handleDocumentMouseDown(event: MouseEvent): void {
-    if (!active) return;
-    const target = event.target as Node;
-    if (options.popover.hidden) return;
-    if (options.popover.contains(target)) return;
-    if (options.canvasHost.contains(target)) return;
-    hidePopover();
-  }
-
   function bindInteractionListeners(): void {
     if (interactionsBound || !hasCanvas) return;
     options.canvas.addEventListener("mousedown", handleCanvasMouseDown);
@@ -2999,7 +3068,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     window.addEventListener("touchcancel", handleTouchEnd, { passive: false });
 
     options.canvas.addEventListener("mouseleave", handleCanvasMouseLeave);
-    document.addEventListener("mousedown", handleDocumentMouseDown);
     interactionsBound = true;
   }
 
@@ -3024,7 +3092,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     window.removeEventListener("touchcancel", handleTouchEnd);
 
     options.canvas.removeEventListener("mouseleave", handleCanvasMouseLeave);
-    document.removeEventListener("mousedown", handleDocumentMouseDown);
     resetInteractionVisualState(true);
     panState.down = false;
     panState.moved = false;
@@ -3040,7 +3107,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    *
    * Recognizes buttons with a `data-action` attribute and performs: "zoom-in", "zoom-out",
    * "pan-left", "pan-right", "pan-up", "pan-down", and "reset" (which restores zoom/pan,
-   * clears focus, hides the popover, and stops inertia).
+   * clears focus and selection, and stops inertia).
    *
    * @param event - The click MouseEvent originating from the controls container
    */
@@ -3079,14 +3146,9 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       zoom = fitZoom;
       setPan(defaultPanX, defaultPanY);
       clearFocus();
-      hidePopover();
+      clearSelection();
       requestRender();
     }
-  }
-
-  function handlePopoverOpenClick(): void {
-    if (!popoverSlug) return;
-    options.onOpenList(popoverSlug);
   }
 
   function handleWorkspaceSelectChange(): void {
@@ -3117,7 +3179,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
     if (!controlsBound) {
       options.controlsRoot.addEventListener("click", handleControlsClick);
-      options.popoverOpenButton.addEventListener("click", handlePopoverOpenClick);
       controlsBound = true;
     }
   }
@@ -3187,7 +3248,11 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       const option = document.createElement("option");
       option.value = workspace.name;
       option.textContent =
-        workspace.name === "root" ? "Workspace root" : workspace.name;
+        workspace.name === "root"
+          ? "Whole project"
+          : workspace.name === dataset.rootPackageWorkspace
+            ? `${workspace.name} (root package.json)`
+            : workspace.name;
       options.workspaceSelect.appendChild(option);
 
       if (
@@ -3234,6 +3299,7 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
    */
   function setActive(next: boolean): void {
     active = next;
+    syncFlowTimer();
     if (active) {
       if (!hasCanvas) {
         showCanvasFallback();
@@ -3266,8 +3332,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     renderLoop,
     applyFocus,
     clearFocus,
-    showPopover,
-    hidePopover,
+    select,
+    clearSelection,
     switchWorkspace,
     refreshFilters,
     setActive,

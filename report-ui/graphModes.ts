@@ -1,5 +1,6 @@
 import type { GraphDataset, GraphViewHandle } from "./graphView";
 import type { GraphFilters, VizHandle, VizModel } from "./vizModel";
+import { FINE_PRINT } from "./finePrint";
 import {
   buildVizModel,
   DEFAULT_GRAPH_FILTERS,
@@ -35,7 +36,9 @@ export type HighlightKind =
   | "maintenance"
   | "replacement"
   | "license"
-  | "blocker";
+  | "blocker"
+  | "unused"
+  | "duplicate";
 
 const HIGHLIGHT_KINDS: HighlightKind[] = [
   "vuln",
@@ -43,6 +46,8 @@ const HIGHLIGHT_KINDS: HighlightKind[] = [
   "replacement",
   "license",
   "blocker",
+  "unused",
+  "duplicate",
 ];
 
 const MODE_HINTS: Record<GraphMode, string> = {
@@ -82,13 +87,44 @@ export interface GraphModesOptions {
   } | null;
   /** Whether the package matches a highlight signal (from the full report). */
   highlightMatch?: (slug: string, kind: HighlightKind) => boolean;
+  /** Extra per-package facts derived from the full report record. */
+  getPackageExtras?: (slug: string) => {
+    sizeBytes?: number;
+    codeBytes?: number;
+    platformNote?: string;
+    phantom?: boolean;
+    importFileCount?: number;
+  };
   getClassicHandle: () => GraphViewHandle | null;
   onOpenList: (slug: string) => void;
+  /** Shared default-filters model cache (also used by the list view), so
+   *  removal-simulation memos are shared across views. */
+  getSharedModel?: (workspace: string) => VizModel;
+  /** Notify the hash router that user-visible graph state changed. */
+  onRouteChange?: () => void;
+}
+
+/** Serializable graph state for the hash router. */
+export interface GraphRoute {
+  mode: GraphMode;
+  workspace: string;
+  selected: string | null;
+  highlights: string[];
+  runtime: boolean;
+  dev: boolean;
+  sub: boolean;
+  depth: number | null;
 }
 
 export interface GraphModesHandle {
   /** Current mode. */
   mode(): GraphMode;
+  /** Current serializable state for the hash router. */
+  routeState(): GraphRoute;
+  /** Restore a previously serialized state (history navigation). */
+  applyRoute(route: GraphRoute): void;
+  /** Leave fullscreen (native or fallback), e.g. when switching views. */
+  exitFullscreen(): void;
   /** Selection relay from the classic graph view. */
   handleClassicSelect(slug: string | null): void;
   /** Current display filters, shared with the classic graph view. */
@@ -111,6 +147,13 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
   /** Active highlight signals: non-matching packages render dimmed. */
   const highlights = new Set<HighlightKind>();
+  /** A highlight can be restored only when its evidence exists — main.ts
+   *  disables the chip when a collector was skipped or incomplete. */
+  const highlightAvailable = (kind: HighlightKind): boolean =>
+    !(document.getElementById(`graph-hl-${kind}`) as HTMLButtonElement | null)
+      ?.disabled;
+  /** Slug of the package currently in the dossier (for the hash router). */
+  let routeSelected: string | null = null;
   try {
     const raw = localStorage.getItem(FILTER_STORE_KEY);
     if (raw) {
@@ -130,7 +173,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       }
       if (Array.isArray(parsed.highlights)) {
         for (const kind of parsed.highlights) {
-          if (HIGHLIGHT_KINDS.includes(kind as HighlightKind)) {
+          if (
+            HIGHLIGHT_KINDS.includes(kind as HighlightKind) &&
+            highlightAvailable(kind as HighlightKind)
+          ) {
             highlights.add(kind as HighlightKind);
           }
         }
@@ -160,6 +206,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   const shell = options.altHost.parentElement as HTMLElement | null;
   const insetRight = (): number => {
     if (!shell) return 0;
+    // Fullscreen hides the side panel — the canvas owns the full width.
+    if (shell.classList.contains("graph-fullscreen")) return 0;
     return (
       parseFloat(
         getComputedStyle(shell).getPropertyValue("--graph-panel-space"),
@@ -168,6 +216,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   };
   const insetTop = (): number => {
     if (!shell) return 60;
+    // Fullscreen hides the toolbar too.
+    if (shell.classList.contains("graph-fullscreen")) return 10;
     const toolbar = parseFloat(
       getComputedStyle(shell).getPropertyValue("--graph-toolbar-height"),
     );
@@ -252,6 +302,143 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     activeView?.resetView?.();
   });
   shell?.appendChild(resetBtn);
+
+  const emptyWsEl = document.createElement("div");
+  emptyWsEl.className = "graph-empty-ws";
+  emptyWsEl.hidden = true;
+  shell?.appendChild(emptyWsEl);
+  /** A workspace with no dependencies renders as a lone project dot —
+   *  show an explanation and clickable alternatives instead. */
+  function syncEmptyState(): void {
+    const m = ensureModel();
+    if (m.count > 0) {
+      emptyWsEl.hidden = true;
+      return;
+    }
+    const wsName = options.workspaceSelect.value || m.workspaceName || "this workspace";
+    const wsLabel = wsName === "root" ? "Whole project" : wsName;
+    emptyWsEl.textContent = "";
+    const card = el("div", "graph-empty-ws-card");
+    // Distinguish a genuinely empty manifest from one the display filters
+    // emptied — the fix differs (pick another workspace vs reset filters).
+    const wsEntry = options.dataset.workspaces.find((w) => w.name === wsName);
+    const declared = wsEntry
+      ? wsEntry.directDependencies.length + wsEntry.directDevDependencies.length
+      : 0;
+    if (declared > 0) {
+      card.appendChild(
+        el("h2", "graph-empty-ws-title", `Nothing to show in ${wsLabel}`),
+      );
+      card.appendChild(
+        el(
+          "p",
+          "graph-empty-ws-note",
+          "The current display filters hide every dependency in this workspace.",
+        ),
+      );
+      const reset = el("button", "graph-empty-ws-item", "Reset filters");
+      (reset as HTMLButtonElement).type = "button";
+      reset.addEventListener("click", () => {
+        document.getElementById("graph-filters-reset")?.click();
+      });
+      card.appendChild(reset);
+      emptyWsEl.appendChild(card);
+      emptyWsEl.hidden = false;
+      return;
+    }
+    card.appendChild(el("h2", "graph-empty-ws-title", `No dependencies in ${wsLabel}`));
+    const ranked = options.dataset.workspaces
+      .map((w) => ({
+        name: w.name,
+        count: w.directDependencies.length + w.directDevDependencies.length,
+      }))
+      .filter((w) => w.count > 0 && w.name !== wsName)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    card.appendChild(
+      el(
+        "p",
+        "graph-empty-ws-note",
+        ranked.length > 0
+          ? "This workspace declares no external dependencies. Workspaces that do:"
+          : "This workspace declares no external dependencies.",
+      ),
+    );
+    if (ranked.length > 0) {
+      const list = el("div", "graph-empty-ws-list");
+      for (const w of ranked) {
+        const btn = el(
+          "button",
+          "graph-empty-ws-item",
+          `${w.name === "root" ? "Whole project" : w.name} (${w.count.toLocaleString()})`,
+        );
+        (btn as HTMLButtonElement).type = "button";
+        btn.addEventListener("click", () => {
+          options.workspaceSelect.value = w.name;
+          options.workspaceSelect.dispatchEvent(new Event("change"));
+        });
+        list.appendChild(btn);
+      }
+      card.appendChild(list);
+    }
+    emptyWsEl.appendChild(card);
+    emptyWsEl.hidden = false;
+  }
+
+  // Full screen (presentation mode): the shell fullscreens; CSS hides the
+  // toolbar and side panel, keeping the canvas, status line, per-view
+  // controls, and this button (as the exit affordance).
+  const fsBtn = document.createElement("button");
+  fsBtn.type = "button";
+  fsBtn.className = "graph-fullscreen-btn";
+  fsBtn.textContent = "\u26f6 Full screen";
+  fsBtn.setAttribute("aria-label", "Show the graph full screen");
+  /** True while the fixed-position fallback (no Fullscreen API) is active. */
+  let fsFallback = false;
+  function setFullscreenUi(active: boolean): void {
+    shell?.classList.toggle("graph-fullscreen", active);
+    fsBtn.textContent = active ? "\u26f6 Exit full screen" : "\u26f6 Full screen";
+    fsBtn.setAttribute(
+      "aria-label",
+      active ? "Exit full screen" : "Show the graph full screen",
+    );
+    // The shell's dimensions change; every view sizes off its host. Fire
+    // again on the next tick — native fullscreen transitions settle late.
+    window.dispatchEvent(new Event("resize"));
+    window.setTimeout(() => window.dispatchEvent(new Event("resize")), 120);
+  }
+  function exitFsFallback(): void {
+    fsFallback = false;
+    shell?.classList.remove("graph-fullscreen-fallback");
+    setFullscreenUi(false);
+  }
+  fsBtn.addEventListener("click", () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    if (fsFallback) {
+      exitFsFallback();
+      return;
+    }
+    const request = shell?.requestFullscreen
+      ? shell.requestFullscreen()
+      : Promise.reject(new Error("unsupported"));
+    request.catch(() => {
+      // No Fullscreen API (iframe without allowfullscreen, permission
+      // denied): pin the shell over the viewport instead.
+      fsFallback = true;
+      shell?.classList.add("graph-fullscreen-fallback");
+      setFullscreenUi(true);
+    });
+  });
+  shell?.appendChild(fsBtn);
+  document.addEventListener("fullscreenchange", () => {
+    setFullscreenUi(document.fullscreenElement === shell);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && fsFallback) exitFsFallback();
+  });
   let treemapZoomed = false;
   function syncResetBtn(): void {
     resetBtn.hidden =
@@ -294,7 +481,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       items.appendChild(
         keyItem("var(--graph-hyp-sub-swatch, #5b7186)", "Sub-dependency"),
       );
-      items.appendChild(keyItem("", "Blip size — packages beneath it"));
+      items.appendChild(keyItem("", "Blip size: packages beneath it"));
       items.appendChild(
         keyItem(
           "var(--graph-hyp-route-swatch, #f59e0b)",
@@ -310,22 +497,22 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         keyItem(
           "",
           mode === "flame"
-            ? "Bar width — packages that leave node_modules if you delete it"
-            : "Box area — packages that leave node_modules if you delete it",
+            ? "Bar width: packages that leave node_modules if you delete it"
+            : "Box area: packages that leave node_modules if you delete it",
         ),
       );
       items.appendChild(keyItem(LINEAGE_SWATCH, "One colour per direct dependency"));
       items.appendChild(
         keyItem(
           "var(--graph-shared-swatch, #3d4c5c)",
-          "Shared — kept by several dependencies; deleting one frees nothing",
+          "Shared: kept by several dependencies; deleting one frees nothing",
         ),
       );
     } else {
       items.appendChild(
         keyItem(LINEAGE_SWATCH, "One colour per direct dependency's system"),
       );
-      items.appendChild(keyItem("", "Circle size — packages in its subtree"));
+      items.appendChild(keyItem("", "Circle size: packages in its subtree"));
     }
     if (mode === "balloon") {
       items.appendChild(keyItem("", "\u2191 required by \u00b7 \u2193 depends on"));
@@ -340,13 +527,19 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     keyItemsEl.replaceChildren(...Array.from(items.children));
   }
 
+  const DEFAULT_FILTER_KEY = JSON.stringify(DEFAULT_GRAPH_FILTERS);
   function ensureModel(): VizModel {
     const workspace = options.workspaceSelect.value || "";
     const filterKey = JSON.stringify(filters);
     if (!model || modelWorkspace !== workspace || modelFilterKey !== filterKey) {
-      model = buildVizModel(options.dataset, workspace, options.projectName, {
-        ...filters,
-      });
+      // At default filters the model is identical to the list view's — use
+      // the shared cache so simulation memos carry across views.
+      model =
+        filterKey === DEFAULT_FILTER_KEY && options.getSharedModel
+          ? options.getSharedModel(workspace)
+          : buildVizModel(options.dataset, workspace, options.projectName, {
+              ...filters,
+            });
       modelWorkspace = workspace;
       modelFilterKey = filterKey;
     }
@@ -444,6 +637,101 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     return node;
   }
 
+  // ----- fine print ----------------------------------------------------
+  // Measured numbers and static-analysis leads carry caveats; each gets a
+  // small (i) affordance opening an anchored note, and the Key panel links
+  // a collected "About these numbers" view.
+  const finePop = document.createElement("div");
+  finePop.className = "graph-fineprint-pop";
+  finePop.hidden = true;
+  finePop.setAttribute("role", "note");
+  finePop.tabIndex = -1;
+  shell?.appendChild(finePop);
+  /** The (i) button whose note is open — reset/refocused on close. */
+  let fineAnchor: HTMLElement | null = null;
+  function closeFinePrint(refocus = false): void {
+    if (finePop.hidden) return;
+    finePop.hidden = true;
+    fineAnchor?.setAttribute("aria-expanded", "false");
+    if (refocus) fineAnchor?.focus();
+    fineAnchor = null;
+  }
+  document.addEventListener("pointerdown", (event) => {
+    if (finePop.hidden) return;
+    const target = event.target as Node;
+    if (finePop.contains(target) || fineAnchor?.contains(target)) return;
+    closeFinePrint();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !finePop.hidden) closeFinePrint(true);
+  });
+  // The anchors live in the scrollable dossier — an open note would drift
+  // away from its (i) on scroll, so close it instead.
+  options.dossier.addEventListener("scroll", () => closeFinePrint(), { passive: true });
+  function openFinePrint(topic: string, anchorEl: HTMLElement): void {
+    const note = FINE_PRINT[topic];
+    if (!note || !shell) return;
+    if (!finePop.hidden && fineAnchor === anchorEl) {
+      closeFinePrint(true);
+      return;
+    }
+    fineAnchor?.setAttribute("aria-expanded", "false");
+    fineAnchor = anchorEl;
+    anchorEl.setAttribute("aria-expanded", "true");
+    finePop.textContent = "";
+    finePop.appendChild(el("strong", "", note.title));
+    finePop.appendChild(el("p", "", note.body));
+    finePop.hidden = false;
+    const shellRect = shell.getBoundingClientRect();
+    const a = anchorEl.getBoundingClientRect();
+    // Below the anchor by default; flip above (and clamp) near the shell
+    // bottom so the note stays inside the overflow-hidden shell.
+    const popH = finePop.offsetHeight;
+    let top = a.bottom - shellRect.top + 6;
+    if (top + popH > shell.clientHeight - 8) {
+      top = a.top - shellRect.top - popH - 6;
+    }
+    finePop.style.top = `${Math.max(8, Math.min(top, shell.clientHeight - popH - 8))}px`;
+    const left = Math.max(
+      8,
+      Math.min(a.left - shellRect.left - 140, shell.clientWidth - 296),
+    );
+    finePop.style.left = `${left}px`;
+    finePop.focus({ preventScroll: true });
+  }
+  function infoButton(topic: string): HTMLElement {
+    const btn = el("button", "graph-fineprint-btn", "\u24d8");
+    (btn as HTMLButtonElement).type = "button";
+    btn.setAttribute("aria-label", `About: ${FINE_PRINT[topic]?.title ?? topic}`);
+    btn.setAttribute("aria-haspopup", "true");
+    btn.setAttribute("aria-expanded", "false");
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openFinePrint(topic, btn);
+    });
+    return btn;
+  }
+  // "About these numbers" collected view at the foot of the Key panel.
+  if (keyPanel) {
+    const aboutBtn = el("button", "graph-panel-reset", "About these numbers");
+    (aboutBtn as HTMLButtonElement).type = "button";
+    aboutBtn.addEventListener("click", () => {
+      options.dossier.textContent = "";
+      options.dossier.appendChild(el("h2", "graph-dossier-name", "About these numbers"));
+      for (const note of Object.values(FINE_PRINT)) {
+        options.dossier.appendChild(el("h3", "graph-dossier-subtitle", note.title));
+        options.dossier.appendChild(el("p", "graph-dossier-empty", note.body));
+      }
+    });
+    keyPanel.appendChild(aboutBtn);
+  }
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
+    return `${bytes} B`;
+  };
+
   function chipRow(container: HTMLElement, title: string, ids: number[]): void {
     if (!model || ids.length === 0) return;
     const m = model;
@@ -464,6 +752,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   }
 
   function renderDossierEmpty(): void {
+    if (routeSelected !== null) {
+      routeSelected = null;
+      options.onRouteChange?.();
+    }
     options.dossier.textContent = "";
     const empty = el(
       "p",
@@ -471,12 +763,12 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mode === "graph"
         ? "Select a node to inspect it."
         : mode === "flame"
-          ? "Click a bar. Width is the number of packages that would leave node_modules if you deleted it — each package is counted exactly once. The grey band holds packages shared by several dependencies: deleting any one of them frees nothing there."
+          ? "Click a bar. Width is the number of packages that would leave node_modules if you deleted it; each package is counted exactly once. The grey band holds packages shared by several dependencies: deleting any one of them frees nothing there."
           : mode === "treemap"
-            ? "Click a box to inspect it; double-click to drill in. Area is the number of packages deleting it would free. The grey block is shared by several dependencies — no single one of them owns it."
+            ? "Click a box to inspect it; double-click to drill in. Area is the number of packages deleting it would free. The grey block is shared by several dependencies; no single one of them owns it."
           : mode === "balloon"
             ? "Click a body. Each direct dependency is a system orbiting the project; its sub-dependencies fan out behind it."
-            : "Click a blip. Drag toward the centre to grow that part of the tree — nothing ever leaves the disk.",
+            : "Click a blip. Drag toward the centre to grow that part of the tree. Nothing ever leaves the disk.",
     );
     options.dossier.appendChild(empty);
   }
@@ -486,6 +778,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     if (index < 0 || index >= m.count) {
       renderDossierEmpty();
       return;
+    }
+    if (routeSelected !== m.slugs[index]) {
+      routeSelected = m.slugs[index];
+      options.onRouteChange?.();
     }
     const ref = m.refs[index];
     options.dossier.textContent = "";
@@ -548,7 +844,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         chip.href = rep.docUrl;
         chip.target = "_blank";
         chip.rel = "noopener noreferrer";
-        chip.title = `${hint} — opens migration guidance`;
+        chip.title = `${hint} (opens migration guidance)`;
         chip.appendChild(el("span", "fact-icon", "\u21c4"));
         chip.appendChild(el("span", "", swapText));
         facts.appendChild(chip);
@@ -560,6 +856,53 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
         facts.appendChild(chip);
       }
     }
+    const sim = m.simulateRemoval(index);
+    const simSummary = (() => {
+      let freedBytes = 0;
+      let sized = 0;
+      for (const f of sim.freed) {
+        const bytes = options.getPackageExtras?.(f.slug)?.sizeBytes;
+        if (bytes !== undefined) {
+          freedBytes += bytes;
+          sized += 1;
+        }
+      }
+      const bytesPart =
+        freedBytes > 0
+          ? ` \u00b7 ${formatBytes(freedBytes)} on disk${
+              sized < sim.freed.length
+                ? ` (${sized.toLocaleString()} of ${sim.freed.length.toLocaleString()} measured)`
+                : ""
+            }`
+          : "";
+      const detailPart =
+        sim.freed.length > 1 || sim.retained.length > 0
+          ? " (see list view for more details)"
+          : "";
+      return `${bytesPart}${detailPart}`;
+    })();
+    // In the "Whole project" aggregate, a package can be declared by several
+    // workspaces' manifests at once — freeing it means removing it from each,
+    // and the wording must say so instead of implying one manifest entry.
+    const declaringWorkspaces =
+      (options.workspaceSelect.value || "root") === "root"
+        ? options.dataset.workspaces.reduce(
+            (n, w) =>
+              w.name !== "root" &&
+              (w.directDependencies.includes(m.slugs[index]) ||
+                w.directDevDependencies.includes(m.slugs[index]))
+                ? n + 1
+                : n,
+            0,
+          )
+        : 0;
+    const impactChip = (text: string, className = ""): void => {
+      const chip = el("span", `graph-dossier-fact ${className}`.trim());
+      chip.appendChild(el("span", "fact-icon", "\u2702"));
+      chip.appendChild(el("span", "", text));
+      chip.appendChild(infoButton("impact"));
+      facts.appendChild(chip);
+    };
     fact(
       "",
       "\u03a3",
@@ -567,33 +910,82 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     );
     if (imp.manifestFrees === null) {
       // Sub-dependency: nothing to uninstall directly; the number answers the
-      // what-if of the package itself going away.
-      fact(
-        "",
-        "\u2702",
+      // what-if of the package itself going away. The removal simulation is
+      // memoised on the (shared) model, so summarising it here is free; the
+      // full freed/retained preview lives in the list view.
+      impactChip(
         imp.exclusiveCount > 1
-          ? `deleting frees ${imp.exclusiveCount.toLocaleString()} packages`
-          : "deleting frees only itself",
+          ? `deleting frees ${imp.exclusiveCount.toLocaleString()} packages${simSummary}`
+          : `deleting frees only itself${simSummary}`,
       );
     } else if (imp.manifestFrees === 0) {
       // Direct dependency that other packages also pull in: removing the
       // package.json entry uninstalls nothing.
       const names = imp.keptBy.slice(0, 2).join(", ");
       const suffix = imp.keptBy.length > 2 ? ` +${imp.keptBy.length - 2}` : "";
-      fact("fact-note", "\u2702", `removing it frees nothing \u2014 still needed by ${names}${suffix}`);
+      impactChip(
+        `removing it frees nothing: still needed by ${names}${suffix}`,
+        "fact-note",
+      );
     } else {
-      fact(
-        "",
-        "\u2702",
+      const removePhrase =
+        declaringWorkspaces > 1
+          ? `removing it from all ${declaringWorkspaces} declaring workspaces frees`
+          : "removing it frees";
+      impactChip(
         imp.manifestFrees > 1
-          ? `removing it frees ${imp.manifestFrees.toLocaleString()} packages`
-          : "removing it frees only itself",
+          ? `${removePhrase} ${imp.manifestFrees.toLocaleString()} packages${simSummary}`
+          : `${removePhrase} only itself${simSummary}`,
       );
     }
     if (imp.cycleWith.length > 0) {
       const names = imp.cycleWith.slice(0, 3);
       const suffix = imp.cycleWith.length > 3 ? ` +${imp.cycleWith.length - 3}` : "";
       fact("fact-note", "\u21ba", `in a dependency cycle with ${names.join(", ")}${suffix}`);
+    }
+    // Measured/derived extras from the full report record.
+    const extras = options.getPackageExtras?.(m.slugs[index]);
+    if (extras?.sizeBytes !== undefined) {
+      const chip = el("span", "graph-dossier-fact");
+      chip.appendChild(el("span", "fact-icon", "\u26c1"));
+      const codePart =
+        extras.codeBytes !== undefined && extras.codeBytes > 0
+          ? ` \u00b7 ${formatBytes(extras.codeBytes)} code`
+          : "";
+      chip.appendChild(
+        el("span", "", `${formatBytes(extras.sizeBytes)} on disk${codePart}`),
+      );
+      chip.appendChild(infoButton("size"));
+      facts.appendChild(chip);
+    }
+    if (imp.manifestFrees !== null && extras?.importFileCount !== undefined) {
+      const files = extras.importFileCount;
+      const chip = el(
+        "span",
+        files === 0 ? "graph-dossier-fact fact-dev" : "graph-dossier-fact",
+      );
+      chip.appendChild(el("span", "fact-icon", "\u2338"));
+      chip.appendChild(
+        el(
+          "span",
+          "",
+          files > 0
+            ? `imported in ${files} file${files === 1 ? "" : "s"}`
+            : "no imports found in project source",
+        ),
+      );
+      chip.appendChild(infoButton("imports"));
+      facts.appendChild(chip);
+    }
+    if (extras?.platformNote) {
+      fact("fact-dev", "\u26a0\ufe0e", extras.platformNote);
+    }
+    if (extras?.phantom) {
+      fact(
+        "fact-note fact-bad",
+        "\u26a0\ufe0e",
+        "imported by project code but not declared in any workspace manifest",
+      );
     }
     options.dossier.appendChild(facts);
 
@@ -606,6 +998,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     options.dossier.appendChild(open);
   }
 
+
   // ----- focus routing --------------------------------------------------
   function focusPackage(index: number): void {
     const m = ensureModel();
@@ -613,7 +1006,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     if (mode === "graph") {
       const handle = options.getClassicHandle();
       handle?.applyFocus(m.slugs[index]);
-      handle?.showPopover(m.slugs[index]);
+      handle?.select(m.slugs[index]);
       handle?.requestRender();
       return;
     }
@@ -678,18 +1071,21 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       handle?.setActive(true);
       handle?.requestRender();
     } else {
-      handle?.hidePopover();
+      handle?.clearSelection();
+      handle?.clearFocus();
       handle?.setActive(false);
       mountActive();
     }
     updateKey();
     statusHint();
     renderDossierEmpty();
+    syncEmptyState();
     try {
       localStorage.setItem(MODE_STORE_KEY, mode);
     } catch {
       // Best-effort persistence only.
     }
+    options.onRouteChange?.();
   }
 
   // ----- wiring ---------------------------------------------------------
@@ -714,6 +1110,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mountActive();
       statusHint();
     }
+    syncEmptyState();
+    // After the resets: serialising earlier recorded the new workspace with
+    // the previous selection still attached.
+    options.onRouteChange?.();
   });
 
   // Theme flips repaint the active canvas view.
@@ -791,6 +1191,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       statusHint();
     }
     runSearch();
+    syncEmptyState();
+    options.onRouteChange?.();
   }
 
   function bindKindChip(
@@ -837,6 +1239,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       syncFiltersBadge();
       resetDimCache();
       repaintForDim();
+      options.onRouteChange?.();
     });
   }
   for (const kind of HIGHLIGHT_KINDS) bindHighlightChip(kind);
@@ -854,6 +1257,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   statusHint();
   renderDossierEmpty();
+  syncEmptyState();
 
   // Restore the last-used layout (persisted in setMode).
   try {
@@ -894,6 +1298,95 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     },
     refresh() {
       activeView?.resize();
+    },
+    exitFullscreen() {
+      if (document.fullscreenElement) void document.exitFullscreen();
+      if (fsFallback) exitFsFallback();
+    },
+    routeState() {
+      return {
+        mode,
+        workspace: options.workspaceSelect.value || "",
+        selected: routeSelected,
+        highlights: [...highlights],
+        runtime: filters.runtime,
+        dev: filters.dev,
+        sub: filters.sub,
+        depth: filters.maxDepth,
+      };
+    },
+    applyRoute(route) {
+      // Workspace first — its change handler resets the model and remounts
+      // exactly as a user change would (classic view listens on the same
+      // select).
+      if (
+        route.workspace &&
+        options.workspaceSelect.value !== route.workspace &&
+        Array.from(options.workspaceSelect.options).some(
+          (opt) => opt.value === route.workspace && !opt.disabled,
+        )
+      ) {
+        options.workspaceSelect.value = route.workspace;
+        options.workspaceSelect.dispatchEvent(new Event("change"));
+      }
+      // Display filters (keep at least one root kind, like the chips do).
+      let runtime = route.runtime;
+      const dev = route.dev;
+      if (!runtime && !dev) runtime = true;
+      const depth =
+        Number.isInteger(route.depth) && (route.depth as number) >= 1
+          ? route.depth
+          : null;
+      const filtersChanged =
+        filters.runtime !== runtime ||
+        filters.dev !== dev ||
+        filters.sub !== route.sub ||
+        filters.maxDepth !== depth;
+      filters.runtime = runtime;
+      filters.dev = dev;
+      filters.sub = route.sub;
+      filters.maxDepth = depth;
+      // Highlights (only kinds whose evidence is available).
+      const nextHl = route.highlights.filter(
+        (kind) =>
+          HIGHLIGHT_KINDS.includes(kind as HighlightKind) &&
+          highlightAvailable(kind as HighlightKind),
+      ) as HighlightKind[];
+      const hlChanged =
+        nextHl.length !== highlights.size ||
+        nextHl.some((kind) => !highlights.has(kind));
+      if (hlChanged) {
+        highlights.clear();
+        for (const kind of nextHl) highlights.add(kind);
+        syncHighlightChips();
+      }
+      if (filtersChanged) {
+        applyFilters();
+      } else if (hlChanged) {
+        persistFilters();
+        syncFiltersBadge();
+        resetDimCache();
+        repaintForDim();
+      }
+      // 4) An unknown mode must not reach setMode — it would deactivate
+      // every button and mount nothing.
+      if (route.mode !== mode && GRAPH_MODES.includes(route.mode)) {
+        setMode(route.mode);
+      }
+      // Selection last, against the final model.
+      const clearCanvasSelection = (): void => {
+        const handle = options.getClassicHandle();
+        handle?.clearSelection();
+        handle?.clearFocus();
+        renderDossierEmpty();
+      };
+      if (route.selected) {
+        const idx = ensureModel().indexOfSlug.get(route.selected);
+        if (idx !== undefined) focusPackage(idx);
+        else clearCanvasSelection();
+      } else if (routeSelected !== null) {
+        clearCanvasSelection();
+      }
     },
   };
 }

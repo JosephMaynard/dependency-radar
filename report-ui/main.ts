@@ -11,6 +11,9 @@ import {
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
+import { buildVizModel, type VizModel } from "./vizModel";
+import { FINE_PRINT } from "./finePrint";
+import type { GraphRoute } from "./graphModes";
 import { buildDomTree, computeReachCounts } from "./domTree";
 import { initGraphModes, type GraphModesHandle } from "./graphModes";
 import { DEFAULT_GRAPH_FILTERS } from "./vizModel";
@@ -892,6 +895,18 @@ function renderSingleColumnHeader(
     sortIndicator +
     "</span>" +
     "</button>"
+  );
+}
+
+/** Inline (i) button opening the shared fine-print note for a topic. */
+function finePrintBtnHtml(topic: keyof typeof FINE_PRINT): string {
+  const note = FINE_PRINT[topic];
+  return (
+    '<button type="button" class="fine-print-btn" data-fine-topic="' +
+    escapeHtml(String(topic)) +
+    '" aria-haspopup="true" aria-expanded="false" aria-label="About: ' +
+    escapeHtml(note?.title ?? String(topic)) +
+    '">\u24d8</button>'
   );
 }
 
@@ -2062,6 +2077,31 @@ function getFreesCount(depKey: string): number | undefined {
   return getDepStats(depKey)?.frees;
 }
 
+interface DupDependent {
+  name: string;
+  version: string;
+  range: string | null;
+}
+interface DupVersion {
+  version: string;
+  direct: boolean;
+  dependents: DupDependent[];
+}
+let dupGroupsByName: Map<string, DupVersion[]> | null = null;
+let dupGroupsBuilder: (() => Map<string, DupVersion[]>) | null = null;
+function getDuplicateGroup(name: string): DupVersion[] | undefined {
+  if (!dupGroupsByName && dupGroupsBuilder) {
+    dupGroupsByName = dupGroupsBuilder();
+  }
+  return dupGroupsByName?.get(name);
+}
+
+function formatByteSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${bytes} B`;
+}
+
 function renderDepDetails(
   dep: DependencyRecord,
   linkableKeys: Set<string>,
@@ -2110,9 +2150,45 @@ function renderDepDetails(
         dep.usage.direct && stats.frees === 0
           ? "Nothing (still required by other packages)"
           : stats.frees;
+      const size = dep.package.installSize;
+      const sizeRows = size
+        ? renderKvItemHtml(
+            "Install size (measured, uncompressed)",
+            '<span class="kv-value">' +
+              escapeHtml(
+                `${formatByteSize(size.totalBytes)}${size.codeBytes > 0 ? ` (${formatByteSize(size.codeBytes)} code)` : ""}`,
+              ) +
+              " " +
+              finePrintBtnHtml("size") +
+              "</span>",
+          ) +
+          (typeof dep.package.fileCount === "number"
+            ? renderKvItem("Files on disk", dep.package.fileCount)
+            : "")
+        : "";
+      const group = getDuplicateGroup(dep.package.name);
+      let dupRow = "";
+      if (group && group.length >= 2) {
+        const parts = group
+          .filter((v) => v.version !== dep.package.version)
+          .map((v) => {
+            const via = v.dependents
+              .slice(0, 3)
+              .map((d) => `${d.name}${d.range ? ` (${d.range})` : ""}`)
+              .join(", ");
+            const extra = v.dependents.length > 3 ? ` +${v.dependents.length - 3}` : "";
+            const why = via ? ` \u00b7 via ${via}${extra}` : v.direct ? " \u00b7 direct dependency" : "";
+            return `${v.version}${why}`;
+          });
+        if (parts.length > 0) {
+          dupRow = renderKvItem("Also installed as", parts.join("  ·  "));
+        }
+      }
       return (
         renderKvItem("Sub-dependencies", stats.subs) +
-        renderKvItem("Removal frees", freesLabel)
+        renderKvItem("Removal frees", freesLabel) +
+        sizeRows +
+        dupRow
       );
     })(),
     !dep.usage.direct
@@ -2407,6 +2483,13 @@ function renderDepDetails(
     riskSection,
     upgradeSection,
     declaredSection,
+    renderSection(
+      "Removal preview",
+      "What deleting this package would actually free",
+      '<div class="list-sim" data-sim-key="' +
+        escapeHtml(`${dep.package.name}@${dep.package.version}`) +
+        '"></div>',
+    ),
     '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary>' +
       '<div class="raw-data-pane">' +
       "<pre>" +
@@ -2548,6 +2631,12 @@ async function init(): Promise<void> {
     hasReplacement: document.getElementById(
       "has-replacement",
     ) as HTMLInputElement | null,
+    noImports: document.getElementById(
+      "no-imports",
+    ) as HTMLInputElement | null,
+    duplicateVersions: document.getElementById(
+      "duplicate-versions",
+    ) as HTMLInputElement | null,
     hasReplacementWrap: document.getElementById(
       "has-replacement-wrap",
     ) as HTMLElement | null,
@@ -2648,27 +2737,6 @@ async function init(): Promise<void> {
     graphCanvasShell: document.getElementById(
       "graph-canvas-shell",
     ) as HTMLElement | null,
-    graphPopover: document.getElementById(
-      "graph-popover",
-    ) as HTMLElement | null,
-    graphPopoverName: document.getElementById(
-      "graph-popover-name",
-    ) as HTMLElement | null,
-    graphPopoverVersion: document.getElementById(
-      "graph-popover-version",
-    ) as HTMLElement | null,
-    graphPopoverLicense: document.getElementById(
-      "graph-popover-license",
-    ) as HTMLElement | null,
-    graphPopoverVulns: document.getElementById(
-      "graph-popover-vulns",
-    ) as HTMLElement | null,
-    graphPopoverAmplification: document.getElementById(
-      "graph-popover-amplification",
-    ) as HTMLElement | null,
-    graphOpenList: document.getElementById(
-      "graph-open-list",
-    ) as HTMLButtonElement | null,
     graphModeSwitch: document.getElementById(
       "graph-mode-switch",
     ) as HTMLElement | null,
@@ -3098,7 +3166,7 @@ async function init(): Promise<void> {
       "stat-vulnerable",
       vulnerable,
       "red",
-      "Dependencies with known vulnerabilities — click to filter",
+      "Dependencies with known vulnerabilities (click to filter)",
     );
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;
@@ -3118,13 +3186,13 @@ async function init(): Promise<void> {
       "stat-license",
       licenseIssues,
       "amber",
-      "Dependencies with licence review flags — click to filter",
+      "Dependencies with licence review flags (click to filter)",
     );
     setChip(
       "stat-blockers",
       blockers,
       "amber",
-      "Dependencies with upgrade blockers — click to filter",
+      "Dependencies with upgrade blockers (click to filter)",
     );
     // Only surfaced when the scan matched at least one dependency against
     // the e18e module-replacements catalogue.
@@ -3140,7 +3208,7 @@ async function init(): Promise<void> {
           "stat-replacements",
           replacements,
           undefined,
-          "Dependencies with community-suggested replacements (e18e) — click to filter",
+          "Dependencies with community-suggested replacements from e18e (click to filter)",
         );
       }
     }
@@ -3156,7 +3224,7 @@ async function init(): Promise<void> {
           "stat-maintenance",
           maintenanceConcernCount,
           maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
-          "Deprecated, archived, unmaintained, or stale dependencies — click to filter",
+          "Deprecated, archived, unmaintained, or stale dependencies (click to filter)",
         );
       }
     }
@@ -3170,6 +3238,8 @@ async function init(): Promise<void> {
       const targets: Record<string, HTMLInputElement | null | undefined> = {
         "has-vulns": controls.hasVulns,
         "maintenance-concerns": controls.maintenanceConcerns,
+        "no-imports": controls.noImports,
+        "duplicate-versions": controls.duplicateVersions,
         "license-issues": controls.licenseIssues,
         "upgrade-blockers": controls.upgradeBlockers,
         "has-replacement": controls.hasReplacement,
@@ -3192,9 +3262,64 @@ async function init(): Promise<void> {
     depByKey.set(getDepKey(dep.package.name, dep.package.version), dep);
   });
   const knownDepKeys = new Set(depByKey.keys());
+  // Installed-version counts per package name, for the duplicate-versions
+  // highlight ("lodash appears 3×").
+  const duplicateVersionNames = new Map<string, number>();
+  allDependencies.forEach((dep) => {
+    duplicateVersionNames.set(
+      dep.package.name,
+      (duplicateVersionNames.get(dep.package.name) ?? 0) + 1,
+    );
+  });
+  // Positive import evidence ("imported in N files") is valid whenever the
+  // scan ran at all, but the NEGATIVE claim ("no imports found") needs a
+  // complete scan — under a partial one, a missing record may just mean the
+  // workspace whose scan failed was the importer.
+  const importsCollectorRan =
+    report.scanStatus?.collectors?.imports === "available" ||
+    report.scanStatus?.collectors?.imports === "partial";
+  const importsEvidenceComplete =
+    report.scanStatus?.collectors?.imports === "available";
+  if (!importsEvidenceComplete) {
+    const reason = importsCollectorRan
+      ? "Import scanning was incomplete for this report"
+      : "Import scanning did not run for this report";
+    const unusedChip = document.getElementById(
+      "graph-hl-unused",
+    ) as HTMLButtonElement | null;
+    if (unusedChip) {
+      unusedChip.disabled = true;
+      unusedChip.title = reason;
+    }
+    if (controls.noImports) {
+      controls.noImports.disabled = true;
+      controls.noImports.title = reason;
+      const label = controls.noImports.closest("label");
+      if (label) label.title = reason;
+    }
+  }
+  // One graph dataset and one default-filters model per workspace, shared
+  // by the list view, the graph views, and the removal simulator — so the
+  // simulation memos are computed once no matter where you look first.
+  let sharedDatasetMemo: ReturnType<typeof adaptDataset> | null = null;
+  const getSharedDataset = (): ReturnType<typeof adaptDataset> =>
+    (sharedDatasetMemo ??= adaptDataset(report, knownDepKeys, resolveDepKey));
+  const listSimProjectName =
+    (report.project as { name?: string } | undefined)?.name ||
+    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+    "project";
+  const fullModels = new Map<string, VizModel>();
+  const getFullModel = (workspaceName: string): VizModel => {
+    let m = fullModels.get(workspaceName);
+    if (!m) {
+      m = buildVizModel(getSharedDataset(), workspaceName, listSimProjectName);
+      fullModels.set(workspaceName, m);
+    }
+    return m;
+  };
   depStatsByKey = null;
   depStatsBuilder = () => {
-    const dataset = adaptDataset(report, knownDepKeys, resolveDepKey);
+    const dataset = getSharedDataset();
     const slugs = Object.keys(dataset.dependencies);
     const indexOf = new Map(slugs.map((slug, index) => [slug, index]));
     const out = slugs.map((slug) =>
@@ -3241,6 +3366,53 @@ async function init(): Promise<void> {
       map.set(slug, { subs: Math.max(0, counts[index] - 1), frees });
     });
     return map;
+  };
+  dupGroupsByName = null;
+  dupGroupsBuilder = () => {
+    const groups = new Map<string, DupVersion[]>();
+    for (const dep of allDependencies) {
+      if ((duplicateVersionNames.get(dep.package.name) ?? 0) < 2) continue;
+      const list = groups.get(dep.package.name) ?? [];
+      list.push({
+        version: dep.package.version,
+        direct: dep.usage.direct,
+        dependents: [],
+      });
+      groups.set(dep.package.name, list);
+    }
+    // Who links to which installed version, with the declared range —
+    // subDeps entries carry [range, resolvedVersion].
+    for (const parent of allDependencies) {
+      const sections = parent.graph.subDeps;
+      if (!sections) continue;
+      for (const section of [sections.dep, sections.dev, sections.opt, sections.peer]) {
+        if (!section) continue;
+        for (const [childName, entry] of Object.entries(section)) {
+          const group = groups.get(childName);
+          if (!group || !Array.isArray(entry)) continue;
+          const [range, resolved] = entry;
+          // resolved is a dep key ("name@version"), not a bare version;
+          // normalise through resolveDepKey so npm aliases still match.
+          const resolvedKey = resolved
+            ? (resolveDepKey(resolved) ?? resolved)
+            : null;
+          const target = resolvedKey
+            ? group.find((v) => `${childName}@${v.version}` === resolvedKey)
+            : undefined;
+          if (target) {
+            target.dependents.push({
+              name: parent.package.name,
+              version: parent.package.version,
+              range: typeof range === "string" ? range : null,
+            });
+          }
+        }
+      }
+    }
+    for (const list of groups.values()) {
+      list.sort((a, b) => b.dependents.length - a.dependents.length);
+    }
+    return groups;
   };
   const depKeysByName = getDepKeysByNameIndex(knownDepKeys);
   const supplyChainSignalsByKey = buildSupplyChainSignalIndex(
@@ -3294,6 +3466,12 @@ async function init(): Promise<void> {
       );
       detailsBody.dataset.rendered = "true";
       detailsBody.removeAttribute("aria-busy");
+      // The removal preview fills in as soon as the card opens — the
+      // simulation is memoised on the shared model, so this is instant
+      // after the first look at a workspace.
+      const simHolder = detailsBody.querySelector<HTMLElement>(".list-sim");
+      const simKey = simHolder?.dataset.simKey;
+      if (simHolder && simKey) runListSimulation(simHolder, simKey);
     });
   }
 
@@ -3350,6 +3528,8 @@ async function init(): Promise<void> {
     const licenseIssuesOnly = controls.licenseIssues?.checked ?? false;
     const upgradeBlockersOnly = controls.upgradeBlockers?.checked ?? false;
     const replacementOnly = controls.hasReplacement?.checked ?? false;
+    const noImportsOnly = controls.noImports?.checked ?? false;
+    const duplicatesOnly = controls.duplicateVersions?.checked ?? false;
 
     const showPermissive = controls.licensePermissive.checked;
     const showWeakCopyleft = controls.licenseWeakCopyleft.checked;
@@ -3394,6 +3574,20 @@ async function init(): Promise<void> {
       if (licenseIssuesOnly && !hasLicenseIssue(dep)) return false;
       if (upgradeBlockersOnly && !hasUpgradeBlocker(dep)) return false;
       if (replacementOnly && !hasReplacementSuggestion(dep)) return false;
+      if (
+        noImportsOnly &&
+        !(
+          importsEvidenceComplete &&
+          dep.usage.direct &&
+          !(dep.usage.importUsage?.fileCount ?? 0)
+        )
+      )
+        return false;
+      if (
+        duplicatesOnly &&
+        (duplicateVersionNames.get(dep.package.name) ?? 0) < 2
+      )
+        return false;
 
       const licenseCategory = getLicenseCategory(primaryLicense.value);
       if (licenseCategory === "permissive" && !showPermissive) return false;
@@ -3438,6 +3632,8 @@ async function init(): Promise<void> {
     if (controls.licenseIssues) controls.licenseIssues.checked = false;
     if (controls.upgradeBlockers) controls.upgradeBlockers.checked = false;
     if (controls.hasReplacement) controls.hasReplacement.checked = false;
+    if (controls.noImports) controls.noImports.checked = false;
+    if (controls.duplicateVersions) controls.duplicateVersions.checked = false;
     controls.licensePermissive.checked = true;
     controls.licenseWeakCopyleft.checked = true;
     controls.licenseStrongCopyleft.checked = true;
@@ -3569,6 +3765,24 @@ async function init(): Promise<void> {
         label: "Licence issues",
         remove: () => {
           if (controls.licenseIssues) controls.licenseIssues.checked = false;
+        },
+      });
+    }
+    if (controls.noImports?.checked) {
+      chips.push({
+        id: "no-imports",
+        label: "No imports found",
+        remove: () => {
+          if (controls.noImports) controls.noImports.checked = false;
+        },
+      });
+    }
+    if (controls.duplicateVersions?.checked) {
+      chips.push({
+        id: "duplicate-versions",
+        label: "Duplicate versions",
+        remove: () => {
+          if (controls.duplicateVersions) controls.duplicateVersions.checked = false;
         },
       });
     }
@@ -3747,17 +3961,15 @@ async function init(): Promise<void> {
       controls.graphWorkspaceWrap &&
       controls.graphControls &&
       controls.graphCanvas &&
-      controls.graphCanvasShell &&
-      controls.graphPopover &&
-      controls.graphPopoverName &&
-      controls.graphPopoverVersion &&
-      controls.graphPopoverLicense &&
-      controls.graphPopoverVulns &&
-      controls.graphPopoverAmplification &&
-      controls.graphOpenList,
+      controls.graphCanvasShell,
     );
   }
 
+  let currentView: "list" | "graph" = "list";
+  let applyingRoute = false;
+  let routerReady = false;
+  let lastSyncedHash = "";
+  let routeExpandedKey: string | null = null;
   function setActiveView(view: "list" | "graph"): void {
     if (!controls.listViewPanel || !controls.graphViewPanel) {
       console.warn(
@@ -3784,11 +3996,33 @@ async function init(): Promise<void> {
     }
     controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
+    currentView = view;
     if (isList) {
+      graphModes?.exitFullscreen();
       graphView?.setActive(false);
+      routeSync(true);
       return;
     }
     if (!graphInitialized) {
+      // Init restores the persisted layout, which fires onRouteChange while
+      // the graphModes variable is still unassigned; buildRouteHash would
+      // serialise the list route and push a spurious entry. Save/restore so
+      // an outer applyRouteFromHash guard is never released early.
+      const wasApplyingRoute = applyingRoute;
+      applyingRoute = true;
+      // Small brand mark at the head of the graph toolbar. Cloned from the
+      // header logo with its <defs> stripped: the gradient/style definitions
+      // stay unique in the document and resolve from the original.
+      const overlayTop = document.querySelector(".graph-overlay-top");
+      const headerLogo = document.querySelector(".top-header svg.logo");
+      if (overlayTop && headerLogo && !overlayTop.querySelector(".graph-logo")) {
+        const brand = headerLogo.cloneNode(true) as SVGElement;
+        brand.querySelector("defs")?.remove();
+        brand.classList.remove("logo");
+        brand.classList.add("graph-logo");
+        brand.setAttribute("aria-hidden", "true");
+        overlayTop.insertBefore(brand, overlayTop.firstChild);
+      }
       graphView = initGraphView({
         report,
         knownDepKeys,
@@ -3798,15 +4032,13 @@ async function init(): Promise<void> {
         controlsRoot: controls.graphControls as HTMLElement,
         canvas: controls.graphCanvas as HTMLCanvasElement,
         canvasHost: controls.graphCanvasShell as HTMLElement,
-        popover: controls.graphPopover as HTMLElement,
-        popoverName: controls.graphPopoverName as HTMLElement,
-        popoverVersion: controls.graphPopoverVersion as HTMLElement,
-        popoverLicense: controls.graphPopoverLicense as HTMLElement,
-        popoverVulns: controls.graphPopoverVulns as HTMLElement,
-        popoverAmplification: controls.graphPopoverAmplification as HTMLElement,
-        popoverOpenButton: controls.graphOpenList as HTMLButtonElement,
         onOpenList: (slug: string) => {
           openListFromGraph(slug);
+        },
+        getImpactWeight: (slug: string, workspaceName: string) => {
+          const m = getFullModel(workspaceName || "root");
+          const idx = m.indexOfSlug.get(slug);
+          return idx === undefined ? 1 : m.domTree().exclusiveCount[idx];
         },
         onSelect: (slug: string | null) => {
           graphModes?.handleClassicSelect(slug);
@@ -3828,7 +4060,8 @@ async function init(): Promise<void> {
         controls.graphWorkspaceSelect
       ) {
         graphModes = initGraphModes({
-          dataset: adaptDataset(report, knownDepKeys, resolveDepKey),
+          dataset: getSharedDataset(),
+          getSharedModel: (workspace: string) => getFullModel(workspace),
           projectName:
             (report.project as { name?: string } | undefined)?.name ||
             report.project?.projectDir?.split("/").filter(Boolean).pop() ||
@@ -3846,6 +4079,7 @@ async function init(): Promise<void> {
             (node): node is HTMLElement => Boolean(node),
           ),
           getClassicHandle: () => graphView,
+          onRouteChange: () => routeSync(true),
           filterRuntime: controls.graphFilterRuntime,
           filterDev: controls.graphFilterDev,
           filterSub: controls.graphFilterSub,
@@ -3855,6 +4089,49 @@ async function init(): Promise<void> {
             const dep = key ? depByKey.get(key) : undefined;
             if (!dep?.replacement?.replacements?.length) return null;
             return dep.replacement;
+          },
+          getPackageExtras: (slug: string) => {
+            const key = resolveDepKey(slug);
+            const dep = key ? depByKey.get(key) : undefined;
+            if (!dep) return {};
+            const size = dep.package.installSize;
+            const platform = dep.package.platform;
+            // npm checkPlatform semantics: "!win32" entries form a blocklist,
+            // plain entries an allowlist; a negation-only list allows the rest.
+            const platformMiss = (list: string[] | undefined, value: string | undefined): boolean => {
+              if (!list?.length || !value) return false;
+              const allowed = list.filter((entry) => !entry.startsWith("!"));
+              if (list.includes(`!${value}`)) return true;
+              return allowed.length > 0 && !allowed.includes(value);
+            };
+            let platformNote: string | undefined;
+            if (platform && (platform.os?.length || platform.cpu?.length)) {
+              const here = report.environment;
+              const osMiss = platformMiss(platform.os, here?.platform);
+              const cpuMiss = platformMiss(platform.cpu, here?.arch);
+              const target = [
+                ...(platform.os ?? []),
+                ...(platform.cpu ?? []),
+              ].join("/");
+              platformNote =
+                osMiss || cpuMiss
+                  ? `built for ${target}, not this machine`
+                  : `platform-specific: ${target}`;
+            }
+            return {
+              ...(size ? { sizeBytes: size.totalBytes, codeBytes: size.codeBytes } : {}),
+              ...(platformNote ? { platformNote } : {}),
+              ...(importsCollectorRan &&
+              !dep.usage.direct &&
+              (dep.usage.importUsage?.fileCount ?? 0) > 0
+                ? { phantom: true }
+                : {}),
+              ...((dep.usage.importUsage?.fileCount ?? 0) > 0
+                ? { importFileCount: dep.usage.importUsage!.fileCount }
+                : importsEvidenceComplete
+                  ? { importFileCount: 0 }
+                  : {}),
+            };
           },
           highlightMatch: (slug: string, kind: string) => {
             const key = resolveDepKey(slug);
@@ -3875,6 +4152,17 @@ async function init(): Promise<void> {
                 return hasLicenseIssue(dep);
               case "blocker":
                 return hasUpgradeBlocker(dep);
+              case "unused":
+                // Direct deps only (project source rarely imports transitive
+                // packages directly), and only when the import scan actually
+                // ran — otherwise everything would light up as "unused".
+                return (
+                  importsEvidenceComplete &&
+                  dep.usage.direct &&
+                  !(dep.usage.importUsage?.fileCount ?? 0)
+                );
+              case "duplicate":
+                return (duplicateVersionNames.get(dep.package.name) ?? 0) > 1;
               default:
                 return false;
             }
@@ -3892,6 +4180,7 @@ async function init(): Promise<void> {
           graphView?.refreshFilters();
         }
       }
+      applyingRoute = wasApplyingRoute;
     }
     if (!graphModes || graphModes.mode() === "graph") {
       graphView?.setActive(true);
@@ -3899,6 +4188,7 @@ async function init(): Promise<void> {
     } else {
       graphModes.refresh();
     }
+    routeSync(true);
   }
 
   function getStickyFilterBarOffset(): number {
@@ -3936,6 +4226,7 @@ async function init(): Promise<void> {
   }
 
   function openListFromGraph(slug: string): void {
+    if (depByKey.has(slug)) routeExpandedKey = slug;
     setActiveView("list");
     let target = document.getElementById(getDepDomId(slug));
     if (!target && depByKey.has(slug)) {
@@ -3974,17 +4265,26 @@ async function init(): Promise<void> {
     controls.licenseWeakCopyleft,
     controls.licenseStrongCopyleft,
     controls.licenseUnknown,
+    controls.noImports,
+    controls.duplicateVersions,
   ];
-  const handleFilterControlChange = (): void => {
+  const handleFilterControlChange = (pushRoute = true): void => {
     // User-driven filtering should return to normal behavior.
     forcedVisibleDepKeys.clear();
     renderList();
+    // Search keystrokes replace the current history entry; discrete filter
+    // changes get their own entry so back/forward walks them.
+    routeSync(pushRoute);
   };
 
   filterControls.forEach((ctrl) => {
     if (!ctrl) return;
-    ctrl.addEventListener("input", handleFilterControlChange);
-    ctrl.addEventListener("change", handleFilterControlChange);
+    const isSearch = ctrl === controls.search;
+    // One event per control: text inputs and checkboxes both fire input AND
+    // change — double-binding rendered the list twice per interaction.
+    ctrl.addEventListener(isSearch ? "input" : "change", () =>
+      handleFilterControlChange(!isSearch),
+    );
   });
 
   controls.activeFilterChips?.addEventListener("click", (event) => {
@@ -4045,12 +4345,250 @@ async function init(): Promise<void> {
       if (target.open) {
         openDepKeys.add(depKey);
         ensureDepDetailsRendered(target);
+        routeExpandedKey = depKey;
       } else {
         openDepKeys.delete(depKey);
+        if (routeExpandedKey === depKey) routeExpandedKey = null;
       }
+      routeSync(true);
     },
     true,
   );
+
+  // ----- list-view removal simulator -----------------------------------
+  // Same maths as the graph dossier's summary, computed against the shared
+  // full per-workspace models; rendered inline in the card as it opens.
+  function runListSimulation(holder: HTMLElement, simKey: string): void {
+    const dataset = getSharedDataset();
+    if (!dataset.dependencies[simKey]) {
+      // Not in the dependency graph at all: don't build every workspace's
+      // model just to discover that.
+      holder.textContent = "";
+      const note = document.createElement("p");
+      note.className = "list-sim-empty";
+      note.textContent =
+        "Not part of any workspace dependency graph, so nothing to simulate.";
+      holder.appendChild(note);
+      return;
+    }
+    // The package may only exist in some workspaces' graphs. Try the root
+    // workspace first — it is the graph view's default, so the two views
+    // quote the same numbers — then the named workspaces (they are sorted
+    // alphabetically in the dataset).
+    let model: VizModel | null = null;
+    let index = -1;
+    const ordered = [
+      ...dataset.workspaces.filter((w) => w.name === "root"),
+      ...dataset.workspaces.filter((w) => w.name !== "root"),
+    ];
+    for (const ws of ordered) {
+      const m = getFullModel(ws.name);
+      const idx = m.indexOfSlug.get(simKey);
+      if (idx !== undefined) {
+        model = m;
+        index = idx;
+        break;
+      }
+    }
+    holder.textContent = "";
+    if (!model || index < 0) {
+      const note = document.createElement("p");
+      note.className = "list-sim-empty";
+      note.textContent =
+        "Not part of any workspace dependency graph, so nothing to simulate.";
+      holder.appendChild(note);
+      return;
+    }
+    const sim = model.simulateRemoval(index);
+    let freedBytes = 0;
+    let sizedCount = 0;
+    let vulns = 0;
+    let licenses = 0;
+    let maint = 0;
+    for (const f of sim.freed) {
+      const key = resolveDepKey(f.slug);
+      const dep = key ? depByKey.get(key) : undefined;
+      if (!dep) continue;
+      if (dep.package.installSize) {
+        freedBytes += dep.package.installSize.totalBytes;
+        sizedCount += 1;
+      }
+      if (hasVulnerabilities(dep)) vulns += 1;
+      if (hasLicenseIssue(dep)) licenses += 1;
+      if (hasMaintenanceConcern(dep)) maint += 1;
+    }
+    const panel = document.createElement("div");
+    panel.className = "list-sim-panel";
+    const addP = (cls: string, text: string): HTMLElement => {
+      const node = document.createElement("p");
+      node.className = cls;
+      node.textContent = text;
+      panel.appendChild(node);
+      return node;
+    };
+    const blocked = sim.isDirect && sim.blockedBy.length > 0;
+    if (blocked) {
+      const names = sim.blockedBy.slice(0, 4).join(", ");
+      const suffix =
+        sim.blockedBy.length > 4 ? ` +${sim.blockedBy.length - 4}` : "";
+      addP(
+        "list-sim-blocked",
+        `Removing the manifest entry frees nothing today: still required by ${names}${suffix}. If those dependents dropped it, removal would free:`,
+      );
+    }
+    const sizeText =
+      freedBytes > 0
+        ? ` \u00b7 ${formatByteSize(freedBytes)} on disk${
+            sizedCount < sim.freed.length
+              ? ` (${sizedCount.toLocaleString()} of ${sim.freed.length.toLocaleString()} measured)`
+              : ""
+          }`
+        : "";
+    const rollups = [
+      ...(vulns ? [`${vulns} vulnerable`] : []),
+      ...(licenses ? [`${licenses} licence issue${licenses === 1 ? "" : "s"}`] : []),
+      ...(maint ? [`${maint} maintenance concern${maint === 1 ? "" : "s"}`] : []),
+    ];
+    const headlineP = addP(
+      "list-sim-headline",
+      `\u2702 ${blocked ? "Would free" : "Frees"} ${sim.freed.length.toLocaleString()} package${sim.freed.length === 1 ? "" : "s"}${sizeText}${
+        rollups.length > 0 ? ` \u00b7 including ${rollups.join(" \u00b7 ")}` : ""
+      }`,
+    );
+    headlineP.insertAdjacentHTML("beforeend", finePrintBtnHtml("impact"));
+    const nameList = (
+      title: string,
+      entries: Array<{ name: string; note?: string }>,
+      cap: number,
+    ): void => {
+      const head = document.createElement("p");
+      head.className = "list-sim-subtitle";
+      head.textContent = title;
+      panel.appendChild(head);
+      const wrap = document.createElement("div");
+      wrap.className = "list-sim-chips";
+      for (const entry of entries.slice(0, cap)) {
+        const chip = document.createElement("span");
+        chip.className = "list-sim-chip";
+        chip.textContent = entry.note
+          ? `${entry.name} \u00b7 ${entry.note}`
+          : entry.name;
+        wrap.appendChild(chip);
+      }
+      if (entries.length > cap) {
+        const more = document.createElement("span");
+        more.className = "list-sim-more";
+        more.textContent = `+${entries.length - cap} more`;
+        wrap.appendChild(more);
+      }
+      panel.appendChild(wrap);
+    };
+    const nameCounts = new Map<string, number>();
+    for (const entry of [...sim.freed, ...sim.retained]) {
+      nameCounts.set(entry.name, (nameCounts.get(entry.name) ?? 0) + 1);
+    }
+    const simLabel = (entry: { slug: string; name: string }): string =>
+      (nameCounts.get(entry.name) ?? 0) > 1 ? entry.slug : entry.name;
+    nameList(
+      `Freed (${sim.freed.length})`,
+      sim.freed.map((f) => ({ name: simLabel(f) })),
+      30,
+    );
+    if (sim.retained.length > 0) {
+      nameList(
+        `Retained (${sim.retained.length})`,
+        sim.retained.map((r) => ({ name: simLabel(r), note: `kept by ${r.keptBy}` })),
+        12,
+      );
+    }
+    if (model.workspaceName && dataset.workspaces.length > 1) {
+      const declaring =
+        model.workspaceName === "root" && sim.isDirect
+          ? dataset.workspaces.filter(
+              (w) =>
+                w.name !== "root" &&
+                (w.directDependencies.includes(simKey) ||
+                  w.directDevDependencies.includes(simKey)),
+            ).length
+          : 0;
+      addP(
+        "list-sim-note",
+        model.workspaceName === "root"
+          ? `Computed over the whole project graph.${
+              declaring > 1
+                ? ` Declared directly by ${declaring} workspaces; freeing requires removing it from each.`
+                : ""
+            }`
+          : `Computed for the ${model.workspaceName} workspace graph.`,
+      );
+    }
+    holder.appendChild(panel);
+  }
+
+  // ----- fine-print popover (list view) ---------------------------------
+  const listFinePop = document.createElement("div");
+  listFinePop.className = "fine-print-pop";
+  listFinePop.hidden = true;
+  listFinePop.setAttribute("role", "note");
+  listFinePop.tabIndex = -1;
+  document.body.appendChild(listFinePop);
+  let listFineAnchor: HTMLElement | null = null;
+  function closeListFinePrint(refocus = false): void {
+    if (listFinePop.hidden) return;
+    listFinePop.hidden = true;
+    listFineAnchor?.setAttribute("aria-expanded", "false");
+    if (refocus) listFineAnchor?.focus();
+    listFineAnchor = null;
+  }
+  function openListFinePrint(topic: string, anchor: HTMLElement): void {
+    const note = FINE_PRINT[topic];
+    if (!note) return;
+    if (!listFinePop.hidden && listFineAnchor === anchor) {
+      closeListFinePrint(true);
+      return;
+    }
+    listFineAnchor?.setAttribute("aria-expanded", "false");
+    listFineAnchor = anchor;
+    anchor.setAttribute("aria-expanded", "true");
+    listFinePop.textContent = "";
+    const strong = document.createElement("strong");
+    strong.textContent = note.title;
+    const body = document.createElement("p");
+    body.textContent = note.body;
+    listFinePop.append(strong, body);
+    listFinePop.hidden = false;
+    const rect = anchor.getBoundingClientRect();
+    const popH = listFinePop.offsetHeight;
+    const popW = 288;
+    let top = rect.bottom + 6;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+    listFinePop.style.top = `${Math.max(8, top)}px`;
+    listFinePop.style.left = `${Math.max(8, Math.min(rect.left - 140, window.innerWidth - popW - 8))}px`;
+    listFinePop.focus({ preventScroll: true });
+  }
+  document.addEventListener("pointerdown", (event) => {
+    if (listFinePop.hidden) return;
+    const target = event.target as Node;
+    if (listFinePop.contains(target) || listFineAnchor?.contains(target)) return;
+    closeListFinePrint();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !listFinePop.hidden) closeListFinePrint(true);
+  });
+  // A fixed-position note drifts from its anchor on any scroll — close it.
+  document.addEventListener("scroll", () => closeListFinePrint(), {
+    capture: true,
+    passive: true,
+  });
+  document.addEventListener("click", (event) => {
+    const btn = (event.target as HTMLElement).closest<HTMLElement>(
+      ".fine-print-btn[data-fine-topic]",
+    );
+    if (!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openListFinePrint(btn.dataset.fineTopic || "", btn);
+  });
 
   container.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
@@ -4078,10 +4616,153 @@ async function init(): Promise<void> {
       activateRootPackageLink(rootLink);
     }
   });
+  // ----- hash router ----------------------------------------------------
+  // Discrete UI transitions (view switch, filters, selection, graph mode,
+  // workspace) are mirrored into location.hash so browser back/forward
+  // walks them. Camera panning/zooming is deliberately NOT recorded.
+  function buildRouteHash(): string {
+    const params = new URLSearchParams();
+    if (currentView === "graph" && graphModes) {
+      const r = graphModes.routeState();
+      params.set("mode", r.mode);
+      if (r.workspace) params.set("ws", r.workspace);
+      if (r.selected) params.set("pkg", r.selected);
+      if (r.highlights.length > 0) params.set("hl", r.highlights.join(","));
+      if (!r.runtime) params.set("rt", "0");
+      if (!r.dev) params.set("dev", "0");
+      if (!r.sub) params.set("sub", "0");
+      if (r.depth !== null) params.set("depth", String(r.depth));
+      const query = params.toString();
+      return "#/graph" + (query ? `?${query}` : "");
+    }
+    if (controls.search.value) params.set("q", controls.search.value);
+    if (controls.direct.value !== "all") params.set("type", controls.direct.value);
+    if (controls.runtime.value !== "all") params.set("scope", controls.runtime.value);
+    if (controls.workspace && controls.workspace.value !== "all") {
+      params.set("ws", controls.workspace.value);
+    }
+    const flagParams: Array<[string, HTMLInputElement | null | undefined]> = [
+      ["vuln", controls.hasVulns],
+      ["maint", controls.maintenanceConcerns],
+      ["lic", controls.licenseIssues],
+      ["blockers", controls.upgradeBlockers],
+      ["repl", controls.hasReplacement],
+      ["noimports", controls.noImports],
+      ["dups", controls.duplicateVersions],
+    ];
+    for (const [key, ctrl] of flagParams) if (ctrl?.checked) params.set(key, "1");
+    const licenseParams: Array<[string, HTMLInputElement]> = [
+      ["lp", controls.licensePermissive],
+      ["lw", controls.licenseWeakCopyleft],
+      ["ls", controls.licenseStrongCopyleft],
+      ["lu", controls.licenseUnknown],
+    ];
+    for (const [key, ctrl] of licenseParams) if (!ctrl.checked) params.set(key, "0");
+    if (routeExpandedKey) params.set("pkg", routeExpandedKey);
+    const query = params.toString();
+    return "#/list" + (query ? `?${query}` : "");
+  }
+
+  function routeSync(pushRoute: boolean): void {
+    if (applyingRoute || !routerReady) return;
+    const hash = buildRouteHash();
+    if (hash === location.hash) return;
+    lastSyncedHash = hash;
+    const url = location.pathname + location.search + hash;
+    try {
+      if (pushRoute) history.pushState(null, "", url);
+      else history.replaceState(null, "", url);
+    } catch {
+      // Some file:// contexts refuse pushState — fall back to the hash
+      // itself (lastSyncedHash stops the hashchange listener re-applying).
+      location.hash = hash.slice(1);
+    }
+  }
+
+  function applyRouteFromHash(): void {
+    // The pre-router base entry has no hash — treat it as the default list
+    // route so Back past the first recorded state still resets the UI.
+    const hash = location.hash.startsWith("#/") ? location.hash : "#/list";
+    applyingRoute = true;
+    try {
+      const queryIndex = hash.indexOf("?");
+      const path = queryIndex < 0 ? hash.slice(2) : hash.slice(2, queryIndex);
+      const params = new URLSearchParams(
+        queryIndex < 0 ? "" : hash.slice(queryIndex + 1),
+      );
+      if (path === "graph") {
+        setActiveView("graph");
+        if (graphModes) {
+          const fallback = graphModes.routeState();
+          graphModes.applyRoute({
+            mode: (params.get("mode") as GraphRoute["mode"]) || fallback.mode,
+            workspace: params.get("ws") ?? "",
+            selected: params.get("pkg"),
+            highlights: (params.get("hl") ?? "").split(",").filter(Boolean),
+            runtime: params.get("rt") !== "0",
+            dev: params.get("dev") !== "0",
+            sub: params.get("sub") !== "0",
+            depth: params.has("depth")
+              ? Number.parseInt(params.get("depth") ?? "", 10) || null
+              : null,
+          });
+        }
+        return;
+      }
+      setActiveView("list");
+      controls.search.value = params.get("q") ?? "";
+      controls.direct.value = params.get("type") ?? "all";
+      controls.runtime.value = params.get("scope") ?? "all";
+      if (controls.workspace) controls.workspace.value = params.get("ws") ?? "all";
+      const setChecked = (
+        ctrl: HTMLInputElement | null | undefined,
+        value: boolean,
+      ): void => {
+        if (ctrl && !ctrl.disabled) ctrl.checked = value;
+      };
+      setChecked(controls.hasVulns, params.get("vuln") === "1");
+      setChecked(controls.maintenanceConcerns, params.get("maint") === "1");
+      setChecked(controls.licenseIssues, params.get("lic") === "1");
+      setChecked(controls.upgradeBlockers, params.get("blockers") === "1");
+      setChecked(controls.hasReplacement, params.get("repl") === "1");
+      setChecked(controls.noImports, params.get("noimports") === "1");
+      setChecked(controls.duplicateVersions, params.get("dups") === "1");
+      controls.licensePermissive.checked = params.get("lp") !== "0";
+      controls.licenseWeakCopyleft.checked = params.get("lw") !== "0";
+      controls.licenseStrongCopyleft.checked = params.get("ls") !== "0";
+      controls.licenseUnknown.checked = params.get("lu") !== "0";
+      const pkg = params.get("pkg");
+      routeExpandedKey = pkg;
+      // Reconcile expanded cards with the route: anything else closes.
+      for (const key of [...openDepKeys]) {
+        if (key !== pkg) openDepKeys.delete(key);
+      }
+      forcedVisibleDepKeys.clear();
+      renderList();
+      if (pkg && depByKey.has(pkg)) openListFromGraph(pkg);
+    } finally {
+      applyingRoute = false;
+    }
+  }
+
+  window.addEventListener("popstate", handleRouteNavigation);
+  window.addEventListener("hashchange", handleRouteNavigation);
+  function handleRouteNavigation(): void {
+    if (location.hash === lastSyncedHash) return;
+    lastSyncedHash = location.hash;
+    applyRouteFromHash();
+  }
+
   // Initial render
   updateColumnHeaders();
   renderList();
   setActiveView("list");
+  // Restore a deep link, then start mirroring state into the hash.
+  if (location.hash.startsWith("#/")) {
+    lastSyncedHash = location.hash;
+    applyRouteFromHash();
+  }
+  routerReady = true;
 }
 
 // Initialize on DOM ready

@@ -336,6 +336,17 @@ ${safeCssContent}
                 <span id="upgrade-blockers-label">Upgrade blockers</span>
               </label>
 
+              <span class="checkbox-filter">
+                <input type="checkbox" id="no-imports" />
+                <label for="no-imports" id="no-imports-label">No imports found</label>
+                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence">ⓘ</button>
+              </span>
+
+              <label class="checkbox-filter">
+                <input type="checkbox" id="duplicate-versions" />
+                <span id="duplicate-versions-label">Duplicate versions</span>
+              </label>
+
               <label class="checkbox-filter" id="has-replacement-wrap" hidden>
                 <input type="checkbox" id="has-replacement" />
                 <span id="has-replacement-label">Has replacement suggestion</span>
@@ -428,7 +439,18 @@ ${safeCssContent}
                   <span class="graph-key-dot sub-dependency" aria-hidden="true"></span>
                   <span>Sub-Dependency</span>
                 </span>
-              </div>
+              <span class="graph-key-item">
+            <span>Circle size: removal impact and connection count</span>
+          </span>
+          <span class="graph-key-item">
+            <span class="graph-key-line route" aria-hidden="true"></span>
+            <span>Selection: routes keeping it installed</span>
+          </span>
+          <span class="graph-key-item">
+            <span class="graph-key-line deps" aria-hidden="true"></span>
+            <span>Selection: what it depends on</span>
+          </span>
+        </div>
             </div>
           </div>
           <div class="graph-filter-wrap" id="graph-filter-wrap">
@@ -483,6 +505,14 @@ ${safeCssContent}
                   <span class="graph-key-dot hl-blocker" aria-hidden="true"></span>
                   Upgrade blocker
                 </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-unused" aria-pressed="false">
+                  <span class="graph-key-dot hl-unused" aria-hidden="true"></span>
+                  No imports found
+                </button>
+                <button type="button" class="graph-filter-chip" id="graph-hl-duplicate" aria-pressed="false">
+                  <span class="graph-key-dot hl-duplicate" aria-hidden="true"></span>
+                  Duplicate versions
+                </button>
               </div>
               <button type="button" class="graph-panel-reset" id="graph-filters-reset">
                 Reset filters
@@ -508,14 +538,6 @@ ${safeCssContent}
           </div>
           <button type="button" class="graph-control-btn reset-btn" data-action="reset">reset</button>
         </div>
-        <div class="graph-popover" id="graph-popover" hidden>
-          <div class="graph-popover-name" id="graph-popover-name"></div>
-          <div class="graph-popover-meta" id="graph-popover-version"></div>
-          <div class="graph-popover-meta" id="graph-popover-license"></div>
-          <div class="graph-popover-meta" id="graph-popover-vulns"></div>
-          <div class="graph-popover-meta" id="graph-popover-amplification"></div>
-          <button type="button" class="graph-popover-action" id="graph-open-list">Open in List</button>
-        </div>
         <aside class="graph-side-panel" id="graph-side-panel" aria-label="Selection details">
           <div class="graph-side-search">
             <input id="graph-search" type="search" placeholder="Find a package…" autocomplete="off" aria-label="Find a package" />
@@ -530,7 +552,7 @@ ${safeCssContent}
   <footer class="report-footer">
     <p><strong>About this report</strong></p>
     <p>Dependency Radar does not perform malware scanning or security auditing. It surfaces factual signals from dependency metadata, known vulnerabilities (npm audit), dependency graphs, and install-time behaviour to support informed review.</p>
-    <p class="report-footer-vintage">Dependency Radar v${escapeHtml(data.dependencyRadarVersion)} — report created ${escapeHtml(formattedDate)}. Bundled definitions: SPDX licence list (${SPDX_LICENSE_LIST_RELEASE_DATE}) · e18e module-replacements ${MODULE_REPLACEMENTS_VERSION} (${MODULE_REPLACEMENTS_DATE}).</p>
+    <p class="report-footer-vintage">Dependency Radar v${escapeHtml(data.dependencyRadarVersion)} \u00b7 report created ${escapeHtml(formattedDate)}. Bundled definitions: SPDX licence list (${SPDX_LICENSE_LIST_RELEASE_DATE}) · e18e module-replacements ${MODULE_REPLACEMENTS_VERSION} (${MODULE_REPLACEMENTS_DATE}).</p>
   </footer>
   
   <script type="application/json" id="radar-data">${json}</script>

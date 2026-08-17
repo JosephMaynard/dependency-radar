@@ -239,3 +239,113 @@ describe('impact', () => {
     expect(at(cyc, 'solo').keptBy).toEqual([]);
   });
 });
+
+describe('simulateRemoval', () => {
+  const names = (entries: Array<{ name: string }>): string[] =>
+    entries.map((e) => e.name);
+
+  it('frees the dominator subtree and explains what survives', () => {
+    const model = buildVizModel(impactDataset(), 'root', 'impact');
+    const idx = (n: string): number => model.indexOfSlug.get(`${n}@1.0.0`) as number;
+
+    // solo owns its subtree outright: everything freed, nothing retained.
+    const solo = model.simulateRemoval(idx('solo'));
+    expect(solo.isDirect).toBe(true);
+    expect(solo.blockedBy).toEqual([]);
+    expect(names(solo.freed).sort()).toEqual(['solo', 'solo-dep']);
+    expect(solo.retained).toEqual([]);
+
+    // vitest reaches vite/esbuild/rollup but frees only itself — vite is a
+    // direct dep, so the whole reachable remainder is retained with keepers.
+    const vitest = model.simulateRemoval(idx('vitest'));
+    expect(names(vitest.freed)).toEqual(['vitest']);
+    const retained = new Map(vitest.retained.map((r) => [r.name, r.keptBy]));
+    expect(retained.get('vite')).toBe('the project manifest');
+    expect(retained.get('esbuild')).toBe('vite');
+    expect(retained.get('rollup')).toBe('vite');
+  });
+
+  it('reports blocking dependents for a direct dep another package pulls in', () => {
+    const model = buildVizModel(impactDataset(), 'root', 'impact');
+    const idx = (n: string): number => model.indexOfSlug.get(`${n}@1.0.0`) as number;
+
+    const vite = model.simulateRemoval(idx('vite'));
+    expect(vite.isDirect).toBe(true);
+    expect(vite.blockedBy).toEqual(['vitest']);
+    // If vitest dropped it, removal would free vite + its exclusive subtree.
+    expect(names(vite.freed).sort()).toEqual(['esbuild', 'rollup', 'vite']);
+  });
+
+  it('computes over the full graph regardless of display filters', () => {
+    const noSubs = buildVizModel(impactDataset(), 'root', 'impact', {
+      runtime: true,
+      dev: true,
+      sub: false,
+      maxDepth: null,
+    });
+    const idx = noSubs.indexOfSlug.get('solo@1.0.0') as number;
+    // solo-dep is filtered out of the display model but still freed.
+    expect(names(noSubs.simulateRemoval(idx).freed).sort()).toEqual([
+      'solo',
+      'solo-dep',
+    ]);
+  });
+
+  it('never presents fallback roots as removable manifest entries', () => {
+    // A hoisting-only monorepo root: the workspace has NO direct deps, so
+    // parentless packages become traversal roots — but there is no manifest
+    // entry to remove, and no removal claim should be made for them.
+    const dependencies: GraphDataset['dependencies'] = {};
+    const add = (name: string, deps: string[]): void => {
+      const slug = `${name}@1.0.0`;
+      dependencies[slug] = {
+        slug,
+        name,
+        version: '1.0.0',
+        dependencies: deps.map((d) => `${d}@1.0.0`),
+        license: 'MIT',
+        vulnerabilityCount: 0,
+        vulnerabilitySeverity: 'none',
+        isDevOnly: false,
+        workspaceOrigins: ['root'],
+      };
+    };
+    add('hoisted-a', ['hoisted-b']);
+    add('hoisted-b', []);
+    const model = buildVizModel(
+      {
+        workspaces: [
+          { name: 'root', directDependencies: [], directDevDependencies: [] },
+        ],
+        dependencies,
+      },
+      'root',
+      'hoist-only',
+    );
+    const idx = model.indexOfSlug.get('hoisted-a@1.0.0') as number;
+    // Fallback root still traverses (whole tree visible)…
+    expect(model.count).toBe(2);
+    // …but carries no manifest-removal semantics.
+    expect(model.impact(idx).manifestFrees).toBeNull();
+    const sim = model.simulateRemoval(idx);
+    expect(sim.isDirect).toBe(false);
+    expect(sim.blockedBy).toEqual([]);
+    // The dominator subtree still frees correctly under fallback roots.
+    expect(sim.freed.map((f) => f.name).sort()).toEqual([
+      'hoisted-a',
+      'hoisted-b',
+    ]);
+  });
+
+  it('does not list a cycle-mate inside the freed subtree as a blocker', () => {
+    const cyclic = impactDataset();
+    cyclic.dependencies['solo-dep@1.0.0'].dependencies = ['solo@1.0.0'];
+    const model = buildVizModel(cyclic, 'root', 'impact');
+    const idx = model.indexOfSlug.get('solo@1.0.0') as number;
+    const sim = model.simulateRemoval(idx);
+    // solo-dep depends back on solo, but it leaves with it — not a blocker.
+    expect(sim.blockedBy).toEqual([]);
+    expect(names(sim.freed).sort()).toEqual(['solo', 'solo-dep']);
+    expect(sim.retained).toEqual([]);
+  });
+});

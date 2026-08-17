@@ -381,17 +381,22 @@ async function detectWorkspace(projectPath) {
         if (await (0, utils_1.pathExists)(pkgJson))
             packagePaths.push(dir);
     }
-    // Always include root if it contains a name (some repos keep a root package)
-    if (await (0, utils_1.pathExists)(path_1.default.join(projectPath, "package.json"))) {
-        // root may already be in the list; keep unique
-        if (!packagePaths.includes(projectPath)) {
-            // Only include root as a scanned package if it looks like a real package
-            const root = await readJsonFile(path_1.default.join(projectPath, "package.json"));
-            if (root &&
-                typeof root.name === "string" &&
-                root.name.trim().length > 0) {
-                packagePaths.push(projectPath);
-            }
+    // Always include the root when it is a real package: named, OR declaring
+    // dependencies of its own (many monorepo roots are nameless but still
+    // carry shared tooling deps — those must be scanned and attributed).
+    // rootPkg was parsed at the top of detectWorkspace; reuse it.
+    if (rootPkg && !packagePaths.includes(projectPath)) {
+        const declaresDeps = [
+            "dependencies",
+            "devDependencies",
+            "optionalDependencies",
+            "peerDependencies",
+        ].some((section) => rootPkg[section] &&
+            typeof rootPkg[section] === "object" &&
+            Object.keys(rootPkg[section]).length > 0);
+        if ((typeof rootPkg.name === "string" && rootPkg.name.trim().length > 0) ||
+            declaresDeps) {
+            packagePaths.push(projectPath);
         }
     }
     return {
@@ -506,7 +511,14 @@ function isWorkspaceLocalDependency(dependencyName, spec, workspacePackageNames,
 }
 function buildWorkspaceClassification(rootPath, packageMetas) {
     var _a, _b, _c, _d, _e, _f;
-    const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+    // Only packages with a REAL manifest name participate in name-based
+    // locality: a nameless root is keyed by its directory basename, and that
+    // basename colliding with an npm package must not mark it local.
+    const workspacePackageNames = new Set(packageMetas
+        .filter((meta) => meta.pkg &&
+        typeof meta.pkg.name === "string" &&
+        meta.pkg.name.trim().length > 0)
+        .map((meta) => meta.name));
     const workspaceMajorsByName = new Map();
     for (const meta of packageMetas) {
         const version = typeof ((_a = meta.pkg) === null || _a === void 0 ? void 0 : _a.version) === "string" ? meta.pkg.version.trim() : "";

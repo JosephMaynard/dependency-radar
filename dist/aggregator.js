@@ -564,6 +564,8 @@ async function aggregateData(input) {
                 version: node.version,
                 ...(packageInsights.description ? { description: packageInsights.description } : {}),
                 ...(typeof packageInsights.fileCount === 'number' ? { fileCount: packageInsights.fileCount } : {}),
+                ...(packageInsights.installSize ? { installSize: packageInsights.installSize } : {}),
+                ...(packageInsights.platform ? { platform: packageInsights.platform } : {}),
                 ...(packageInsights.hasBin ? { hasBin: true } : {}),
                 deprecated: packageInsights.deprecated,
                 links: {
@@ -625,7 +627,7 @@ async function aggregateData(input) {
     const dependencyCount = nodes.length;
     const transitiveCount = dependencyCount - directCount;
     const aggregated = {
-        schemaVersion: '1.7',
+        schemaVersion: '1.8',
         generatedAt: new Date().toISOString(),
         dependencyRadarVersion,
         git: {
@@ -1589,12 +1591,37 @@ async function gatherPackageInsights(name, version, resolvePaths, metaCache, sta
     const links = extractPackageLinks(pkg);
     const execution = await deriveExecutionInfo(pkg, scripts, dir, stats);
     const packaging = derivePackagingInfo(pkg, stats);
+    // Platform constraints from the installed manifest (package.json os/cpu):
+    // string arrays only, non-string entries dropped.
+    const normalizePlatformList = (value) => {
+        if (!Array.isArray(value))
+            return undefined;
+        const list = value.filter((item) => typeof item === 'string' && item.trim().length > 0);
+        return list.length > 0 ? list : undefined;
+    };
+    const platformOs = normalizePlatformList(pkg.os);
+    const platformCpu = normalizePlatformList(pkg.cpu);
+    const platform = platformOs || platformCpu
+        ? { ...(platformOs ? { os: platformOs } : {}), ...(platformCpu ? { cpu: platformCpu } : {}) }
+        : undefined;
     return {
         deprecated,
         nodeEngine,
         requiredPeerDependencies,
         description,
         ...(typeof (stats === null || stats === void 0 ? void 0 : stats.fileCount) === 'number' ? { fileCount: stats.fileCount } : {}),
+        ...((stats === null || stats === void 0 ? void 0 : stats.sizeComplete)
+            ? {
+                installSize: {
+                    totalBytes: stats.totalBytes,
+                    codeBytes: stats.codeBytes,
+                    typesBytes: stats.typesBytes,
+                    mapBytes: stats.mapBytes,
+                    otherBytes: stats.otherBytes
+                }
+            }
+            : {}),
+        ...(platform ? { platform } : {}),
         hasBin,
         declaredDependencies,
         links,
@@ -1756,6 +1783,8 @@ async function hasDefinitelyTypedPackage(name, resolvePaths, cache) {
  *          - `hasShrinkwrap`: `true` when an `npm-shrinkwrap.json` file was found.
  *          - `fileCount`: total number of regular files encountered under the directory.
  */
+const DECLARATION_FILE_RE = /\.d\.(ts|mts|cts)$/;
+const CODE_FILE_RE = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts)$/;
 async function calculatePackageStats(dir, cache) {
     if (cache.has(dir))
         return cache.get(dir);
@@ -1764,8 +1793,22 @@ async function calculatePackageStats(dir, cache) {
     let hasBindingGyp = false;
     let hasShrinkwrap = false;
     let fileCount = 0;
+    let codeBytes = 0;
+    let typesBytes = 0;
+    let mapBytes = 0;
+    let otherBytes = 0;
+    let sizeComplete = true;
     async function walk(current) {
-        const entries = await promises_1.default.readdir(current, { withFileTypes: true });
+        let entries;
+        try {
+            entries = await promises_1.default.readdir(current, { withFileTypes: true });
+        }
+        catch {
+            // Unreadable/removed subdirectory: the sums are now partial. Keep
+            // walking siblings, but never report the result as a measurement.
+            sizeComplete = false;
+            return;
+        }
         for (const entry of entries) {
             const full = path_1.default.join(current, entry.name);
             if (entry.isSymbolicLink())
@@ -1778,7 +1821,7 @@ async function calculatePackageStats(dir, cache) {
             }
             else if (entry.isFile()) {
                 fileCount += 1;
-                if (entry.name.endsWith('.d.ts'))
+                if (DECLARATION_FILE_RE.test(entry.name))
                     hasDts = true;
                 if (entry.name.endsWith('.node'))
                     hasNativeBinary = true;
@@ -1786,16 +1829,41 @@ async function calculatePackageStats(dir, cache) {
                     hasBindingGyp = true;
                 if (entry.name === 'npm-shrinkwrap.json')
                     hasShrinkwrap = true;
+                // Measured on-disk size, bucketed by what the bytes are for. Maps
+                // are matched first so .d.ts.map lands in maps, not types.
+                try {
+                    const { size } = await promises_1.default.stat(full);
+                    if (entry.name.endsWith('.map'))
+                        mapBytes += size;
+                    else if (DECLARATION_FILE_RE.test(entry.name))
+                        typesBytes += size;
+                    else if (CODE_FILE_RE.test(entry.name))
+                        codeBytes += size;
+                    else
+                        otherBytes += size;
+                }
+                catch {
+                    // A file disappearing mid-scan must not abort stats, but its
+                    // bytes are missing from the sums.
+                    sizeComplete = false;
+                }
             }
         }
     }
-    try {
-        await walk(dir);
-    }
-    catch (err) {
-        // best-effort; ignore inaccessible paths
-    }
-    const result = { hasDts, hasNativeBinary, hasBindingGyp, hasShrinkwrap, fileCount };
+    await walk(dir);
+    const result = {
+        hasDts,
+        hasNativeBinary,
+        hasBindingGyp,
+        hasShrinkwrap,
+        fileCount,
+        totalBytes: codeBytes + typesBytes + mapBytes + otherBytes,
+        codeBytes,
+        typesBytes,
+        mapBytes,
+        otherBytes,
+        sizeComplete
+    };
     cache.set(dir, result);
     return result;
 }

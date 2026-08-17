@@ -34,7 +34,7 @@ export function mountHyperbolicView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Hyperbolic view of the dependency tree (pointer-driven — the list view offers the same data with keyboard access)",
+    "Hyperbolic view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
   );
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
@@ -138,9 +138,16 @@ export function mountHyperbolicView(
           list.push({ next: kid, weight: Math.max(fc.fLeaves[kid], 0.5) });
         }
       }
-      // The way out of the focus subtree: the centre connects the rest of
-      // the graph through the hub; interior nodes walk up the focus tree.
-      const upId = id === fc.center ? HUB : fc.fParent[id];
+      // The way out of the focus subtree: the centre walks up its actual
+      // route to the project (spanning parent), so the amber route stays
+      // monotone on screen instead of doubling back — the parent used to
+      // sit in the hub's generic fan on the far side. Interior nodes walk
+      // up the focus tree; a cycle-claimed parent falls back to the hub.
+      const centerUp =
+        parent[fc.center] >= 0 && !fc.inFocus[parent[fc.center]]
+          ? parent[fc.center]
+          : HUB;
+      const upId = id === fc.center ? centerUp : fc.fParent[id];
       if (upId !== cameFrom) {
         list.push({
           next: upId,
@@ -171,11 +178,21 @@ export function mountHyperbolicView(
     hub: C;
     /** Tree edge per node for drawing: parent index, -1 = hub spoke, -2 = none. */
     parentMap: Int32Array;
+    /** The focused centre's way-up target: a node index, HUB, or -2 (none). */
+    centerUp: number;
   }
 
   /** Lay the whole tree out around `centerId` (HUB or a package index). */
   function computeLayout(centerId: number): Layout {
     const fc = centerId === HUB ? null : buildFocusCtx(centerId);
+    // Same rule the walk uses for the centre's way-up (cycle-claimed
+    // spanning parents fall back to the hub) — recorded so the route
+    // drawing can follow the layout instead of a chain the layout rerouted.
+    const layoutCenterUp = fc
+      ? parent[fc.center] >= 0 && !fc.inFocus[parent[fc.center]]
+        ? parent[fc.center]
+        : HUB
+      : -2;
     const positions: C[] = Array.from({ length: N }, () => ({ x: 0, y: 0 }));
     const parentMap = new Int32Array(N).fill(-2);
     let hub: C = { x: 0, y: 0 };
@@ -246,16 +263,19 @@ export function mountHyperbolicView(
         stack.push({ id: next, cameFrom: id, mid: out, wedge: Math.min(share * 0.95, 2.8) });
       }
     }
-    return { positions, hub, parentMap };
+    return { positions, hub, parentMap, centerUp: layoutCenterUp };
   }
 
   /** Tree edges of the layout currently on screen (drawing follows these). */
   let activeParent: Int32Array = new Int32Array(N).fill(-2);
+  /** The active layout's centre way-up target (HUB when a cycle rerouted). */
+  let activeCenterUp = -2;
 
   function applyLayout(layout: Layout): void {
     for (let i = 0; i < N; i += 1) pos[i] = layout.positions[i];
     hubPos = layout.hub;
     activeParent = layout.parentMap;
+    activeCenterUp = layout.centerUp;
   }
 
   applyLayout(computeLayout(HUB));
@@ -422,13 +442,20 @@ export function mountHyperbolicView(
         }
       }
       for (const from of model.depsIn[selected]) focusSet.add(from);
-      let walk = selected;
-      while (parent[walk] >= 0) {
-        pathEdges.push([parent[walk], walk]);
-        focusSet.add(parent[walk]);
-        walk = parent[walk];
+      if (activeCenterUp === HUB) {
+        // The focus layout rerouted the centre's way-up straight to the hub
+        // (its spanning parent sits inside the focus subtree — a cycle):
+        // draw the route the layout actually placed.
+        pathTop = selected;
+      } else {
+        let walk = selected;
+        while (parent[walk] >= 0) {
+          pathEdges.push([parent[walk], walk]);
+          focusSet.add(parent[walk]);
+          walk = parent[walk];
+        }
+        pathTop = walk;
       }
-      pathTop = walk;
     }
 
     // Tree edges of the layout on screen (the focus layout re-parents
@@ -640,7 +667,7 @@ export function mountHyperbolicView(
     if (hubR > 1.8) {
       ctx.fillStyle = theme.ink;
       ctx.textAlign = "center";
-      ctx.fillText(model.projectName, hub.x, hub.y - hubR - 7);
+      ctx.fillText(model.centerLabel, hub.x, hub.y - hubR - 7);
       ctx.textAlign = "left";
     }
   }

@@ -460,6 +460,30 @@
                   <span id="upgrade-blockers-label">Upgrade blockers</span>
                 </label>
 
+                <span class="checkbox-filter">
+                  <input type="checkbox" id="no-imports" />
+                  <label for="no-imports" id="no-imports-label"
+                    >No imports found</label
+                  >
+                  <button
+                    type="button"
+                    class="fine-print-btn"
+                    data-fine-topic="imports"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    aria-label="About: Import evidence"
+                  >
+                    ⓘ
+                  </button>
+                </span>
+
+                <label class="checkbox-filter">
+                  <input type="checkbox" id="duplicate-versions" />
+                  <span id="duplicate-versions-label"
+                    >Duplicate versions</span
+                  >
+                </label>
+
                 <label class="checkbox-filter" id="has-replacement-wrap" hidden>
                   <input type="checkbox" id="has-replacement" />
                   <span id="has-replacement-label"
@@ -663,6 +687,23 @@
                     ></span>
                     <span>Sub-Dependency</span>
                   </span>
+                  <span class="graph-key-item">
+                    <span>Circle size: removal impact and connection count</span>
+                  </span>
+                  <span class="graph-key-item">
+                    <span
+                      class="graph-key-line route"
+                      aria-hidden="true"
+                    ></span>
+                    <span>Selection: routes keeping it installed</span>
+                  </span>
+                  <span class="graph-key-item">
+                    <span
+                      class="graph-key-line deps"
+                      aria-hidden="true"
+                    ></span>
+                    <span>Selection: what it depends on</span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -802,6 +843,30 @@
                     ></span>
                     Upgrade blocker
                   </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-unused"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-unused"
+                      aria-hidden="true"
+                    ></span>
+                    No imports found
+                  </button>
+                  <button
+                    type="button"
+                    class="graph-filter-chip"
+                    id="graph-hl-duplicate"
+                    aria-pressed="false"
+                  >
+                    <span
+                      class="graph-key-dot hl-duplicate"
+                      aria-hidden="true"
+                    ></span>
+                    Duplicate versions
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -887,23 +952,6 @@
               reset
             </button>
           </div>
-          <div class="graph-popover" id="graph-popover" hidden>
-            <div class="graph-popover-name" id="graph-popover-name"></div>
-            <div class="graph-popover-meta" id="graph-popover-version"></div>
-            <div class="graph-popover-meta" id="graph-popover-license"></div>
-            <div class="graph-popover-meta" id="graph-popover-vulns"></div>
-            <div
-              class="graph-popover-meta"
-              id="graph-popover-amplification"
-            ></div>
-            <button
-              type="button"
-              class="graph-popover-action"
-              id="graph-open-list"
-            >
-              Open in List
-            </button>
-          </div>
           <aside
             class="graph-side-panel"
             id="graph-side-panel"
@@ -937,7 +985,7 @@
       </p>
       <!-- Dev-harness sample: the generated report interpolates real values. -->
       <p class="report-footer-vintage">
-        Dependency Radar v0.0.0-dev — report created just now. Bundled
+        Dependency Radar v0.0.0-dev · report created just now. Bundled
         definitions: SPDX licence list (sample) · e18e module-replacements
         (sample).
       </p>

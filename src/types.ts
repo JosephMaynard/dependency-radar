@@ -207,6 +207,28 @@ export interface DependencyRecord {
     description?: string;
     // Number of files observed in the installed package directory (excluding nested node_modules).
     fileCount?: number;
+    // Measured on-disk footprint of the installed package directory:
+    // uncompressed bytes as installed, excluding nested node_modules —
+    // never an estimate. Buckets sum to totalBytes. Absent when the
+    // package directory could not be resolved.
+    installSize?: {
+      totalBytes: number;
+      // Executable source: .js/.mjs/.cjs/.jsx/.ts/.tsx/.mts/.cts (excluding declarations).
+      codeBytes: number;
+      // Type declarations: .d.ts/.d.mts/.d.cts.
+      typesBytes: number;
+      // Source maps: *.map.
+      mapBytes: number;
+      // Everything else (JSON, docs, WASM, native binaries, assets…).
+      otherBytes: number;
+    };
+    // Platform constraints declared by the installed manifest (package.json
+    // os/cpu), present only when the package declares them — lets the report
+    // flag optional binaries installed for platforms this machine is not.
+    platform?: {
+      os?: string[];
+      cpu?: string[];
+    };
     // True when the package exposes at least one CLI executable via package.json#bin.
     hasBin?: true;
     deprecated: boolean;
@@ -369,7 +391,7 @@ export interface ProjectDependencyPolicySummary {
 }
 
 export interface AggregatedData {
-  schemaVersion: '1.7';
+  schemaVersion: '1.8';
   generatedAt: string;
   dependencyRadarVersion: string;
   git: {

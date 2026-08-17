@@ -454,19 +454,27 @@ async function detectWorkspace(
     if (await pathExists(pkgJson)) packagePaths.push(dir);
   }
 
-  // Always include root if it contains a name (some repos keep a root package)
-  if (await pathExists(path.join(projectPath, "package.json"))) {
-    // root may already be in the list; keep unique
-    if (!packagePaths.includes(projectPath)) {
-      // Only include root as a scanned package if it looks like a real package
-      const root = await readJsonFile(path.join(projectPath, "package.json"));
-      if (
-        root &&
-        typeof root.name === "string" &&
-        root.name.trim().length > 0
-      ) {
-        packagePaths.push(projectPath);
-      }
+  // Always include the root when it is a real package: named, OR declaring
+  // dependencies of its own (many monorepo roots are nameless but still
+  // carry shared tooling deps — those must be scanned and attributed).
+  // rootPkg was parsed at the top of detectWorkspace; reuse it.
+  if (rootPkg && !packagePaths.includes(projectPath)) {
+    const declaresDeps = [
+      "dependencies",
+      "devDependencies",
+      "optionalDependencies",
+      "peerDependencies",
+    ].some(
+      (section) =>
+        rootPkg[section] &&
+        typeof rootPkg[section] === "object" &&
+        Object.keys(rootPkg[section]).length > 0,
+    );
+    if (
+      (typeof rootPkg.name === "string" && rootPkg.name.trim().length > 0) ||
+      declaresDeps
+    ) {
+      packagePaths.push(projectPath);
     }
   }
 
@@ -604,7 +612,19 @@ function buildWorkspaceClassification(
   localDependencyNames: Set<string>;
   workspaceMajorsByName: Map<string, string[]>;
 } {
-  const workspacePackageNames = new Set(packageMetas.map((meta) => meta.name));
+  // Only packages with a REAL manifest name participate in name-based
+  // locality: a nameless root is keyed by its directory basename, and that
+  // basename colliding with an npm package must not mark it local.
+  const workspacePackageNames = new Set(
+    packageMetas
+      .filter(
+        (meta) =>
+          meta.pkg &&
+          typeof meta.pkg.name === "string" &&
+          meta.pkg.name.trim().length > 0,
+      )
+      .map((meta) => meta.name),
+  );
   const workspaceMajorsByName = new Map<string, string[]>();
   for (const meta of packageMetas) {
     const version =
