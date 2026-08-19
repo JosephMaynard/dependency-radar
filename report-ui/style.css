@@ -64,6 +64,10 @@
   --hl-blocker: #94a3b8;
   --hl-unused: #fb923c;
   --hl-duplicate: #2dd4bf;
+  /* Accent-filled count badge. The bright cyan accent only carries dark text
+     at AA, so the light theme deepens the fill instead of tinting the numeral. */
+  --badge-fill: var(--accent);
+  --badge-text: #0c1222;
 }
 
 :root.light {
@@ -92,6 +96,8 @@
   --hl-blocker: #64748b;
   --hl-unused: #ea580c;
   --hl-duplicate: #0d9488;
+  --badge-fill: #0e7490;
+  --badge-text: #ffffff;
 }
 
 [data-theme="light"] {
@@ -106,6 +112,8 @@
   --hl-blocker: #64748b;
   --hl-unused: #ea580c;
   --hl-duplicate: #0d9488;
+  --badge-fill: #0e7490;
+  --badge-text: #ffffff;
 }
 
 html {
@@ -619,9 +627,8 @@ button.stat-chip:focus-visible {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--accent);
-  /* Dark text: white on the accent cyan fails AA contrast in both themes. */
-  color: #0c1222;
+  background: var(--badge-fill);
+  color: var(--badge-text);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -2723,6 +2730,14 @@ details[open] > summary .expand-icon {
   background: var(--red-bg);
 }
 
+/* A replacement suggestion is an opportunity, not a risk, so it borrows the
+   graph's replacement highlight rather than the red/amber risk ramp. */
+.status-chip.replacement {
+  color: var(--hl-replacement);
+  border-color: color-mix(in srgb, var(--hl-replacement) 40%, transparent);
+  background: color-mix(in srgb, var(--hl-replacement) 15%, transparent);
+}
+
 /* ===== KEY POINTS ===== */
 .key-points {
   margin: 0;
@@ -2908,6 +2923,19 @@ details[open] > summary .expand-icon {
   line-height: 1.5;
 }
 
+/* Notes carry the only prose links in the detail panel; without this they
+   fall back to the UA blue, which is unreadable on the dark card. */
+.section-note a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.section-note a:hover,
+.section-note a:focus-visible {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
 /* ===== SUBSECTIONS (nested within section cards) ===== */
 .subsection {
   padding: 12px;
@@ -2943,6 +2971,8 @@ details[open] > summary .expand-icon {
   color: var(--text-muted);
 }
 
+/* Section tinting mirrors the risk ramp used by the row badges, so a section
+   that carries an issue reads at a glance without opening it. */
 .subsection.warning {
   border-color: rgba(239, 68, 68, 0.25);
   background: rgba(239, 68, 68, 0.04);
@@ -2950,6 +2980,24 @@ details[open] > summary .expand-icon {
 
 .subsection.warning .subsection-title {
   color: var(--red);
+}
+
+.subsection.caution {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.subsection.caution .subsection-title {
+  color: var(--amber);
+}
+
+.subsection.opportunity {
+  border-color: color-mix(in srgb, var(--hl-replacement) 25%, transparent);
+  background: color-mix(in srgb, var(--hl-replacement) 5%, transparent);
+}
+
+.subsection.opportunity .subsection-title {
+  color: var(--hl-replacement);
 }
 
 /* ===== DETAIL LISTS ===== */
@@ -3846,19 +3894,22 @@ details[open] > summary .expand-icon {
 
 
 /* --- List-view removal preview ----------------------------------------- */
+/* Borrows the subsection shell so the panel reads as part of the expanded
+   view. It previously keyed off --accent-primary, which is not a token in
+   this sheet, so it always fell back to an off-theme sky blue. */
 .list-sim-panel {
-  margin-top: 4px;
-  border: 1px solid color-mix(in srgb, var(--accent-primary, #38bdf8) 45%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent-primary, #38bdf8) 7%, transparent);
-  padding: 12px 14px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .list-sim-headline {
   margin: 0;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -3867,36 +3918,27 @@ details[open] > summary .expand-icon {
 .list-sim-note,
 .list-sim-empty {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.list-sim-subtitle {
-  margin: 4px 0 0;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-secondary);
-}
-
-.list-sim-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-}
-
-.list-sim-chip {
+  color: var(--text-muted);
   font-size: 11px;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  border-radius: 6px;
-  padding: 2px 7px;
-  color: var(--text-secondary);
+}
+
+.list-sim-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.list-sim-group .subsection-header {
+  margin-bottom: 4px;
+}
+
+.package-tag-note {
+  margin-left: 6px;
+  color: var(--text-muted);
 }
 
 .list-sim-more {
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-family: var(--font-stack);
   align-self: center;
 }
 
@@ -3957,7 +3999,7 @@ details[open] > summary .expand-icon {
 
 .graph-empty-ws-item:hover {
   color: var(--text-primary);
-  border-color: var(--accent-primary, #38bdf8);
+  border-color: var(--accent);
 }
 
 /* List-view fine-print pop is viewport-anchored; it must paint above the

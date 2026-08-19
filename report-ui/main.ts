@@ -309,19 +309,6 @@ const COLUMN_CONFIG: ColumnConfig[] = [
       (getSubDepCount(`${b.package.name}@${b.package.version}`) ?? -1),
   },
   {
-    id: "frees",
-    label: "Frees",
-    sortKey: "frees",
-    getValue: (dep) => {
-      const count = getFreesCount(`${dep.package.name}@${dep.package.version}`);
-      return count === undefined ? "—" : count.toLocaleString();
-    },
-    getTone: () => "gray",
-    sortFn: (a, b) =>
-      (getFreesCount(`${a.package.name}@${a.package.version}`) ?? -1) -
-      (getFreesCount(`${b.package.name}@${b.package.version}`) ?? -1),
-  },
-  {
     id: "license",
     label: "License",
     sortKey: "license",
@@ -923,6 +910,46 @@ function renderKvItem(
   return html;
 }
 
+const DATE_ONLY_FORMAT: Intl.DateTimeFormatOptions = {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+};
+const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  ...DATE_ONLY_FORMAT,
+  hour: "2-digit",
+  minute: "2-digit",
+};
+
+/**
+ * Format an ISO timestamp in the viewer's locale, matching the header's
+ * generated-at treatment. Unparseable values fall through unchanged so a
+ * malformed timestamp still shows its raw value rather than "Invalid Date".
+ */
+function formatTimestamp(value: string | undefined, withTime = false): string {
+  if (!value) return "";
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat(
+      undefined,
+      withTime ? DATE_TIME_FORMAT : DATE_ONLY_FORMAT,
+    ).format(date);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Render a whole-month age as review-friendly prose. Sub-month gaps read as
+ * "~0 months ago" otherwise, which looks like a missing value.
+ */
+function formatMonthsAgo(months: number): string {
+  if (months <= 0) return "Less than a month ago";
+  if (months === 1) return "About 1 month ago";
+  return `About ${months} months ago`;
+}
+
 function renderRiskValue(
   value: string | number,
   risk: "green" | "amber" | "red",
@@ -938,7 +965,7 @@ function renderRiskValue(
 
 function renderStatusChip(
   label: string,
-  tone: "neutral" | "green" | "amber" | "red" = "neutral",
+  tone: "neutral" | "green" | "amber" | "red" | "replacement" = "neutral",
 ): string {
   return (
     '<span class="status-chip ' +
@@ -973,6 +1000,28 @@ function buildStatusChips(
     ),
     renderStatusChip(blocker ? "Upgrade blocker" : "No upgrade blocker", blocker ? "amber" : "neutral"),
   ];
+  // Maintenance is omitted entirely when the collector never ran (offline or
+  // --no-maintenance), rather than claiming an "Active" or "Unknown" status
+  // the scan has no basis for.
+  const maintenanceStatus = dep.maintenance?.status;
+  if (maintenanceStatus && maintenanceStatus !== "unknown") {
+    const tone = getMaintenanceStatusTone(maintenanceStatus);
+    chips.push(
+      renderStatusChip(
+        "Maintenance: " + getMaintenanceStatusLabel(maintenanceStatus),
+        tone === "green" || tone === "amber" || tone === "red"
+          ? tone
+          : "neutral",
+      ),
+    );
+  } else if (dep.maintenance?.attempted) {
+    chips.push(renderStatusChip("Maintenance: Unknown"));
+  }
+  // A suggestion is an opportunity rather than a risk, so it gets its own tone
+  // and is dropped when absent instead of showing a "none" chip on every row.
+  if (dep.replacement?.replacements?.length) {
+    chips.push(renderStatusChip("Replacement available (e18e)", "replacement"));
+  }
   return '<div class="status-chip-strip">' + chips.join("") + "</div>";
 }
 
@@ -1462,6 +1511,19 @@ function renderSubsection(
   return html;
 }
 
+/**
+ * Map a risk tone onto the subsection tint class, so a section with an issue
+ * is coloured the same way the Maintenance section already is. Green and
+ * missing risks stay untinted.
+ */
+function subsectionTone(
+  risk: "red" | "amber" | "green" | undefined,
+): string | undefined {
+  if (risk === "red") return "warning";
+  if (risk === "amber") return "caution";
+  return undefined;
+}
+
 function toneToString(tone?: "red" | "amber" | "green"): string {
   if (tone === "red") return "High";
   if (tone === "amber") return "Medium";
@@ -1535,6 +1597,8 @@ function renderExecutionSection(
   return renderSubsection(
     "Install-time execution behaviour",
     note + '<div class="kv-grid">' + items.join("") + "</div>",
+    undefined,
+    subsectionTone(execution.risk),
   );
 }
 
@@ -1593,10 +1657,17 @@ function renderRegistryEnrichmentSection(
     items.push(renderKvItemHtml("Registry signals", renderPackageList(labels, 6)));
   }
   if (registry.installedVersionPublishedAt) {
-    items.push(renderKvItem("Installed version published", registry.installedVersionPublishedAt));
+    items.push(
+      renderKvItem(
+        "Installed version published",
+        formatTimestamp(registry.installedVersionPublishedAt),
+      ),
+    );
   }
   if (registry.packageCreatedAt) {
-    items.push(renderKvItem("Package created", registry.packageCreatedAt));
+    items.push(
+      renderKvItem("Package created", formatTimestamp(registry.packageCreatedAt)),
+    );
   }
   if (typeof registry.versionCount === "number") {
     items.push(renderKvItem("Published versions", registry.versionCount));
@@ -1640,7 +1711,7 @@ function renderMaintenanceSection(
         "Repository archived",
         yesNo(maintenance.repoArchived),
         maintenance.repoCheckedAt
-          ? `Checked ${maintenance.repoCheckedAt}`
+          ? `Checked ${formatTimestamp(maintenance.repoCheckedAt, true)}`
           : undefined,
       ),
     );
@@ -1649,9 +1720,9 @@ function renderMaintenanceSection(
     items.push(
       renderKvItem(
         "Last registry activity",
-        maintenance.packageModifiedAt,
+        formatTimestamp(maintenance.packageModifiedAt),
         typeof maintenance.monthsSinceModified === "number"
-          ? `~${maintenance.monthsSinceModified} months ago`
+          ? formatMonthsAgo(maintenance.monthsSinceModified)
           : undefined,
       ),
     );
@@ -1660,9 +1731,9 @@ function renderMaintenanceSection(
     items.push(
       renderKvItem(
         "Last repository push",
-        maintenance.repoPushedAt,
+        formatTimestamp(maintenance.repoPushedAt),
         typeof maintenance.monthsSinceRepoPush === "number"
-          ? `~${maintenance.monthsSinceRepoPush} months ago`
+          ? formatMonthsAgo(maintenance.monthsSinceRepoPush)
           : undefined,
       ),
     );
@@ -1674,7 +1745,8 @@ function renderMaintenanceSection(
     items.push(
       renderKvItem(
         "Data fetched",
-        maintenance.fetchedAt + (maintenance.fromCache ? " (cached)" : ""),
+        formatTimestamp(maintenance.fetchedAt, true) +
+          (maintenance.fromCache ? " (cached)" : ""),
       ),
     );
   }
@@ -1733,6 +1805,7 @@ function renderReplacementSection(
     "Replacement available",
     '<div class="kv-grid">' + items.join("") + "</div>" + docLink + credit,
     "Community-suggested lighter or native alternative",
+    "opportunity",
   );
 }
 
@@ -2073,10 +2146,6 @@ function getDepStats(depKey: string): DepGraphStats | undefined {
 function getSubDepCount(depKey: string): number | undefined {
   return getDepStats(depKey)?.subs;
 }
-function getFreesCount(depKey: string): number | undefined {
-  return getDepStats(depKey)?.frees;
-}
-
 interface DupDependent {
   name: string;
   version: string;
@@ -2308,6 +2377,8 @@ function renderDepDetails(
   const licenseBlock = renderSubsection(
     "License",
     '<div class="kv-grid">' + licenseDetails.join("") + "</div>",
+    undefined,
+    subsectionTone(dep.compliance.licenseRisk),
   );
 
   const vulnTotal = reportVulnerabilityTotal(securitySummary);
@@ -2345,11 +2416,12 @@ function renderDepDetails(
       ? advisoriesTable
       : "",
   ].join("");
+  const vulnTone = subsectionTone(securitySummary.risk);
   const vulnBlock = renderSubsection(
     "Vulnerabilities",
     vulnBody,
     "Known security issues from npm audit",
-    "vuln-block",
+    "vuln-block" + (vulnTone ? " " + vulnTone : ""),
   );
 
   const executionBlock = dep.execution
@@ -2393,6 +2465,14 @@ function renderDepDetails(
       '<div class="kv-grid">' +
       currencyItems.join("") +
       "</div>",
+    undefined,
+    subsectionTone(
+      dep.upgrade.risk === "high"
+        ? "red"
+        : dep.upgrade.risk === "medium"
+          ? "amber"
+          : undefined,
+    ),
   );
 
   // The Maintenance section (Risk & Compliance) supersedes this block when
@@ -2423,6 +2503,8 @@ function renderDepDetails(
   const constraintBlock = renderSubsection(
     "Constraints",
     '<div class="kv-grid">' + constraintItems.join("") + "</div>",
+    undefined,
+    dep.upgrade.blocksNodeMajor ? "caution" : undefined,
   );
 
   const blastRadiusBlock = renderSubsection(
@@ -2442,7 +2524,7 @@ function renderDepDetails(
     installScripts: "Install lifecycle scripts",
     deprecated: "Deprecated by author",
   };
-  const blockers = '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div>' +
+  const blockers = '<div class="subsection' + (dep.upgrade.blockers?.length ? " caution" : "") + '"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div>' +
     (dep.upgrade.blockers?.length
       ? '<ul class="bullet-list">' +
         dep.upgrade.blockers
@@ -4456,32 +4538,51 @@ async function init(): Promise<void> {
       }`,
     );
     headlineP.insertAdjacentHTML("beforeend", finePrintBtnHtml("impact"));
+    // Grouped the same way the expanded view's subsections are: a title with
+    // a one-line description beside it, then package tags.
     const nameList = (
       title: string,
+      desc: string,
       entries: Array<{ name: string; note?: string }>,
       cap: number,
     ): void => {
-      const head = document.createElement("p");
-      head.className = "list-sim-subtitle";
-      head.textContent = title;
-      panel.appendChild(head);
+      const group = document.createElement("div");
+      group.className = "list-sim-group";
+      const head = document.createElement("div");
+      head.className = "subsection-header";
+      const titleEl = document.createElement("span");
+      titleEl.className = "subsection-title";
+      titleEl.textContent = title;
+      const descEl = document.createElement("span");
+      descEl.className = "subsection-desc";
+      descEl.textContent = desc;
+      head.append(titleEl, descEl);
+      group.appendChild(head);
       const wrap = document.createElement("div");
-      wrap.className = "list-sim-chips";
+      wrap.className = "package-list";
       for (const entry of entries.slice(0, cap)) {
         const chip = document.createElement("span");
-        chip.className = "list-sim-chip";
-        chip.textContent = entry.note
-          ? `${entry.name} \u00b7 ${entry.note}`
-          : entry.name;
+        chip.className = "package-tag";
+        if (entry.note) {
+          const nameEl = document.createElement("span");
+          nameEl.textContent = entry.name;
+          const noteEl = document.createElement("span");
+          noteEl.className = "package-tag-note";
+          noteEl.textContent = entry.note;
+          chip.append(nameEl, noteEl);
+        } else {
+          chip.textContent = entry.name;
+        }
         wrap.appendChild(chip);
       }
       if (entries.length > cap) {
         const more = document.createElement("span");
-        more.className = "list-sim-more";
+        more.className = "package-tag list-sim-more";
         more.textContent = `+${entries.length - cap} more`;
         wrap.appendChild(more);
       }
-      panel.appendChild(wrap);
+      group.appendChild(wrap);
+      panel.appendChild(group);
     };
     const nameCounts = new Map<string, number>();
     for (const entry of [...sim.freed, ...sim.retained]) {
@@ -4491,12 +4592,14 @@ async function init(): Promise<void> {
       (nameCounts.get(entry.name) ?? 0) > 1 ? entry.slug : entry.name;
     nameList(
       `Freed (${sim.freed.length})`,
+      "Leave node_modules: nothing else needs them",
       sim.freed.map((f) => ({ name: simLabel(f) })),
       30,
     );
     if (sim.retained.length > 0) {
       nameList(
         `Retained (${sim.retained.length})`,
+        "Stay installed: another package still depends on them",
         sim.retained.map((r) => ({ name: simLabel(r), note: `kept by ${r.keptBy}` })),
         12,
       );
