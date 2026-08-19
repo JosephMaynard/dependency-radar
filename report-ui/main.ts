@@ -976,6 +976,11 @@ function renderStatusChip(
   );
 }
 
+// Audit is the only risk signal on the chip strip that needs the network.
+// Captured at init so a "Vulnerability: None" chip stays neutral rather than
+// claiming a green all-clear on a scan where the audit never ran.
+let auditCollectorAvailable = true;
+
 function buildStatusChips(
   dep: DependencyRecord,
   summary: SecuritySummary,
@@ -991,13 +996,12 @@ function buildStatusChips(
       vulnTotal > 0
         ? "Vulnerability: " + titleCaseValue(summary.highest)
         : "Vulnerability: None",
-      summary.risk === "green" ? "neutral" : summary.risk,
+      summary.risk === "green" && !auditCollectorAvailable
+        ? "neutral"
+        : summary.risk,
     ),
-    renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk === "green" ? "neutral" : dep.compliance.licenseRisk),
-    renderStatusChip(
-      "Install risk: " + toneToString(installRisk),
-      installRisk === "green" ? "neutral" : installRisk,
-    ),
+    renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk),
+    renderStatusChip("Install risk: " + toneToString(installRisk), installRisk),
     renderStatusChip(blocker ? "Upgrade blocker" : "No upgrade blocker", blocker ? "amber" : "neutral"),
   ];
   // Maintenance is omitted entirely when the collector never ran (offline or
@@ -2595,6 +2599,8 @@ async function init(): Promise<void> {
   if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
     window.__DEPENDENCY_DATA__ = report;
   }
+  auditCollectorAvailable =
+    (report.scanStatus?.collectors.audit ?? "available") === "available";
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
   const scanStatusBanner = document.getElementById("scan-status-banner");
