@@ -952,7 +952,7 @@ function formatMonthsAgo(months: number): string {
 
 function renderRiskValue(
   value: string | number,
-  risk: "green" | "amber" | "red",
+  risk: "green" | "amber" | "red" | "gray",
 ): string {
   return (
     '<span class="kv-value risk-value"><span class="risk-dot ' +
@@ -989,16 +989,20 @@ function buildStatusChips(
   const vulnTotal = reportVulnerabilityTotal(summary);
   const installRisk = dep.execution?.risk || "green";
   const blocker = dep.upgrade.blocksNodeMajor || !!dep.upgrade.blockers?.length;
+  // Without audit data a bare "None" would assert a clean result the scan
+  // never checked for. "None reported" describes what the report holds, and
+  // the neutral tone keeps it from reading as a green all-clear.
+  const vulnUnchecked = vulnTotal === 0 && !auditCollectorAvailable;
   const chips = [
     renderStatusChip(dep.usage.direct ? "Direct dependency" : "Transitive dependency"),
     renderStatusChip(scopeLabel(dep.usage.scope)),
     renderStatusChip(
       vulnTotal > 0
         ? "Vulnerability: " + titleCaseValue(summary.highest)
-        : "Vulnerability: None",
-      summary.risk === "green" && !auditCollectorAvailable
-        ? "neutral"
-        : summary.risk,
+        : vulnUnchecked
+          ? "Vulnerability: None reported"
+          : "Vulnerability: None",
+      vulnUnchecked ? "neutral" : summary.risk,
     ),
     renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk),
     renderStatusChip("Install risk: " + toneToString(installRisk), installRisk),
@@ -2386,12 +2390,19 @@ function renderDepDetails(
   );
 
   const vulnTotal = reportVulnerabilityTotal(securitySummary);
+  // Mirrors the chip strip: with no audit data this states what the report
+  // holds instead of showing a green "no known vulnerabilities".
+  const vulnUnchecked = vulnTotal === 0 && !auditCollectorAvailable;
   const vulnSummaryItems = [
     renderKvItemHtml(
       "Vulnerability status",
       renderRiskValue(
-        vulnTotal === 0 ? "No known vulnerabilities" : String(vulnTotal),
-        securitySummary.risk,
+        vulnTotal === 0
+          ? vulnUnchecked
+            ? "None reported (audit did not run)"
+            : "No known vulnerabilities"
+          : String(vulnTotal),
+        vulnUnchecked ? "gray" : securitySummary.risk,
       ),
     ),
     renderKvItem(
