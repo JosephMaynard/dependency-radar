@@ -342,11 +342,16 @@ body {
 }
 
 .stat-chip {
-  /* Number on top, label beneath; DOM keeps label-first for screen readers. */
+  /* Number on top, label beneath, optional sub-line last. DOM order stays
+     label, number, sub-line for screen readers; `order` on the value does the
+     visual reordering, which column-reverse could not do with three children. */
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Top-aligned, not centred: chips are stretched to a common height, so
+     centring would drop the number and label of a chip without a sub-line
+     out of line with its neighbours. */
+  justify-content: flex-start;
   gap: 4px;
   min-width: 92px;
   padding: 8px 8px 6px;
@@ -363,7 +368,23 @@ body {
   display: none;
 }
 
+/* Secondary figure under the label. Muted and small so the headline number
+   keeps the tile; hidden when a chip has nothing meaningful to add. */
+.stat-sub {
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stat-sub[hidden] {
+  display: none;
+}
+
 .stat-chip strong {
+  order: -1;
   color: var(--text-primary);
   /* Display value: sans, semibold, proportional figures (not mono/tabular). */
   font-family: var(--font-stack);
@@ -3817,6 +3838,13 @@ details[open] > summary .expand-icon {
 
   .stat-chip .meta-label {
     font-size: 8px;
+  }
+
+  /* Chips are ~64px wide here, far too narrow for a phrase like "2 deprecated
+     or archived" on one line, so the sub-line is allowed to wrap. */
+  .stat-sub {
+    font-size: 9px;
+    white-space: normal;
   }
 
   .badge-card {

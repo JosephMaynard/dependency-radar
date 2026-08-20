@@ -3223,11 +3223,25 @@ async function init(): Promise<void> {
     let maintenanceDeprecatedOrArchived = 0;
     let maintenanceDataSeen = false;
     let licenseIssues = 0;
+    let licenseHighRisk = 0;
     let blockers = 0;
+    let blocksNodeMajor = 0;
     let replacements = 0;
+    let directReplacements = 0;
+    // One advisory reaches every package above it in the chain (the `via`
+    // expansion in the aggregator), so the same id lands on several records.
+    // Counting distinct ids is what makes this comparable to a scanner's
+    // "unique vulnerabilities" rather than "affected packages".
+    const advisoryIds = new Set<string>();
     allDependencies.forEach((dep) => {
       if (hasVulnerabilities(dep)) vulnerable += 1;
-      if (hasReplacementSuggestion(dep)) replacements += 1;
+      for (const advisory of normalizeSecurity(dep).advisories || []) {
+        if (advisory?.id) advisoryIds.add(String(advisory.id));
+      }
+      if (hasReplacementSuggestion(dep)) {
+        replacements += 1;
+        if (dep.usage.direct) directReplacements += 1;
+      }
       if (dep.maintenance?.attempted) maintenanceDataSeen = true;
       if (hasMaintenanceConcern(dep)) {
         maintenanceConcernCount += 1;
@@ -3236,15 +3250,27 @@ async function init(): Promise<void> {
           maintenanceDeprecatedOrArchived += 1;
         }
       }
-      if (hasLicenseIssue(dep)) licenseIssues += 1;
-      if (hasUpgradeBlocker(dep)) blockers += 1;
+      if (hasLicenseIssue(dep)) {
+        licenseIssues += 1;
+        if (dep.compliance.licenseRisk === "red") licenseHighRisk += 1;
+      }
+      if (hasUpgradeBlocker(dep)) {
+        blockers += 1;
+        if (dep.upgrade.blocksNodeMajor) blocksNodeMajor += 1;
+      }
     });
+    // Reports whose audit format carried severity counts but no advisory
+    // detail would otherwise headline "0 vulnerabilities" beside a non-zero
+    // package count, so those fall back to the package figure.
+    const advisoryCount = advisoryIds.size;
+    const advisoryDetailMissing = advisoryCount === 0 && vulnerable > 0;
 
     const setChip = (
       id: string,
       value: number,
       tone?: "red" | "amber",
       title?: string,
+      sub?: string,
     ): void => {
       const chip = document.getElementById(id);
       if (!chip) return;
@@ -3253,19 +3279,38 @@ async function init(): Promise<void> {
       chip.classList.remove("red", "amber");
       if (tone && value > 0) chip.classList.add(tone);
       if (title) chip.title = title;
+      const subEl = chip.querySelector<HTMLElement>(".stat-sub");
+      if (subEl) {
+        subEl.textContent = sub || "";
+        subEl.hidden = !sub;
+      }
     };
+    const plural = (
+      count: number,
+      singular: string,
+      pluralForm = `${singular}s`,
+    ): string =>
+      `${count.toLocaleString()} ${count === 1 ? singular : pluralForm}`;
 
     setChip(
       "stat-total",
       report.summary.dependencyCount,
       undefined,
       `${report.summary.directCount} direct, ${report.summary.transitiveCount} transitive`,
+      `${report.summary.directCount.toLocaleString()} direct`,
     );
     setChip(
       "stat-vulnerable",
-      vulnerable,
+      advisoryDetailMissing ? vulnerable : advisoryCount,
       "red",
-      "Dependencies with known vulnerabilities (click to filter)",
+      advisoryDetailMissing
+        ? "Dependencies with known vulnerabilities (click to filter)"
+        : `${plural(advisoryCount, "distinct advisory", "distinct advisories")} affecting ${plural(vulnerable, "dependency", "dependencies")} (click to filter)`,
+      // Nothing to break down on a clean report, and "in 0 packages" beside a
+      // zero headline is pure noise.
+      advisoryDetailMissing || vulnerable === 0
+        ? undefined
+        : `in ${plural(vulnerable, "package")}`,
     );
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;
@@ -3275,6 +3320,13 @@ async function init(): Promise<void> {
       chip.classList.remove("red", "amber");
       const valueEl = chip.querySelector("strong");
       if (valueEl) valueEl.textContent = "?";
+      // The chip may already carry a sub-line from setChip; a breakdown of a
+      // figure that was never collected is worse than none.
+      const subEl = chip.querySelector<HTMLElement>(".stat-sub");
+      if (subEl) {
+        subEl.textContent = "";
+        subEl.hidden = true;
+      }
       chip.title = `${label} is unknown because its collector is ${status}`;
     };
     const auditStatus = report.scanStatus?.collectors.audit;
@@ -3286,12 +3338,16 @@ async function init(): Promise<void> {
       licenseIssues,
       "amber",
       "Dependencies with licence review flags (click to filter)",
+      licenseHighRisk > 0 ? `${licenseHighRisk.toLocaleString()} high risk` : undefined,
     );
     setChip(
       "stat-blockers",
       blockers,
       "amber",
       "Dependencies with upgrade blockers (click to filter)",
+      blocksNodeMajor > 0
+        ? `${blocksNodeMajor.toLocaleString()} block Node major`
+        : undefined,
     );
     // Only surfaced when the scan matched at least one dependency against
     // the e18e module-replacements catalogue.
@@ -3308,6 +3364,9 @@ async function init(): Promise<void> {
           replacements,
           undefined,
           "Dependencies with community-suggested replacements from e18e (click to filter)",
+          directReplacements > 0
+            ? `${directReplacements.toLocaleString()} direct`
+            : undefined,
         );
       }
     }
@@ -3324,6 +3383,9 @@ async function init(): Promise<void> {
           maintenanceConcernCount,
           maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
           "Deprecated, archived, unmaintained, or stale dependencies (click to filter)",
+          maintenanceDeprecatedOrArchived > 0
+            ? `${maintenanceDeprecatedOrArchived.toLocaleString()} deprecated or archived`
+            : undefined,
         );
       }
     }
