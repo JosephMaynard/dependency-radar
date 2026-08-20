@@ -2605,7 +2605,10 @@ function renderDepDetails(
     descriptionHtml,
     buildStatusChips(dep, securitySummary, licenseText),
     renderKeyPoints(
-      buildReportKeyPoints(dep as any, securitySummary, supplyChainSignals as any),
+      buildReportKeyPoints(dep as any, securitySummary, supplyChainSignals as any, {
+        auditVerified: auditCollectorAvailable,
+        contentsInspected: executionWasInspected(dep),
+      }),
     ),
     overviewSection,
     riskSection,

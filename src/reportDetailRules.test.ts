@@ -68,6 +68,31 @@ describe('report detail rules', () => {
     ]);
   });
 
+  it('does not claim a clean audit when the audit did not run', () => {
+    const dep = dependency();
+
+    const points = buildReportKeyPoints(dep, dep.security.summary, undefined, {
+      auditVerified: false
+    });
+
+    // An absent finding is not a finding of absence: the detail section says
+    // "None reported (audit did not run)", so this must not contradict it.
+    expect(points).not.toContain('No known vulnerabilities');
+    expect(points).toContain('No install-time execution signals detected');
+    expect(points).toContain('Licence status appears consistent');
+  });
+
+  it('does not claim clean package contents when nothing was inspected', () => {
+    const dep = dependency();
+
+    const points = buildReportKeyPoints(dep, dep.security.summary, undefined, {
+      contentsInspected: false
+    });
+
+    expect(points).not.toContain('No install-time execution signals detected');
+    expect(points).toContain('No known vulnerabilities');
+  });
+
   it('prioritizes vulnerabilities, install-time signals, and upgrade blockers', () => {
     const dep = dependency({
       security: {

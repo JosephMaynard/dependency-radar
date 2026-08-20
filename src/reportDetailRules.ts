@@ -142,10 +142,26 @@ function formatModerateLow(summary: SecuritySummary): string {
   return parts.join(', ');
 }
 
+/**
+ * What the scan actually managed to verify for one dependency.
+ *
+ * Both flags default to true so existing callers keep today's behaviour. They
+ * exist so a presentation path never states a positive ("no known
+ * vulnerabilities") about a check that did not run: an absent finding and a
+ * finding of absence are different claims.
+ */
+export interface ReportEvidenceCoverage {
+  /** False when the vulnerability audit was skipped, failed, or only partly covered the tree. */
+  auditVerified?: boolean;
+  /** False when the package's own files could not be read, as on a lockfile-only scan. */
+  contentsInspected?: boolean;
+}
+
 export function buildReportKeyPoints(
   dep: DependencyRecord,
   summary: SecuritySummary,
-  supplyChainSignals?: SupplyChainSignal[]
+  supplyChainSignals?: SupplyChainSignal[],
+  coverage?: ReportEvidenceCoverage
 ): string[] {
   const points: string[] = [];
   const vulnTotal = reportVulnerabilityTotal(summary);
@@ -229,15 +245,20 @@ export function buildReportKeyPoints(
   if (dep.usage.depth > 1) points.push(`Dependency depth ${dep.usage.depth}`);
 
   if (points.length === 0 || (vulnTotal === 0 && executionRisk === 'green' && dep.compliance.licenseRisk === 'green' && points.length < 3)) {
+    const auditVerified = coverage?.auditVerified !== false;
+    const contentsInspected = coverage?.contentsInspected !== false;
     [
-      'No known vulnerabilities',
-      'No install-time execution signals detected',
+      // Only a check that ran can report a clean result. Without these guards
+      // a skipped audit still printed "No known vulnerabilities" directly
+      // above a section reading "None reported (audit did not run)".
+      auditVerified ? 'No known vulnerabilities' : '',
+      contentsInspected ? 'No install-time execution signals detected' : '',
       'Licence status appears consistent',
       dep.usage.direct
         ? `Direct ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`
         : `Transitive ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`
     ].forEach((point) => {
-      if (!points.includes(point)) points.push(point);
+      if (point && !points.includes(point)) points.push(point);
     });
   }
 
