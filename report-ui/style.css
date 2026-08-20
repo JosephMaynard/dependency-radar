@@ -377,6 +377,11 @@ body {
   font-size: 10px;
   line-height: 1.2;
   font-weight: 500;
+  /* The label above is uppercase, so its mass ends at the baseline, while this
+     line's mass starts at x-height. Equal box gaps therefore read as ~1.4px
+     more space below the label; this pulls it back. In em so it survives the
+     smaller font-size at the narrow breakpoint. */
+  margin-top: -0.14em;
   color: var(--text-primary);
   text-align: center;
   white-space: nowrap;

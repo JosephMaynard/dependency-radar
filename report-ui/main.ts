@@ -3220,7 +3220,8 @@ async function init(): Promise<void> {
 
     let vulnerable = 0;
     let maintenanceConcernCount = 0;
-    let maintenanceDeprecatedOrArchived = 0;
+    let maintenanceDeprecated = 0;
+    let maintenanceArchived = 0;
     let maintenanceDataSeen = false;
     let licenseIssues = 0;
     let licenseHighRisk = 0;
@@ -3246,9 +3247,8 @@ async function init(): Promise<void> {
       if (hasMaintenanceConcern(dep)) {
         maintenanceConcernCount += 1;
         const status = dep.maintenance?.status;
-        if (status === "deprecated" || status === "archived") {
-          maintenanceDeprecatedOrArchived += 1;
-        }
+        if (status === "deprecated") maintenanceDeprecated += 1;
+        if (status === "archived") maintenanceArchived += 1;
       }
       if (hasLicenseIssue(dep)) {
         licenseIssues += 1;
@@ -3346,7 +3346,7 @@ async function init(): Promise<void> {
       "amber",
       "Dependencies with upgrade blockers (click to filter)",
       blocksNodeMajor > 0
-        ? `${blocksNodeMajor.toLocaleString()} block Node major`
+        ? `${blocksNodeMajor.toLocaleString()} Node major`
         : undefined,
     );
     // Only surfaced when the scan matched at least one dependency against
@@ -3370,6 +3370,17 @@ async function init(): Promise<void> {
         );
       }
     }
+    // Name the single status when only one occurs, and fall back to the
+    // umbrella when both do. Spelling both out was longer than the "N
+    // deprecated or archived" this replaced, which defeated the point.
+    const maintenanceSub =
+      maintenanceDeprecated > 0 && maintenanceArchived > 0
+        ? `${(maintenanceDeprecated + maintenanceArchived).toLocaleString()} end of life`
+        : maintenanceDeprecated > 0
+          ? `${maintenanceDeprecated.toLocaleString()} deprecated`
+          : maintenanceArchived > 0
+            ? `${maintenanceArchived.toLocaleString()} archived`
+            : undefined;
     const maintenanceChip = document.getElementById("stat-maintenance");
     if (maintenanceChip) {
       const maintenanceStatus = report.scanStatus?.collectors.maintenance;
@@ -3381,11 +3392,9 @@ async function init(): Promise<void> {
         setChip(
           "stat-maintenance",
           maintenanceConcernCount,
-          maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
+          maintenanceDeprecated + maintenanceArchived > 0 ? "red" : "amber",
           "Deprecated, archived, unmaintained, or stale dependencies (click to filter)",
-          maintenanceDeprecatedOrArchived > 0
-            ? `${maintenanceDeprecatedOrArchived.toLocaleString()} deprecated or archived`
-            : undefined,
+          maintenanceSub,
         );
       }
     }
