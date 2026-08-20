@@ -979,7 +979,33 @@ function renderStatusChip(
 // Audit is the only risk signal on the chip strip that needs the network.
 // Captured at init so a "Vulnerability: None" chip stays neutral rather than
 // claiming a green all-clear on a scan where the audit never ran.
+let auditCollectorStatus = "available";
 let auditCollectorAvailable = true;
+
+/**
+ * Whether the package's own files were readable during the scan.
+ *
+ * deriveExecutionInfo returns undefined both for a package it inspected and
+ * found clean and for one it could never open, so absence of `execution` says
+ * nothing on its own. fileCount is only set when the package was measured on
+ * disk, which separates the two: a lockfile-only scan (no node_modules) has
+ * neither, while a normal scan has fileCount on every package.
+ */
+function executionWasInspected(dep: DependencyRecord): boolean {
+  return (
+    dep.execution !== undefined || typeof dep.package.fileCount === "number"
+  );
+}
+
+/**
+ * Why a vulnerability figure is not authoritative. A partial audit did run and
+ * covered some packages, so saying it "did not run" would be wrong.
+ */
+function auditCoverageNote(): string {
+  return auditCollectorStatus === "partial"
+    ? "audit incomplete"
+    : "audit did not run";
+}
 
 function buildStatusChips(
   dep: DependencyRecord,
@@ -1005,7 +1031,9 @@ function buildStatusChips(
       vulnUnchecked ? "neutral" : summary.risk,
     ),
     renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk),
-    renderStatusChip("Install risk: " + toneToString(installRisk), installRisk),
+    executionWasInspected(dep)
+      ? renderStatusChip("Install risk: " + toneToString(installRisk), installRisk)
+      : renderStatusChip("Install risk: Not inspected"),
     renderStatusChip(blocker ? "Upgrade blocker" : "No upgrade blocker", blocker ? "amber" : "neutral"),
   ];
   // Maintenance is omitted entirely when the collector never ran (offline or
@@ -1761,9 +1789,12 @@ function renderMaintenanceSection(
   if (maintenance.error) {
     items.push(renderKvItem("Error", maintenance.error));
   }
+  // Mirrors the status chip: amber statuses (unmaintained/stale/slowing) tint
+  // too, so this section is not the odd one out now every other section does.
+  const statusTone = getMaintenanceStatusTone(maintenance.status);
   const tone =
-    maintenance.status === "deprecated" || maintenance.status === "archived"
-      ? "warning"
+    statusTone === "red" || statusTone === "amber"
+      ? subsectionTone(statusTone)
       : undefined;
   return renderSubsection(
     "Maintenance",
@@ -2399,7 +2430,7 @@ function renderDepDetails(
       renderRiskValue(
         vulnTotal === 0
           ? vulnUnchecked
-            ? "None reported (audit did not run)"
+            ? `None reported (${auditCoverageNote()})`
             : "No known vulnerabilities"
           : String(vulnTotal),
         vulnUnchecked ? "gray" : securitySummary.risk,
@@ -2610,8 +2641,8 @@ async function init(): Promise<void> {
   if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
     window.__DEPENDENCY_DATA__ = report;
   }
-  auditCollectorAvailable =
-    (report.scanStatus?.collectors.audit ?? "available") === "available";
+  auditCollectorStatus = report.scanStatus?.collectors.audit ?? "available";
+  auditCollectorAvailable = auditCollectorStatus === "available";
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
   const scanStatusBanner = document.getElementById("scan-status-banner");
@@ -3312,6 +3343,12 @@ async function init(): Promise<void> {
         ? undefined
         : `in ${plural(vulnerable, "package")}`,
     );
+    if (advisoryDetailMissing) {
+      // The fallback headlines affected packages, so the static label would
+      // otherwise name a quantity this chip is not showing.
+      const vulnLabel = document.querySelector("#stat-vulnerable .meta-label");
+      if (vulnLabel) vulnLabel.textContent = "Vulnerable";
+    }
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;
       if (!chip) return;
