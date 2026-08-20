@@ -368,13 +368,16 @@ body {
   display: none;
 }
 
-/* Secondary figure under the label. Muted and small so the headline number
-   keeps the tile; hidden when a chip has nothing meaningful to add. */
+/* Secondary figure under the label. It takes the base text colour rather than
+   the chip's tone: --amber on the light theme's chip background measures
+   1.81:1, far too low for 10px text, and --text-muted was only 3.11:1. Size
+   rather than colour keeps it subordinate to the headline number, and the
+   quiet 9px label between them carries the hierarchy. */
 .stat-sub {
   font-size: 10px;
   line-height: 1.2;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--text-primary);
   text-align: center;
   white-space: nowrap;
 }
