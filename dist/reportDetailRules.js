@@ -32,7 +32,7 @@ function maxRisk(risks) {
         return 'amber';
     return 'green';
 }
-function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supplyChainSignals) {
+function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supplyChainSignals, coverage) {
     var _a, _b, _c, _d, _e, _f, _g;
     const installRisk = ((_a = dep.execution) === null || _a === void 0 ? void 0 : _a.risk) || 'green';
     const combos = (0, supplyChainCombos_1.detectSupplyChainCombos)(dep, supplyChainSignalTypesForDep(dep, supplyChainSignals));
@@ -55,7 +55,7 @@ function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supply
         : maintenanceStatus === 'unmaintained'
             ? 'amber'
             : 'green';
-    return maxRisk([
+    const risk = maxRisk([
         summary.risk,
         dep.compliance.licenseRisk,
         installRisk,
@@ -64,6 +64,11 @@ function buildReportOverallRisk(dep, summary, supplyChainSignalCount = 0, supply
         registryRisk,
         maintenanceRisk
     ]);
+    // Green means "checked and clean", so a package whose checks did not all run
+    // reports 'unknown' instead. Amber and red are real findings and survive:
+    // downgrading them to 'unknown' would hide evidence the scan did collect.
+    const fullyChecked = (coverage === null || coverage === void 0 ? void 0 : coverage.auditVerified) !== false && (coverage === null || coverage === void 0 ? void 0 : coverage.contentsInspected) !== false;
+    return risk === 'green' && !fullyChecked ? 'unknown' : risk;
 }
 /**
  * Build the supply-chain signal type set for one dependency instance, for
@@ -212,8 +217,12 @@ function buildReportKeyPoints(dep, summary, supplyChainSignals, coverage) {
                 ? `Direct ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`
                 : `Transitive ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`
         ].forEach((point) => {
-            if (point && !points.includes(point))
+            // startsWith, not equality: the specific form ("Transitive dev dependency
+            // introduced by X") already covers the generic one, and listing both read
+            // as a duplicate.
+            if (point && !points.some((existing) => existing.startsWith(point))) {
                 points.push(point);
+            }
         });
     }
     return Array.from(new Set(points)).slice(0, 8);

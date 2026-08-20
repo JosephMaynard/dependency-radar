@@ -68,6 +68,27 @@ describe('report detail rules', () => {
     ]);
   });
 
+  it('reports unknown overall risk when a check did not run, but keeps real findings', () => {
+    const dep = dependency();
+
+    expect(buildReportOverallRisk(dep, dep.security.summary)).toBe('green');
+    expect(
+      buildReportOverallRisk(dep, dep.security.summary, 0, undefined, {
+        auditVerified: false
+      })
+    ).toBe('unknown');
+
+    // An amber finding is evidence the scan did collect, so it must survive.
+    const amber = dependency({
+      compliance: { ...dependency().compliance, licenseRisk: 'amber' }
+    });
+    expect(
+      buildReportOverallRisk(amber, amber.security.summary, 0, undefined, {
+        contentsInspected: false
+      })
+    ).toBe('amber');
+  });
+
   it('does not claim a clean audit when the audit did not run', () => {
     const dep = dependency();
 

@@ -165,7 +165,9 @@ describe('cli summary output', () => {
       expect(output).toContain('Summary:');
       expect(output).toMatch(/• Direct dependencies scanned: \d+/);
       expect(output).toMatch(/• Transitive dependencies scanned: \d+/);
-      expect(output).toMatch(/• Vulnerable packages: \d+ \(\d+ directly imported\)/);
+      // This scan runs --offline, so the audit never ran; the summary must not
+      // report a count that would read as a clean result.
+      expect(output).toMatch(/• Vulnerabilities: not checked \(audit did not run\)/);
       expect(output).toMatch(/• Dependencies with no static import reference: \d+/);
       expect(output).toMatch(/• License mismatches: \d+/);
       expect(output).toMatch(/• Major upgrade blockers: \d+/);

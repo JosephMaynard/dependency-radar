@@ -1477,6 +1477,7 @@ function printPolicyViolations(violations) {
  */
 function buildCliSummary(aggregated, options) {
     var _a;
+    const advisoryIds = new Set();
     let vulnerablePackages = 0;
     let directlyImportedVulnerablePackages = 0;
     let unusedInstalledDeps = 0;
@@ -1500,6 +1501,10 @@ function buildCliSummary(aggregated, options) {
             if ((((_a = dep.usage.importUsage) === null || _a === void 0 ? void 0 : _a.fileCount) || 0) > 0) {
                 directlyImportedVulnerablePackages += 1;
             }
+        }
+        for (const advisory of dep.security.advisories || []) {
+            if (advisory === null || advisory === void 0 ? void 0 : advisory.id)
+                advisoryIds.add(String(advisory.id));
         }
         // Count "unused" only when import graph collection succeeded for all packages.
         // `importUsage` is an optional object (or undefined), not a boolean/string state.
@@ -1537,6 +1542,8 @@ function buildCliSummary(aggregated, options) {
         directDeps: aggregated.summary.directCount,
         transitiveDeps: aggregated.summary.transitiveCount,
         vulnerablePackages,
+        distinctAdvisories: advisoryIds.size,
+        auditStatus: options.auditStatus,
         directlyImportedVulnerablePackages,
         unusedInstalledDeps,
         licenseMismatches,
@@ -1566,7 +1573,15 @@ function printCliSummary(summary) {
     console.log("Summary:");
     console.log(`${bullet} Direct dependencies scanned: ${summary.directDeps}`);
     console.log(`${bullet} Transitive dependencies scanned: ${summary.transitiveDeps}`);
-    console.log(`${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.directlyImportedVulnerablePackages} directly imported)`);
+    // Printing "0 vulnerabilities" for an audit that never ran states a clean
+    // result nothing checked for, so an unavailable audit says so instead.
+    if (summary.auditStatus === "available" || summary.auditStatus === "partial") {
+        const caveat = summary.auditStatus === "partial" ? ", audit incomplete" : "";
+        console.log(`${bullet} Vulnerabilities: ${summary.distinctAdvisories} in ${summary.vulnerablePackages} ${pluralize(summary.vulnerablePackages, "package", "packages")} (${summary.directlyImportedVulnerablePackages} directly imported${caveat})`);
+    }
+    else {
+        console.log(`${bullet} Vulnerabilities: not checked (audit did not run)`);
+    }
     console.log(`${bullet} Dependencies with no static import reference: ${summary.unusedInstalledDeps}`);
     console.log(`${bullet} License mismatches: ${summary.licenseMismatches}`);
     console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
@@ -2053,6 +2068,7 @@ async function executeAnalysis(opts, options) {
         const importGraphComplete = importCollectorStatus === "available";
         const summary = buildCliSummary(aggregated, {
             importGraphComplete,
+            auditStatus: collectors.audit,
         });
         const policyViolations = (0, failOn_1.evaluatePolicyViolations)(aggregated, opts.failOn);
         const incompleteReasons = incompleteEvidenceReasons(scanStatus, opts.failOn, opts.strict);

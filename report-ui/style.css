@@ -2484,6 +2484,12 @@ a.graph-dossier-fact.fact-swap:focus-visible {
   border-left: 3px solid var(--green);
 }
 
+/* Not "no risk found" but "not all checks ran" — an offline scan cannot earn
+   a green stripe. Amber and red still win, so real findings stay visible. */
+.dep-card[data-risk="unknown"] {
+  border-left: 3px solid var(--gray);
+}
+
 .dep-summary {
   display: flex;
   align-items: stretch;

@@ -44,8 +44,9 @@ export function buildReportOverallRisk(
   dep: DependencyRecord,
   summary: SecuritySummary,
   supplyChainSignalCount = 0,
-  supplyChainSignals?: SupplyChainSignal[]
-): 'green' | 'amber' | 'red' {
+  supplyChainSignals?: SupplyChainSignal[],
+  coverage?: ReportEvidenceCoverage
+): 'green' | 'amber' | 'red' | 'unknown' {
   const installRisk = dep.execution?.risk || 'green';
   const combos = detectSupplyChainCombos(
     dep,
@@ -73,7 +74,7 @@ export function buildReportOverallRisk(
         ? 'amber'
         : 'green';
 
-  return maxRisk([
+  const risk = maxRisk([
     summary.risk,
     dep.compliance.licenseRisk,
     installRisk,
@@ -82,6 +83,13 @@ export function buildReportOverallRisk(
     registryRisk,
     maintenanceRisk
   ]);
+
+  // Green means "checked and clean", so a package whose checks did not all run
+  // reports 'unknown' instead. Amber and red are real findings and survive:
+  // downgrading them to 'unknown' would hide evidence the scan did collect.
+  const fullyChecked =
+    coverage?.auditVerified !== false && coverage?.contentsInspected !== false;
+  return risk === 'green' && !fullyChecked ? 'unknown' : risk;
 }
 
 /**
@@ -258,7 +266,12 @@ export function buildReportKeyPoints(
         ? `Direct ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`
         : `Transitive ${scopeLabel(dep.usage.scope).toLowerCase()} dependency`
     ].forEach((point) => {
-      if (point && !points.includes(point)) points.push(point);
+      // startsWith, not equality: the specific form ("Transitive dev dependency
+      // introduced by X") already covers the generic one, and listing both read
+      // as a duplicate.
+      if (point && !points.some((existing) => existing.startsWith(point))) {
+        points.push(point);
+      }
     });
   }
 

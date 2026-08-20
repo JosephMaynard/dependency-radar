@@ -2118,6 +2118,10 @@ function renderDep(
     securitySummary,
     supplyChainSignals?.length || 0,
     supplyChainSignals as any,
+    {
+      auditVerified: auditCollectorAvailable,
+      contentsInspected: executionWasInspected(dep),
+    },
   );
   const depKey = getDepKey(dep.package.name, dep.package.version);
   const domId = getDepDomId(depKey);

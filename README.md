@@ -521,7 +521,7 @@ At the end of each scan, the CLI prints a summary block with high-level counts, 
 Summary:
 • Direct dependencies scanned: 6
 • Transitive dependencies scanned: 62
-• Vulnerable packages: 1 (0 directly imported)
+• Vulnerabilities: 2 in 1 package (0 directly imported)
 • Dependencies with no static import reference: 0
 • License mismatches: 3
 • Major upgrade blockers: 24
