@@ -388,7 +388,7 @@ body {
      The optical -0.14em nudge this used to carry is gone — the eye now reads
      the distance to the strip's edge, not to the text inside it. */
   align-self: stretch;
-  margin: 6px calc(-1 * var(--chip-pad-x)) calc(-1 * var(--chip-pad-b));
+  margin: 0 calc(-1 * var(--chip-pad-x)) calc(-1 * var(--chip-pad-b));
   padding: 4px 6px;
   background: var(--bg-primary);
   color: var(--text-primary);
