@@ -1544,6 +1544,7 @@ function buildCliSummary(aggregated, options) {
         vulnerablePackages,
         distinctAdvisories: advisoryIds.size,
         auditStatus: options.auditStatus,
+        importEvidenceComplete: options.importGraphComplete,
         directlyImportedVulnerablePackages,
         unusedInstalledDeps,
         licenseMismatches,
@@ -1577,7 +1578,13 @@ function printCliSummary(summary) {
     // result nothing checked for, so an unavailable audit says so instead.
     if (summary.auditStatus === "available" || summary.auditStatus === "partial") {
         const caveat = summary.auditStatus === "partial" ? ", audit incomplete" : "";
-        console.log(`${bullet} Vulnerabilities: ${summary.distinctAdvisories} in ${summary.vulnerablePackages} ${pluralize(summary.vulnerablePackages, "package", "packages")} (${summary.directlyImportedVulnerablePackages} directly imported${caveat})`);
+        // A package with no import evidence is only "not imported" when import
+        // collection covered everything; otherwise the count is a floor. The same
+        // distinction already guards the unused-dependency count above.
+        const imported = summary.importEvidenceComplete
+            ? `${summary.directlyImportedVulnerablePackages} directly imported`
+            : `at least ${summary.directlyImportedVulnerablePackages} directly imported`;
+        console.log(`${bullet} Vulnerabilities: ${summary.distinctAdvisories} in ${summary.vulnerablePackages} ${pluralize(summary.vulnerablePackages, "package", "packages")} (${imported}${caveat})`);
     }
     else {
         console.log(`${bullet} Vulnerabilities: not checked (audit did not run)`);

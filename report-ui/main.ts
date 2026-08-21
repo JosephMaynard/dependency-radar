@@ -340,9 +340,23 @@ const COLUMN_CONFIG: ColumnConfig[] = [
       const severity = getColumnHighestSeverity(
         getColumnNormalizeSecurity(dep).summary,
       );
+      // "None" would claim a clean result for an audit that never ran, and
+      // would contradict the "None reported" chip on the same card. The em
+      // dash is this table's existing idiom for absent data (see Maintenance).
+      // A partial audit that did find something still shows its severity.
+      if (severity === "none" && !auditCollectorAvailable) return "—";
       return getColumnCapitalize(severity);
     },
-    getTone: (dep) => getColumnNormalizeSecurity(dep).summary.risk,
+    getTone: (dep) => {
+      const security = getColumnNormalizeSecurity(dep);
+      if (
+        getColumnHighestSeverity(security.summary) === "none" &&
+        !auditCollectorAvailable
+      ) {
+        return "gray";
+      }
+      return security.summary.risk;
+    },
     sortFn: (a, b) =>
       columnSeverityOrder[
         getColumnHighestSeverity(getColumnNormalizeSecurity(b).summary)
@@ -355,8 +369,16 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     id: "install",
     label: "Install",
     sortKey: "install",
-    getValue: (dep) => getColumnExecutionRiskLabel(dep.execution),
-    getTone: (dep) => getColumnExecutionRiskTone(dep.execution),
+    // Matching the chip: absent execution data means "inspected and clean" only
+    // when the package's files were actually readable.
+    getValue: (dep) =>
+      executionWasInspected(dep)
+        ? getColumnExecutionRiskLabel(dep.execution)
+        : "—",
+    getTone: (dep) =>
+      executionWasInspected(dep)
+        ? getColumnExecutionRiskTone(dep.execution)
+        : "gray",
     sortFn: (a, b) => {
       const riskOrder = { green: 0, amber: 1, red: 2 };
       const aRisk = getColumnExecutionRiskTone(a.execution);
@@ -3260,6 +3282,8 @@ async function init(): Promise<void> {
     let maintenanceConcernCount = 0;
     let maintenanceDeprecated = 0;
     let maintenanceArchived = 0;
+    let maintenanceUnmaintained = 0;
+    let maintenanceStale = 0;
     let maintenanceDataSeen = false;
     let licenseIssues = 0;
     let licenseHighRisk = 0;
@@ -3287,6 +3311,8 @@ async function init(): Promise<void> {
         const status = dep.maintenance?.status;
         if (status === "deprecated") maintenanceDeprecated += 1;
         if (status === "archived") maintenanceArchived += 1;
+        if (status === "unmaintained") maintenanceUnmaintained += 1;
+        if (status === "stale") maintenanceStale += 1;
       }
       if (hasLicenseIssue(dep)) {
         licenseIssues += 1;
@@ -3344,11 +3370,13 @@ async function init(): Promise<void> {
       advisoryDetailMissing
         ? "Dependencies with known vulnerabilities (click to filter)"
         : `${plural(advisoryCount, "distinct advisory", "distinct advisories")} affecting ${plural(vulnerable, "dependency", "dependencies")} (click to filter)`,
-      // Nothing to break down on a clean report, and "in 0 packages" beside a
-      // zero headline is pure noise.
-      advisoryDetailMissing || vulnerable === 0
+      // "in 0 packages" beside a zero headline is noise, but an empty slot
+      // leaves a gap, so a clean result says so.
+      advisoryDetailMissing
         ? undefined
-        : `in ${plural(vulnerable, "package")}`,
+        : vulnerable === 0
+          ? "none found"
+          : `in ${plural(vulnerable, "package")}`,
     );
     if (advisoryDetailMissing) {
       // The fallback headlines affected packages, so the static label would
@@ -3364,12 +3392,13 @@ async function init(): Promise<void> {
       chip.classList.remove("red", "amber");
       const valueEl = chip.querySelector("strong");
       if (valueEl) valueEl.textContent = "?";
-      // The chip may already carry a sub-line from setChip; a breakdown of a
-      // figure that was never collected is worse than none.
+      // A breakdown of a figure that was never collected would be wrong, but an
+      // empty slot leaves a visible gap in a row of equal-height chips, so this
+      // states why the value is missing instead.
       const subEl = chip.querySelector<HTMLElement>(".stat-sub");
       if (subEl) {
-        subEl.textContent = "";
-        subEl.hidden = true;
+        subEl.textContent = "not checked";
+        subEl.hidden = false;
       }
       chip.title = `${label} is unknown because its collector is ${status}`;
     };
@@ -3382,16 +3411,14 @@ async function init(): Promise<void> {
       licenseIssues,
       "amber",
       "Dependencies with licence review flags (click to filter)",
-      licenseHighRisk > 0 ? `${licenseHighRisk.toLocaleString()} high risk` : undefined,
+      `${licenseHighRisk.toLocaleString()} high risk`,
     );
     setChip(
       "stat-blockers",
       blockers,
       "amber",
       "Dependencies with upgrade blockers (click to filter)",
-      blocksNodeMajor > 0
-        ? `${blocksNodeMajor.toLocaleString()} Node major`
-        : undefined,
+      `${blocksNodeMajor.toLocaleString()} Node major`,
     );
     // Only surfaced when the scan matched at least one dependency against
     // the e18e module-replacements catalogue.
@@ -3408,9 +3435,7 @@ async function init(): Promise<void> {
           replacements,
           undefined,
           "Dependencies with community-suggested replacements from e18e (click to filter)",
-          directReplacements > 0
-            ? `${directReplacements.toLocaleString()} direct`
-            : undefined,
+          `${directReplacements.toLocaleString()} direct`,
         );
       }
     }
@@ -3424,7 +3449,11 @@ async function init(): Promise<void> {
           ? `${maintenanceDeprecated.toLocaleString()} deprecated`
           : maintenanceArchived > 0
             ? `${maintenanceArchived.toLocaleString()} archived`
-            : undefined;
+            : maintenanceUnmaintained > 0
+              ? `${maintenanceUnmaintained.toLocaleString()} unmaintained`
+              : maintenanceStale > 0
+                ? `${maintenanceStale.toLocaleString()} stale`
+                : `${maintenanceConcernCount.toLocaleString()} slowing`;
     const maintenanceChip = document.getElementById("stat-maintenance");
     if (maintenanceChip) {
       const maintenanceStatus = report.scanStatus?.collectors.maintenance;

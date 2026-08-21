@@ -354,7 +354,13 @@ body {
   justify-content: flex-start;
   gap: 4px;
   min-width: 92px;
-  padding: 8px 8px 6px;
+  /* The sub-line strip cancels these to bleed to the chip edges, so they are
+     tokens rather than literals repeated across the breakpoints. */
+  --chip-pad-x: 8px;
+  --chip-pad-b: 6px;
+  padding: 8px var(--chip-pad-x) var(--chip-pad-b);
+  /* Lets the strip meet the rounded corners without its own radius. */
+  overflow: hidden;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
@@ -377,11 +383,14 @@ body {
   font-size: 10px;
   line-height: 1.2;
   font-weight: 500;
-  /* The label above is uppercase, so its mass ends at the baseline, while this
-     line's mass starts at x-height. Equal box gaps therefore read as ~1.4px
-     more space below the label; this pulls it back. In em so it survives the
-     smaller font-size at the narrow breakpoint. */
-  margin-top: -0.14em;
+  /* Full-bleed footer strip: stretch to the chip's content width, then cancel
+     its padding so the band runs to the edges and sits flush with the bottom.
+     The optical -0.14em nudge this used to carry is gone — the eye now reads
+     the distance to the strip's edge, not to the text inside it. */
+  align-self: stretch;
+  margin: 6px calc(-1 * var(--chip-pad-x)) calc(-1 * var(--chip-pad-b));
+  padding: 4px 6px;
+  background: var(--bg-primary);
   color: var(--text-primary);
   text-align: center;
   white-space: nowrap;
@@ -3562,7 +3571,8 @@ details[open] > summary .expand-icon {
   .stat-chip {
     flex: 1 1 auto;
     min-width: 0;
-    padding: 8px 10px 6px;
+    --chip-pad-x: 10px;
+    padding: 8px var(--chip-pad-x) var(--chip-pad-b);
   }
 
   .stat-chip strong {
@@ -3843,7 +3853,8 @@ details[open] > summary .expand-icon {
 
   .stat-chip {
     min-width: 64px;
-    padding: 6px 8px 5px;
+    --chip-pad-b: 5px;
+    padding: 6px var(--chip-pad-x) var(--chip-pad-b);
   }
 
   .stat-chip strong {
