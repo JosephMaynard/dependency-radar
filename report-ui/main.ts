@@ -309,19 +309,6 @@ const COLUMN_CONFIG: ColumnConfig[] = [
       (getSubDepCount(`${b.package.name}@${b.package.version}`) ?? -1),
   },
   {
-    id: "frees",
-    label: "Frees",
-    sortKey: "frees",
-    getValue: (dep) => {
-      const count = getFreesCount(`${dep.package.name}@${dep.package.version}`);
-      return count === undefined ? "—" : count.toLocaleString();
-    },
-    getTone: () => "gray",
-    sortFn: (a, b) =>
-      (getFreesCount(`${a.package.name}@${a.package.version}`) ?? -1) -
-      (getFreesCount(`${b.package.name}@${b.package.version}`) ?? -1),
-  },
-  {
     id: "license",
     label: "License",
     sortKey: "license",
@@ -353,9 +340,23 @@ const COLUMN_CONFIG: ColumnConfig[] = [
       const severity = getColumnHighestSeverity(
         getColumnNormalizeSecurity(dep).summary,
       );
+      // "None" would claim a clean result for an audit that never ran, and
+      // would contradict the "None reported" chip on the same card. The em
+      // dash is this table's existing idiom for absent data (see Maintenance).
+      // A partial audit that did find something still shows its severity.
+      if (severity === "none" && !auditCollectorAvailable) return "—";
       return getColumnCapitalize(severity);
     },
-    getTone: (dep) => getColumnNormalizeSecurity(dep).summary.risk,
+    getTone: (dep) => {
+      const security = getColumnNormalizeSecurity(dep);
+      if (
+        getColumnHighestSeverity(security.summary) === "none" &&
+        !auditCollectorAvailable
+      ) {
+        return "gray";
+      }
+      return security.summary.risk;
+    },
     sortFn: (a, b) =>
       columnSeverityOrder[
         getColumnHighestSeverity(getColumnNormalizeSecurity(b).summary)
@@ -368,8 +369,16 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     id: "install",
     label: "Install",
     sortKey: "install",
-    getValue: (dep) => getColumnExecutionRiskLabel(dep.execution),
-    getTone: (dep) => getColumnExecutionRiskTone(dep.execution),
+    // Matching the chip: absent execution data means "inspected and clean" only
+    // when the package's files were actually readable.
+    getValue: (dep) =>
+      executionWasInspected(dep)
+        ? getColumnExecutionRiskLabel(dep.execution)
+        : "—",
+    getTone: (dep) =>
+      executionWasInspected(dep)
+        ? getColumnExecutionRiskTone(dep.execution)
+        : "gray",
     sortFn: (a, b) => {
       const riskOrder = { green: 0, amber: 1, red: 2 };
       const aRisk = getColumnExecutionRiskTone(a.execution);
@@ -923,9 +932,49 @@ function renderKvItem(
   return html;
 }
 
+const DATE_ONLY_FORMAT: Intl.DateTimeFormatOptions = {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+};
+const DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  ...DATE_ONLY_FORMAT,
+  hour: "2-digit",
+  minute: "2-digit",
+};
+
+/**
+ * Format an ISO timestamp in the viewer's locale, matching the header's
+ * generated-at treatment. Unparseable values fall through unchanged so a
+ * malformed timestamp still shows its raw value rather than "Invalid Date".
+ */
+function formatTimestamp(value: string | undefined, withTime = false): string {
+  if (!value) return "";
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat(
+      undefined,
+      withTime ? DATE_TIME_FORMAT : DATE_ONLY_FORMAT,
+    ).format(date);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Render a whole-month age as review-friendly prose. Sub-month gaps read as
+ * "~0 months ago" otherwise, which looks like a missing value.
+ */
+function formatMonthsAgo(months: number): string {
+  if (months <= 0) return "Less than a month ago";
+  if (months === 1) return "About 1 month ago";
+  return `About ${months} months ago`;
+}
+
 function renderRiskValue(
   value: string | number,
-  risk: "green" | "amber" | "red",
+  risk: "green" | "amber" | "red" | "gray",
 ): string {
   return (
     '<span class="kv-value risk-value"><span class="risk-dot ' +
@@ -938,7 +987,7 @@ function renderRiskValue(
 
 function renderStatusChip(
   label: string,
-  tone: "neutral" | "green" | "amber" | "red" = "neutral",
+  tone: "neutral" | "green" | "amber" | "red" | "replacement" = "neutral",
 ): string {
   return (
     '<span class="status-chip ' +
@@ -949,6 +998,37 @@ function renderStatusChip(
   );
 }
 
+// Audit is the only risk signal on the chip strip that needs the network.
+// Captured at init so a "Vulnerability: None" chip stays neutral rather than
+// claiming a green all-clear on a scan where the audit never ran.
+let auditCollectorStatus = "available";
+let auditCollectorAvailable = true;
+
+/**
+ * Whether the package's own files were readable during the scan.
+ *
+ * deriveExecutionInfo returns undefined both for a package it inspected and
+ * found clean and for one it could never open, so absence of `execution` says
+ * nothing on its own. fileCount is only set when the package was measured on
+ * disk, which separates the two: a lockfile-only scan (no node_modules) has
+ * neither, while a normal scan has fileCount on every package.
+ */
+function executionWasInspected(dep: DependencyRecord): boolean {
+  return (
+    dep.execution !== undefined || typeof dep.package.fileCount === "number"
+  );
+}
+
+/**
+ * Why a vulnerability figure is not authoritative. A partial audit did run and
+ * covered some packages, so saying it "did not run" would be wrong.
+ */
+function auditCoverageNote(): string {
+  return auditCollectorStatus === "partial"
+    ? "audit incomplete"
+    : "audit did not run";
+}
+
 function buildStatusChips(
   dep: DependencyRecord,
   summary: SecuritySummary,
@@ -957,22 +1037,49 @@ function buildStatusChips(
   const vulnTotal = reportVulnerabilityTotal(summary);
   const installRisk = dep.execution?.risk || "green";
   const blocker = dep.upgrade.blocksNodeMajor || !!dep.upgrade.blockers?.length;
+  // Without audit data a bare "None" would assert a clean result the scan
+  // never checked for. "None reported" describes what the report holds, and
+  // the neutral tone keeps it from reading as a green all-clear.
+  const vulnUnchecked = vulnTotal === 0 && !auditCollectorAvailable;
   const chips = [
     renderStatusChip(dep.usage.direct ? "Direct dependency" : "Transitive dependency"),
     renderStatusChip(scopeLabel(dep.usage.scope)),
     renderStatusChip(
       vulnTotal > 0
         ? "Vulnerability: " + titleCaseValue(summary.highest)
-        : "Vulnerability: None",
-      summary.risk === "green" ? "neutral" : summary.risk,
+        : vulnUnchecked
+          ? "Vulnerability: None reported"
+          : "Vulnerability: None",
+      vulnUnchecked ? "neutral" : summary.risk,
     ),
-    renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk === "green" ? "neutral" : dep.compliance.licenseRisk),
-    renderStatusChip(
-      "Install risk: " + toneToString(installRisk),
-      installRisk === "green" ? "neutral" : installRisk,
-    ),
+    renderStatusChip("Licence: " + licenseText, dep.compliance.licenseRisk),
+    executionWasInspected(dep)
+      ? renderStatusChip("Install risk: " + toneToString(installRisk), installRisk)
+      : renderStatusChip("Install risk: Not inspected"),
     renderStatusChip(blocker ? "Upgrade blocker" : "No upgrade blocker", blocker ? "amber" : "neutral"),
   ];
+  // Maintenance is omitted entirely when the collector never ran (offline or
+  // --no-maintenance), rather than claiming an "Active" or "Unknown" status
+  // the scan has no basis for.
+  const maintenanceStatus = dep.maintenance?.status;
+  if (maintenanceStatus && maintenanceStatus !== "unknown") {
+    const tone = getMaintenanceStatusTone(maintenanceStatus);
+    chips.push(
+      renderStatusChip(
+        "Maintenance: " + getMaintenanceStatusLabel(maintenanceStatus),
+        tone === "green" || tone === "amber" || tone === "red"
+          ? tone
+          : "neutral",
+      ),
+    );
+  } else if (dep.maintenance?.attempted) {
+    chips.push(renderStatusChip("Maintenance: Unknown"));
+  }
+  // A suggestion is an opportunity rather than a risk, so it gets its own tone
+  // and is dropped when absent instead of showing a "none" chip on every row.
+  if (dep.replacement?.replacements?.length) {
+    chips.push(renderStatusChip("Replacement available (e18e)", "replacement"));
+  }
   return '<div class="status-chip-strip">' + chips.join("") + "</div>";
 }
 
@@ -1462,6 +1569,19 @@ function renderSubsection(
   return html;
 }
 
+/**
+ * Map a risk tone onto the subsection tint class, so a section with an issue
+ * is coloured the same way the Maintenance section already is. Green and
+ * missing risks stay untinted.
+ */
+function subsectionTone(
+  risk: "red" | "amber" | "green" | undefined,
+): string | undefined {
+  if (risk === "red") return "warning";
+  if (risk === "amber") return "caution";
+  return undefined;
+}
+
 function toneToString(tone?: "red" | "amber" | "green"): string {
   if (tone === "red") return "High";
   if (tone === "amber") return "Medium";
@@ -1535,6 +1655,8 @@ function renderExecutionSection(
   return renderSubsection(
     "Install-time execution behaviour",
     note + '<div class="kv-grid">' + items.join("") + "</div>",
+    undefined,
+    subsectionTone(execution.risk),
   );
 }
 
@@ -1593,10 +1715,17 @@ function renderRegistryEnrichmentSection(
     items.push(renderKvItemHtml("Registry signals", renderPackageList(labels, 6)));
   }
   if (registry.installedVersionPublishedAt) {
-    items.push(renderKvItem("Installed version published", registry.installedVersionPublishedAt));
+    items.push(
+      renderKvItem(
+        "Installed version published",
+        formatTimestamp(registry.installedVersionPublishedAt),
+      ),
+    );
   }
   if (registry.packageCreatedAt) {
-    items.push(renderKvItem("Package created", registry.packageCreatedAt));
+    items.push(
+      renderKvItem("Package created", formatTimestamp(registry.packageCreatedAt)),
+    );
   }
   if (typeof registry.versionCount === "number") {
     items.push(renderKvItem("Published versions", registry.versionCount));
@@ -1640,7 +1769,7 @@ function renderMaintenanceSection(
         "Repository archived",
         yesNo(maintenance.repoArchived),
         maintenance.repoCheckedAt
-          ? `Checked ${maintenance.repoCheckedAt}`
+          ? `Checked ${formatTimestamp(maintenance.repoCheckedAt, true)}`
           : undefined,
       ),
     );
@@ -1649,9 +1778,9 @@ function renderMaintenanceSection(
     items.push(
       renderKvItem(
         "Last registry activity",
-        maintenance.packageModifiedAt,
+        formatTimestamp(maintenance.packageModifiedAt),
         typeof maintenance.monthsSinceModified === "number"
-          ? `~${maintenance.monthsSinceModified} months ago`
+          ? formatMonthsAgo(maintenance.monthsSinceModified)
           : undefined,
       ),
     );
@@ -1660,9 +1789,9 @@ function renderMaintenanceSection(
     items.push(
       renderKvItem(
         "Last repository push",
-        maintenance.repoPushedAt,
+        formatTimestamp(maintenance.repoPushedAt),
         typeof maintenance.monthsSinceRepoPush === "number"
-          ? `~${maintenance.monthsSinceRepoPush} months ago`
+          ? formatMonthsAgo(maintenance.monthsSinceRepoPush)
           : undefined,
       ),
     );
@@ -1674,16 +1803,20 @@ function renderMaintenanceSection(
     items.push(
       renderKvItem(
         "Data fetched",
-        maintenance.fetchedAt + (maintenance.fromCache ? " (cached)" : ""),
+        formatTimestamp(maintenance.fetchedAt, true) +
+          (maintenance.fromCache ? " (cached)" : ""),
       ),
     );
   }
   if (maintenance.error) {
     items.push(renderKvItem("Error", maintenance.error));
   }
+  // Mirrors the status chip: amber statuses (unmaintained/stale/slowing) tint
+  // too, so this section is not the odd one out now every other section does.
+  const statusTone = getMaintenanceStatusTone(maintenance.status);
   const tone =
-    maintenance.status === "deprecated" || maintenance.status === "archived"
-      ? "warning"
+    statusTone === "red" || statusTone === "amber"
+      ? subsectionTone(statusTone)
       : undefined;
   return renderSubsection(
     "Maintenance",
@@ -1733,6 +1866,7 @@ function renderReplacementSection(
     "Replacement available",
     '<div class="kv-grid">' + items.join("") + "</div>" + docLink + credit,
     "Community-suggested lighter or native alternative",
+    "opportunity",
   );
 }
 
@@ -2006,6 +2140,10 @@ function renderDep(
     securitySummary,
     supplyChainSignals?.length || 0,
     supplyChainSignals as any,
+    {
+      auditVerified: auditCollectorAvailable,
+      contentsInspected: executionWasInspected(dep),
+    },
   );
   const depKey = getDepKey(dep.package.name, dep.package.version);
   const domId = getDepDomId(depKey);
@@ -2073,10 +2211,6 @@ function getDepStats(depKey: string): DepGraphStats | undefined {
 function getSubDepCount(depKey: string): number | undefined {
   return getDepStats(depKey)?.subs;
 }
-function getFreesCount(depKey: string): number | undefined {
-  return getDepStats(depKey)?.frees;
-}
-
 interface DupDependent {
   name: string;
   version: string;
@@ -2308,15 +2442,24 @@ function renderDepDetails(
   const licenseBlock = renderSubsection(
     "License",
     '<div class="kv-grid">' + licenseDetails.join("") + "</div>",
+    undefined,
+    subsectionTone(dep.compliance.licenseRisk),
   );
 
   const vulnTotal = reportVulnerabilityTotal(securitySummary);
+  // Mirrors the chip strip: with no audit data this states what the report
+  // holds instead of showing a green "no known vulnerabilities".
+  const vulnUnchecked = vulnTotal === 0 && !auditCollectorAvailable;
   const vulnSummaryItems = [
     renderKvItemHtml(
       "Vulnerability status",
       renderRiskValue(
-        vulnTotal === 0 ? "No known vulnerabilities" : String(vulnTotal),
-        securitySummary.risk,
+        vulnTotal === 0
+          ? vulnUnchecked
+            ? `None reported (${auditCoverageNote()})`
+            : "No known vulnerabilities"
+          : String(vulnTotal),
+        vulnUnchecked ? "gray" : securitySummary.risk,
       ),
     ),
     renderKvItem(
@@ -2345,11 +2488,12 @@ function renderDepDetails(
       ? advisoriesTable
       : "",
   ].join("");
+  const vulnTone = subsectionTone(securitySummary.risk);
   const vulnBlock = renderSubsection(
     "Vulnerabilities",
     vulnBody,
     "Known security issues from npm audit",
-    "vuln-block",
+    "vuln-block" + (vulnTone ? " " + vulnTone : ""),
   );
 
   const executionBlock = dep.execution
@@ -2393,6 +2537,14 @@ function renderDepDetails(
       '<div class="kv-grid">' +
       currencyItems.join("") +
       "</div>",
+    undefined,
+    subsectionTone(
+      dep.upgrade.risk === "high"
+        ? "red"
+        : dep.upgrade.risk === "medium"
+          ? "amber"
+          : undefined,
+    ),
   );
 
   // The Maintenance section (Risk & Compliance) supersedes this block when
@@ -2423,6 +2575,8 @@ function renderDepDetails(
   const constraintBlock = renderSubsection(
     "Constraints",
     '<div class="kv-grid">' + constraintItems.join("") + "</div>",
+    undefined,
+    dep.upgrade.blocksNodeMajor ? "caution" : undefined,
   );
 
   const blastRadiusBlock = renderSubsection(
@@ -2442,7 +2596,7 @@ function renderDepDetails(
     installScripts: "Install lifecycle scripts",
     deprecated: "Deprecated by author",
   };
-  const blockers = '<div class="subsection"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div>' +
+  const blockers = '<div class="subsection' + (dep.upgrade.blockers?.length ? " caution" : "") + '"><div class="subsection-header"><span class="subsection-title">Upgrade blockers</span></div>' +
     (dep.upgrade.blockers?.length
       ? '<ul class="bullet-list">' +
         dep.upgrade.blockers
@@ -2477,7 +2631,10 @@ function renderDepDetails(
     descriptionHtml,
     buildStatusChips(dep, securitySummary, licenseText),
     renderKeyPoints(
-      buildReportKeyPoints(dep as any, securitySummary, supplyChainSignals as any),
+      buildReportKeyPoints(dep as any, securitySummary, supplyChainSignals as any, {
+        auditVerified: auditCollectorAvailable,
+        contentsInspected: executionWasInspected(dep),
+      }),
     ),
     overviewSection,
     riskSection,
@@ -2513,6 +2670,8 @@ async function init(): Promise<void> {
   if (typeof window.__DEPENDENCY_DATA__ === "undefined") {
     window.__DEPENDENCY_DATA__ = report;
   }
+  auditCollectorStatus = report.scanStatus?.collectors.audit ?? "available";
+  auditCollectorAvailable = auditCollectorStatus === "available";
   const container = document.getElementById("dependency-list")!;
   const summaryEl = document.getElementById("results-summary")!;
   const scanStatusBanner = document.getElementById("scan-status-banner");
@@ -3121,31 +3280,61 @@ async function init(): Promise<void> {
 
     let vulnerable = 0;
     let maintenanceConcernCount = 0;
-    let maintenanceDeprecatedOrArchived = 0;
+    let maintenanceDeprecated = 0;
+    let maintenanceArchived = 0;
+    let maintenanceUnmaintained = 0;
+    let maintenanceStale = 0;
     let maintenanceDataSeen = false;
     let licenseIssues = 0;
+    let licenseHighRisk = 0;
     let blockers = 0;
+    let blocksNodeMajor = 0;
     let replacements = 0;
+    let directReplacements = 0;
+    // One advisory reaches every package above it in the chain (the `via`
+    // expansion in the aggregator), so the same id lands on several records.
+    // Counting distinct ids is what makes this comparable to a scanner's
+    // "unique vulnerabilities" rather than "affected packages".
+    const advisoryIds = new Set<string>();
     allDependencies.forEach((dep) => {
       if (hasVulnerabilities(dep)) vulnerable += 1;
-      if (hasReplacementSuggestion(dep)) replacements += 1;
+      for (const advisory of normalizeSecurity(dep).advisories || []) {
+        if (advisory?.id) advisoryIds.add(String(advisory.id));
+      }
+      if (hasReplacementSuggestion(dep)) {
+        replacements += 1;
+        if (dep.usage.direct) directReplacements += 1;
+      }
       if (dep.maintenance?.attempted) maintenanceDataSeen = true;
       if (hasMaintenanceConcern(dep)) {
         maintenanceConcernCount += 1;
         const status = dep.maintenance?.status;
-        if (status === "deprecated" || status === "archived") {
-          maintenanceDeprecatedOrArchived += 1;
-        }
+        if (status === "deprecated") maintenanceDeprecated += 1;
+        if (status === "archived") maintenanceArchived += 1;
+        if (status === "unmaintained") maintenanceUnmaintained += 1;
+        if (status === "stale") maintenanceStale += 1;
       }
-      if (hasLicenseIssue(dep)) licenseIssues += 1;
-      if (hasUpgradeBlocker(dep)) blockers += 1;
+      if (hasLicenseIssue(dep)) {
+        licenseIssues += 1;
+        if (dep.compliance.licenseRisk === "red") licenseHighRisk += 1;
+      }
+      if (hasUpgradeBlocker(dep)) {
+        blockers += 1;
+        if (dep.upgrade.blocksNodeMajor) blocksNodeMajor += 1;
+      }
     });
+    // Reports whose audit format carried severity counts but no advisory
+    // detail would otherwise headline "0 vulnerabilities" beside a non-zero
+    // package count, so those fall back to the package figure.
+    const advisoryCount = advisoryIds.size;
+    const advisoryDetailMissing = advisoryCount === 0 && vulnerable > 0;
 
     const setChip = (
       id: string,
       value: number,
       tone?: "red" | "amber",
       title?: string,
+      sub?: string,
     ): void => {
       const chip = document.getElementById(id);
       if (!chip) return;
@@ -3154,20 +3343,47 @@ async function init(): Promise<void> {
       chip.classList.remove("red", "amber");
       if (tone && value > 0) chip.classList.add(tone);
       if (title) chip.title = title;
+      const subEl = chip.querySelector<HTMLElement>(".stat-sub");
+      if (subEl) {
+        subEl.textContent = sub || "";
+        subEl.hidden = !sub;
+      }
     };
+    const plural = (
+      count: number,
+      singular: string,
+      pluralForm = `${singular}s`,
+    ): string =>
+      `${count.toLocaleString()} ${count === 1 ? singular : pluralForm}`;
 
     setChip(
       "stat-total",
       report.summary.dependencyCount,
       undefined,
       `${report.summary.directCount} direct, ${report.summary.transitiveCount} transitive`,
+      `${report.summary.directCount.toLocaleString()} direct`,
     );
     setChip(
       "stat-vulnerable",
-      vulnerable,
+      advisoryDetailMissing ? vulnerable : advisoryCount,
       "red",
-      "Dependencies with known vulnerabilities (click to filter)",
+      advisoryDetailMissing
+        ? "Dependencies with known vulnerabilities (click to filter)"
+        : `${plural(advisoryCount, "distinct advisory", "distinct advisories")} affecting ${plural(vulnerable, "dependency", "dependencies")} (click to filter)`,
+      // "in 0 packages" beside a zero headline is noise, but an empty slot
+      // leaves a gap, so a clean result says so.
+      advisoryDetailMissing
+        ? undefined
+        : vulnerable === 0
+          ? "none found"
+          : `in ${plural(vulnerable, "package")}`,
     );
+    if (advisoryDetailMissing) {
+      // The fallback headlines affected packages, so the static label would
+      // otherwise name a quantity this chip is not showing.
+      const vulnLabel = document.querySelector("#stat-vulnerable .meta-label");
+      if (vulnLabel) vulnLabel.textContent = "Vulnerable";
+    }
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;
       if (!chip) return;
@@ -3176,6 +3392,14 @@ async function init(): Promise<void> {
       chip.classList.remove("red", "amber");
       const valueEl = chip.querySelector("strong");
       if (valueEl) valueEl.textContent = "?";
+      // A breakdown of a figure that was never collected would be wrong, but an
+      // empty slot leaves a visible gap in a row of equal-height chips, so this
+      // states why the value is missing instead.
+      const subEl = chip.querySelector<HTMLElement>(".stat-sub");
+      if (subEl) {
+        subEl.textContent = "not checked";
+        subEl.hidden = false;
+      }
       chip.title = `${label} is unknown because its collector is ${status}`;
     };
     const auditStatus = report.scanStatus?.collectors.audit;
@@ -3187,12 +3411,14 @@ async function init(): Promise<void> {
       licenseIssues,
       "amber",
       "Dependencies with licence review flags (click to filter)",
+      `${licenseHighRisk.toLocaleString()} high risk`,
     );
     setChip(
       "stat-blockers",
       blockers,
       "amber",
       "Dependencies with upgrade blockers (click to filter)",
+      `${blocksNodeMajor.toLocaleString()} Node major`,
     );
     // Only surfaced when the scan matched at least one dependency against
     // the e18e module-replacements catalogue.
@@ -3209,9 +3435,25 @@ async function init(): Promise<void> {
           replacements,
           undefined,
           "Dependencies with community-suggested replacements from e18e (click to filter)",
+          `${directReplacements.toLocaleString()} direct`,
         );
       }
     }
+    // Name the single status when only one occurs, and fall back to the
+    // umbrella when both do. Spelling both out was longer than the "N
+    // deprecated or archived" this replaced, which defeated the point.
+    const maintenanceSub =
+      maintenanceDeprecated > 0 && maintenanceArchived > 0
+        ? `${(maintenanceDeprecated + maintenanceArchived).toLocaleString()} end of life`
+        : maintenanceDeprecated > 0
+          ? `${maintenanceDeprecated.toLocaleString()} deprecated`
+          : maintenanceArchived > 0
+            ? `${maintenanceArchived.toLocaleString()} archived`
+            : maintenanceUnmaintained > 0
+              ? `${maintenanceUnmaintained.toLocaleString()} unmaintained`
+              : maintenanceStale > 0
+                ? `${maintenanceStale.toLocaleString()} stale`
+                : `${maintenanceConcernCount.toLocaleString()} slowing`;
     const maintenanceChip = document.getElementById("stat-maintenance");
     if (maintenanceChip) {
       const maintenanceStatus = report.scanStatus?.collectors.maintenance;
@@ -3223,8 +3465,9 @@ async function init(): Promise<void> {
         setChip(
           "stat-maintenance",
           maintenanceConcernCount,
-          maintenanceDeprecatedOrArchived > 0 ? "red" : "amber",
+          maintenanceDeprecated + maintenanceArchived > 0 ? "red" : "amber",
           "Deprecated, archived, unmaintained, or stale dependencies (click to filter)",
+          maintenanceSub,
         );
       }
     }
@@ -4456,32 +4699,51 @@ async function init(): Promise<void> {
       }`,
     );
     headlineP.insertAdjacentHTML("beforeend", finePrintBtnHtml("impact"));
+    // Grouped the same way the expanded view's subsections are: a title with
+    // a one-line description beside it, then package tags.
     const nameList = (
       title: string,
+      desc: string,
       entries: Array<{ name: string; note?: string }>,
       cap: number,
     ): void => {
-      const head = document.createElement("p");
-      head.className = "list-sim-subtitle";
-      head.textContent = title;
-      panel.appendChild(head);
+      const group = document.createElement("div");
+      group.className = "list-sim-group";
+      const head = document.createElement("div");
+      head.className = "subsection-header";
+      const titleEl = document.createElement("span");
+      titleEl.className = "subsection-title";
+      titleEl.textContent = title;
+      const descEl = document.createElement("span");
+      descEl.className = "subsection-desc";
+      descEl.textContent = desc;
+      head.append(titleEl, descEl);
+      group.appendChild(head);
       const wrap = document.createElement("div");
-      wrap.className = "list-sim-chips";
+      wrap.className = "package-list";
       for (const entry of entries.slice(0, cap)) {
         const chip = document.createElement("span");
-        chip.className = "list-sim-chip";
-        chip.textContent = entry.note
-          ? `${entry.name} \u00b7 ${entry.note}`
-          : entry.name;
+        chip.className = "package-tag";
+        if (entry.note) {
+          const nameEl = document.createElement("span");
+          nameEl.textContent = entry.name;
+          const noteEl = document.createElement("span");
+          noteEl.className = "package-tag-note";
+          noteEl.textContent = entry.note;
+          chip.append(nameEl, noteEl);
+        } else {
+          chip.textContent = entry.name;
+        }
         wrap.appendChild(chip);
       }
       if (entries.length > cap) {
         const more = document.createElement("span");
-        more.className = "list-sim-more";
+        more.className = "package-tag list-sim-more";
         more.textContent = `+${entries.length - cap} more`;
         wrap.appendChild(more);
       }
-      panel.appendChild(wrap);
+      group.appendChild(wrap);
+      panel.appendChild(group);
     };
     const nameCounts = new Map<string, number>();
     for (const entry of [...sim.freed, ...sim.retained]) {
@@ -4491,12 +4753,14 @@ async function init(): Promise<void> {
       (nameCounts.get(entry.name) ?? 0) > 1 ? entry.slug : entry.name;
     nameList(
       `Freed (${sim.freed.length})`,
+      "Leave node_modules: nothing else needs them",
       sim.freed.map((f) => ({ name: simLabel(f) })),
       30,
     );
     if (sim.retained.length > 0) {
       nameList(
         `Retained (${sim.retained.length})`,
+        "Stay installed: another package still depends on them",
         sim.retained.map((r) => ({ name: simLabel(r), note: `kept by ${r.keptBy}` })),
         12,
       );

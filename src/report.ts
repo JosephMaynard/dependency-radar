@@ -180,12 +180,12 @@ ${safeCssContent}
         </div>
       </div>
       <div class="header-stats" id="header-stats" aria-label="Scan summary">
-        <span class="stat-chip" id="stat-total"><span class="meta-label">Dependencies</span> <strong>–</strong></span>
-        <button type="button" class="stat-chip" id="stat-vulnerable" data-stat-filter="has-vulns"><span class="meta-label">Vulnerable</span> <strong>–</strong></button>
-        <button type="button" class="stat-chip" id="stat-maintenance" data-stat-filter="maintenance-concerns"><span class="meta-label">Maintenance</span> <strong>–</strong></button>
-        <button type="button" class="stat-chip" id="stat-license" data-stat-filter="license-issues"><span class="meta-label">Licence issues</span> <strong>–</strong></button>
-        <button type="button" class="stat-chip" id="stat-blockers" data-stat-filter="upgrade-blockers"><span class="meta-label">Upgrade blockers</span> <strong>–</strong></button>
-        <button type="button" class="stat-chip" id="stat-replacements" data-stat-filter="has-replacement" hidden><span class="meta-label">Replacements</span> <strong>–</strong></button>
+        <span class="stat-chip" id="stat-total"><span class="meta-label">Dependencies</span> <strong>–</strong> <small class="stat-sub" hidden></small></span>
+        <button type="button" class="stat-chip" id="stat-vulnerable" data-stat-filter="has-vulns"><span class="meta-label">Vulnerabilities</span> <strong>–</strong> <small class="stat-sub" hidden></small></button>
+        <button type="button" class="stat-chip" id="stat-maintenance" data-stat-filter="maintenance-concerns"><span class="meta-label">Maintenance</span> <strong>–</strong> <small class="stat-sub" hidden></small></button>
+        <button type="button" class="stat-chip" id="stat-license" data-stat-filter="license-issues"><span class="meta-label">Licence issues</span> <strong>–</strong> <small class="stat-sub" hidden></small></button>
+        <button type="button" class="stat-chip" id="stat-blockers" data-stat-filter="upgrade-blockers"><span class="meta-label">Upgrade blockers</span> <strong>–</strong> <small class="stat-sub" hidden></small></button>
+        <button type="button" class="stat-chip" id="stat-replacements" data-stat-filter="has-replacement" hidden><span class="meta-label">Replacements</span> <strong>–</strong> <small class="stat-sub" hidden></small></button>
       </div>
     </div>
   </header>
@@ -366,7 +366,6 @@ ${safeCssContent}
                 <option value="maintenance">Maintenance</option>
                 <option value="depth">Depth</option>
                 <option value="subdeps">Sub-deps</option>
-                <option value="frees">Frees</option>
               </select>
               <button type="button" class="sort-direction-btn" id="sort-direction" title="Toggle sort direction" aria-label="Toggle sort direction">↑</button>
             </div>

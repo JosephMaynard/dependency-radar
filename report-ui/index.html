@@ -202,7 +202,7 @@
         <div class="header-stats" id="header-stats" aria-label="Scan summary">
           <span class="stat-chip" id="stat-total"
             ><span class="meta-label">Dependencies</span>
-            <strong>–</strong></span
+            <strong>–</strong> <small class="stat-sub" hidden></small></span
           >
           <button
             type="button"
@@ -210,7 +210,7 @@
             id="stat-vulnerable"
             data-stat-filter="has-vulns"
           >
-            <span class="meta-label">Vulnerable</span> <strong>–</strong>
+            <span class="meta-label">Vulnerabilities</span> <strong>–</strong> <small class="stat-sub" hidden></small>
           </button>
           <button
             type="button"
@@ -218,7 +218,7 @@
             id="stat-maintenance"
             data-stat-filter="maintenance-concerns"
           >
-            <span class="meta-label">Maintenance</span> <strong>–</strong>
+            <span class="meta-label">Maintenance</span> <strong>–</strong> <small class="stat-sub" hidden></small>
           </button>
           <button
             type="button"
@@ -226,7 +226,7 @@
             id="stat-license"
             data-stat-filter="license-issues"
           >
-            <span class="meta-label">Licence issues</span> <strong>–</strong>
+            <span class="meta-label">Licence issues</span> <strong>–</strong> <small class="stat-sub" hidden></small>
           </button>
           <button
             type="button"
@@ -234,7 +234,7 @@
             id="stat-blockers"
             data-stat-filter="upgrade-blockers"
           >
-            <span class="meta-label">Upgrade blockers</span> <strong>–</strong>
+            <span class="meta-label">Upgrade blockers</span> <strong>–</strong> <small class="stat-sub" hidden></small>
           </button>
           <button
             type="button"
@@ -243,7 +243,7 @@
             data-stat-filter="has-replacement"
             hidden
           >
-            <span class="meta-label">Replacements</span> <strong>–</strong>
+            <span class="meta-label">Replacements</span> <strong>–</strong> <small class="stat-sub" hidden></small>
           </button>
         </div>
       </div>
@@ -508,7 +508,6 @@
                   <option value="maintenance">Maintenance</option>
                   <option value="depth">Depth</option>
                   <option value="subdeps">Sub-deps</option>
-                  <option value="frees">Frees</option>
                 </select>
                 <button
                   type="button"

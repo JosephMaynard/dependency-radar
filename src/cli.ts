@@ -1643,6 +1643,16 @@ type CliSummary = {
   directDeps: number;
   transitiveDeps: number;
   vulnerablePackages: number;
+  // Distinct advisory ids, so this matches what a scanner calls "unique
+  // vulnerabilities". One advisory reaches every package above it in the
+  // chain, so it is frequently smaller than vulnerablePackages.
+  distinctAdvisories: number;
+  // Collector status for the audit. A zero count under anything but
+  // 'available' is an absence of evidence, not evidence of absence.
+  auditStatus: ScanCollectorStatus;
+  // False when import collection was incomplete, which makes the
+  // directly-imported count a lower bound rather than an exact figure.
+  importEvidenceComplete: boolean;
   directlyImportedVulnerablePackages: number;
   unusedInstalledDeps: number;
   licenseMismatches: number;
@@ -1690,8 +1700,9 @@ function printPolicyViolations(violations: PolicyViolation[]): void {
  */
 function buildCliSummary(
   aggregated: AggregatedData,
-  options: { importGraphComplete: boolean },
+  options: { importGraphComplete: boolean; auditStatus: ScanCollectorStatus },
 ): CliSummary {
+  const advisoryIds = new Set<string>();
   let vulnerablePackages = 0;
   let directlyImportedVulnerablePackages = 0;
   let unusedInstalledDeps = 0;
@@ -1717,6 +1728,9 @@ function buildCliSummary(
       if ((dep.usage.importUsage?.fileCount || 0) > 0) {
         directlyImportedVulnerablePackages += 1;
       }
+    }
+    for (const advisory of dep.security.advisories || []) {
+      if (advisory?.id) advisoryIds.add(String(advisory.id));
     }
     // Count "unused" only when import graph collection succeeded for all packages.
     // `importUsage` is an optional object (or undefined), not a boolean/string state.
@@ -1757,6 +1771,9 @@ function buildCliSummary(
     directDeps: aggregated.summary.directCount,
     transitiveDeps: aggregated.summary.transitiveCount,
     vulnerablePackages,
+    distinctAdvisories: advisoryIds.size,
+    auditStatus: options.auditStatus,
+    importEvidenceComplete: options.importGraphComplete,
     directlyImportedVulnerablePackages,
     unusedInstalledDeps,
     licenseMismatches,
@@ -1788,9 +1805,22 @@ function printCliSummary(summary: CliSummary): void {
   console.log("Summary:");
   console.log(`${bullet} Direct dependencies scanned: ${summary.directDeps}`);
   console.log(`${bullet} Transitive dependencies scanned: ${summary.transitiveDeps}`);
-  console.log(
-    `${bullet} Vulnerable packages: ${summary.vulnerablePackages} (${summary.directlyImportedVulnerablePackages} directly imported)`,
-  );
+  // Printing "0 vulnerabilities" for an audit that never ran states a clean
+  // result nothing checked for, so an unavailable audit says so instead.
+  if (summary.auditStatus === "available" || summary.auditStatus === "partial") {
+    const caveat = summary.auditStatus === "partial" ? ", audit incomplete" : "";
+    // A package with no import evidence is only "not imported" when import
+    // collection covered everything; otherwise the count is a floor. The same
+    // distinction already guards the unused-dependency count above.
+    const imported = summary.importEvidenceComplete
+      ? `${summary.directlyImportedVulnerablePackages} directly imported`
+      : `at least ${summary.directlyImportedVulnerablePackages} directly imported`;
+    console.log(
+      `${bullet} Vulnerabilities: ${summary.distinctAdvisories} in ${summary.vulnerablePackages} ${pluralize(summary.vulnerablePackages, "package", "packages")} (${imported}${caveat})`,
+    );
+  } else {
+    console.log(`${bullet} Vulnerabilities: not checked (audit did not run)`);
+  }
   console.log(`${bullet} Dependencies with no static import reference: ${summary.unusedInstalledDeps}`);
   console.log(`${bullet} License mismatches: ${summary.licenseMismatches}`);
   console.log(`${bullet} Major upgrade blockers: ${summary.majorUpgradeBlockers}`);
@@ -2464,6 +2494,7 @@ async function executeAnalysis(
     const importGraphComplete = importCollectorStatus === "available";
     const summary = buildCliSummary(aggregated, {
       importGraphComplete,
+      auditStatus: collectors.audit,
     });
     const policyViolations = evaluatePolicyViolations(aggregated, opts.failOn);
     const incompleteReasons = incompleteEvidenceReasons(scanStatus, opts.failOn, opts.strict);

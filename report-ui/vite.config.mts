@@ -1,5 +1,10 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+
+// This config is ESM (.mts), so __dirname does not exist. Derived here rather
+// than using import.meta.dirname so the file does not carry a Node 20.11 floor.
+const configDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   build: {
@@ -9,7 +14,7 @@ export default defineConfig({
     sourcemap: false,
     // Library mode for extracting CSS and JS
     lib: {
-      entry: resolve(__dirname, 'main.ts'),
+      entry: resolve(configDir, 'main.ts'),
       name: 'DependencyRadarReport',
       fileName: 'report',
       formats: ['iife'],
