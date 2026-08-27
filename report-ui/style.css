@@ -4082,3 +4082,157 @@ details[open] > summary .expand-icon {
 [data-theme="light"] .graph-key-line.route {
   background: #d97706;
 }
+
+/* ===== SHARED ICONS ===== */
+/* Lucide strokes inherit currentColor so every context tints its own icon. */
+.icon {
+  display: inline-block;
+  vertical-align: -0.18em;
+  flex-shrink: 0;
+}
+
+.stat-chip .meta-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-title .section-icon {
+  margin-right: 8px;
+  vertical-align: -0.2em;
+  color: var(--accent);
+}
+
+.view-switch-btn .btn-icon,
+.graph-back-btn .btn-icon,
+.dashboard-action-btn .btn-icon {
+  margin-right: 6px;
+  vertical-align: -0.22em;
+}
+
+.fine-print-btn,
+.graph-fineprint-btn {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -0.15em;
+}
+
+.chevron .icon {
+  display: block;
+}
+
+/* Compact theme toggle for the graph and dashboard toolbars; the header
+   switch stays the primary control, these are the in-view shortcuts. */
+.graph-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.graph-theme-btn:hover {
+  color: var(--accent);
+  border-color: var(--border-color-strong);
+}
+
+/* ===== DASHBOARD VIEW ===== */
+/* Mirrors the graph shell: same edge border, same toolbar altitude. */
+.dashboard-shell {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 15% 20%, var(--accent-subtle), transparent 35%),
+    radial-gradient(circle at 80% 80%, var(--accent-subtle), transparent 42%),
+    var(--bg-card);
+  overflow: hidden;
+}
+
+.dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dashboard-toolbar .graph-back-btn {
+  position: static;
+}
+
+.dashboard-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-export-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.dashboard-action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.dashboard-action-btn:hover {
+  color: var(--accent);
+  border-color: var(--border-color-strong);
+}
+
+.dashboard-stage {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* The slide keeps its 16:9 geometry; cap by viewport height so the whole
+   board is visible without scrolling on typical laptop screens. */
+.dashboard-stage svg {
+  width: 100%;
+  max-width: min(1600px, calc((100vh - 250px) * 16 / 9));
+  height: auto;
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.dashboard-status {
+  min-height: 20px;
+  padding: 0 16px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .dashboard-toolbar {
+    justify-content: center;
+  }
+}

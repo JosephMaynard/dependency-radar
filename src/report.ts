@@ -227,6 +227,14 @@ ${safeCssContent}
             <button
               type="button"
               class="view-switch-btn"
+              id="view-dashboard-btn"
+              data-view="dashboard"
+            >
+              Dashboard
+            </button>
+            <button
+              type="button"
+              class="view-switch-btn"
               id="view-graph-btn"
               data-view="graph"
             >
@@ -339,7 +347,7 @@ ${safeCssContent}
               <span class="checkbox-filter">
                 <input type="checkbox" id="no-imports" />
                 <label for="no-imports" id="no-imports-label">No imports found</label>
-                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence">ⓘ</button>
+                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg></button>
               </span>
 
               <label class="checkbox-filter">
@@ -522,6 +530,7 @@ ${safeCssContent}
             <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
             <select id="graph-workspace" class="graph-workspace-select"></select>
           </div>
+          <button type="button" class="graph-theme-btn" id="graph-theme-btn" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
         </div>
         <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
           <div class="dpad">
@@ -544,6 +553,23 @@ ${safeCssContent}
           </div>
           <div class="graph-dossier" id="graph-dossier"></div>
         </aside>
+      </div>
+    </section>
+    <section class="view-panel" id="dashboard-view" data-view="dashboard" aria-hidden="true">
+      <div class="dashboard-shell" id="dashboard-shell">
+        <div class="dashboard-toolbar">
+          <button type="button" class="graph-back-btn" id="dashboard-back-btn">Back to List View</button>
+          <div class="dashboard-toolbar-actions">
+            <button type="button" class="fine-print-btn" data-fine-topic="slide" aria-haspopup="true" aria-expanded="false" aria-label="About: The slide dashboard" id="dashboard-fine-btn"></button>
+            <span class="dashboard-export-label">Export</span>
+            <button type="button" class="dashboard-action-btn" id="dashboard-export-png">PNG</button>
+            <button type="button" class="dashboard-action-btn" id="dashboard-export-jpeg">JPEG</button>
+            <button type="button" class="dashboard-action-btn" id="dashboard-export-svg">SVG</button>
+            <button type="button" class="graph-theme-btn" id="dashboard-theme-btn" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
+          </div>
+        </div>
+        <div class="dashboard-stage" id="dashboard-stage"></div>
+        <div class="dashboard-status" id="dashboard-status" role="status" aria-live="polite"></div>
       </div>
     </section>
   </main>

@@ -35,4 +35,30 @@ describe('graph template synchronisation', () => {
     expect(devIds.length).toBeGreaterThan(5);
     expect(reportIds).toEqual(devIds);
   });
+
+  it('keeps the dashboard section ids identical between the dev harness and the report template', () => {
+    const root = path.join(__dirname, '..');
+    const devHtml = fs.readFileSync(path.join(root, 'report-ui', 'index.html'), 'utf8');
+    const reportTs = fs.readFileSync(path.join(root, 'src', 'report.ts'), 'utf8');
+
+    const devIds = sectionIds(devHtml, 'dashboard-view');
+    const reportIds = sectionIds(reportTs, 'dashboard-view');
+
+    expect(devIds.length).toBeGreaterThan(5);
+    expect(reportIds).toEqual(devIds);
+  });
 });
+
+function sectionIds(source: string, sectionId: string): string[] {
+  const start = source.indexOf(`id="${sectionId}"`);
+  expect(start, `${sectionId} section missing`).toBeGreaterThanOrEqual(0);
+  const end = source.indexOf('</section>', start);
+  expect(end, `${sectionId} section is unterminated`).toBeGreaterThan(start);
+  const section = source.slice(start, end);
+  const ids: string[] = [];
+  for (const match of section.matchAll(/id="([^"]+)"/g)) {
+    ids.push(match[1]);
+  }
+  expect(new Set(ids).size, `duplicate ids within the ${sectionId} section`).toBe(ids.length);
+  return ids.sort();
+}

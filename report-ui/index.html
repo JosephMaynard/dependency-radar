@@ -307,6 +307,14 @@
               <button
                 type="button"
                 class="view-switch-btn"
+                id="view-dashboard-btn"
+                data-view="dashboard"
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                class="view-switch-btn"
                 id="view-graph-btn"
                 data-view="graph"
               >
@@ -885,6 +893,13 @@
                 class="graph-workspace-select"
               ></select>
             </div>
+            <button
+              type="button"
+              class="graph-theme-btn"
+              id="graph-theme-btn"
+              aria-label="Toggle dark/light mode"
+              aria-pressed="false"
+            ></button>
           </div>
           <div
             class="graph-controls graph-overlay graph-overlay-right"
@@ -968,6 +983,67 @@
             </div>
             <div class="graph-dossier" id="graph-dossier"></div>
           </aside>
+        </div>
+      </section>
+      <section
+        class="view-panel"
+        id="dashboard-view"
+        data-view="dashboard"
+        aria-hidden="true"
+      >
+        <div class="dashboard-shell" id="dashboard-shell">
+          <div class="dashboard-toolbar">
+            <button type="button" class="graph-back-btn" id="dashboard-back-btn">
+              Back to List View
+            </button>
+            <div class="dashboard-toolbar-actions">
+              <button
+                type="button"
+                class="fine-print-btn"
+                data-fine-topic="slide"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-label="About: The slide dashboard"
+                id="dashboard-fine-btn"
+              ></button>
+              <span class="dashboard-export-label">Export</span>
+              <button
+                type="button"
+                class="dashboard-action-btn"
+                id="dashboard-export-png"
+              >
+                PNG
+              </button>
+              <button
+                type="button"
+                class="dashboard-action-btn"
+                id="dashboard-export-jpeg"
+              >
+                JPEG
+              </button>
+              <button
+                type="button"
+                class="dashboard-action-btn"
+                id="dashboard-export-svg"
+              >
+                SVG
+              </button>
+              <button
+                type="button"
+                class="graph-theme-btn"
+                id="dashboard-theme-btn"
+                aria-label="Toggle dark/light mode"
+                aria-pressed="false"
+              ></button>
+            </div>
+          </div>
+          <div class="dashboard-stage" id="dashboard-stage"></div>
+          <div
+            class="dashboard-status"
+            id="dashboard-status"
+            role="status"
+            aria-live="polite"
+          ></div>
         </div>
       </section>
     </main>

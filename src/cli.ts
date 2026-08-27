@@ -17,6 +17,8 @@ import { enrichAggregatedWithRegistryMetadata } from "./runners/npmRegistryMetad
 import { enrichAggregatedWithMaintenanceSignals, resolveRegistryBaseUrl } from "./runners/maintenanceSignals";
 import { runLockfileSupplyChainSignals } from "./runners/lockfileSignals";
 import { renderReport } from "./report";
+import { buildSlideModel } from "./slide/slideModel";
+import { buildSlideSvg } from "./slide/slideSvg";
 import { compareReports, formatCompareOutput } from "./compare";
 import { buildDependencyFindings } from "./findings";
 import { applyUpgradeRisk } from "./upgradeRisk";
@@ -1148,7 +1150,7 @@ function buildCombinedDependencyGraph(
 }
 
 interface CliOptions {
-  command: "scan" | "explain" | "compare" | "why" | "schema";
+  command: "scan" | "explain" | "compare" | "why" | "schema" | "slide";
   packageName?: string;
   comparePath?: string;
   invalidCommand?: string;
@@ -1173,6 +1175,10 @@ interface CliOptions {
   outProvided: boolean;
   timestamp: boolean;
   strict: boolean;
+  // slide command: light palette instead of the default dark, and a
+  // best-effort PNG render alongside the SVG.
+  lightMode: boolean;
+  slidePng: boolean;
 }
 
 /**
@@ -1211,12 +1217,14 @@ function parseArgs(argv: string[]): CliOptions {
     outProvided: false,
     timestamp: false,
     strict: false,
+    lightMode: false,
+    slidePng: false,
   };
 
   const args = [...argv];
   if (args[0] && !args[0].startsWith("-")) {
     const command = args.shift()!;
-    if (command === "scan" || command === "explain" || command === "compare" || command === "why" || command === "schema") {
+    if (command === "scan" || command === "explain" || command === "compare" || command === "why" || command === "schema" || command === "slide") {
       opts.command = command;
       opts.commandProvided = true;
     } else {
@@ -1245,6 +1253,12 @@ function parseArgs(argv: string[]): CliOptions {
       opts.outProvided = true;
     }
     else if (arg === "--keep-temp") opts.keepTemp = true;
+    else if (arg === "--light-mode") {
+      opts.lightMode = true;
+    }
+    else if (arg === "--png") {
+      opts.slidePng = true;
+    }
     else if (arg === "--offline") {
       opts.offline = true;
       opts.audit = false;
@@ -1423,6 +1437,7 @@ function printHelp(): void {
 dependency-radar explain <package-name> [options]
 dependency-radar why <package-name> [options]
 dependency-radar compare <previous dependency-radar.json> [options]
+dependency-radar slide [options]
 
 If no command is provided, \`scan\` is run by default.
 
@@ -1463,6 +1478,10 @@ Options:
 \`explain\` reuses the same local scan model and prints a terminal view for one package.
 \`why\` prints shortest dependency paths for one package.
 \`compare\` scans the current project and compares it with a previous JSON report.
+\`slide\` scans and writes a one-page SVG dashboard for slide decks (default:
+dependency-radar-slide.svg, dark). --light-mode uses the light palette; --png
+also renders a 1920x1080 PNG when a local Chrome, Edge, Chromium, or
+rsvg-convert is available.
 `);
 }
 
@@ -2636,6 +2655,164 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
   }
 }
 
+/**
+ * Renders the one-page SVG slide dashboard from a fresh scan, plus an
+ * optional PNG when a local rasteriser can be found. The SVG path is fully
+ * dependency-free; PNG borrows a browser the machine already has, because a
+ * zero-dependency CLI cannot rasterise text itself.
+ */
+async function runSlideCommand(opts: CliOptions): Promise<void> {
+  const result = await executeAnalysis(opts, {
+    shouldWriteArtifacts: false,
+    emitArtifactSummary: false,
+    emitWorkspacePackageSummary: false,
+  });
+  const theme = opts.lightMode ? ("light" as const) : ("dark" as const);
+  const svg = buildSlideSvg(buildSlideModel(result.aggregated), theme);
+
+  const requested = opts.outProvided
+    ? path.resolve(opts.project, opts.out)
+    : path.resolve(opts.project, "dependency-radar-slide.svg");
+  const parsed = path.parse(requested);
+  const base = path.join(parsed.dir, parsed.name);
+  const svgPath = base + ".svg";
+  await fs.mkdir(parsed.dir, { recursive: true });
+  await fs.writeFile(svgPath, svg, "utf8");
+  if (!opts.quiet) {
+    console.log(statusLine("✔", `Slide (${theme}) written to ${svgPath}`));
+  }
+
+  if (!opts.slidePng) return;
+  const pngPath = base + ".png";
+  const rendered = await renderSlidePng(svgPath, pngPath, svg);
+  if (rendered) {
+    if (!opts.quiet) {
+      console.log(statusLine("✔", `PNG written to ${pngPath}`));
+    }
+  } else {
+    console.log(
+      statusLine(
+        "✖",
+        "PNG skipped: no Chrome, Edge, Chromium, or rsvg-convert found. " +
+          "Open the HTML report's Dashboard view and use its Export button instead.",
+      ),
+    );
+    process.exitCode = EXIT_USAGE_OR_INCOMPLETE;
+  }
+}
+
+/** Candidate rasteriser executables, most common first. */
+function slideRasterisers(): Array<{ file: string; kind: "chromium" | "rsvg" }> {
+  const candidates: Array<{ file: string; kind: "chromium" | "rsvg" }> = [];
+  if (process.env.CHROME_PATH) {
+    candidates.push({ file: process.env.CHROME_PATH, kind: "chromium" });
+  }
+  if (platform() === "darwin") {
+    candidates.push(
+      { file: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", kind: "chromium" },
+      { file: "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", kind: "chromium" },
+      { file: "/Applications/Chromium.app/Contents/MacOS/Chromium", kind: "chromium" },
+    );
+  } else if (platform() === "win32") {
+    const programFiles = [
+      process.env["PROGRAMFILES"],
+      process.env["PROGRAMFILES(X86)"],
+      process.env["LOCALAPPDATA"],
+    ].filter(Boolean) as string[];
+    for (const dir of programFiles) {
+      candidates.push(
+        { file: path.join(dir, "Google", "Chrome", "Application", "chrome.exe"), kind: "chromium" },
+        { file: path.join(dir, "Microsoft", "Edge", "Application", "msedge.exe"), kind: "chromium" },
+      );
+    }
+  } else {
+    for (const name of [
+      "google-chrome",
+      "google-chrome-stable",
+      "chromium",
+      "chromium-browser",
+      "microsoft-edge",
+    ]) {
+      candidates.push({ file: name, kind: "chromium" });
+    }
+  }
+  candidates.push({ file: "rsvg-convert", kind: "rsvg" });
+  return candidates;
+}
+
+/**
+ * Rasterise the slide SVG to a 1920x1080 PNG with the first working local
+ * tool. Chromium engines screenshot a temporary HTML wrapper that stretches
+ * the SVG to the viewport, so the fixed 1600x900 geometry upscales cleanly.
+ */
+async function renderSlidePng(
+  svgPath: string,
+  pngPath: string,
+  svg: string,
+): Promise<boolean> {
+  const runQuiet = (file: string, args: string[]): Promise<boolean> =>
+    new Promise((resolvePromise) => {
+      let child: ChildProcess;
+      try {
+        child = spawn(file, args, { stdio: "ignore" });
+      } catch {
+        resolvePromise(false);
+        return;
+      }
+      const timer = setTimeout(() => {
+        child.kill();
+        resolvePromise(false);
+      }, 30000);
+      child.on("error", () => {
+        clearTimeout(timer);
+        resolvePromise(false);
+      });
+      child.on("exit", (code) => {
+        clearTimeout(timer);
+        resolvePromise(code === 0);
+      });
+    });
+
+  const wrapperPath = svgPath + ".render.html";
+  const wrapper =
+    "<!doctype html><html><head><meta charset=\"utf-8\"><style>" +
+    "html,body{margin:0;padding:0;overflow:hidden}" +
+    "svg{display:block;width:100vw;height:100vh}" +
+    "</style></head><body>" +
+    svg +
+    "</body></html>";
+
+  for (const candidate of slideRasterisers()) {
+    if (candidate.kind === "rsvg") {
+      const ok = await runQuiet(candidate.file, [
+        "-w", "1920", "-h", "1080", svgPath, "-o", pngPath,
+      ]);
+      if (ok && (await fs.stat(pngPath).catch(() => null))) return true;
+      continue;
+    }
+    // Absolute paths must exist; bare names are resolved by the OS.
+    if (path.isAbsolute(candidate.file)) {
+      const exists = await fs.stat(candidate.file).catch(() => null);
+      if (!exists) continue;
+    }
+    await fs.writeFile(wrapperPath, wrapper, "utf8");
+    try {
+      const ok = await runQuiet(candidate.file, [
+        "--headless",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--window-size=1920,1080",
+        `--screenshot=${pngPath}`,
+        pathToFileURL(wrapperPath).href,
+      ]);
+      if (ok && (await fs.stat(pngPath).catch(() => null))) return true;
+    } finally {
+      await fs.unlink(wrapperPath).catch(() => {});
+    }
+  }
+  return false;
+}
+
 async function runExplainCommand(opts: CliOptions): Promise<void> {
   const packageName = opts.packageName?.trim();
   if (!packageName) {
@@ -2781,6 +2958,10 @@ async function run(): Promise<void> {
     }
     if (opts.command === "compare") {
       await runCompareCommand(opts);
+      return;
+    }
+    if (opts.command === "slide") {
+      await runSlideCommand(opts);
       return;
     }
     await runScanCommand(opts);

@@ -1,6 +1,7 @@
 import type { GraphDataset, GraphViewHandle } from "./graphView";
 import type { GraphFilters, VizHandle, VizModel } from "./vizModel";
 import { FINE_PRINT } from "./finePrint";
+import { iconSvg } from "../src/slide/icons";
 import {
   buildVizModel,
   DEFAULT_GRAPH_FILTERS,
@@ -700,7 +701,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     finePop.focus({ preventScroll: true });
   }
   function infoButton(topic: string): HTMLElement {
-    const btn = el("button", "graph-fineprint-btn", "\u24d8");
+    const btn = el("button", "graph-fineprint-btn", "");
+    btn.innerHTML = iconSvg("info", { size: 13, className: "icon" });
     (btn as HTMLButtonElement).type = "button";
     btn.setAttribute("aria-label", `About: ${FINE_PRINT[topic]?.title ?? topic}`);
     btn.setAttribute("aria-haspopup", "true");

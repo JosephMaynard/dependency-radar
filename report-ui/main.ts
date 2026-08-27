@@ -10,6 +10,14 @@ import {
   reportVulnerabilityTotal,
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
+import { iconSvg, type IconName } from "../src/slide/icons";
+import { buildSlideModel, type SlideModel } from "../src/slide/slideModel";
+import {
+  buildSlideSvg,
+  SLIDE_HEIGHT,
+  SLIDE_WIDTH,
+  type SlideTheme,
+} from "../src/slide/slideSvg";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
 import { buildVizModel, type VizModel } from "./vizModel";
 import { FINE_PRINT } from "./finePrint";
@@ -915,7 +923,9 @@ function finePrintBtnHtml(topic: keyof typeof FINE_PRINT): string {
     escapeHtml(String(topic)) +
     '" aria-haspopup="true" aria-expanded="false" aria-label="About: ' +
     escapeHtml(note?.title ?? String(topic)) +
-    '">\u24d8</button>'
+    '">' +
+    iconSvg("info", { size: 13, className: "icon" }) +
+    "</button>"
   );
 }
 
@@ -1511,6 +1521,7 @@ function renderDeclaredDependencies(
     "Declared Dependencies",
     "Dependencies declared by this package",
     body,
+    "package",
   );
 }
 
@@ -1539,10 +1550,13 @@ function renderSection(
   title: string,
   desc: string | undefined,
   bodyHtml: string,
+  icon?: IconName,
 ): string {
   let html = '<div class="section">';
   html += '<div class="section-header">';
-  html += '<span class="section-title">' + escapeHtml(title) + "</span>";
+  html += '<span class="section-title">';
+  if (icon) html += iconSvg(icon, { size: 15, className: "icon section-icon" });
+  html += escapeHtml(title) + "</span>";
   if (desc)
     html += '<span class="section-desc">' + escapeHtml(desc) + "</span>";
   html += "</div>";
@@ -2372,6 +2386,7 @@ function renderDepDetails(
     "Overview",
     undefined,
     overviewGridHtml + workspaceListHtml + importTopFilesHtml,
+    "gauge",
   );
 
   const licenseInfo = dep.compliance.license;
@@ -2509,6 +2524,7 @@ function renderDepDetails(
     "Risk & Compliance",
     undefined,
     riskBody,
+    "shield-check",
   );
 
   const currencyItems = [
@@ -2619,6 +2635,7 @@ function renderDepDetails(
       constraintBlock +
       blastRadiusBlock +
       blockers,
+    "circle-arrow-up",
   );
   const declaredSection = renderDeclaredDependencies(
     dep,
@@ -2646,6 +2663,7 @@ function renderDepDetails(
       '<div class="list-sim" data-sim-key="' +
         escapeHtml(`${dep.package.name}@${dep.package.version}`) +
         '"></div>',
+      "trash-2",
     ),
     '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary>' +
       '<div class="raw-data-pane">' +
@@ -2876,11 +2894,41 @@ async function init(): Promise<void> {
     viewGraphButton: document.getElementById(
       "view-graph-btn",
     ) as HTMLButtonElement | null,
+    viewDashboardButton: document.getElementById(
+      "view-dashboard-btn",
+    ) as HTMLButtonElement | null,
     graphBackButton: document.getElementById(
       "graph-back-btn",
     ) as HTMLButtonElement | null,
+    graphThemeButton: document.getElementById(
+      "graph-theme-btn",
+    ) as HTMLButtonElement | null,
     listViewPanel: document.getElementById("list-view") as HTMLElement | null,
     graphViewPanel: document.getElementById("graph-view") as HTMLElement | null,
+    dashboardViewPanel: document.getElementById(
+      "dashboard-view",
+    ) as HTMLElement | null,
+    dashboardBackButton: document.getElementById(
+      "dashboard-back-btn",
+    ) as HTMLButtonElement | null,
+    dashboardThemeButton: document.getElementById(
+      "dashboard-theme-btn",
+    ) as HTMLButtonElement | null,
+    dashboardStage: document.getElementById(
+      "dashboard-stage",
+    ) as HTMLElement | null,
+    dashboardStatus: document.getElementById(
+      "dashboard-status",
+    ) as HTMLElement | null,
+    dashboardExportPng: document.getElementById(
+      "dashboard-export-png",
+    ) as HTMLButtonElement | null,
+    dashboardExportJpeg: document.getElementById(
+      "dashboard-export-jpeg",
+    ) as HTMLButtonElement | null,
+    dashboardExportSvg: document.getElementById(
+      "dashboard-export-svg",
+    ) as HTMLButtonElement | null,
     graphWorkspaceSelect: document.getElementById(
       "graph-workspace",
     ) as HTMLSelectElement | null,
@@ -2942,33 +2990,102 @@ async function init(): Promise<void> {
   let graphInitialized = false;
   let graphModes: GraphModesHandle | null = null;
 
-  // Theme handling
-  document.documentElement.setAttribute("data-theme", "dark");
-  const savedTheme = localStorage.getItem("dependency-radar-theme");
-  if (savedTheme === "light") {
-    document.documentElement.classList.add("light");
-    controls.themeSwitch.classList.add("light");
-    controls.themeSwitch.setAttribute("aria-pressed", "true");
-    document.documentElement.setAttribute("data-theme", "light");
-  } else {
-    document.documentElement.classList.remove("light");
-    controls.themeSwitch.classList.remove("light");
-    controls.themeSwitch.setAttribute("aria-pressed", "false");
-    document.documentElement.setAttribute("data-theme", "dark");
-  }
+  // Theme handling. One global theme, three access points: the header
+  // switch, the graph toolbar button (the header is hidden in fullscreen),
+  // and the dashboard toolbar button (flip before exporting a slide).
+  const syncThemeButtons = (isLight: boolean): void => {
+    controls.themeSwitch.classList.toggle("light", isLight);
+    controls.themeSwitch.setAttribute("aria-pressed", String(isLight));
+    for (const button of [
+      controls.graphThemeButton,
+      controls.dashboardThemeButton,
+    ]) {
+      if (!button) continue;
+      // Show the theme the click moves to, not the one already active.
+      button.innerHTML = iconSvg(isLight ? "moon" : "sun", {
+        size: 16,
+        className: "icon",
+      });
+      button.setAttribute("aria-pressed", String(isLight));
+      button.title = isLight ? "Switch to dark mode" : "Switch to light mode";
+    }
+  };
 
-  controls.themeSwitch.addEventListener("click", () => {
-    document.documentElement.classList.toggle("light");
-    controls.themeSwitch.classList.toggle("light");
-    const isLight = document.documentElement.classList.contains("light");
+  const applyTheme = (isLight: boolean): void => {
+    document.documentElement.classList.toggle("light", isLight);
     document.documentElement.setAttribute(
       "data-theme",
       isLight ? "light" : "dark",
     );
-    controls.themeSwitch.setAttribute("aria-pressed", String(isLight));
-    localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
+    syncThemeButtons(isLight);
     graphView?.requestRender();
-  });
+    // DOM check rather than currentView: the first applyTheme call runs
+    // before the view state variables are declared.
+    if (controls.dashboardViewPanel?.classList.contains("active")) {
+      renderDashboard();
+    }
+  };
+
+  const savedTheme = localStorage.getItem("dependency-radar-theme");
+  applyTheme(savedTheme === "light");
+
+  const toggleTheme = (): void => {
+    const isLight = !document.documentElement.classList.contains("light");
+    applyTheme(isLight);
+    localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
+  };
+  controls.themeSwitch.addEventListener("click", toggleTheme);
+  controls.graphThemeButton?.addEventListener("click", toggleTheme);
+  controls.dashboardThemeButton?.addEventListener("click", toggleTheme);
+
+  // Inject the shared icon set into the static chrome. Doing this from JS
+  // keeps the two HTML shells (index.html and src/report.ts) free of
+  // duplicated path data that would have to stay in sync by hand.
+  (function decorateStaticIcons(): void {
+    const chipIcons: Array<[string, IconName]> = [
+      ["stat-total", "boxes"],
+      ["stat-vulnerable", "shield-alert"],
+      ["stat-maintenance", "heart-pulse"],
+      ["stat-license", "scale"],
+      ["stat-blockers", "circle-arrow-up"],
+      ["stat-replacements", "recycle"],
+    ];
+    for (const [id, icon] of chipIcons) {
+      const label = document.querySelector(`#${id} .meta-label`);
+      label?.insertAdjacentHTML(
+        "afterbegin",
+        iconSvg(icon, { size: 13, className: "icon stat-icon" }),
+      );
+    }
+    const buttonIcons: Array<[HTMLElement | null | undefined, IconName]> = [
+      [controls.viewGraphButton, "waypoints"],
+      [controls.viewDashboardButton, "layout-dashboard"],
+      [controls.graphBackButton, "arrow-left"],
+      [controls.dashboardBackButton, "arrow-left"],
+      [controls.dashboardExportPng, "image"],
+      [controls.dashboardExportJpeg, "image"],
+      [controls.dashboardExportSvg, "download"],
+    ];
+    for (const [button, icon] of buttonIcons) {
+      button?.insertAdjacentHTML(
+        "afterbegin",
+        iconSvg(icon, { size: 14, className: "icon btn-icon" }),
+      );
+    }
+    const dashboardFineBtn = document.getElementById("dashboard-fine-btn");
+    if (dashboardFineBtn) {
+      dashboardFineBtn.innerHTML = iconSvg("info", {
+        size: 14,
+        className: "icon",
+      });
+    }
+    for (const chevron of document.querySelectorAll(".chevron")) {
+      chevron.innerHTML = iconSvg("chevron-down", {
+        size: 12,
+        className: "icon",
+      });
+    }
+  })();
 
   const mobileFilterQuery = window.matchMedia("(max-width: 768px)");
   let lastViewportWasMobile = mobileFilterQuery.matches;
@@ -4208,38 +4325,66 @@ async function init(): Promise<void> {
     );
   }
 
-  let currentView: "list" | "graph" = "list";
+  type ReportView = "list" | "graph" | "dashboard";
+  let currentView: ReportView = "list";
   let applyingRoute = false;
   let routerReady = false;
   let lastSyncedHash = "";
   let routeExpandedKey: string | null = null;
-  function setActiveView(view: "list" | "graph"): void {
+  function setActiveView(view: ReportView): void {
     if (!controls.listViewPanel || !controls.graphViewPanel) {
       console.warn(
         "Dependency Radar: view panels are missing from the report DOM.",
       );
       return;
     }
+    if (view === "dashboard" && !controls.dashboardViewPanel) {
+      console.warn(
+        "Dependency Radar: dashboard view DOM nodes are missing; dashboard disabled.",
+      );
+      return;
+    }
     const isList = view === "list";
-    if (!isList && !hasGraphDomNodes()) {
+    const isGraph = view === "graph";
+    const isDashboard = view === "dashboard";
+    if (isGraph && !hasGraphDomNodes()) {
       console.warn(
         "Dependency Radar: graph view DOM nodes are missing; graph view disabled.",
       );
       return;
     }
-    controls.listViewPanel.classList.toggle("active", isList);
-    controls.graphViewPanel.classList.toggle("active", !isList);
-    controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
-    controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
+    // A fixed-position fine-print note would float over the next view.
+    closeListFinePrint();
+    const panels: Array<[HTMLElement | null, boolean]> = [
+      [controls.listViewPanel, isList],
+      [controls.graphViewPanel, isGraph],
+      [controls.dashboardViewPanel, isDashboard],
+    ];
+    for (const [panel, active] of panels) {
+      panel?.classList.toggle("active", active);
+      panel?.setAttribute("aria-hidden", String(!active));
+    }
+    // The header switch buttons only show for views you are not already in;
+    // each non-list view carries its own back button instead.
     if (controls.viewGraphButton) {
       controls.viewGraphButton.style.display = isList ? "" : "none";
     }
+    if (controls.viewDashboardButton) {
+      controls.viewDashboardButton.style.display = isList ? "" : "none";
+    }
     if (controls.graphBackButton) {
-      controls.graphBackButton.style.display = isList ? "none" : "";
+      controls.graphBackButton.style.display = isGraph ? "" : "none";
     }
     controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
     currentView = view;
+    if (isDashboard) {
+      graphModes?.exitFullscreen();
+      graphView?.setActive(false);
+      renderDashboard();
+      routeSync(true);
+      return;
+    }
     if (isList) {
       graphModes?.exitFullscreen();
       graphView?.setActive(false);
@@ -4434,6 +4579,110 @@ async function init(): Promise<void> {
     routeSync(true);
   }
 
+  // ----- dashboard view -------------------------------------------------
+  // The bento slide is one SVG string shared with the CLI's `slide` command;
+  // the view simply inlines it at the current theme and the export buttons
+  // re-serialise the same string, so what downloads is what is on screen.
+  let slideModel: SlideModel | null = null;
+  let renderedSlideTheme: SlideTheme | null = null;
+
+  function activeSlideTheme(): SlideTheme {
+    return document.documentElement.classList.contains("light")
+      ? "light"
+      : "dark";
+  }
+
+  function renderDashboard(): void {
+    if (!controls.dashboardStage) return;
+    const theme = activeSlideTheme();
+    if (renderedSlideTheme === theme && controls.dashboardStage.firstChild) {
+      return;
+    }
+    if (!slideModel) slideModel = buildSlideModel(report);
+    controls.dashboardStage.innerHTML = buildSlideSvg(slideModel, theme);
+    renderedSlideTheme = theme;
+  }
+
+  function setDashboardStatus(message: string): void {
+    if (controls.dashboardStatus) {
+      controls.dashboardStatus.textContent = message;
+    }
+  }
+
+  function slideFileName(extension: string): string {
+    const project = (report.project?.name || "project")
+      .replace(/[^a-z0-9-_.]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+    return "dependency-radar-slide-" + project + "." + extension;
+  }
+
+  function triggerDownload(url: string, filename: string): void {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function exportSlide(format: "png" | "jpeg" | "svg"): void {
+    if (!slideModel) slideModel = buildSlideModel(report);
+    const theme = activeSlideTheme();
+    const svg = buildSlideSvg(slideModel, theme);
+    const filename = slideFileName(format === "jpeg" ? "jpg" : format);
+    if (format === "svg") {
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, filename);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setDashboardStatus("Saved " + filename);
+      return;
+    }
+    // Rasterise at 1.2x for a crisp 1920x1080 slide. The SVG references
+    // nothing external, so drawing it never taints the canvas, file://
+    // included.
+    const scale = 1920 / SLIDE_WIDTH;
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(SLIDE_WIDTH * scale);
+      canvas.height = Math.round(SLIDE_HEIGHT * scale);
+      const context = canvas.getContext("2d");
+      if (!context) {
+        setDashboardStatus("Export failed: canvas is unavailable.");
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const mime = format === "jpeg" ? "image/jpeg" : "image/png";
+      const finish = (url: string): void => {
+        triggerDownload(url, filename);
+        setDashboardStatus("Saved " + filename);
+      };
+      if (canvas.toBlob) {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              finish(canvas.toDataURL(mime, 0.92));
+              return;
+            }
+            const url = URL.createObjectURL(blob);
+            finish(url);
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+          },
+          mime,
+          0.92,
+        );
+      } else {
+        finish(canvas.toDataURL(mime, 0.92));
+      }
+    };
+    image.onerror = () => {
+      setDashboardStatus("Export failed: the slide image could not be drawn.");
+    };
+    image.src =
+      "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
   function getStickyFilterBarOffset(): number {
     const filterBar = document.querySelector<HTMLElement>(".filter-bar");
     if (!filterBar || document.body.classList.contains("graph-mode")) {
@@ -4556,6 +4805,24 @@ async function init(): Promise<void> {
 
   controls.graphBackButton?.addEventListener("click", () => {
     setActiveView("list");
+  });
+
+  controls.viewDashboardButton?.addEventListener("click", () => {
+    setActiveView("dashboard");
+  });
+
+  controls.dashboardBackButton?.addEventListener("click", () => {
+    setActiveView("list");
+  });
+
+  controls.dashboardExportPng?.addEventListener("click", () => {
+    exportSlide("png");
+  });
+  controls.dashboardExportJpeg?.addEventListener("click", () => {
+    exportSlide("jpeg");
+  });
+  controls.dashboardExportSvg?.addEventListener("click", () => {
+    exportSlide("svg");
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
@@ -4899,6 +5166,9 @@ async function init(): Promise<void> {
       const query = params.toString();
       return "#/graph" + (query ? `?${query}` : "");
     }
+    // The dashboard has no sub-state of its own: theme is global and the
+    // slide always shows the whole scan.
+    if (currentView === "dashboard") return "#/dashboard";
     if (controls.search.value) params.set("q", controls.search.value);
     if (controls.direct.value !== "all") params.set("type", controls.direct.value);
     if (controls.runtime.value !== "all") params.set("scope", controls.runtime.value);
@@ -4971,6 +5241,10 @@ async function init(): Promise<void> {
               : null,
           });
         }
+        return;
+      }
+      if (path === "dashboard") {
+        setActiveView("dashboard");
         return;
       }
       setActiveView("list");
