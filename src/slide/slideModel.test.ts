@@ -80,18 +80,35 @@ describe("buildSlideModel", () => {
   });
 
   it("treats reports predating scanStatus as fully collected", () => {
-    const model = buildSlideModel(input([dep({ name: "a" })]));
+    const model = buildSlideModel(
+      input([dep({ name: "a", maintenance: { status: "active", attempted: true } })]),
+    );
     expect(model.vulnerabilities.count).toBe(0);
     expect(model.maintenance.count).toBe(0);
+  });
+
+  it("marks a partial audit as not checked rather than a definitive count", () => {
+    const model = buildSlideModel(
+      input([dep({ name: "a" })], {
+        scanStatus: { collectors: { audit: "partial" } },
+      }),
+    );
+    expect(model.vulnerabilities.count).toBe(-1);
+  });
+
+  it("marks maintenance as not checked when no lookup was ever attempted", () => {
+    const model = buildSlideModel(input([dep({ name: "a" })]));
+    expect(model.maintenance.count).toBe(-1);
+    expect(model.maintenance.tone).toBe("gray");
   });
 
   it("summarises maintenance concerns with a status breakdown", () => {
     const model = buildSlideModel(
       input([
-        dep({ name: "a", maintenance: { status: "stale" } }),
-        dep({ name: "b", maintenance: { status: "stale" } }),
-        dep({ name: "c", maintenance: { status: "slowing" } }),
-        dep({ name: "d", maintenance: { status: "active" } }),
+        dep({ name: "a", maintenance: { status: "stale", attempted: true } }),
+        dep({ name: "b", maintenance: { status: "stale", attempted: true } }),
+        dep({ name: "c", maintenance: { status: "slowing", attempted: true } }),
+        dep({ name: "d", maintenance: { status: "active", attempted: true } }),
       ]),
     );
     expect(model.maintenance.count).toBe(3);
@@ -101,7 +118,7 @@ describe("buildSlideModel", () => {
 
   it("escalates maintenance tone when packages are deprecated or archived", () => {
     const model = buildSlideModel(
-      input([dep({ name: "a", maintenance: { status: "deprecated" } })]),
+      input([dep({ name: "a", maintenance: { status: "deprecated", attempted: true } })]),
     );
     expect(model.maintenance.detail).toBe("1 deprecated or archived");
     expect(model.maintenance.tone).toBe("red");
@@ -159,8 +176,26 @@ describe("buildSlideModel", () => {
       ]),
     );
     expect(model.totalInstallBytes).toBe(1000);
+    expect(model.measuredPackageCount).toBe(2);
     expect(model.sizeBlocks[0]).toEqual({ name: "big", bytes: 900, share: 0.9 });
     expect(model.sizeOtherBytes).toBe(0);
+  });
+
+  it("keeps zero-byte packages in the total but never as treemap blocks", () => {
+    const model = buildSlideModel(
+      input([
+        dep({
+          name: "real",
+          package: { name: "real", version: "1.0.0", installSize: { totalBytes: 500 } },
+        }),
+        dep({
+          name: "empty",
+          package: { name: "empty", version: "1.0.0", installSize: { totalBytes: 0 } },
+        }),
+      ]),
+    );
+    expect(model.measuredPackageCount).toBe(2);
+    expect(model.sizeBlocks.map((b) => b.name)).toEqual(["real"]);
   });
 
   it("reports install size as unmeasured when no package was measured", () => {

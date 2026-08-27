@@ -83,6 +83,8 @@ export interface SlideModel {
   transitiveCount: number;
   /** Total measured install size in bytes, or -1 when nothing was measured. */
   totalInstallBytes: number;
+  /** How many installed packages the size total actually covers. */
+  measuredPackageCount: number;
   /** Largest packages by their own measured install size, largest first. */
   sizeBlocks: SlideSizeBlock[];
   /** Bytes in measured packages beyond the listed blocks. */
@@ -124,10 +126,11 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
   const collectors = data.scanStatus?.collectors || {};
   const collectorRan = (name: string): boolean => {
     const status = collectors[name];
-    // Reports predating scanStatus carry no collector map; treating those
-    // as "ran" matches the header chips, which only grey out on an explicit
-    // unavailable/skipped status.
-    return status === undefined || status === "available" || status === "partial";
+    // Reports predating scanStatus carry no collector map and count as
+    // checked. "partial" does not: the header chips grey out on anything
+    // other than "available", and a slide must not present a count from an
+    // audit that covered only part of the tree as definitive.
+    return status === undefined || status === "available";
   };
 
   // Vulnerabilities: affected packages + distinct advisory ids.
@@ -195,7 +198,10 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
     .slice(0, 2)
     .map((entry) => entry[1] + " " + entry[0])
     .join(" · ");
-  const maintenance: SlideMetric = !collectorRan("maintenance")
+  // Mirrors the chips' maintenanceDataSeen: without a single attempted
+  // lookup there is no basis for a green zero.
+  const maintenanceDataSeen = deps.some((dep) => dep.maintenance?.attempted);
+  const maintenance: SlideMetric = !collectorRan("maintenance") || !maintenanceDataSeen
     ? { count: NOT_CHECKED, detail: "", tone: "gray" }
     : {
         count: maintenanceCount,
@@ -283,7 +289,12 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
     }
   }
   measured.sort((a, b) => b.bytes - a.bytes);
-  const blocks = measured.slice(0, SIZE_BLOCK_LIMIT);
+  // Zero-byte entries would produce zero-area treemap rects (and NaN
+  // geometry when one ends a layout row), so they stay in the total but
+  // never become named blocks.
+  const blocks = measured
+    .filter((entry) => entry.bytes > 0)
+    .slice(0, SIZE_BLOCK_LIMIT);
   const sizeBlocks: SlideSizeBlock[] = blocks.map((entry) => ({
     name: entry.name,
     bytes: entry.bytes,
@@ -303,6 +314,7 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
     directCount: data.summary.directCount,
     transitiveCount: data.summary.transitiveCount,
     totalInstallBytes: anyMeasured ? totalInstallBytes : NOT_CHECKED,
+    measuredPackageCount: measured.length,
     sizeBlocks,
     sizeOtherBytes,
     vulnerabilities,

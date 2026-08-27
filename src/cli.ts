@@ -1339,6 +1339,13 @@ function parseArgs(argv: string[]): CliOptions {
     }
   }
 
+  if (opts.command !== "slide" && (opts.lightMode || opts.slidePng)) {
+    console.error(
+      `Unknown option for ${opts.command}: "${opts.lightMode ? "--light-mode" : "--png"}" is only valid with the slide command.`,
+    );
+    process.exit(EXIT_USAGE_OR_INCOMPLETE);
+  }
+
   return opts;
 }
 
@@ -2670,8 +2677,10 @@ async function runSlideCommand(opts: CliOptions): Promise<void> {
   const theme = opts.lightMode ? ("light" as const) : ("dark" as const);
   const svg = buildSlideSvg(buildSlideModel(result.aggregated), theme);
 
+  // Same base-directory rule as scan: an explicit --out is relative to the
+  // invocation directory, the default lands next to the scanned project.
   const requested = opts.outProvided
-    ? path.resolve(opts.project, opts.out)
+    ? path.resolve(opts.out)
     : path.resolve(opts.project, "dependency-radar-slide.svg");
   const parsed = path.parse(requested);
   const base = path.join(parsed.dir, parsed.name);
@@ -2690,6 +2699,8 @@ async function runSlideCommand(opts: CliOptions): Promise<void> {
       console.log(statusLine("✔", `PNG written to ${pngPath}`));
     }
   } else {
+    // Best-effort by contract: the SVG was written, so a missing local
+    // rasteriser is advice, not a failure exit.
     console.log(
       statusLine(
         "✖",
@@ -2697,7 +2708,6 @@ async function runSlideCommand(opts: CliOptions): Promise<void> {
           "Open the HTML report's Dashboard view and use its Export button instead.",
       ),
     );
-    process.exitCode = EXIT_USAGE_OR_INCOMPLETE;
   }
 }
 
@@ -2761,6 +2771,9 @@ async function renderSlidePng(
       }
       const timer = setTimeout(() => {
         child.kill();
+        // A wedged browser can ignore SIGTERM; make sure it dies.
+        const escalate = setTimeout(() => child.kill("SIGKILL"), 5000);
+        child.once("exit", () => clearTimeout(escalate));
         resolvePromise(false);
       }, 30000);
       child.on("error", () => {

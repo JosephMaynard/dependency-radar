@@ -221,6 +221,8 @@ interface TileSpec {
   metric: SlideMetric;
   /** Line shown when the count is zero and healthy. */
   zeroDetail: string;
+  /** Informational tiles pin the badge to the accent instead of a tone. */
+  accentBadge?: boolean;
 }
 
 function metricTile(
@@ -233,8 +235,15 @@ function metricTile(
 ): string {
   const padX = 28;
   const notChecked = spec.metric.count < 0;
-  const tone = notChecked ? p.tones.gray : p.tones[spec.metric.tone];
-  const toneBg = notChecked ? p.toneBg.gray : p.toneBg[spec.metric.tone];
+  const tone = spec.accentBadge
+    ? p.accent
+    : notChecked
+      ? p.tones.gray
+      : p.tones[spec.metric.tone];
+  const toneBg =
+    spec.accentBadge || notChecked
+      ? p.toneBg.gray
+      : p.toneBg[spec.metric.tone];
   const parts: string[] = [cardShell(x, y, w, h, p)];
   parts.push(iconBadge(x + padX, y + 26, 44, spec.icon, tone, toneBg));
   parts.push(
@@ -304,10 +313,11 @@ function layoutTreemap(
   w: number,
   h: number,
 ): TreemapRect[] {
-  const total = items.reduce((sum, item) => sum + item.bytes, 0);
+  const positive = items.filter((item) => item.bytes > 0);
+  const total = positive.reduce((sum, item) => sum + item.bytes, 0);
   if (total <= 0 || w <= 0 || h <= 0) return [];
   const scale = (w * h) / total;
-  const areas = items.map((item, index) => ({
+  const areas = positive.map((item, index) => ({
     ...item,
     area: item.bytes * scale,
     rank: index,
@@ -414,13 +424,16 @@ function heroTile(
       weight: 650,
     }),
   );
+  const coverage =
+    model.measuredPackageCount < model.dependencyCount
+      ? "measured on disk · " +
+        model.measuredPackageCount +
+        " of " +
+        model.dependencyCount +
+        " packages measured"
+      : "measured on disk · " + model.dependencyCount + " installed packages";
   parts.push(
-    text(
-      x + padX,
-      y + 208,
-      "measured on disk · " + model.dependencyCount + " installed packages",
-      { size: 15, fill: p.secondary },
-    ),
+    text(x + padX, y + 208, coverage, { size: 15, fill: p.secondary }),
   );
 
   // Treemap of the largest packages, "everything else" folded into one
@@ -600,6 +613,8 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
   const tileW = (SLIDE_WIDTH - PAD - tilesX - GAP) / 2;
   const tileH = (gridHeight - GAP * 2) / 3;
   const specs: TileSpec[] = [
+    // Informational, not a status: the badge pins to the accent so only
+    // genuine findings wear warning colours.
     {
       icon: "boxes",
       label: "Dependencies",
@@ -609,6 +624,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
         tone: "gray",
       },
       zeroDetail: "",
+      accentBadge: true,
     },
     {
       icon: "shield-alert",
@@ -646,32 +662,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
     const rowIndex = Math.floor(index / 2);
     const tx = tilesX + col * (tileW + GAP);
     const ty = GRID_TOP + rowIndex * (tileH + GAP);
-    // The dependencies tile is informational, not a status: pin its badge
-    // to the accent so only genuine findings wear warning colours.
-    if (index === 0) {
-      const padX = 28;
-      const tileParts =
-        cardShell(tx, ty, tileW, tileH, p) +
-        iconBadge(tx + padX, ty + 26, 44, spec.icon, p.accent, p.toneBg.gray) +
-        text(tx + padX + 60, ty + 54, spec.label.toUpperCase(), {
-          size: 13,
-          fill: p.secondary,
-          weight: 600,
-          spacing: "1.4",
-        }) +
-        text(tx + padX, ty + tileH - 62, String(spec.metric.count), {
-          size: 52,
-          fill: p.ink,
-          weight: 650,
-        }) +
-        text(tx + padX, ty + tileH - 26, esc(spec.metric.detail), {
-          size: 14,
-          fill: p.secondary,
-        });
-      parts.push(tileParts);
-    } else {
-      parts.push(metricTile(tx, ty, tileW, tileH, spec, p));
-    }
+    parts.push(metricTile(tx, ty, tileW, tileH, spec, p));
   });
 
   parts.push("</svg>");

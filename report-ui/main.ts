@@ -14,6 +14,7 @@ import { iconSvg, type IconName } from "../src/slide/icons";
 import { buildSlideModel, type SlideModel } from "../src/slide/slideModel";
 import {
   buildSlideSvg,
+  formatSlideBytes,
   SLIDE_HEIGHT,
   SLIDE_WIDTH,
   type SlideTheme,
@@ -2244,11 +2245,9 @@ function getDuplicateGroup(name: string): DupVersion[] | undefined {
   return dupGroupsByName?.get(name);
 }
 
-function formatByteSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
-  return `${bytes} B`;
-}
+// One byte formatter for every surface, so the slide, list, and graph views
+// never disagree about the same quantity.
+const formatByteSize = formatSlideBytes;
 
 function renderDepDetails(
   dep: DependencyRecord,
@@ -3072,12 +3071,11 @@ async function init(): Promise<void> {
         iconSvg(icon, { size: 14, className: "icon btn-icon" }),
       );
     }
-    const dashboardFineBtn = document.getElementById("dashboard-fine-btn");
-    if (dashboardFineBtn) {
-      dashboardFineBtn.innerHTML = iconSvg("info", {
-        size: 14,
-        className: "icon",
-      });
+    // Static fine-print buttons in the two HTML shells ship empty so the
+    // shells never carry duplicated icon path data; dynamic ones get their
+    // icon from finePrintBtnHtml.
+    for (const btn of document.querySelectorAll(".fine-print-btn")) {
+      btn.innerHTML = iconSvg("info", { size: 13, className: "icon" });
     }
     for (const chevron of document.querySelectorAll(".chevron")) {
       chevron.innerHTML = iconSvg("chevron-down", {
@@ -3499,7 +3497,13 @@ async function init(): Promise<void> {
       // The fallback headlines affected packages, so the static label would
       // otherwise name a quantity this chip is not showing.
       const vulnLabel = document.querySelector("#stat-vulnerable .meta-label");
-      if (vulnLabel) vulnLabel.textContent = "Vulnerable";
+      if (vulnLabel) {
+        // Replace only the text node: decorateStaticIcons put an SVG in
+        // this label, and textContent would wipe it.
+        for (const node of vulnLabel.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) node.textContent = "Vulnerable";
+        }
+      }
     }
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;

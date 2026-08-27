@@ -2,6 +2,7 @@ import type { GraphDataset, GraphViewHandle } from "./graphView";
 import type { GraphFilters, VizHandle, VizModel } from "./vizModel";
 import { FINE_PRINT } from "./finePrint";
 import { iconSvg } from "../src/slide/icons";
+import { formatSlideBytes } from "../src/slide/slideSvg";
 import {
   buildVizModel,
   DEFAULT_GRAPH_FILTERS,
@@ -728,11 +729,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     keyPanel.appendChild(aboutBtn);
   }
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
-    return `${bytes} B`;
-  };
+  const formatBytes = formatSlideBytes;
 
   function chipRow(container: HTMLElement, title: string, ids: number[]): void {
     if (!model || ids.length === 0) return;

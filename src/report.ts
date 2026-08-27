@@ -347,7 +347,7 @@ ${safeCssContent}
               <span class="checkbox-filter">
                 <input type="checkbox" id="no-imports" />
                 <label for="no-imports" id="no-imports-label">No imports found</label>
-                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg></button>
+                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence"></button>
               </span>
 
               <label class="checkbox-filter">
