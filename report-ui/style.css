@@ -1201,21 +1201,7 @@ select.graph-workspace-select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.graph-key:before,
-.graph-workspace-wrap:before {
-  content: "";
-  display: block;
-  width: 1px;
-  height: 20px;
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  background-color: var(--text-secondary);
-}
-
 .graph-key {
-  padding-left: 24px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -1515,7 +1501,6 @@ select.graph-workspace-select:focus {
 
 .graph-workspace-wrap {
   display: flex;
-  padding-left: 24px;
   flex-direction: row;
   align-items: center;
   gap: 12px;
@@ -1524,23 +1509,10 @@ select.graph-workspace-select:focus {
 
 .graph-filter-wrap {
   display: flex;
-  padding-left: 24px;
   flex-direction: row;
   align-items: center;
   gap: 12px;
   position: relative;
-}
-
-.graph-filter-wrap:before {
-  content: "";
-  display: block;
-  width: 1px;
-  height: 20px;
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  background-color: var(--text-secondary);
 }
 
 .graph-filter-items {
