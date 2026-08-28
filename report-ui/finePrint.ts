@@ -12,6 +12,11 @@ export const FINE_PRINT: Record<string, { title: string; body: string }> = {
     body:
       "From static scanning of this project's source. CLI binaries, config-file references, and framework conventions are invisible to it, so treat “no imports found” as a lead to check, not a verdict.",
   },
+  slide: {
+    title: "Install size",
+    body:
+      "Install size is the measured on-disk total, not download or bundle size. Each installed version is measured once.",
+  },
   impact: {
     title: "Removal impact",
     body:

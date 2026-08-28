@@ -263,6 +263,18 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--fail-on <rules>` | Fail with exit code 1 when selected policy rules are violated (see below) |
 | `--help` | Show all options |
 
+### One-page slide dashboard (`slide`)
+
+`slide` scans and writes a single 16:9 SVG dashboard designed for slide decks and PR comments: measured install size with a treemap of the largest packages, dependency counts, vulnerable packages, maintenance concerns, licence issues, upgrade blockers, and duplicate versions. Counts mirror the HTML report's header chips, and anything a collector never checked shows as "Not checked" rather than zero.
+
+```bash
+npx dependency-radar slide
+```
+
+Writes `dependency-radar-slide.svg` (dark). Add `--light-mode` for the light palette. Add `--png` to also render a 1920x1080 PNG; this borrows a locally installed Chrome, Edge, Chromium, or `rsvg-convert` because the CLI itself ships no rasteriser. Without one, use the HTML report's Scorecard view, which exports PNG, JPEG, and SVG from the browser.
+
+The same scorecard lives in the HTML report as the Scorecard view, with a theme toggle and export buttons in its toolbar.
+
 ### Explain one dependency in the terminal
 
 Use `explain` when you want a fast terminal view for one package without generating HTML or JSON output:

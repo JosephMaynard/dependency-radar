@@ -10,6 +10,15 @@ import {
   reportVulnerabilityTotal,
 } from "../src/reportDetailRules";
 import { buildWorkspaceFilterOptions } from "../src/workspaceFilter";
+import { iconSvg, type IconName } from "../src/slide/icons";
+import { buildSlideModel, type SlideModel } from "../src/slide/slideModel";
+import {
+  buildSlideSvg,
+  formatSlideBytes,
+  SLIDE_HEIGHT,
+  SLIDE_WIDTH,
+  type SlideTheme,
+} from "../src/slide/slideSvg";
 import { adaptDataset, initGraphView, type GraphViewHandle } from "./graphView";
 import { buildVizModel, type VizModel } from "./vizModel";
 import { FINE_PRINT } from "./finePrint";
@@ -915,7 +924,9 @@ function finePrintBtnHtml(topic: keyof typeof FINE_PRINT): string {
     escapeHtml(String(topic)) +
     '" aria-haspopup="true" aria-expanded="false" aria-label="About: ' +
     escapeHtml(note?.title ?? String(topic)) +
-    '">\u24d8</button>'
+    '">' +
+    iconSvg("info", { size: 13, className: "icon" }) +
+    "</button>"
   );
 }
 
@@ -1511,6 +1522,7 @@ function renderDeclaredDependencies(
     "Declared Dependencies",
     "Dependencies declared by this package",
     body,
+    "package",
   );
 }
 
@@ -1539,10 +1551,13 @@ function renderSection(
   title: string,
   desc: string | undefined,
   bodyHtml: string,
+  icon?: IconName,
 ): string {
   let html = '<div class="section">';
   html += '<div class="section-header">';
-  html += '<span class="section-title">' + escapeHtml(title) + "</span>";
+  html += '<span class="section-title">';
+  if (icon) html += iconSvg(icon, { size: 15, className: "icon section-icon" });
+  html += escapeHtml(title) + "</span>";
   if (desc)
     html += '<span class="section-desc">' + escapeHtml(desc) + "</span>";
   html += "</div>";
@@ -2230,11 +2245,9 @@ function getDuplicateGroup(name: string): DupVersion[] | undefined {
   return dupGroupsByName?.get(name);
 }
 
-function formatByteSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} kB`;
-  return `${bytes} B`;
-}
+// One byte formatter for every surface, so the slide, list, and graph views
+// never disagree about the same quantity.
+const formatByteSize = formatSlideBytes;
 
 function renderDepDetails(
   dep: DependencyRecord,
@@ -2372,6 +2385,7 @@ function renderDepDetails(
     "Overview",
     undefined,
     overviewGridHtml + workspaceListHtml + importTopFilesHtml,
+    "gauge",
   );
 
   const licenseInfo = dep.compliance.license;
@@ -2509,6 +2523,7 @@ function renderDepDetails(
     "Risk & Compliance",
     undefined,
     riskBody,
+    "shield-check",
   );
 
   const currencyItems = [
@@ -2619,6 +2634,7 @@ function renderDepDetails(
       constraintBlock +
       blastRadiusBlock +
       blockers,
+    "circle-arrow-up",
   );
   const declaredSection = renderDeclaredDependencies(
     dep,
@@ -2646,6 +2662,7 @@ function renderDepDetails(
       '<div class="list-sim" data-sim-key="' +
         escapeHtml(`${dep.package.name}@${dep.package.version}`) +
         '"></div>',
+      "trash-2",
     ),
     '<details class="raw-data-toggle"><summary><span class="expand-icon" aria-hidden="true"></span>View raw data</summary>' +
       '<div class="raw-data-pane">' +
@@ -2876,11 +2893,47 @@ async function init(): Promise<void> {
     viewGraphButton: document.getElementById(
       "view-graph-btn",
     ) as HTMLButtonElement | null,
-    graphBackButton: document.getElementById(
-      "graph-back-btn",
+    viewScorecardButton: document.getElementById(
+      "view-scorecard-btn",
+    ) as HTMLButtonElement | null,
+    graphNavListButton: document.getElementById(
+      "graph-nav-list-btn",
+    ) as HTMLButtonElement | null,
+    graphNavScorecardButton: document.getElementById(
+      "graph-nav-scorecard-btn",
+    ) as HTMLButtonElement | null,
+    graphThemeButton: document.getElementById(
+      "graph-theme-btn",
     ) as HTMLButtonElement | null,
     listViewPanel: document.getElementById("list-view") as HTMLElement | null,
     graphViewPanel: document.getElementById("graph-view") as HTMLElement | null,
+    scorecardViewPanel: document.getElementById(
+      "scorecard-view",
+    ) as HTMLElement | null,
+    scorecardNavListButton: document.getElementById(
+      "scorecard-nav-list-btn",
+    ) as HTMLButtonElement | null,
+    scorecardNavGraphButton: document.getElementById(
+      "scorecard-nav-graph-btn",
+    ) as HTMLButtonElement | null,
+    scorecardThemeButton: document.getElementById(
+      "scorecard-theme-btn",
+    ) as HTMLButtonElement | null,
+    scorecardStage: document.getElementById(
+      "scorecard-stage",
+    ) as HTMLElement | null,
+    scorecardStatus: document.getElementById(
+      "scorecard-status",
+    ) as HTMLElement | null,
+    scorecardExportPng: document.getElementById(
+      "scorecard-export-png",
+    ) as HTMLButtonElement | null,
+    scorecardExportJpeg: document.getElementById(
+      "scorecard-export-jpeg",
+    ) as HTMLButtonElement | null,
+    scorecardExportSvg: document.getElementById(
+      "scorecard-export-svg",
+    ) as HTMLButtonElement | null,
     graphWorkspaceSelect: document.getElementById(
       "graph-workspace",
     ) as HTMLSelectElement | null,
@@ -2942,33 +2995,135 @@ async function init(): Promise<void> {
   let graphInitialized = false;
   let graphModes: GraphModesHandle | null = null;
 
-  // Theme handling
-  document.documentElement.setAttribute("data-theme", "dark");
-  const savedTheme = localStorage.getItem("dependency-radar-theme");
-  if (savedTheme === "light") {
-    document.documentElement.classList.add("light");
-    controls.themeSwitch.classList.add("light");
-    controls.themeSwitch.setAttribute("aria-pressed", "true");
-    document.documentElement.setAttribute("data-theme", "light");
-  } else {
-    document.documentElement.classList.remove("light");
-    controls.themeSwitch.classList.remove("light");
-    controls.themeSwitch.setAttribute("aria-pressed", "false");
-    document.documentElement.setAttribute("data-theme", "dark");
-  }
+  // Theme handling. One global theme, three access points: the header
+  // switch, the graph toolbar button (the header is hidden in fullscreen),
+  // and the scorecard toolbar button (flip before exporting a slide).
+  const syncThemeButtons = (isLight: boolean): void => {
+    for (const button of [
+      controls.themeSwitch,
+      controls.graphThemeButton,
+      controls.scorecardThemeButton,
+    ]) {
+      if (!button) continue;
+      // Show the theme the click moves to, not the one already active.
+      button.innerHTML = iconSvg(isLight ? "moon" : "sun", {
+        size: 16,
+        className: "icon",
+      });
+      button.setAttribute("aria-pressed", String(isLight));
+      button.title = isLight ? "Switch to dark mode" : "Switch to light mode";
+    }
+  };
 
-  controls.themeSwitch.addEventListener("click", () => {
-    document.documentElement.classList.toggle("light");
-    controls.themeSwitch.classList.toggle("light");
-    const isLight = document.documentElement.classList.contains("light");
+  const applyTheme = (isLight: boolean): void => {
+    document.documentElement.classList.toggle("light", isLight);
     document.documentElement.setAttribute(
       "data-theme",
       isLight ? "light" : "dark",
     );
-    controls.themeSwitch.setAttribute("aria-pressed", String(isLight));
-    localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
+    syncThemeButtons(isLight);
     graphView?.requestRender();
-  });
+    // DOM check rather than currentView: the first applyTheme call runs
+    // before the view state variables are declared.
+    if (controls.scorecardViewPanel?.classList.contains("active")) {
+      renderScorecard();
+    }
+  };
+
+  const savedTheme = localStorage.getItem("dependency-radar-theme");
+  applyTheme(savedTheme === "light");
+
+  const toggleTheme = (): void => {
+    const isLight = !document.documentElement.classList.contains("light");
+    applyTheme(isLight);
+    localStorage.setItem("dependency-radar-theme", isLight ? "light" : "dark");
+  };
+  controls.themeSwitch.addEventListener("click", toggleTheme);
+  controls.graphThemeButton?.addEventListener("click", toggleTheme);
+  controls.scorecardThemeButton?.addEventListener("click", toggleTheme);
+
+  // Inject the shared icon set into the static chrome. Doing this from JS
+  // keeps the two HTML shells (index.html and src/report.ts) free of
+  // duplicated path data that would have to stay in sync by hand.
+  (function decorateStaticIcons(): void {
+    const chipIcons: Array<[string, IconName]> = [
+      ["stat-total", "boxes"],
+      ["stat-vulnerable", "shield-alert"],
+      ["stat-maintenance", "heart-pulse"],
+      ["stat-license", "scale"],
+      ["stat-blockers", "circle-arrow-up"],
+      ["stat-replacements", "recycle"],
+    ];
+    for (const [id, icon] of chipIcons) {
+      const label = document.querySelector(`#${id} .meta-label`);
+      label?.insertAdjacentHTML(
+        "afterbegin",
+        iconSvg(icon, { size: 13, className: "icon stat-icon" }),
+      );
+    }
+    const buttonIcons: Array<[HTMLElement | null | undefined, IconName]> = [
+      [controls.viewGraphButton, "waypoints"],
+      [controls.viewScorecardButton, "layout-dashboard"],
+      [controls.graphNavListButton, "list"],
+      [controls.graphNavScorecardButton, "layout-dashboard"],
+      [controls.scorecardNavListButton, "list"],
+      [controls.scorecardNavGraphButton, "waypoints"],
+      [controls.scorecardExportPng, "image"],
+      [controls.scorecardExportJpeg, "image"],
+      [controls.scorecardExportSvg, "download"],
+    ];
+    for (const [button, icon] of buttonIcons) {
+      button?.insertAdjacentHTML(
+        "afterbegin",
+        iconSvg(icon, { size: 14, className: "icon btn-icon" }),
+      );
+    }
+    // Static fine-print buttons in the two HTML shells ship empty so the
+    // shells never carry duplicated icon path data; dynamic ones get their
+    // icon from finePrintBtnHtml.
+    for (const btn of document.querySelectorAll(".fine-print-btn")) {
+      btn.innerHTML = iconSvg("info", { size: 13, className: "icon" });
+    }
+    // Same brand mark as the graph toolbar: the header logo cloned with its
+    // <defs> stripped, so gradient ids stay unique and resolve from the
+    // original.
+    const scorecardToolbar = document.querySelector(".scorecard-toolbar");
+    const headerLogo = document.querySelector(".top-header svg.logo");
+    if (
+      scorecardToolbar &&
+      headerLogo &&
+      !scorecardToolbar.querySelector(".graph-logo")
+    ) {
+      const brand = headerLogo.cloneNode(true) as SVGElement;
+      brand.querySelector("defs")?.remove();
+      brand.classList.remove("logo");
+      brand.classList.add("graph-logo");
+      brand.setAttribute("aria-hidden", "true");
+      scorecardToolbar.insertBefore(brand, scorecardToolbar.firstChild);
+    }
+    const modeIcons: Record<string, IconName> = {
+      graph: "waypoints",
+      flame: "flame",
+      treemap: "layout-panel-left",
+      balloon: "balloon",
+      hyperbolic: "globe",
+    };
+    for (const button of document.querySelectorAll(".graph-mode-btn")) {
+      const icon = modeIcons[button.getAttribute("data-graph-mode") || ""];
+      if (icon) {
+        button.insertAdjacentHTML(
+          "afterbegin",
+          iconSvg(icon, { size: 14, className: "icon btn-icon" }),
+        );
+      }
+    }
+    for (const chevron of document.querySelectorAll(".chevron")) {
+      chevron.innerHTML = iconSvg("chevron-down", {
+        size: 12,
+        className: "icon",
+      });
+    }
+  })();
 
   const mobileFilterQuery = window.matchMedia("(max-width: 768px)");
   let lastViewportWasMobile = mobileFilterQuery.matches;
@@ -3382,7 +3537,13 @@ async function init(): Promise<void> {
       // The fallback headlines affected packages, so the static label would
       // otherwise name a quantity this chip is not showing.
       const vulnLabel = document.querySelector("#stat-vulnerable .meta-label");
-      if (vulnLabel) vulnLabel.textContent = "Vulnerable";
+      if (vulnLabel) {
+        // Replace only the text node: decorateStaticIcons put an SVG in
+        // this label, and textContent would wipe it.
+        for (const node of vulnLabel.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) node.textContent = "Vulnerable";
+        }
+      }
     }
     const markChipUnknown = (id: string, status: string, label: string): void => {
       const chip = document.getElementById(id) as HTMLButtonElement | null;
@@ -3549,7 +3710,7 @@ async function init(): Promise<void> {
     (sharedDatasetMemo ??= adaptDataset(report, knownDepKeys, resolveDepKey));
   const listSimProjectName =
     (report.project as { name?: string } | undefined)?.name ||
-    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+    report.project?.projectDir?.split(/[\\/]/).filter(Boolean).pop() ||
     "project";
   const fullModels = new Map<string, VizModel>();
   const getFullModel = (workspaceName: string): VizModel => {
@@ -4208,38 +4369,63 @@ async function init(): Promise<void> {
     );
   }
 
-  let currentView: "list" | "graph" = "list";
+  type ReportView = "list" | "graph" | "scorecard";
+  let currentView: ReportView = "list";
   let applyingRoute = false;
   let routerReady = false;
   let lastSyncedHash = "";
   let routeExpandedKey: string | null = null;
-  function setActiveView(view: "list" | "graph"): void {
+  function setActiveView(view: ReportView): void {
     if (!controls.listViewPanel || !controls.graphViewPanel) {
       console.warn(
         "Dependency Radar: view panels are missing from the report DOM.",
       );
       return;
     }
+    if (view === "scorecard" && !controls.scorecardViewPanel) {
+      console.warn(
+        "Dependency Radar: scorecard view DOM nodes are missing; scorecard disabled.",
+      );
+      return;
+    }
     const isList = view === "list";
-    if (!isList && !hasGraphDomNodes()) {
+    const isGraph = view === "graph";
+    const isScorecard = view === "scorecard";
+    if (isGraph && !hasGraphDomNodes()) {
       console.warn(
         "Dependency Radar: graph view DOM nodes are missing; graph view disabled.",
       );
       return;
     }
-    controls.listViewPanel.classList.toggle("active", isList);
-    controls.graphViewPanel.classList.toggle("active", !isList);
-    controls.listViewPanel.setAttribute("aria-hidden", String(!isList));
-    controls.graphViewPanel.setAttribute("aria-hidden", String(isList));
+    // A fixed-position fine-print note would float over the next view.
+    closeListFinePrint();
+    const panels: Array<[HTMLElement | null, boolean]> = [
+      [controls.listViewPanel, isList],
+      [controls.graphViewPanel, isGraph],
+      [controls.scorecardViewPanel, isScorecard],
+    ];
+    for (const [panel, active] of panels) {
+      panel?.classList.toggle("active", active);
+      panel?.setAttribute("aria-hidden", String(!active));
+    }
+    // The header switch buttons only show for views you are not already in;
+    // each non-list view carries its own back button instead.
     if (controls.viewGraphButton) {
       controls.viewGraphButton.style.display = isList ? "" : "none";
     }
-    if (controls.graphBackButton) {
-      controls.graphBackButton.style.display = isList ? "none" : "";
+    if (controls.viewScorecardButton) {
+      controls.viewScorecardButton.style.display = isList ? "" : "none";
     }
     controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
     currentView = view;
+    if (isScorecard) {
+      graphModes?.exitFullscreen();
+      graphView?.setActive(false);
+      renderScorecard();
+      routeSync(true);
+      return;
+    }
     if (isList) {
       graphModes?.exitFullscreen();
       graphView?.setActive(false);
@@ -4307,7 +4493,7 @@ async function init(): Promise<void> {
           getSharedModel: (workspace: string) => getFullModel(workspace),
           projectName:
             (report.project as { name?: string } | undefined)?.name ||
-            report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+            report.project?.projectDir?.split(/[\\/]/).filter(Boolean).pop() ||
             "project",
           altHost: controls.graphAltHost,
           modeSwitch: controls.graphModeSwitch,
@@ -4434,6 +4620,138 @@ async function init(): Promise<void> {
     routeSync(true);
   }
 
+  // ----- scorecard view -------------------------------------------------
+  // The bento slide is one SVG string shared with the CLI's `slide` command;
+  // the view simply inlines it at the current theme and the export buttons
+  // re-serialise the same string, so what downloads is what is on screen.
+  let slideModel: SlideModel | null = null;
+  let renderedSlideTheme: SlideTheme | null = null;
+
+  function activeSlideTheme(): SlideTheme {
+    return document.documentElement.classList.contains("light")
+      ? "light"
+      : "dark";
+  }
+
+  function renderScorecard(): void {
+    if (!controls.scorecardStage) return;
+    const theme = activeSlideTheme();
+    if (renderedSlideTheme === theme && controls.scorecardStage.firstChild) {
+      return;
+    }
+    if (!slideModel) slideModel = buildSlideModel(report);
+    // DOMParser rather than innerHTML, then an explicit scrub before the
+    // tree is adopted. The generator escapes every report-derived string,
+    // but this guarantees the stage can never carry executable content
+    // even if a hostile value slipped through: no scripts, no embedded
+    // HTML islands, no event-handler attributes, no external references.
+    const parsedSvg = new DOMParser().parseFromString(
+      buildSlideSvg(slideModel, theme),
+      "image/svg+xml",
+    );
+    const svgRoot = parsedSvg.documentElement;
+    if (svgRoot.nodeName.toLowerCase() !== "svg") return;
+    for (const banned of svgRoot.querySelectorAll("script, foreignObject")) {
+      banned.remove();
+    }
+    for (const el of [svgRoot, ...svgRoot.querySelectorAll("*")]) {
+      for (const attr of [...el.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (
+          name.startsWith("on") ||
+          ((name === "href" || name === "xlink:href") &&
+            !attr.value.startsWith("#"))
+        ) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    }
+    controls.scorecardStage.replaceChildren(
+      document.importNode(svgRoot, true),
+    );
+    renderedSlideTheme = theme;
+  }
+
+  function setScorecardStatus(message: string): void {
+    if (controls.scorecardStatus) {
+      controls.scorecardStatus.textContent = message;
+    }
+  }
+
+  function slideFileName(extension: string): string {
+    const project = (report.project?.name || "project")
+      .replace(/[^a-z0-9-_.]+/gi, "-")
+      .replace(/^-+|-+$/g, "");
+    return "dependency-radar-slide-" + project + "." + extension;
+  }
+
+  function triggerDownload(url: string, filename: string): void {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function exportSlide(format: "png" | "jpeg" | "svg"): void {
+    if (!slideModel) slideModel = buildSlideModel(report);
+    const theme = activeSlideTheme();
+    const svg = buildSlideSvg(slideModel, theme);
+    const filename = slideFileName(format === "jpeg" ? "jpg" : format);
+    if (format === "svg") {
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, filename);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setScorecardStatus("Saved " + filename);
+      return;
+    }
+    // Rasterise at 1.2x for a crisp 1920x1080 slide. The SVG references
+    // nothing external, so drawing it never taints the canvas, file://
+    // included.
+    const scale = 1920 / SLIDE_WIDTH;
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(SLIDE_WIDTH * scale);
+      canvas.height = Math.round(SLIDE_HEIGHT * scale);
+      const context = canvas.getContext("2d");
+      if (!context) {
+        setScorecardStatus("Export failed: canvas is unavailable.");
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const mime = format === "jpeg" ? "image/jpeg" : "image/png";
+      const finish = (url: string): void => {
+        triggerDownload(url, filename);
+        setScorecardStatus("Saved " + filename);
+      };
+      if (canvas.toBlob) {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              finish(canvas.toDataURL(mime, 0.92));
+              return;
+            }
+            const url = URL.createObjectURL(blob);
+            finish(url);
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+          },
+          mime,
+          0.92,
+        );
+      } else {
+        finish(canvas.toDataURL(mime, 0.92));
+      }
+    };
+    image.onerror = () => {
+      setScorecardStatus("Export failed: the slide image could not be drawn.");
+    };
+    image.src =
+      "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
   function getStickyFilterBarOffset(): number {
     const filterBar = document.querySelector<HTMLElement>(".filter-bar");
     if (!filterBar || document.body.classList.contains("graph-mode")) {
@@ -4554,8 +4872,32 @@ async function init(): Promise<void> {
     setActiveView("graph");
   });
 
-  controls.graphBackButton?.addEventListener("click", () => {
+  controls.graphNavListButton?.addEventListener("click", () => {
     setActiveView("list");
+  });
+  controls.graphNavScorecardButton?.addEventListener("click", () => {
+    setActiveView("scorecard");
+  });
+
+  controls.viewScorecardButton?.addEventListener("click", () => {
+    setActiveView("scorecard");
+  });
+
+  controls.scorecardNavListButton?.addEventListener("click", () => {
+    setActiveView("list");
+  });
+  controls.scorecardNavGraphButton?.addEventListener("click", () => {
+    setActiveView("graph");
+  });
+
+  controls.scorecardExportPng?.addEventListener("click", () => {
+    exportSlide("png");
+  });
+  controls.scorecardExportJpeg?.addEventListener("click", () => {
+    exportSlide("jpeg");
+  });
+  controls.scorecardExportSvg?.addEventListener("click", () => {
+    exportSlide("svg");
   });
 
   function activateRootPackageLink(target: HTMLElement): void {
@@ -4577,6 +4919,23 @@ async function init(): Promise<void> {
     scrollDependencyIntoView(detailsEl, true);
   }
 
+  // Re-renders and route restores flip .open programmatically and fire the
+  // same toggle event a click does, so a recent summary interaction is what
+  // separates "the user expanded this" from bookkeeping. Only the former
+  // scrolls, giving clicks the same pin-under-the-header treatment as
+  // links followed from the graph view.
+  let lastSummaryInteraction: { key: string; time: number } | null = null;
+  container.addEventListener(
+    "click",
+    (event) => {
+      const summary = (event.target as HTMLElement).closest("summary");
+      const card = summary?.closest<HTMLDetailsElement>("details.dep-card");
+      if (card?.dataset.depKey) {
+        lastSummaryInteraction = { key: card.dataset.depKey, time: Date.now() };
+      }
+    },
+    true,
+  );
   container.addEventListener(
     "toggle",
     (event) => {
@@ -4589,6 +4948,13 @@ async function init(): Promise<void> {
         openDepKeys.add(depKey);
         ensureDepDetailsRendered(target);
         routeExpandedKey = depKey;
+        if (
+          lastSummaryInteraction &&
+          lastSummaryInteraction.key === depKey &&
+          Date.now() - lastSummaryInteraction.time < 500
+        ) {
+          scrollDependencyIntoView(target);
+        }
       } else {
         openDepKeys.delete(depKey);
         if (routeExpandedKey === depKey) routeExpandedKey = null;
@@ -4899,6 +5265,9 @@ async function init(): Promise<void> {
       const query = params.toString();
       return "#/graph" + (query ? `?${query}` : "");
     }
+    // The scorecard has no sub-state of its own: theme is global and the
+    // slide always shows the whole scan.
+    if (currentView === "scorecard") return "#/scorecard";
     if (controls.search.value) params.set("q", controls.search.value);
     if (controls.direct.value !== "all") params.set("type", controls.direct.value);
     if (controls.runtime.value !== "all") params.set("scope", controls.runtime.value);
@@ -4971,6 +5340,10 @@ async function init(): Promise<void> {
               : null,
           });
         }
+        return;
+      }
+      if (path === "scorecard") {
+        setActiveView("scorecard");
         return;
       }
       setActiveView("list");

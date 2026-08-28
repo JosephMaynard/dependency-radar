@@ -352,7 +352,7 @@ body {
      centring would drop the number and label of a chip without a sub-line
      out of line with its neighbours. */
   justify-content: flex-start;
-  gap: 4px;
+  gap: 6px;
   min-width: 92px;
   /* The sub-line strip cancels these to bleed to the chip edges, so they are
      tokens rather than literals repeated across the breakpoints. */
@@ -872,51 +872,6 @@ select:focus {
 }
 
 /* Theme toggle */
-.theme-toggle {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.theme-toggle-label {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.theme-switch {
-  appearance: none;
-  position: relative;
-  width: 44px;
-  height: 24px;
-  padding: 0;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  cursor: pointer;
-  transition:
-    background var(--transition),
-    border-color var(--transition);
-}
-
-.theme-switch::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  background: var(--text-secondary);
-  border-radius: 50%;
-  transition:
-    transform var(--transition),
-    background var(--transition);
-}
-
-.theme-switch.light::after {
-  transform: translateX(20px);
-  background: var(--accent);
-}
 
 /* ===== FILTER PANEL LICENSE CONTROLS ===== */
 .license-filter-toggle {
@@ -1246,21 +1201,7 @@ select.graph-workspace-select:focus {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.graph-key:before,
-.graph-workspace-wrap:before {
-  content: "";
-  display: block;
-  width: 1px;
-  height: 20px;
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  background-color: var(--text-secondary);
-}
-
 .graph-key {
-  padding-left: 24px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -1560,7 +1501,6 @@ select.graph-workspace-select:focus {
 
 .graph-workspace-wrap {
   display: flex;
-  padding-left: 24px;
   flex-direction: row;
   align-items: center;
   gap: 12px;
@@ -1569,23 +1509,10 @@ select.graph-workspace-select:focus {
 
 .graph-filter-wrap {
   display: flex;
-  padding-left: 24px;
   flex-direction: row;
   align-items: center;
   gap: 12px;
   position: relative;
-}
-
-.graph-filter-wrap:before {
-  content: "";
-  display: block;
-  width: 1px;
-  height: 20px;
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  background-color: var(--text-secondary);
 }
 
 .graph-filter-items {
@@ -1665,7 +1592,7 @@ select.graph-depth-select:disabled {
   right: 0;
   display: flex;
   flex-wrap: wrap;
-  column-gap: 24px;
+  column-gap: 16px;
   row-gap: 8px;
   background: rgba(15, 23, 42, 0.92);
   border-bottom: 1px solid rgba(100, 116, 139, 0.25);
@@ -1673,53 +1600,6 @@ select.graph-depth-select:disabled {
   -webkit-backdrop-filter: blur(12px);
   padding: 0 12px;
   min-height: 50px;
-}
-
-.graph-back-btn {
-  gap: 8px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  top: 12px;
-  left: 12px;
-  /* removing border and background here so it inherits from .graph-overlay */
-  color: var(--text-primary);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    transform var(--transition),
-    background var(--transition),
-    border-color var(--transition),
-    color var(--transition),
-    box-shadow var(--transition);
-  user-select: none;
-}
-
-.graph-back-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="light"] .graph-back-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="light"] .graph-back-btn {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(100, 116, 139, 0.15);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .graph-controls {
@@ -2024,17 +1904,17 @@ a.graph-dossier-fact.fact-swap:focus-visible {
   color: var(--graph-highlight, #22d3ee);
 }
 
+/* Same pill language as .view-switch so every toolbar reads as one system. */
 .graph-mode-switch {
   position: relative;
   z-index: 8;
   display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
 }
 
 [data-theme="light"] .graph-mode-switch {
@@ -2045,15 +1925,19 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 .graph-mode-btn {
   all: unset;
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid transparent;
   font-size: 12px;
   color: var(--text-secondary);
-  padding: 4px 9px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
   transition:
     color var(--transition),
+    background var(--transition),
     border-color var(--transition);
 }
 
@@ -2081,11 +1965,7 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 
 .graph-mode-btn.active {
   color: var(--text-primary);
-  background: rgba(100, 116, 139, 0.25);
-}
-
-[data-theme="light"] .graph-mode-btn.active {
-  background: rgba(100, 116, 139, 0.15);
+  background: var(--accent-subtle);
 }
 
 .graph-alt-host {
@@ -3667,11 +3547,6 @@ details[open] > summary .expand-icon {
     display: flex !important;
   }
 
-  .theme-toggle {
-    order: 4;
-    margin-left: auto;
-  }
-
   /* License toggle is replaced by always-open panel on mobile */
   .license-filter-toggle {
     display: none;
@@ -3737,11 +3612,6 @@ details[open] > summary .expand-icon {
 
   .graph-key-item {
     font-size: 11px;
-  }
-
-  .graph-back-btn {
-    left: 8px;
-    top: 8px;
   }
 
   .graph-mode .main-content {
@@ -4081,4 +3951,177 @@ details[open] > summary .expand-icon {
 
 [data-theme="light"] .graph-key-line.route {
   background: #d97706;
+}
+
+/* ===== SHARED ICONS ===== */
+/* Lucide strokes inherit currentColor so every context tints its own icon. */
+.icon {
+  display: inline-block;
+  vertical-align: -0.18em;
+  flex-shrink: 0;
+}
+
+.stat-chip .meta-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-title .section-icon {
+  margin-right: 8px;
+  vertical-align: -0.2em;
+  color: var(--accent);
+}
+
+.view-switch-btn .btn-icon,
+.graph-mode-btn .btn-icon,
+.scorecard-action-btn .btn-icon {
+  margin-right: 6px;
+  vertical-align: -0.22em;
+}
+
+.fine-print-btn,
+.graph-fineprint-btn {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -0.15em;
+}
+
+.chevron .icon {
+  display: block;
+}
+
+/* The one theme control, identical on the list, graph, and scorecard
+   toolbars. */
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.theme-btn:hover {
+  color: var(--accent);
+  border-color: var(--border-color-strong);
+}
+
+/* In the list filter bar the theme button sits at the right edge, where
+   the old labelled switch used to be. */
+.filter-bar .theme-btn,
+.graph-overlay-top .theme-btn {
+  margin-left: auto;
+}
+
+.scorecard-toolbar-actions {
+  margin-left: auto;
+}
+
+/* ===== DASHBOARD VIEW ===== */
+/* Mirrors the graph shell: same edge border, same toolbar altitude. */
+.scorecard-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* Fill the viewport like the graph shell does: in scorecard mode the
+     header and filter bar are hidden and main carries 24px padding. */
+  height: calc(100vh - 48px);
+  min-height: 420px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 15% 20%, var(--accent-subtle), transparent 35%),
+    radial-gradient(circle at 80% 80%, var(--accent-subtle), transparent 42%),
+    var(--bg-card);
+  overflow: hidden;
+}
+
+/* Same geometry as .graph-overlay-top so the two toolbars read identical. */
+.scorecard-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 16px;
+  row-gap: 8px;
+  padding: 0 12px;
+  min-height: 50px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.scorecard-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scorecard-export-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.scorecard-action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.scorecard-action-btn:hover {
+  color: var(--accent);
+  border-color: var(--border-color-strong);
+}
+
+.scorecard-stage {
+  flex: 1;
+  min-height: 0;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The slide keeps its 16:9 geometry and scales to whatever the stage
+   offers, so the shell always reads full-height with the board centred. */
+.scorecard-stage svg {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.scorecard-status {
+  min-height: 20px;
+  padding: 0 16px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .scorecard-toolbar {
+    justify-content: center;
+  }
 }
