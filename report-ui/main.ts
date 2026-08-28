@@ -3088,7 +3088,7 @@ async function init(): Promise<void> {
       graph: "waypoints",
       flame: "flame",
       treemap: "layout-panel-left",
-      balloon: "orbit",
+      balloon: "balloon",
       hyperbolic: "globe",
     };
     for (const button of document.querySelectorAll(".graph-mode-btn")) {
