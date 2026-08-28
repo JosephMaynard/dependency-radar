@@ -198,6 +198,26 @@ describe("buildSlideModel", () => {
     expect(model.sizeBlocks.map((b) => b.name)).toEqual(["real"]);
   });
 
+  it("flags a partial dependency tree so counts read as lower bounds", () => {
+    const partial = buildSlideModel(
+      input([dep({ name: "a" })], {
+        scanStatus: { collectors: { dependencyTree: "partial" } },
+      }),
+    );
+    expect(partial.treeIncomplete).toBe(true);
+    const complete = buildSlideModel(input([dep({ name: "a" })]));
+    expect(complete.treeIncomplete).toBe(false);
+  });
+
+  it("uses only the basename of a Windows project path", () => {
+    const model = buildSlideModel(
+      input([dep({ name: "a" })], {
+        project: { projectDir: "C:\\builds\\org\\repo" },
+      }),
+    );
+    expect(model.projectName).toBe("repo");
+  });
+
   it("reports install size as unmeasured when no package was measured", () => {
     const model = buildSlideModel(input([dep({ name: "a" })]));
     expect(model.totalInstallBytes).toBe(-1);

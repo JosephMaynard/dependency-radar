@@ -15,7 +15,7 @@ export const FINE_PRINT: Record<string, { title: string; body: string }> = {
   slide: {
     title: "Install size",
     body:
-      "Install size is the measured on-disk total, not download or bundle size.",
+      "Install size is the measured on-disk total, not download or bundle size. Each installed version is measured once.",
   },
   impact: {
     title: "Removal impact",

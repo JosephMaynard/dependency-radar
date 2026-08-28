@@ -3710,7 +3710,7 @@ async function init(): Promise<void> {
     (sharedDatasetMemo ??= adaptDataset(report, knownDepKeys, resolveDepKey));
   const listSimProjectName =
     (report.project as { name?: string } | undefined)?.name ||
-    report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+    report.project?.projectDir?.split(/[\\/]/).filter(Boolean).pop() ||
     "project";
   const fullModels = new Map<string, VizModel>();
   const getFullModel = (workspaceName: string): VizModel => {
@@ -4493,7 +4493,7 @@ async function init(): Promise<void> {
           getSharedModel: (workspace: string) => getFullModel(workspace),
           projectName:
             (report.project as { name?: string } | undefined)?.name ||
-            report.project?.projectDir?.split("/").filter(Boolean).pop() ||
+            report.project?.projectDir?.split(/[\\/]/).filter(Boolean).pop() ||
             "project",
           altHost: controls.graphAltHost,
           modeSwitch: controls.graphModeSwitch,

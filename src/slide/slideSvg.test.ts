@@ -75,6 +75,15 @@ describe("buildSlideSvg", () => {
     expect(svg).toContain("Not checked in this scan");
   });
 
+  it("carries the partial-scan caveat into the exported artifact", () => {
+    const data = sampleInput();
+    data.scanStatus = { collectors: { dependencyTree: "partial" } };
+    const svg = buildSlideSvg(buildSlideModel(data), "dark");
+    expect(svg).toContain("counts are lower bounds");
+    const complete = buildSlideSvg(buildSlideModel(sampleInput()), "dark");
+    expect(complete).not.toContain("counts are lower bounds");
+  });
+
   it("accounts for the whole measured total in the treemap", () => {
     const svg = buildSlideSvg(buildSlideModel(sampleInput()), "dark");
     expect(svg).toContain("6.0 MB");

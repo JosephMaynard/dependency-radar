@@ -81,6 +81,11 @@ export interface SlideModel {
   dependencyCount: number;
   directCount: number;
   transitiveCount: number;
+  /**
+   * True when the dependency tree collector did not fully run, so every
+   * dependency-derived count is a lower bound rather than a total.
+   */
+  treeIncomplete: boolean;
   /** Total measured install size in bytes, or -1 when nothing was measured. */
   totalInstallBytes: number;
   /** How many installed packages the size total actually covers. */
@@ -275,8 +280,11 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
     tone: duplicateNames === 0 ? "green" : "amber",
   };
 
-  // Measured install size. Each record is one installed name@version, so a
-  // plain sum counts every physical copy once.
+  // Measured install size. Records are keyed name@version and each carries
+  // one measured path, so the sum measures each installed version once. In
+  // stores that keep several physical copies of the same version (isolated
+  // workspace installs, peer variants) the true on-disk figure can be
+  // higher; the fine print states the same rule the report's size note uses.
   let totalInstallBytes = 0;
   let anyMeasured = false;
   const measured: Array<{ name: string; bytes: number }> = [];
@@ -303,11 +311,20 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
   const sizeOtherBytes =
     totalInstallBytes - blocks.reduce((sum, entry) => sum + entry.bytes, 0);
 
+  // The dependency tree is what every count is built from; partial is
+  // as disqualifying as absent for "these are the totals".
+  const treeStatus = collectors["dependencyTree"];
+  const treeIncomplete =
+    treeStatus !== undefined && treeStatus !== "available";
+
   return {
     projectName:
       data.project.name ||
-      data.project.projectDir?.split("/").filter(Boolean).pop() ||
+      // Both separators: a Windows projectDir must not leak the full local
+      // path into a shareable artifact.
+      data.project.projectDir?.split(/[\\/]/).filter(Boolean).pop() ||
       "project",
+    treeIncomplete,
     generatedAt: data.generatedAt || "",
     toolVersion: data.dependencyRadarVersion || "",
     dependencyCount: data.summary.dependencyCount,

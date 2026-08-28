@@ -2691,23 +2691,35 @@ async function runSlideCommand(opts: CliOptions): Promise<void> {
     console.log(statusLine("✔", `Slide (${theme}) written to ${svgPath}`));
   }
 
-  if (!opts.slidePng) return;
-  const pngPath = base + ".png";
-  const rendered = await renderSlidePng(svgPath, pngPath, svg);
-  if (rendered) {
-    if (!opts.quiet) {
-      console.log(statusLine("✔", `PNG written to ${pngPath}`));
+  if (opts.slidePng) {
+    const pngPath = base + ".png";
+    const rendered = await renderSlidePng(svgPath, pngPath, svg);
+    if (rendered) {
+      if (!opts.quiet) {
+        console.log(statusLine("✔", `PNG written to ${pngPath}`));
+      }
+    } else {
+      // Best-effort by contract: the SVG was written, so a missing local
+      // rasteriser is advice, not a failure exit.
+      console.log(
+        statusLine(
+          "✖",
+          "PNG skipped: no Chrome, Edge, Chromium, or rsvg-convert found. " +
+            "Open the HTML report's Scorecard view and use its Export button instead.",
+        ),
+      );
     }
-  } else {
-    // Best-effort by contract: the SVG was written, so a missing local
-    // rasteriser is advice, not a failure exit.
-    console.log(
-      statusLine(
-        "✖",
-        "PNG skipped: no Chrome, Edge, Chromium, or rsvg-convert found. " +
-          "Open the HTML report's Scorecard view and use its Export button instead.",
-      ),
-    );
+  }
+
+  // Same exit semantics as scan: a slide produced from a scan that violated
+  // --fail-on rules or failed --strict must not hand CI a green exit.
+  printPolicyViolations(result.policyViolations);
+  printIncompleteEvidence(result.incompleteReasons);
+  if (result.incompleteReasons.length > 0) {
+    process.exit(EXIT_USAGE_OR_INCOMPLETE);
+  }
+  if (result.policyViolations.length > 0) {
+    process.exit(EXIT_POLICY_VIOLATION);
   }
 }
 

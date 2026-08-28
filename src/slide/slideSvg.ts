@@ -610,6 +610,16 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
       anchor: "end",
     }),
   );
+  if (model.treeIncomplete) {
+    parts.push(
+      text(
+        PAD,
+        152,
+        "Partial scan · the dependency tree is incomplete, so counts are lower bounds",
+        { size: 13, fill: p.tones.amber, weight: 600 },
+      ),
+    );
+  }
   const provenance = [
     model.generatedAt ? "Generated " + formatSlideDate(model.generatedAt) : "",
     model.toolVersion ? "v" + model.toolVersion : "",
