@@ -2896,8 +2896,11 @@ async function init(): Promise<void> {
     viewDashboardButton: document.getElementById(
       "view-dashboard-btn",
     ) as HTMLButtonElement | null,
-    graphBackButton: document.getElementById(
-      "graph-back-btn",
+    graphNavListButton: document.getElementById(
+      "graph-nav-list-btn",
+    ) as HTMLButtonElement | null,
+    graphNavDashboardButton: document.getElementById(
+      "graph-nav-dashboard-btn",
     ) as HTMLButtonElement | null,
     graphThemeButton: document.getElementById(
       "graph-theme-btn",
@@ -2907,8 +2910,11 @@ async function init(): Promise<void> {
     dashboardViewPanel: document.getElementById(
       "dashboard-view",
     ) as HTMLElement | null,
-    dashboardBackButton: document.getElementById(
-      "dashboard-back-btn",
+    dashboardNavListButton: document.getElementById(
+      "dashboard-nav-list-btn",
+    ) as HTMLButtonElement | null,
+    dashboardNavGraphButton: document.getElementById(
+      "dashboard-nav-graph-btn",
     ) as HTMLButtonElement | null,
     dashboardThemeButton: document.getElementById(
       "dashboard-theme-btn",
@@ -2993,9 +2999,8 @@ async function init(): Promise<void> {
   // switch, the graph toolbar button (the header is hidden in fullscreen),
   // and the dashboard toolbar button (flip before exporting a slide).
   const syncThemeButtons = (isLight: boolean): void => {
-    controls.themeSwitch.classList.toggle("light", isLight);
-    controls.themeSwitch.setAttribute("aria-pressed", String(isLight));
     for (const button of [
+      controls.themeSwitch,
       controls.graphThemeButton,
       controls.dashboardThemeButton,
     ]) {
@@ -3059,8 +3064,10 @@ async function init(): Promise<void> {
     const buttonIcons: Array<[HTMLElement | null | undefined, IconName]> = [
       [controls.viewGraphButton, "waypoints"],
       [controls.viewDashboardButton, "layout-dashboard"],
-      [controls.graphBackButton, "arrow-left"],
-      [controls.dashboardBackButton, "arrow-left"],
+      [controls.graphNavListButton, "list"],
+      [controls.graphNavDashboardButton, "layout-dashboard"],
+      [controls.dashboardNavListButton, "list"],
+      [controls.dashboardNavGraphButton, "waypoints"],
       [controls.dashboardExportPng, "image"],
       [controls.dashboardExportJpeg, "image"],
       [controls.dashboardExportSvg, "download"],
@@ -4376,9 +4383,6 @@ async function init(): Promise<void> {
     if (controls.viewDashboardButton) {
       controls.viewDashboardButton.style.display = isList ? "" : "none";
     }
-    if (controls.graphBackButton) {
-      controls.graphBackButton.style.display = isGraph ? "" : "none";
-    }
     controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
     currentView = view;
@@ -4807,16 +4811,22 @@ async function init(): Promise<void> {
     setActiveView("graph");
   });
 
-  controls.graphBackButton?.addEventListener("click", () => {
+  controls.graphNavListButton?.addEventListener("click", () => {
     setActiveView("list");
+  });
+  controls.graphNavDashboardButton?.addEventListener("click", () => {
+    setActiveView("dashboard");
   });
 
   controls.viewDashboardButton?.addEventListener("click", () => {
     setActiveView("dashboard");
   });
 
-  controls.dashboardBackButton?.addEventListener("click", () => {
+  controls.dashboardNavListButton?.addEventListener("click", () => {
     setActiveView("list");
+  });
+  controls.dashboardNavGraphButton?.addEventListener("click", () => {
+    setActiveView("graph");
   });
 
   controls.dashboardExportPng?.addEventListener("click", () => {

@@ -525,18 +525,39 @@ function hexWithAlpha(hex: string, alpha: number): string {
   return "rgba(" + r + ", " + g + ", " + b + ", " + round2(alpha) + ")";
 }
 
-/** Compact radar mark echoing the logo: rings, a sweep, one contact. */
-function radarMark(cx: number, cy: number, r: number, p: SlidePalette): string {
+/**
+ * The Dependency Radar logo, identical artwork to the report header but
+ * with the class-based styles flattened to attributes so the standalone
+ * slide file needs no stylesheet. Gradient id is namespaced to avoid
+ * colliding with the header logo when the slide is inlined in the report.
+ */
+const LOGO_SWEEP_GRADIENT =
+  '<linearGradient id="slide-logo-sweep" x1="239.3" y1="298.2" x2="815.3" y2="298.2" gradientTransform="translate(150 -115.1) rotate(15)" gradientUnits="userSpaceOnUse">' +
+  '<stop offset=".4" stop-color="#55fffa" stop-opacity="0"/>' +
+  '<stop offset="1" stop-color="#55fffa" stop-opacity=".5"/>' +
+  "</linearGradient>";
+
+function radarLogo(x: number, y: number, size: number): string {
+  const scale = round2(size / 1024);
   return (
-    '<g stroke="' + p.secondary + '" fill="none" stroke-width="1.5">' +
-    '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '"/>' +
-    '<circle cx="' + cx + '" cy="' + cy + '" r="' + round2(r * 0.62) + '" opacity="0.55"/>' +
-    '<circle cx="' + cx + '" cy="' + cy + '" r="' + round2(r * 0.3) + '" opacity="0.35"/>' +
-    "</g>" +
-    '<line x1="' + cx + '" y1="' + cy + '" x2="' + round2(cx + r * 0.83) +
-    '" y2="' + round2(cy - r * 0.55) + '" stroke="' + p.accent + '" stroke-width="1.5"/>' +
-    '<circle cx="' + round2(cx - r * 0.4) + '" cy="' + round2(cy + r * 0.42) +
-    '" r="2.5" fill="' + p.accent + '"/>'
+    '<g transform="translate(' + x + " " + y + ") scale(" + scale + ')">' +
+    '<circle fill="#14145e" cx="512" cy="512" r="512"/>' +
+    '<circle fill="#171772" stroke="#55fffa" stroke-width="16" stroke-miterlimit="10" cx="512" cy="512" r="430"/>' +
+    '<circle fill="#171772" stroke="#55fffa" stroke-width="10" stroke-miterlimit="10" cx="512" cy="512" r="256"/>' +
+    '<circle fill="none" stroke="#55fffa" stroke-width="6" stroke-miterlimit="10" opacity=".3" cx="512" cy="512" r="160"/>' +
+    '<circle fill="none" stroke="#55fffa" stroke-width="6" stroke-miterlimit="10" opacity=".3" cx="512" cy="512" r="379.5"/>' +
+    '<circle fill="none" stroke="#55fffa" stroke-width="6" stroke-miterlimit="10" opacity=".3" cx="512" cy="512" r="339"/>' +
+    '<circle fill="none" stroke="#55fffa" stroke-width="6" stroke-miterlimit="10" opacity=".3" cx="512" cy="512" r="210"/>' +
+    '<rect fill="#55fffa" x="690.2" y="193.1" width="15.8" height="427.6" transform="translate(701.4 -401.1) rotate(60)"/>' +
+    '<circle fill="#55fffa" cx="512" cy="514.4" r="64"/>' +
+    '<path fill="url(#slide-logo-sweep)" d="M517.2,513.4l365.8-213.9c-54.6-95.4-145.8-169.8-260.3-200.5-100.1-26.8-201.5-15.8-288.8,24.3l183.4,390Z"/>' +
+    '<circle fill="red" opacity=".4" cx="512" cy="256" r="96"/>' +
+    '<circle fill="red" cx="512" cy="256" r="56"/>' +
+    '<circle fill="#40ff40" opacity=".4" cx="733.7" cy="640" r="96" transform="translate(-237.7 706.3) rotate(-45)"/>' +
+    '<circle fill="#40ff40" cx="733.7" cy="640" r="56" transform="translate(-237.7 706.3) rotate(-45)"/>' +
+    '<ellipse fill="#ff8000" opacity=".4" cx="290.3" cy="640" rx="96" ry="96" transform="translate(-367.5 392.7) rotate(-45)"/>' +
+    '<circle fill="#ff8000" cx="290.3" cy="640" r="56"/>' +
+    "</g>"
   );
 }
 
@@ -556,6 +577,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
     '<stop offset="0" stop-color="' + p.bg + '"/>' +
     '<stop offset="1" stop-color="' + p.bgEdge + '"/>' +
     "</linearGradient>" +
+    LOGO_SWEEP_GRADIENT +
     "</defs>",
   );
   parts.push(
@@ -579,9 +601,9 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
       weight: 650,
     }),
   );
-  parts.push(radarMark(SLIDE_WIDTH - PAD - 16, 84, 16, p));
+  parts.push(radarLogo(SLIDE_WIDTH - PAD - 40, 62, 40));
   parts.push(
-    text(SLIDE_WIDTH - PAD - 44, 89, "dependency-radar", {
+    text(SLIDE_WIDTH - PAD - 52, 89, "dependency-radar", {
       size: 15,
       fill: p.secondary,
       weight: 600,
