@@ -1630,53 +1630,6 @@ select.graph-depth-select:disabled {
   min-height: 50px;
 }
 
-.graph-back-btn {
-  gap: 8px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  top: 12px;
-  left: 12px;
-  /* removing border and background here so it inherits from .graph-overlay */
-  color: var(--text-primary);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    transform var(--transition),
-    background var(--transition),
-    border-color var(--transition),
-    color var(--transition),
-    box-shadow var(--transition);
-  user-select: none;
-}
-
-.graph-back-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="light"] .graph-back-btn:hover {
-  background: rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="light"] .graph-back-btn {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(100, 116, 139, 0.15);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
 .graph-controls {
   flex-direction: column;
   align-items: center;
@@ -1979,17 +1932,17 @@ a.graph-dossier-fact.fact-swap:focus-visible {
   color: var(--graph-highlight, #22d3ee);
 }
 
+/* Same pill language as .view-switch so every toolbar reads as one system. */
 .graph-mode-switch {
   position: relative;
   z-index: 8;
   display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.92);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
 }
 
 [data-theme="light"] .graph-mode-switch {
@@ -2000,15 +1953,19 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 .graph-mode-btn {
   all: unset;
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid transparent;
   font-size: 12px;
   color: var(--text-secondary);
-  padding: 4px 9px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
   transition:
     color var(--transition),
+    background var(--transition),
     border-color var(--transition);
 }
 
@@ -2036,11 +1993,7 @@ a.graph-dossier-fact.fact-swap:focus-visible {
 
 .graph-mode-btn.active {
   color: var(--text-primary);
-  background: rgba(100, 116, 139, 0.25);
-}
-
-[data-theme="light"] .graph-mode-btn.active {
-  background: rgba(100, 116, 139, 0.15);
+  background: var(--accent-subtle);
 }
 
 .graph-alt-host {
@@ -3689,11 +3642,6 @@ details[open] > summary .expand-icon {
     font-size: 11px;
   }
 
-  .graph-back-btn {
-    left: 8px;
-    top: 8px;
-  }
-
   .graph-mode .main-content {
     padding: 8px;
   }
@@ -4054,8 +4002,8 @@ details[open] > summary .expand-icon {
 }
 
 .view-switch-btn .btn-icon,
-.graph-back-btn .btn-icon,
-.dashboard-action-btn .btn-icon {
+.graph-mode-btn .btn-icon,
+.scorecard-action-btn .btn-icon {
   margin-right: 6px;
   vertical-align: -0.22em;
 }
@@ -4071,7 +4019,7 @@ details[open] > summary .expand-icon {
   display: block;
 }
 
-/* The one theme control, identical on the list, graph, and dashboard
+/* The one theme control, identical on the list, graph, and scorecard
    toolbars. */
 .theme-btn {
   display: inline-flex;
@@ -4101,12 +4049,12 @@ details[open] > summary .expand-icon {
 
 /* ===== DASHBOARD VIEW ===== */
 /* Mirrors the graph shell: same edge border, same toolbar altitude. */
-.dashboard-shell {
+.scorecard-shell {
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
-  /* Fill the viewport like the graph shell does: in dashboard mode the
+  /* Fill the viewport like the graph shell does: in scorecard mode the
      header and filter bar are hidden and main carries 24px padding. */
   height: calc(100vh - 48px);
   min-height: 420px;
@@ -4119,7 +4067,7 @@ details[open] > summary .expand-icon {
   overflow: hidden;
 }
 
-.dashboard-toolbar {
+.scorecard-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4129,13 +4077,13 @@ details[open] > summary .expand-icon {
   border-bottom: 1px solid var(--border-color);
 }
 
-.dashboard-toolbar-actions {
+.scorecard-toolbar-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
-.dashboard-export-label {
+.scorecard-export-label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -4144,7 +4092,7 @@ details[open] > summary .expand-icon {
   margin-right: 2px;
 }
 
-.dashboard-action-btn {
+.scorecard-action-btn {
   display: inline-flex;
   align-items: center;
   padding: 7px 12px;
@@ -4160,12 +4108,12 @@ details[open] > summary .expand-icon {
   transition: all var(--transition);
 }
 
-.dashboard-action-btn:hover {
+.scorecard-action-btn:hover {
   color: var(--accent);
   border-color: var(--border-color-strong);
 }
 
-.dashboard-stage {
+.scorecard-stage {
   flex: 1;
   min-height: 0;
   padding: 20px;
@@ -4176,7 +4124,7 @@ details[open] > summary .expand-icon {
 
 /* The slide keeps its 16:9 geometry and scales to whatever the stage
    offers, so the shell always reads full-height with the board centred. */
-.dashboard-stage svg {
+.scorecard-stage svg {
   width: auto;
   height: auto;
   max-width: 100%;
@@ -4185,7 +4133,7 @@ details[open] > summary .expand-icon {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 }
 
-.dashboard-status {
+.scorecard-status {
   min-height: 20px;
   padding: 0 16px 12px;
   font-size: 12px;
@@ -4194,7 +4142,7 @@ details[open] > summary .expand-icon {
 }
 
 @media (max-width: 768px) {
-  .dashboard-toolbar {
+  .scorecard-toolbar {
     justify-content: center;
   }
 }

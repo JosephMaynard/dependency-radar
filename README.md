@@ -271,9 +271,9 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 npx dependency-radar slide
 ```
 
-Writes `dependency-radar-slide.svg` (dark). Add `--light-mode` for the light palette. Add `--png` to also render a 1920x1080 PNG; this borrows a locally installed Chrome, Edge, Chromium, or `rsvg-convert` because the CLI itself ships no rasteriser. Without one, use the HTML report's Dashboard view, which exports PNG, JPEG, and SVG from the browser.
+Writes `dependency-radar-slide.svg` (dark). Add `--light-mode` for the light palette. Add `--png` to also render a 1920x1080 PNG; this borrows a locally installed Chrome, Edge, Chromium, or `rsvg-convert` because the CLI itself ships no rasteriser. Without one, use the HTML report's Scorecard view, which exports PNG, JPEG, and SVG from the browser.
 
-The same dashboard lives in the HTML report as the Dashboard view, with a theme toggle and export buttons in its toolbar.
+The same scorecard lives in the HTML report as the Scorecard view, with a theme toggle and export buttons in its toolbar.
 
 ### Explain one dependency in the terminal
 

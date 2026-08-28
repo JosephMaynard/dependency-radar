@@ -227,10 +227,10 @@ ${safeCssContent}
             <button
               type="button"
               class="view-switch-btn"
-              id="view-dashboard-btn"
-              data-view="dashboard"
+              id="view-scorecard-btn"
+              data-view="scorecard"
             >
-              Dashboard
+              Scorecard
             </button>
             <button
               type="button"
@@ -412,7 +412,7 @@ ${safeCssContent}
         <div class="graph-overlay-top">
           <div class="view-switch" role="group" aria-label="Report views">
             <button type="button" class="view-switch-btn" id="graph-nav-list-btn">List View</button>
-            <button type="button" class="view-switch-btn" id="graph-nav-dashboard-btn">Dashboard</button>
+            <button type="button" class="view-switch-btn" id="graph-nav-scorecard-btn">Scorecard</button>
           </div>
           <div class="graph-mode-switch" id="graph-mode-switch" role="group" aria-label="Graph layout">
             <button type="button" class="graph-mode-btn active" data-graph-mode="graph" aria-pressed="true">Graph</button>
@@ -549,24 +549,24 @@ ${safeCssContent}
         </aside>
       </div>
     </section>
-    <section class="view-panel" id="dashboard-view" data-view="dashboard" aria-hidden="true">
-      <div class="dashboard-shell" id="dashboard-shell">
-        <div class="dashboard-toolbar">
+    <section class="view-panel" id="scorecard-view" data-view="scorecard" aria-hidden="true">
+      <div class="scorecard-shell" id="scorecard-shell">
+        <div class="scorecard-toolbar">
           <div class="view-switch" role="group" aria-label="Report views">
-            <button type="button" class="view-switch-btn" id="dashboard-nav-list-btn">List View</button>
-            <button type="button" class="view-switch-btn" id="dashboard-nav-graph-btn">Graph View</button>
+            <button type="button" class="view-switch-btn" id="scorecard-nav-list-btn">List View</button>
+            <button type="button" class="view-switch-btn" id="scorecard-nav-graph-btn">Graph View</button>
           </div>
-          <div class="dashboard-toolbar-actions">
-            <button type="button" class="fine-print-btn" data-fine-topic="slide" aria-haspopup="true" aria-expanded="false" aria-label="About: The slide dashboard" id="dashboard-fine-btn"></button>
-            <span class="dashboard-export-label">Export</span>
-            <button type="button" class="dashboard-action-btn" id="dashboard-export-png">PNG</button>
-            <button type="button" class="dashboard-action-btn" id="dashboard-export-jpeg">JPEG</button>
-            <button type="button" class="dashboard-action-btn" id="dashboard-export-svg">SVG</button>
-            <button type="button" class="theme-btn" id="dashboard-theme-btn" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
+          <div class="scorecard-toolbar-actions">
+            <button type="button" class="fine-print-btn" data-fine-topic="slide" aria-haspopup="true" aria-expanded="false" aria-label="About: The slide scorecard" id="scorecard-fine-btn"></button>
+            <span class="scorecard-export-label">Export</span>
+            <button type="button" class="scorecard-action-btn" id="scorecard-export-png">PNG</button>
+            <button type="button" class="scorecard-action-btn" id="scorecard-export-jpeg">JPEG</button>
+            <button type="button" class="scorecard-action-btn" id="scorecard-export-svg">SVG</button>
+            <button type="button" class="theme-btn" id="scorecard-theme-btn" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
           </div>
         </div>
-        <div class="dashboard-stage" id="dashboard-stage"></div>
-        <div class="dashboard-status" id="dashboard-status" role="status" aria-live="polite"></div>
+        <div class="scorecard-stage" id="scorecard-stage"></div>
+        <div class="scorecard-status" id="scorecard-status" role="status" aria-live="polite"></div>
       </div>
     </section>
   </main>

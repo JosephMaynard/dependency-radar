@@ -2893,46 +2893,46 @@ async function init(): Promise<void> {
     viewGraphButton: document.getElementById(
       "view-graph-btn",
     ) as HTMLButtonElement | null,
-    viewDashboardButton: document.getElementById(
-      "view-dashboard-btn",
+    viewScorecardButton: document.getElementById(
+      "view-scorecard-btn",
     ) as HTMLButtonElement | null,
     graphNavListButton: document.getElementById(
       "graph-nav-list-btn",
     ) as HTMLButtonElement | null,
-    graphNavDashboardButton: document.getElementById(
-      "graph-nav-dashboard-btn",
+    graphNavScorecardButton: document.getElementById(
+      "graph-nav-scorecard-btn",
     ) as HTMLButtonElement | null,
     graphThemeButton: document.getElementById(
       "graph-theme-btn",
     ) as HTMLButtonElement | null,
     listViewPanel: document.getElementById("list-view") as HTMLElement | null,
     graphViewPanel: document.getElementById("graph-view") as HTMLElement | null,
-    dashboardViewPanel: document.getElementById(
-      "dashboard-view",
+    scorecardViewPanel: document.getElementById(
+      "scorecard-view",
     ) as HTMLElement | null,
-    dashboardNavListButton: document.getElementById(
-      "dashboard-nav-list-btn",
+    scorecardNavListButton: document.getElementById(
+      "scorecard-nav-list-btn",
     ) as HTMLButtonElement | null,
-    dashboardNavGraphButton: document.getElementById(
-      "dashboard-nav-graph-btn",
+    scorecardNavGraphButton: document.getElementById(
+      "scorecard-nav-graph-btn",
     ) as HTMLButtonElement | null,
-    dashboardThemeButton: document.getElementById(
-      "dashboard-theme-btn",
+    scorecardThemeButton: document.getElementById(
+      "scorecard-theme-btn",
     ) as HTMLButtonElement | null,
-    dashboardStage: document.getElementById(
-      "dashboard-stage",
+    scorecardStage: document.getElementById(
+      "scorecard-stage",
     ) as HTMLElement | null,
-    dashboardStatus: document.getElementById(
-      "dashboard-status",
+    scorecardStatus: document.getElementById(
+      "scorecard-status",
     ) as HTMLElement | null,
-    dashboardExportPng: document.getElementById(
-      "dashboard-export-png",
+    scorecardExportPng: document.getElementById(
+      "scorecard-export-png",
     ) as HTMLButtonElement | null,
-    dashboardExportJpeg: document.getElementById(
-      "dashboard-export-jpeg",
+    scorecardExportJpeg: document.getElementById(
+      "scorecard-export-jpeg",
     ) as HTMLButtonElement | null,
-    dashboardExportSvg: document.getElementById(
-      "dashboard-export-svg",
+    scorecardExportSvg: document.getElementById(
+      "scorecard-export-svg",
     ) as HTMLButtonElement | null,
     graphWorkspaceSelect: document.getElementById(
       "graph-workspace",
@@ -2997,12 +2997,12 @@ async function init(): Promise<void> {
 
   // Theme handling. One global theme, three access points: the header
   // switch, the graph toolbar button (the header is hidden in fullscreen),
-  // and the dashboard toolbar button (flip before exporting a slide).
+  // and the scorecard toolbar button (flip before exporting a slide).
   const syncThemeButtons = (isLight: boolean): void => {
     for (const button of [
       controls.themeSwitch,
       controls.graphThemeButton,
-      controls.dashboardThemeButton,
+      controls.scorecardThemeButton,
     ]) {
       if (!button) continue;
       // Show the theme the click moves to, not the one already active.
@@ -3025,8 +3025,8 @@ async function init(): Promise<void> {
     graphView?.requestRender();
     // DOM check rather than currentView: the first applyTheme call runs
     // before the view state variables are declared.
-    if (controls.dashboardViewPanel?.classList.contains("active")) {
-      renderDashboard();
+    if (controls.scorecardViewPanel?.classList.contains("active")) {
+      renderScorecard();
     }
   };
 
@@ -3040,7 +3040,7 @@ async function init(): Promise<void> {
   };
   controls.themeSwitch.addEventListener("click", toggleTheme);
   controls.graphThemeButton?.addEventListener("click", toggleTheme);
-  controls.dashboardThemeButton?.addEventListener("click", toggleTheme);
+  controls.scorecardThemeButton?.addEventListener("click", toggleTheme);
 
   // Inject the shared icon set into the static chrome. Doing this from JS
   // keeps the two HTML shells (index.html and src/report.ts) free of
@@ -3063,14 +3063,14 @@ async function init(): Promise<void> {
     }
     const buttonIcons: Array<[HTMLElement | null | undefined, IconName]> = [
       [controls.viewGraphButton, "waypoints"],
-      [controls.viewDashboardButton, "layout-dashboard"],
+      [controls.viewScorecardButton, "layout-dashboard"],
       [controls.graphNavListButton, "list"],
-      [controls.graphNavDashboardButton, "layout-dashboard"],
-      [controls.dashboardNavListButton, "list"],
-      [controls.dashboardNavGraphButton, "waypoints"],
-      [controls.dashboardExportPng, "image"],
-      [controls.dashboardExportJpeg, "image"],
-      [controls.dashboardExportSvg, "download"],
+      [controls.graphNavScorecardButton, "layout-dashboard"],
+      [controls.scorecardNavListButton, "list"],
+      [controls.scorecardNavGraphButton, "waypoints"],
+      [controls.scorecardExportPng, "image"],
+      [controls.scorecardExportJpeg, "image"],
+      [controls.scorecardExportSvg, "download"],
     ];
     for (const [button, icon] of buttonIcons) {
       button?.insertAdjacentHTML(
@@ -3083,6 +3083,22 @@ async function init(): Promise<void> {
     // icon from finePrintBtnHtml.
     for (const btn of document.querySelectorAll(".fine-print-btn")) {
       btn.innerHTML = iconSvg("info", { size: 13, className: "icon" });
+    }
+    const modeIcons: Record<string, IconName> = {
+      graph: "waypoints",
+      flame: "flame",
+      treemap: "layout-panel-left",
+      balloon: "orbit",
+      hyperbolic: "globe",
+    };
+    for (const button of document.querySelectorAll(".graph-mode-btn")) {
+      const icon = modeIcons[button.getAttribute("data-graph-mode") || ""];
+      if (icon) {
+        button.insertAdjacentHTML(
+          "afterbegin",
+          iconSvg(icon, { size: 14, className: "icon btn-icon" }),
+        );
+      }
     }
     for (const chevron of document.querySelectorAll(".chevron")) {
       chevron.innerHTML = iconSvg("chevron-down", {
@@ -4336,7 +4352,7 @@ async function init(): Promise<void> {
     );
   }
 
-  type ReportView = "list" | "graph" | "dashboard";
+  type ReportView = "list" | "graph" | "scorecard";
   let currentView: ReportView = "list";
   let applyingRoute = false;
   let routerReady = false;
@@ -4349,15 +4365,15 @@ async function init(): Promise<void> {
       );
       return;
     }
-    if (view === "dashboard" && !controls.dashboardViewPanel) {
+    if (view === "scorecard" && !controls.scorecardViewPanel) {
       console.warn(
-        "Dependency Radar: dashboard view DOM nodes are missing; dashboard disabled.",
+        "Dependency Radar: scorecard view DOM nodes are missing; scorecard disabled.",
       );
       return;
     }
     const isList = view === "list";
     const isGraph = view === "graph";
-    const isDashboard = view === "dashboard";
+    const isScorecard = view === "scorecard";
     if (isGraph && !hasGraphDomNodes()) {
       console.warn(
         "Dependency Radar: graph view DOM nodes are missing; graph view disabled.",
@@ -4369,7 +4385,7 @@ async function init(): Promise<void> {
     const panels: Array<[HTMLElement | null, boolean]> = [
       [controls.listViewPanel, isList],
       [controls.graphViewPanel, isGraph],
-      [controls.dashboardViewPanel, isDashboard],
+      [controls.scorecardViewPanel, isScorecard],
     ];
     for (const [panel, active] of panels) {
       panel?.classList.toggle("active", active);
@@ -4380,16 +4396,16 @@ async function init(): Promise<void> {
     if (controls.viewGraphButton) {
       controls.viewGraphButton.style.display = isList ? "" : "none";
     }
-    if (controls.viewDashboardButton) {
-      controls.viewDashboardButton.style.display = isList ? "" : "none";
+    if (controls.viewScorecardButton) {
+      controls.viewScorecardButton.style.display = isList ? "" : "none";
     }
     controls.reportFooter?.classList.toggle("hidden", !isList);
     document.body.classList.toggle("graph-mode", !isList);
     currentView = view;
-    if (isDashboard) {
+    if (isScorecard) {
       graphModes?.exitFullscreen();
       graphView?.setActive(false);
-      renderDashboard();
+      renderScorecard();
       routeSync(true);
       return;
     }
@@ -4587,7 +4603,7 @@ async function init(): Promise<void> {
     routeSync(true);
   }
 
-  // ----- dashboard view -------------------------------------------------
+  // ----- scorecard view -------------------------------------------------
   // The bento slide is one SVG string shared with the CLI's `slide` command;
   // the view simply inlines it at the current theme and the export buttons
   // re-serialise the same string, so what downloads is what is on screen.
@@ -4600,20 +4616,20 @@ async function init(): Promise<void> {
       : "dark";
   }
 
-  function renderDashboard(): void {
-    if (!controls.dashboardStage) return;
+  function renderScorecard(): void {
+    if (!controls.scorecardStage) return;
     const theme = activeSlideTheme();
-    if (renderedSlideTheme === theme && controls.dashboardStage.firstChild) {
+    if (renderedSlideTheme === theme && controls.scorecardStage.firstChild) {
       return;
     }
     if (!slideModel) slideModel = buildSlideModel(report);
-    controls.dashboardStage.innerHTML = buildSlideSvg(slideModel, theme);
+    controls.scorecardStage.innerHTML = buildSlideSvg(slideModel, theme);
     renderedSlideTheme = theme;
   }
 
-  function setDashboardStatus(message: string): void {
-    if (controls.dashboardStatus) {
-      controls.dashboardStatus.textContent = message;
+  function setScorecardStatus(message: string): void {
+    if (controls.scorecardStatus) {
+      controls.scorecardStatus.textContent = message;
     }
   }
 
@@ -4643,7 +4659,7 @@ async function init(): Promise<void> {
       const url = URL.createObjectURL(blob);
       triggerDownload(url, filename);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      setDashboardStatus("Saved " + filename);
+      setScorecardStatus("Saved " + filename);
       return;
     }
     // Rasterise at 1.2x for a crisp 1920x1080 slide. The SVG references
@@ -4657,14 +4673,14 @@ async function init(): Promise<void> {
       canvas.height = Math.round(SLIDE_HEIGHT * scale);
       const context = canvas.getContext("2d");
       if (!context) {
-        setDashboardStatus("Export failed: canvas is unavailable.");
+        setScorecardStatus("Export failed: canvas is unavailable.");
         return;
       }
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
       const mime = format === "jpeg" ? "image/jpeg" : "image/png";
       const finish = (url: string): void => {
         triggerDownload(url, filename);
-        setDashboardStatus("Saved " + filename);
+        setScorecardStatus("Saved " + filename);
       };
       if (canvas.toBlob) {
         canvas.toBlob(
@@ -4685,7 +4701,7 @@ async function init(): Promise<void> {
       }
     };
     image.onerror = () => {
-      setDashboardStatus("Export failed: the slide image could not be drawn.");
+      setScorecardStatus("Export failed: the slide image could not be drawn.");
     };
     image.src =
       "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
@@ -4814,28 +4830,28 @@ async function init(): Promise<void> {
   controls.graphNavListButton?.addEventListener("click", () => {
     setActiveView("list");
   });
-  controls.graphNavDashboardButton?.addEventListener("click", () => {
-    setActiveView("dashboard");
+  controls.graphNavScorecardButton?.addEventListener("click", () => {
+    setActiveView("scorecard");
   });
 
-  controls.viewDashboardButton?.addEventListener("click", () => {
-    setActiveView("dashboard");
+  controls.viewScorecardButton?.addEventListener("click", () => {
+    setActiveView("scorecard");
   });
 
-  controls.dashboardNavListButton?.addEventListener("click", () => {
+  controls.scorecardNavListButton?.addEventListener("click", () => {
     setActiveView("list");
   });
-  controls.dashboardNavGraphButton?.addEventListener("click", () => {
+  controls.scorecardNavGraphButton?.addEventListener("click", () => {
     setActiveView("graph");
   });
 
-  controls.dashboardExportPng?.addEventListener("click", () => {
+  controls.scorecardExportPng?.addEventListener("click", () => {
     exportSlide("png");
   });
-  controls.dashboardExportJpeg?.addEventListener("click", () => {
+  controls.scorecardExportJpeg?.addEventListener("click", () => {
     exportSlide("jpeg");
   });
-  controls.dashboardExportSvg?.addEventListener("click", () => {
+  controls.scorecardExportSvg?.addEventListener("click", () => {
     exportSlide("svg");
   });
 
@@ -5180,9 +5196,9 @@ async function init(): Promise<void> {
       const query = params.toString();
       return "#/graph" + (query ? `?${query}` : "");
     }
-    // The dashboard has no sub-state of its own: theme is global and the
+    // The scorecard has no sub-state of its own: theme is global and the
     // slide always shows the whole scan.
-    if (currentView === "dashboard") return "#/dashboard";
+    if (currentView === "scorecard") return "#/scorecard";
     if (controls.search.value) params.set("q", controls.search.value);
     if (controls.direct.value !== "all") params.set("type", controls.direct.value);
     if (controls.runtime.value !== "all") params.set("scope", controls.runtime.value);
@@ -5257,8 +5273,8 @@ async function init(): Promise<void> {
         }
         return;
       }
-      if (path === "dashboard") {
-        setActiveView("dashboard");
+      if (path === "scorecard") {
+        setActiveView("scorecard");
         return;
       }
       setActiveView("list");

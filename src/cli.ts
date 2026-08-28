@@ -2705,7 +2705,7 @@ async function runSlideCommand(opts: CliOptions): Promise<void> {
       statusLine(
         "✖",
         "PNG skipped: no Chrome, Edge, Chromium, or rsvg-convert found. " +
-          "Open the HTML report's Dashboard view and use its Export button instead.",
+          "Open the HTML report's Scorecard view and use its Export button instead.",
       ),
     );
   }

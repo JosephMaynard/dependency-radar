@@ -36,13 +36,13 @@ describe('graph template synchronisation', () => {
     expect(reportIds).toEqual(devIds);
   });
 
-  it('keeps the dashboard section ids identical between the dev harness and the report template', () => {
+  it('keeps the scorecard section ids identical between the dev harness and the report template', () => {
     const root = path.join(__dirname, '..');
     const devHtml = fs.readFileSync(path.join(root, 'report-ui', 'index.html'), 'utf8');
     const reportTs = fs.readFileSync(path.join(root, 'src', 'report.ts'), 'utf8');
 
-    const devIds = sectionIds(devHtml, 'dashboard-view');
-    const reportIds = sectionIds(reportTs, 'dashboard-view');
+    const devIds = sectionIds(devHtml, 'scorecard-view');
+    const reportIds = sectionIds(reportTs, 'scorecard-view');
 
     expect(devIds.length).toBeGreaterThan(5);
     expect(reportIds).toEqual(devIds);

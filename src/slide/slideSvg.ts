@@ -1,5 +1,5 @@
 /**
- * Renders a SlideModel as a standalone 1600x900 SVG dashboard: one bento
+ * Renders a SlideModel as a standalone 1600x900 SVG scorecard: one bento
  * board a CTO can drop on a slide or a workflow can attach to a PR.
  *
  * The output must stay self-contained: every colour is inlined from the
@@ -568,7 +568,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
   parts.push(
     '<svg xmlns="http://www.w3.org/2000/svg" width="' + SLIDE_WIDTH +
     '" height="' + SLIDE_HEIGHT + '" viewBox="0 0 ' + SLIDE_WIDTH + " " +
-    SLIDE_HEIGHT + '" role="img" aria-label="Dependency health dashboard for ' +
+    SLIDE_HEIGHT + '" role="img" aria-label="Dependency health scorecard for ' +
     esc(model.projectName) + '">',
   );
   parts.push(

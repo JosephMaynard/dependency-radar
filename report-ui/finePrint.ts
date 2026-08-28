@@ -13,7 +13,7 @@ export const FINE_PRINT: Record<string, { title: string; body: string }> = {
       "From static scanning of this project's source. CLI binaries, config-file references, and framework conventions are invisible to it, so treat “no imports found” as a lead to check, not a verdict.",
   },
   slide: {
-    title: "The slide dashboard",
+    title: "The scorecard",
     body:
       "Counts mirror the header chips: vulnerable packages and distinct advisories, maintenance concerns, non-permissive licences, upgrade blockers, and duplicate installed versions. Install size is measured on disk. Anything a collector never checked shows as “Not checked”, not as zero.",
   },
