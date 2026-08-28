@@ -557,7 +557,7 @@ ${safeCssContent}
             <button type="button" class="view-switch-btn" id="scorecard-nav-graph-btn">Graph View</button>
           </div>
           <div class="scorecard-toolbar-actions">
-            <button type="button" class="fine-print-btn" data-fine-topic="slide" aria-haspopup="true" aria-expanded="false" aria-label="About: The slide scorecard" id="scorecard-fine-btn"></button>
+            <button type="button" class="fine-print-btn" data-fine-topic="slide" aria-haspopup="true" aria-expanded="false" aria-label="About: What the scorecard shows" id="scorecard-fine-btn"></button>
             <span class="scorecard-export-label">Export</span>
             <button type="button" class="scorecard-action-btn" id="scorecard-export-png">PNG</button>
             <button type="button" class="scorecard-action-btn" id="scorecard-export-jpeg">JPEG</button>
