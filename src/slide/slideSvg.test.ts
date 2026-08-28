@@ -53,10 +53,14 @@ describe("buildSlideSvg", () => {
     expect(svg).not.toMatch(/href="(?!#)/);
   });
 
-  it("escapes XML-hostile project and package names", () => {
+  it("escapes XML-hostile project and package names exactly once", () => {
     const svg = buildSlideSvg(buildSlideModel(sampleInput()), "dark");
     expect(svg).toContain("acme &lt;&amp;&gt; app");
     expect(svg).not.toContain("left<pad>");
+    // Escaping is centralised in the text() helper; a second layer at a
+    // call site would show up as &amp;lt;.
+    expect(svg).not.toContain("&amp;lt;");
+    expect(svg).not.toContain("&amp;amp;");
   });
 
   it("differs between themes only in colour, not structure", () => {

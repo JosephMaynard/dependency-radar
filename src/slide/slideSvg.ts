@@ -160,7 +160,9 @@ function text(
     ' fill="' + options.fill + '"' +
     (options.anchor ? ' text-anchor="' + options.anchor + '"' : "") +
     (options.spacing ? ' letter-spacing="' + options.spacing + '"' : "") +
-    ">" + content + "</text>"
+    // Escaping lives here, at the markup boundary, so no caller can forget
+    // it and none needs to remember it.
+    ">" + esc(content) + "</text>"
   );
 }
 
@@ -280,7 +282,7 @@ function metricTile(
       (spec.metric.count === 0 ? spec.zeroDetail : "");
     if (detail) {
       parts.push(
-        text(x + padX, y + h - 26, esc(detail), {
+        text(x + padX, y + h - 26, detail, {
           size: 14,
           fill: p.secondary,
         }),
@@ -418,7 +420,7 @@ function heroTile(
   }
 
   parts.push(
-    text(x + padX, y + 172, esc(formatSlideBytes(model.totalInstallBytes)), {
+    text(x + padX, y + 172, formatSlideBytes(model.totalInstallBytes), {
       size: 74,
       fill: p.ink,
       weight: 650,
@@ -482,7 +484,7 @@ function heroTile(
       const label = fitText(rect.name, gapped.w - 24, 14);
       if (label) {
         parts.push(
-          text(round2(gapped.x + 12), round2(gapped.y + 24), esc(label), {
+          text(round2(gapped.x + 12), round2(gapped.y + 24), label, {
             size: 14,
             fill: p.ink,
             weight: 600,
@@ -493,7 +495,7 @@ function heroTile(
             text(
               round2(gapped.x + 12),
               round2(gapped.y + 43),
-              esc(formatSlideBytes(rect.bytes)),
+              formatSlideBytes(rect.bytes),
               { size: 12.5, fill: p.secondary },
             ),
           );
@@ -595,7 +597,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
     }),
   );
   parts.push(
-    text(PAD, 124, esc(fitText(model.projectName, 900, 34)), {
+    text(PAD, 124, fitText(model.projectName, 900, 34), {
       size: 34,
       fill: p.ink,
       weight: 650,
@@ -631,7 +633,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
     .join(" · ");
   if (provenance) {
     parts.push(
-      text(SLIDE_WIDTH - PAD, 124, esc(provenance), {
+      text(SLIDE_WIDTH - PAD, 124, provenance, {
         size: 13,
         fill: p.muted,
         anchor: "end",

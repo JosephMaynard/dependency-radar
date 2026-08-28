@@ -119,7 +119,9 @@ function text(x, y, content, options) {
         ' fill="' + options.fill + '"' +
         (options.anchor ? ' text-anchor="' + options.anchor + '"' : "") +
         (options.spacing ? ' letter-spacing="' + options.spacing + '"' : "") +
-        ">" + content + "</text>");
+        // Escaping lives here, at the markup boundary, so no caller can forget
+        // it and none needs to remember it.
+        ">" + esc(content) + "</text>");
 }
 /** Truncate to an estimated pixel width; SVG has no text-overflow. */
 function fitText(value, maxWidth, fontSize) {
@@ -193,7 +195,7 @@ function metricTile(x, y, w, h, spec, p) {
         const detail = spec.metric.detail ||
             (spec.metric.count === 0 ? spec.zeroDetail : "");
         if (detail) {
-            parts.push(text(x + padX, y + h - 26, esc(detail), {
+            parts.push(text(x + padX, y + h - 26, detail, {
                 size: 14,
                 fill: p.secondary,
             }));
@@ -292,7 +294,7 @@ function heroTile(x, y, w, h, model, p) {
         }));
         return parts.join("");
     }
-    parts.push(text(x + padX, y + 172, esc(formatSlideBytes(model.totalInstallBytes)), {
+    parts.push(text(x + padX, y + 172, formatSlideBytes(model.totalInstallBytes), {
         size: 74,
         fill: p.ink,
         weight: 650,
@@ -348,13 +350,13 @@ function heroTile(x, y, w, h, model, p) {
         if (gapped.w > 96 && gapped.h > 44) {
             const label = fitText(rect.name, gapped.w - 24, 14);
             if (label) {
-                parts.push(text(round2(gapped.x + 12), round2(gapped.y + 24), esc(label), {
+                parts.push(text(round2(gapped.x + 12), round2(gapped.y + 24), label, {
                     size: 14,
                     fill: p.ink,
                     weight: 600,
                 }));
                 if (gapped.h > 64) {
-                    parts.push(text(round2(gapped.x + 12), round2(gapped.y + 43), esc(formatSlideBytes(rect.bytes)), { size: 12.5, fill: p.secondary }));
+                    parts.push(text(round2(gapped.x + 12), round2(gapped.y + 43), formatSlideBytes(rect.bytes), { size: 12.5, fill: p.secondary }));
                 }
             }
         }
@@ -427,7 +429,7 @@ function buildSlideSvg(model, theme) {
         weight: 650,
         spacing: "2.2",
     }));
-    parts.push(text(PAD, 124, esc(fitText(model.projectName, 900, 34)), {
+    parts.push(text(PAD, 124, fitText(model.projectName, 900, 34), {
         size: 34,
         fill: p.ink,
         weight: 650,
@@ -452,7 +454,7 @@ function buildSlideSvg(model, theme) {
         .filter(Boolean)
         .join(" · ");
     if (provenance) {
-        parts.push(text(exports.SLIDE_WIDTH - PAD, 124, esc(provenance), {
+        parts.push(text(exports.SLIDE_WIDTH - PAD, 124, provenance, {
             size: 13,
             fill: p.muted,
             anchor: "end",
