@@ -4891,6 +4891,23 @@ async function init(): Promise<void> {
     scrollDependencyIntoView(detailsEl, true);
   }
 
+  // Re-renders and route restores flip .open programmatically and fire the
+  // same toggle event a click does, so a recent summary interaction is what
+  // separates "the user expanded this" from bookkeeping. Only the former
+  // scrolls, giving clicks the same pin-under-the-header treatment as
+  // links followed from the graph view.
+  let lastSummaryInteraction: { key: string; time: number } | null = null;
+  container.addEventListener(
+    "click",
+    (event) => {
+      const summary = (event.target as HTMLElement).closest("summary");
+      const card = summary?.closest<HTMLDetailsElement>("details.dep-card");
+      if (card?.dataset.depKey) {
+        lastSummaryInteraction = { key: card.dataset.depKey, time: Date.now() };
+      }
+    },
+    true,
+  );
   container.addEventListener(
     "toggle",
     (event) => {
@@ -4903,6 +4920,13 @@ async function init(): Promise<void> {
         openDepKeys.add(depKey);
         ensureDepDetailsRendered(target);
         routeExpandedKey = depKey;
+        if (
+          lastSummaryInteraction &&
+          lastSummaryInteraction.key === depKey &&
+          Date.now() - lastSummaryInteraction.time < 500
+        ) {
+          scrollDependencyIntoView(target);
+        }
       } else {
         openDepKeys.delete(depKey);
         if (routeExpandedKey === depKey) routeExpandedKey = null;

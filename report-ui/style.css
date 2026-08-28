@@ -352,7 +352,7 @@ body {
      centring would drop the number and label of a chip without a sub-line
      out of line with its neighbours. */
   justify-content: flex-start;
-  gap: 4px;
+  gap: 6px;
   min-width: 92px;
   /* The sub-line strip cancels these to bleed to the chip edges, so they are
      tokens rather than literals repeated across the breakpoints. */
