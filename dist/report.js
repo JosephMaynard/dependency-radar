@@ -222,22 +222,21 @@ ${safeCssContent}
             <button
               type="button"
               class="view-switch-btn"
+              id="view-scorecard-btn"
+              data-view="scorecard"
+            >
+              Scorecard
+            </button>
+            <button
+              type="button"
+              class="view-switch-btn"
               id="view-graph-btn"
               data-view="graph"
             >
               Graph View
             </button>
           </div>
-          <div class="theme-toggle">
-            <span class="theme-toggle-label">Theme</span>
-            <button
-              type="button"
-              class="theme-switch"
-              id="theme-switch"
-              aria-label="Toggle dark/light mode"
-              aria-pressed="false"
-            ></button>
-          </div>
+          <button type="button" class="theme-btn" id="theme-switch" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
         </div>
 
         <div class="filter-controls" id="filter-controls" role="dialog" aria-label="Dependency filters" aria-hidden="true" inert>
@@ -334,7 +333,7 @@ ${safeCssContent}
               <span class="checkbox-filter">
                 <input type="checkbox" id="no-imports" />
                 <label for="no-imports" id="no-imports-label">No imports found</label>
-                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence">ⓘ</button>
+                <button type="button" class="fine-print-btn" data-fine-topic="imports" aria-haspopup="true" aria-expanded="false" aria-label="About: Import evidence"></button>
               </span>
 
               <label class="checkbox-filter">
@@ -406,7 +405,10 @@ ${safeCssContent}
         <div class="graph-alt-host" id="graph-alt-host" hidden></div>
         <div class="graph-status-line dim" id="graph-status-line"></div>
         <div class="graph-overlay-top">
-          <button type="button" class="graph-back-btn" id="graph-back-btn">Back to List View</button>
+          <div class="view-switch" role="group" aria-label="Report views">
+            <button type="button" class="view-switch-btn" id="graph-nav-list-btn">List View</button>
+            <button type="button" class="view-switch-btn" id="graph-nav-scorecard-btn">Scorecard</button>
+          </div>
           <div class="graph-mode-switch" id="graph-mode-switch" role="group" aria-label="Graph layout">
             <button type="button" class="graph-mode-btn active" data-graph-mode="graph" aria-pressed="true">Graph</button>
             <button type="button" class="graph-mode-btn" data-graph-mode="flame" aria-pressed="false">Flame</button>
@@ -517,6 +519,7 @@ ${safeCssContent}
             <label class="graph-workspace-label" for="graph-workspace">Workspace</label>
             <select id="graph-workspace" class="graph-workspace-select"></select>
           </div>
+          <button type="button" class="theme-btn" id="graph-theme-btn" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
         </div>
         <div class="graph-controls graph-overlay graph-overlay-right" id="graph-controls">
           <div class="dpad">
@@ -539,6 +542,26 @@ ${safeCssContent}
           </div>
           <div class="graph-dossier" id="graph-dossier"></div>
         </aside>
+      </div>
+    </section>
+    <section class="view-panel" id="scorecard-view" data-view="scorecard" aria-hidden="true">
+      <div class="scorecard-shell" id="scorecard-shell">
+        <div class="scorecard-toolbar">
+          <div class="view-switch" role="group" aria-label="Report views">
+            <button type="button" class="view-switch-btn" id="scorecard-nav-list-btn">List View</button>
+            <button type="button" class="view-switch-btn" id="scorecard-nav-graph-btn">Graph View</button>
+          </div>
+          <div class="scorecard-toolbar-actions">
+            <button type="button" class="fine-print-btn" data-fine-topic="slide" aria-haspopup="true" aria-expanded="false" aria-label="About: Install size" id="scorecard-fine-btn"></button>
+            <span class="scorecard-export-label">Export</span>
+            <button type="button" class="scorecard-action-btn" id="scorecard-export-png">PNG</button>
+            <button type="button" class="scorecard-action-btn" id="scorecard-export-jpeg">JPEG</button>
+            <button type="button" class="scorecard-action-btn" id="scorecard-export-svg">SVG</button>
+            <button type="button" class="theme-btn" id="scorecard-theme-btn" aria-label="Toggle dark/light mode" aria-pressed="false"></button>
+          </div>
+        </div>
+        <div class="scorecard-stage" id="scorecard-stage"></div>
+        <div class="scorecard-status" id="scorecard-status" role="status" aria-live="polite"></div>
       </div>
     </section>
   </main>

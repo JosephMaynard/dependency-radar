@@ -620,8 +620,11 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
       ),
     );
   }
+  const generatedLabel = model.generatedAt
+    ? formatSlideDate(model.generatedAt)
+    : "";
   const provenance = [
-    model.generatedAt ? "Generated " + formatSlideDate(model.generatedAt) : "",
+    generatedLabel ? "Generated " + generatedLabel : "",
     model.toolVersion ? "v" + model.toolVersion : "",
   ]
     .filter(Boolean)
@@ -660,7 +663,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
     },
     {
       icon: "shield-alert",
-      label: "Vulnerable packages",
+      label: "Vulnerabilities",
       metric: model.vulnerabilities,
       zeroDetail: "none reported by audit",
     },

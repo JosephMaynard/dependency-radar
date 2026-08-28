@@ -44,7 +44,7 @@ function input(
 }
 
 describe("buildSlideModel", () => {
-  it("counts vulnerable packages but dedupes advisory ids across records", () => {
+  it("headlines distinct advisories like the header chip, not package count", () => {
     const model = buildSlideModel(
       input([
         dep({
@@ -64,9 +64,24 @@ describe("buildSlideModel", () => {
         dep({ name: "c" }),
       ]),
     );
-    expect(model.vulnerabilities.count).toBe(2);
-    expect(model.vulnerabilities.detail).toBe("1 advisory · worst high");
+    expect(model.vulnerabilities.count).toBe(1);
+    expect(model.vulnerabilities.detail).toBe("in 2 packages · worst high");
     expect(model.vulnerabilities.tone).toBe("red");
+  });
+
+  it("falls back to the package count when advisories carry no ids", () => {
+    const model = buildSlideModel(
+      input([
+        dep({
+          name: "a",
+          security: {
+            summary: { critical: 0, high: 1, moderate: 0, low: 0, highest: "high" },
+          },
+        }),
+      ]),
+    );
+    expect(model.vulnerabilities.count).toBe(1);
+    expect(model.vulnerabilities.detail).toBe("worst high");
   });
 
   it("marks audit-less scans as not checked instead of clean", () => {

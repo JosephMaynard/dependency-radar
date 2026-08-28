@@ -2679,9 +2679,24 @@ async function runSlideCommand(opts: CliOptions): Promise<void> {
 
   // Same base-directory rule as scan: an explicit --out is relative to the
   // invocation directory, the default lands next to the scanned project.
-  const requested = opts.outProvided
+  let requested = opts.outProvided
     ? path.resolve(opts.out)
     : path.resolve(opts.project, "dependency-radar-slide.svg");
+  if (opts.outProvided) {
+    // scan treats an existing directory, a trailing separator, or an
+    // extensionless new path as "put the default filename in there"; the
+    // slide command follows the same rule.
+    const stat = await fs.stat(requested).catch(() => undefined);
+    const endsWithSeparator =
+      opts.out.endsWith("/") || opts.out.endsWith("\\");
+    if (
+      (stat && stat.isDirectory()) ||
+      endsWithSeparator ||
+      (!stat && !path.extname(requested))
+    ) {
+      requested = path.join(requested, "dependency-radar-slide.svg");
+    }
+  }
   const parsed = path.parse(requested);
   const base = path.join(parsed.dir, parsed.name);
   const svgPath = base + ".svg";

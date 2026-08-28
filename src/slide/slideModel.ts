@@ -161,20 +161,24 @@ export function buildSlideModel(data: SlideInputData): SlideModel {
       if (advisory?.id !== undefined) advisoryIds.add(String(advisory.id));
     }
   }
+  // Headline matches the header chip exactly: distinct advisory ids, with
+  // the affected-package count as the fallback for audit formats that carry
+  // severity totals but no advisory detail.
+  const advisoryCount = advisoryIds.size;
+  const advisoryDetailMissing = advisoryCount === 0 && vulnerablePackages > 0;
   const vulnerabilities: SlideMetric = !collectorRan("audit")
     ? { count: NOT_CHECKED, detail: "", tone: "gray" }
     : {
-        count: vulnerablePackages,
+        count: advisoryDetailMissing ? vulnerablePackages : advisoryCount,
         detail:
           vulnerablePackages === 0
             ? ""
-            : advisoryIds.size > 0
-              ? (advisoryIds.size === 1
-                  ? "1 advisory"
-                  : advisoryIds.size + " advisories") +
+            : advisoryDetailMissing
+              ? "worst " + highestSeverity
+              : "in " +
+                plural(vulnerablePackages, "package") +
                 " · worst " +
-                highestSeverity
-              : "worst " + highestSeverity,
+                highestSeverity,
         tone:
           vulnerablePackages === 0
             ? "green"

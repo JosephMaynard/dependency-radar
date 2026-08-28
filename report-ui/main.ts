@@ -4640,7 +4640,16 @@ async function init(): Promise<void> {
       return;
     }
     if (!slideModel) slideModel = buildSlideModel(report);
-    controls.scorecardStage.innerHTML = buildSlideSvg(slideModel, theme);
+    // DOMParser rather than innerHTML: the SVG string escapes its inputs,
+    // but parsing as XML and adopting the element keeps untrusted report
+    // data out of an HTML-interpretation sink entirely.
+    const parsedSvg = new DOMParser().parseFromString(
+      buildSlideSvg(slideModel, theme),
+      "image/svg+xml",
+    );
+    controls.scorecardStage.replaceChildren(
+      document.importNode(parsedSvg.documentElement, true),
+    );
     renderedSlideTheme = theme;
   }
 
