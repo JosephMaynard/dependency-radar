@@ -587,7 +587,7 @@ export function buildSlideSvg(model: SlideModel, theme: SlideTheme): string {
 
   // Header: project identity left, provenance right.
   parts.push(
-    text(PAD, 84, "DEPENDENCY HEALTH", {
+    text(PAD, 84, "DEPENDENCY SCORECARD", {
       size: 13,
       fill: p.accent,
       weight: 650,

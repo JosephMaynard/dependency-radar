@@ -3084,6 +3084,23 @@ async function init(): Promise<void> {
     for (const btn of document.querySelectorAll(".fine-print-btn")) {
       btn.innerHTML = iconSvg("info", { size: 13, className: "icon" });
     }
+    // Same brand mark as the graph toolbar: the header logo cloned with its
+    // <defs> stripped, so gradient ids stay unique and resolve from the
+    // original.
+    const scorecardToolbar = document.querySelector(".scorecard-toolbar");
+    const headerLogo = document.querySelector(".top-header svg.logo");
+    if (
+      scorecardToolbar &&
+      headerLogo &&
+      !scorecardToolbar.querySelector(".graph-logo")
+    ) {
+      const brand = headerLogo.cloneNode(true) as SVGElement;
+      brand.querySelector("defs")?.remove();
+      brand.classList.remove("logo");
+      brand.classList.add("graph-logo");
+      brand.setAttribute("aria-hidden", "true");
+      scorecardToolbar.insertBefore(brand, scorecardToolbar.firstChild);
+    }
     const modeIcons: Record<string, IconName> = {
       graph: "waypoints",
       flame: "flame",
