@@ -4640,15 +4640,34 @@ async function init(): Promise<void> {
       return;
     }
     if (!slideModel) slideModel = buildSlideModel(report);
-    // DOMParser rather than innerHTML: the SVG string escapes its inputs,
-    // but parsing as XML and adopting the element keeps untrusted report
-    // data out of an HTML-interpretation sink entirely.
+    // DOMParser rather than innerHTML, then an explicit scrub before the
+    // tree is adopted. The generator escapes every report-derived string,
+    // but this guarantees the stage can never carry executable content
+    // even if a hostile value slipped through: no scripts, no embedded
+    // HTML islands, no event-handler attributes, no external references.
     const parsedSvg = new DOMParser().parseFromString(
       buildSlideSvg(slideModel, theme),
       "image/svg+xml",
     );
+    const svgRoot = parsedSvg.documentElement;
+    if (svgRoot.nodeName.toLowerCase() !== "svg") return;
+    for (const banned of svgRoot.querySelectorAll("script, foreignObject")) {
+      banned.remove();
+    }
+    for (const el of [svgRoot, ...svgRoot.querySelectorAll("*")]) {
+      for (const attr of [...el.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (
+          name.startsWith("on") ||
+          ((name === "href" || name === "xlink:href") &&
+            !attr.value.startsWith("#"))
+        ) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    }
     controls.scorecardStage.replaceChildren(
-      document.importNode(parsedSvg.documentElement, true),
+      document.importNode(svgRoot, true),
     );
     renderedSlideTheme = theme;
   }
