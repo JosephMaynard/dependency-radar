@@ -8,11 +8,11 @@
 
 Dependency Radar inspects your Node.js dependency graph and makes structural risk visible.
 
-Unlike basic audit tools, it builds the graph from lockfiles, understands PNPM workspaces, validates declared vs inferred licences, and highlights structural risks before they become production problems.
+It builds the graph from lockfiles, understands PNPM workspaces, validates declared vs inferred licences, and highlights structural risks before they become production problems.
 
 No account or report upload is required. Source code and generated reports stay on your machine; online collectors send package identifiers to the package manager, configured registry, and the bounded maintenance services described below.
 
-The simplest way to get started is to go to your project root and run:
+From your project root:
 
 ```bash
 npx dependency-radar
@@ -31,13 +31,16 @@ You can see a [Dependency Radar example report](https://www.dependency-radar.com
 *Expanded dependency view: key risk signals first, then status, origins, measured install size, removal preview, licence, vulnerabilities, and upgrade blockers.*
 
 ![Dependency Radar – interactive dependency graph view](./docs/screenshot-02.jpg)
-*Graph view: explore the full dependency tree visually. Selecting a package colours the routes that keep it installed in amber and what it depends on in blue, with a docked side panel for search and per-package details.*
+*Graph view: explore the full dependency tree visually. Selecting a package colours the routes that keep it installed in amber and what it depends on in cyan, with a docked side panel for search and per-package details.*
 
 ![Dependency Radar – flame view](./docs/screenshot-04.jpg)
-*Flame view: a profiler-style icicle over the dominator tree. Bar width is the number of packages that would leave node_modules if you deleted it, so the heaviest direct dependencies are obvious at a glance.*
+*Flame view: a profiler-style icicle over the dominator tree. Bar width is the number of packages that would leave node_modules if you deleted it, so the heaviest direct dependencies are the widest bars.*
 
 ![Dependency Radar – balloon view](./docs/screenshot-05.jpg)
 *Balloon view: every direct dependency is a system orbiting your project, its sub-dependencies fanning out behind it, coloured by lineage.*
+
+![Dependency Radar – hyperbolic view](./docs/screenshot-06.jpg)
+*Hyperbolic view: the whole tree on one disk. Click a package to warp it toward the centre and grow its part of the tree; nothing ever leaves the disk.*
 
 ---
 
@@ -45,7 +48,7 @@ You can see a [Dependency Radar example report](https://www.dependency-radar.com
 
 It is reasonable to be cautious about running a new CLI tool inside your project.
 
-Dependency Radar is designed to be inspectable and low-friction to evaluate:
+You can verify every claim here before trusting it:
 
 - the CLI has no runtime npm dependencies
 - scans run on your machine
@@ -82,6 +85,7 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 - **Measured install size** and per-package byte buckets (code, type declarations, source maps, other): exact on-disk numbers, never estimates
 - **Removal previews**: for any package, what deleting it would actually free (packages and measured bytes), what survives and who keeps it, and which dependents block a direct dependency's removal
 - **Five interactive graph layouts** — the classic dependency graph plus flame (removal-cost icicle over the dominator tree), treemap (disk-usage style, area = what deleting frees), balloon (orbital constellation), and hyperbolic (focus+context with re-rooting) views, switchable from the graph toolbar, with a shared docked side panel and package search
+- **Scorecard** — a one-page 16:9 board of the scan's headline figures, exportable as PNG, JPEG, or SVG from the report or generated directly with the `slide` command for decks and PR comments; counts follow the same rules as the report and never present an unchecked signal as a clean one
 - **Upgrade friction analysis** — identifies upgrade blockers: peer constraints, engine ranges, native bindings, install scripts, deprecated packages
 - **Maintenance signals** — flags deprecated, repo-archived, unmaintained, stale, and slowing dependencies from npm registry metadata (plus repository push activity when available), with a local 7-day cache
 - **Replacement suggestions** — matches your dependencies against the community-maintained [e18e](https://e18e.dev) [module-replacements](https://github.com/es-tooling/module-replacements) catalogue and suggests native or lighter alternatives, fully offline
@@ -98,7 +102,7 @@ Security issues should be reported privately; see [SECURITY.md](./SECURITY.md).
 - **Local execution review signals** — flags install-time behavior and bounded local execution capability signals
 - **Packaging and registry review signals** — flags packaging cues, optional npm signature/provenance results, and limited registry-metadata heuristics applied only to packages already flagged as suspicious
 - **Offline-capable** — use `--offline` to skip registry calls; dependency metadata is still read from local `node_modules`
-- **Single self-contained HTML file** — no server needed; open it locally, attach it to a ticket, or share it with your team
+- **Single self-contained HTML file** — no server needed and nothing to install to view it
 
 ## When should you use this?
 
@@ -127,7 +131,7 @@ Modern Node projects pull in hundreds (or thousands) of transitive dependencies,
 - Monorepos and PNPM workspaces make the tree harder to reason about, especially when package manager outputs include optional platform variants that are not installed on your machine.
 - Upgrade pain usually shows up late, when a Node major bump or a package update breaks due to peer dependency constraints, engine ranges, native bindings, or install scripts.
 
-Dependency Radar exists to make those hidden signals visible in one place, from the dependencies you actually have installed, with a single report you can review, share, and use to set practical CI guardrails.
+Dependency Radar reads what is actually installed and puts those signals in one report, with CI rules to hold the line once you have reviewed them.
 
 ---
 
@@ -142,7 +146,7 @@ Dependency Radar checks the npm registry for maintenance signals on every online
 - **Slowing** — no npm registry activity for 12+ months, but not (yet) meeting the stale criteria — including the case where the repository is still actively pushed but nothing has shipped
 - **Active** — none of the above
 
-When a repository push timestamp is available (collected during the same bounded ecosyste.ms lookups used for archived checks), both the registry *and* the repository must be quiet before a package escalates past **Slowing**. This stops actively developed packages that simply publish rarely from being labelled unmaintained.
+When a repository push timestamp is available (collected during the same bounded ecosyste.ms lookups used for archived checks), both the registry *and* the repository must be quiet before a package escalates past **Slowing**. This stops actively developed packages that publish rarely from being labelled unmaintained.
 
 How it works, and its limits:
 
@@ -151,7 +155,7 @@ How it works, and its limits:
 - Repo-archived checks are bounded (max 50 per scan, only for packages that are deprecated, direct, or dormant 24+ months) and fail silently.
 - Results are cached for 7 days in `~/.cache/dependency-radar/` (or `XDG_CACHE_HOME` / `%LOCALAPPDATA%`), so repeat scans are fast. Set `DEPENDENCY_RADAR_NO_CACHE=1` to disable the cache, `DEPENDENCY_RADAR_CACHE_DIR` to relocate it, or `DEPENDENCY_RADAR_MAINTENANCE_BUDGET_MS` to change the time budget.
 - Privacy: package names are sent to your configured npm registry, and `owner/repo` slugs of candidate packages to ecosyste.ms. Dependency Radar's direct HTTP maintenance requests strip URL credentials and do not attach npm authentication. Package-manager commands still run with your normal npm/pnpm/Yarn configuration and may use credentials configured for those tools. Use `--no-maintenance` or `--offline` to skip these lookups entirely.
-- Custom registries: the default registry from `npm config get registry` is respected; per-scope registries are not resolved, so private scoped packages simply report an `unknown` maintenance status.
+- Custom registries: the default registry from `npm config get registry` is respected; per-scope registries are not resolved, so private scoped packages report an `unknown` maintenance status.
 
 Maintenance data appears in the HTML report (Maintenance column, filter, and per-dependency detail), the JSON model (`dependencies[id].maintenance`), findings, and the `deprecated-dependency` / `unmaintained-dependency` / `new-deprecated` CI rules.
 
@@ -259,21 +263,21 @@ The `scan` command is the default and can also be run explicitly as `npx depende
 | `--version`, `-V` | Print the installed Dependency Radar version |
 | `--no-report` | Run analysis only; no HTML/JSON output written |
 | `--keep-temp` | Keep the temporary `.dependency-radar/` folder for debugging |
-| `--open` | Open the generated report using the system default browser |
+| `--open` | Open the generated output using the system default application |
 | `--fail-on <rules>` | Fail with exit code 1 when selected policy rules are violated (see below) |
-| `--help` | Show all options |
+| `--help`, `-h` | Show all options |
 
-### One-page slide dashboard (`slide`)
+### One-page scorecard (`slide`)
 
-`slide` scans and writes a single 16:9 SVG dashboard designed for slide decks and PR comments: measured install size with a treemap of the largest packages, dependency counts, vulnerable packages, maintenance concerns, licence issues, upgrade blockers, and duplicate versions. Counts mirror the HTML report's header chips, and anything a collector never checked shows as "Not checked" rather than zero.
+`slide` scans and writes a single 16:9 SVG board built for slide decks and PR comments: measured install size with a treemap of the largest packages, dependency counts, vulnerabilities, maintenance concerns, licence issues, upgrade blockers, and duplicate versions. Every figure is counted with the same rules as the HTML report's header chips, a check that never ran shows "Not checked" rather than zero, and a partial dependency tree stamps a caveat onto the artifact itself.
 
 ```bash
 npx dependency-radar slide
 ```
 
-Writes `dependency-radar-slide.svg` (dark). Add `--light-mode` for the light palette. Add `--png` to also render a 1920x1080 PNG; this borrows a locally installed Chrome, Edge, Chromium, or `rsvg-convert` because the CLI itself ships no rasteriser. Without one, use the HTML report's Scorecard view, which exports PNG, JPEG, and SVG from the browser.
+Writes `dependency-radar-slide.svg` (dark). Add `--light-mode` for the light palette. Add `--png` to also render a 1920x1080 PNG; this borrows a locally installed Chrome, Edge, Chromium, or `rsvg-convert` because the CLI itself ships no rasteriser. Without one, open the report's Scorecard view instead, which exports PNG, JPEG, and SVG from the browser and carries the same theme toggle.
 
-The same scorecard lives in the HTML report as the Scorecard view, with a theme toggle and export buttons in its toolbar.
+Exit codes match `scan`, so `slide --fail-on <rules>` in CI produces the artifact and still fails the job when a rule is violated.
 
 ### Explain one dependency in the terminal
 
@@ -1044,7 +1048,7 @@ The Docker smoke test uses the packed tarball, installs it inside `node:14.21.3-
 
 ### Report UI Development
 
-The HTML report UI is developed in a separate Vite project located in `report-ui/`. This provides a proper development environment with hot reload, TypeScript support, and sample data.
+The HTML report UI is developed in a separate Vite project in `report-ui/`, with hot reload against `sample-data.json`.
 
 **Start the development server:**
 
@@ -1056,18 +1060,23 @@ This opens the report UI in your browser with sample data covering all dependenc
 
 **Build workflow:**
 
-1. Make changes in `report-ui/` (edit `style.css`, `main.ts`, `index.html`)
-2. Run `npm run build:report` to compile and inject assets into `src/report-assets.ts`
+1. Make changes in `report-ui/` (`main.ts`, the view modules, `style.css`). The report's HTML shell lives in `src/report.ts`; `report-ui/index.html` is the dev harness and must be kept in sync with it by hand (a unit test pins the shared ids).
+2. Run `npm run build:report` to bundle and inject the CSS/JS into `src/report-assets.ts`
 3. Run `npm run build` to compile the full project (this runs `build:report` automatically)
 
 **File structure:**
 
-- `report-ui/index.html` – HTML template structure
-- `report-ui/style.css` – All CSS styles
-- `report-ui/main.ts` – TypeScript rendering logic
-- `report-ui/sample-data.json` – Sample data for development
-- `report-ui/types.ts` – Client-side TypeScript types
-- `src/report-assets.ts` – Auto-generated file with bundled CSS/JS (do not edit directly)
+- `report-ui/main.ts` – list view, routing, scorecard view, and shared chrome
+- `report-ui/graphModes.ts`, `graphView.ts`, `flameView.ts`, `treemapView.ts`, `balloonView.ts`, `hyperbolicView.ts` – the five graph layouts and their toolbar
+- `report-ui/vizModel.ts`, `domTree.ts` – shared size/dominator/removal maths behind the layouts
+- `report-ui/style.css` – all CSS
+- `report-ui/finePrint.ts` – the shared (i) measurement notes
+- `report-ui/index.html` – Vite dev harness (mirrors the shell in `src/report.ts`)
+- `report-ui/sample-data.json` – sample data for development
+- `report-ui/types.ts` – client-side mirror of the data types
+- `src/report.ts` – the shipped report's HTML shell
+- `src/slide/` – the scorecard model, SVG generator, and icon set shared with the CLI
+- `src/report-assets.ts` – auto-generated bundled CSS/JS (do not edit directly)
 
 ### Contributing
 
@@ -1085,7 +1094,7 @@ For bug reports, please include:
 
 Please remove secrets, private package names, or sensitive project details before sharing logs or reports.
 
-For pull requests, small focused changes are easiest to review. Before opening a PR, please make sure the project builds and the relevant tests pass:
+Before opening a PR, please make sure the project builds and the relevant tests pass:
 
 ```bash
 npm run build
@@ -1101,5 +1110,3 @@ Please do not report suspected security vulnerabilities in public issues. See [S
 ## Releases and changelog
 
 Release notes are published through [GitHub Releases](https://github.com/JosephMaynard/dependency-radar/releases), which act as the project changelog.
-
-Each release summarises notable changes, fixes, and compatibility notes where relevant.
