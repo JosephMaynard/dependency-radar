@@ -30,6 +30,9 @@ You can see a [Dependency Radar example report](https://www.dependency-radar.com
 ![Dependency Radar – expanded dependency](./docs/screenshot-03.jpg)
 *Expanded dependency view: key risk signals first, then status, origins, measured install size, removal preview, licence, vulnerabilities, and upgrade blockers.*
 
+![Dependency Radar – scorecard view](./docs/screenshot-07.jpg)
+*Scorecard: the scan's headline figures on one 16:9 board, exportable as PNG, JPEG, or SVG for a slide deck or a PR comment.*
+
 ![Dependency Radar – interactive dependency graph view](./docs/screenshot-02.jpg)
 *Graph view: explore the full dependency tree visually. Selecting a package colours the routes that keep it installed in amber and what it depends on in cyan, with a docked side panel for search and per-package details.*
 
