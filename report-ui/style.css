@@ -1584,9 +1584,10 @@ select.graph-depth-select:disabled {
 .graph-overlay-top {
   align-items: center;
   position: absolute;
-  /* Above the docked side panel (z 9): open toolbar dropdowns must paint
-     over it, and the toolbar itself never overlaps the panel's area. */
-  z-index: 10;
+  /* Above the docked side panel (z 9) and the floating Reset view and
+     fullscreen buttons (z 10): open toolbar dropdowns must paint over all
+     of them, and the toolbar itself never overlaps the panel's area. */
+  z-index: 11;
   top: 0;
   left: 0;
   right: 0;

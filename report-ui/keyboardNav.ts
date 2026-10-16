@@ -204,7 +204,7 @@ const SHORTCUTS: Array<[string[], string]> = [
   [["Esc"], "Clear the selection"],
   [["/"], "Find a package"],
   [["f"], "Fit or reset the view"],
-  [["+", "-"], "Zoom in or out (Graph layout)"],
+  [["+", "-"], "Zoom the canvas (Graph layout only)"],
   [["?"], "Show or hide these shortcuts"],
 ];
 

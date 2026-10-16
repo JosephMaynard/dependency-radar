@@ -250,7 +250,7 @@ Every layout can be driven from the keyboard. Tab to the canvas (or click it) an
 | Escape | Clear the selection (in full screen, Escape exits full screen first) |
 | `/` | Jump to the package search |
 | `f` | Fit or reset the view |
-| `+` and `-` | Zoom in or out (Graph layout) |
+| `+` and `-` | Zoom the canvas (Graph layout only). Browser zoom with Cmd or Ctrl is unaffected in every view |
 | `?` | Show or hide the shortcut list (also under **Key** in the toolbar) |
 
 A package with no dependencies below it stays put when you press Down, and sibling moves stop at the ends of a level rather than wrapping.
