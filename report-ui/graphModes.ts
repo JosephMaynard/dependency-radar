@@ -12,6 +12,12 @@ import { mountFlameView } from "./flameView";
 import { mountBalloonView } from "./balloonView";
 import { mountHyperbolicView } from "./hyperbolicView";
 import { mountTreemapView } from "./treemapView";
+import {
+  initKeyboardNav,
+  type KeyboardNavHandle,
+  type KeyNavTarget,
+  type NavTree,
+} from "./keyboardNav";
 
 // Orchestrates the graph panel's five layout modes (classic graph + flame +
 // treemap + balloon + hyperbolic), the shared docked side panel (search +
@@ -60,6 +66,18 @@ const MODE_HINTS: Record<GraphMode, string> = {
     "click a box to inspect · double-click to drill in · double-click the zoomed box to climb back out",
   balloon: "drag to pan · scroll to zoom · click a body · double-click space to fit",
   hyperbolic: "drag to warp · scroll to zoom · click a blip to focus · double-click space to reset",
+};
+
+/** Status line while a canvas holds keyboard focus. */
+const KEY_HINT = "arrow keys move between packages · Enter opens details · ? shows all keys";
+
+/** Accessible names for the focusable canvas container. */
+const VIEW_NAMES: Record<GraphMode, string> = {
+  graph: "Graph view",
+  flame: "Flame view",
+  treemap: "Treemap view",
+  balloon: "Balloon view",
+  hyperbolic: "Hyperbolic view",
 };
 
 export interface GraphModesOptions {
@@ -145,6 +163,8 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   let modelFilterKey = "";
   // Active name filter (lower-cased search query); dims non-matching nodes.
   let dimQuery = "";
+  /** Keyboard navigation over the canvas views (assigned once wired). */
+  let nav: KeyboardNavHandle | null = null;
 
   const filters: GraphFilters = { ...DEFAULT_GRAPH_FILTERS };
   /** Active highlight signals: non-matching packages render dimmed. */
@@ -602,7 +622,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
 
   // ----- status line ---------------------------------------------------
   function statusHint(): void {
-    options.statusLine.textContent = MODE_HINTS[mode];
+    options.statusLine.textContent = nav?.keyboardFocused() ? KEY_HINT : MODE_HINTS[mode];
     options.statusLine.classList.add("dim");
   }
 
@@ -727,6 +747,15 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       }
     });
     keyPanel.appendChild(aboutBtn);
+    const keysBtn = el("button", "graph-panel-reset", "Keyboard shortcuts (?)");
+    (keysBtn as HTMLButtonElement).type = "button";
+    keysBtn.addEventListener("click", () => {
+      for (const close of dropdownClosers) close();
+      // Focus returns to the Key toggle when the dialog closes.
+      keyToggle?.focus();
+      nav?.toggleHelp();
+    });
+    keyPanel.appendChild(keysBtn);
   }
 
   const formatBytes = formatSlideBytes;
@@ -1002,6 +1031,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   function focusPackage(index: number): void {
     const m = ensureModel();
     renderDossier(index);
+    nav?.syncSelection(index);
     if (mode === "graph") {
       const handle = options.getClassicHandle();
       handle?.applyFocus(m.slugs[index]);
@@ -1028,8 +1058,10 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
     const callbacks = {
       onHoverTrail: statusTrail,
       onSelect: (index: number) => {
-        if (index >= 0) renderDossier(index);
-        else renderDossierEmpty();
+        if (index >= 0) {
+          renderDossier(index);
+          nav?.syncSelection(index);
+        } else renderDossierEmpty();
       },
       theme,
       insetRight,
@@ -1076,6 +1108,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       mountActive();
     }
     updateKey();
+    nav?.setLabel(VIEW_NAMES[mode]);
     statusHint();
     renderDossierEmpty();
     syncEmptyState();
@@ -1254,6 +1287,93 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
   syncFilterControls();
   syncFiltersBadge();
 
+  // ----- keyboard navigation ----------------------------------------------
+  // The classic graph is not a tree: children are its dependencies sorted
+  // by name, the parent is the shortest route back to the project (the
+  // model's BFS spanning tree), and the keyboard path remembers the route
+  // actually taken so Up returns where you came from.
+  let classicNav: { model: VizModel; target: KeyNavTarget } | null = null;
+  function classicTarget(): KeyNavTarget | null {
+    if (!options.getClassicHandle()) return null;
+    const m = ensureModel();
+    if (classicNav?.model === m) return classicNav.target;
+    const byName = (a: number, b: number): number =>
+      m.lowerNames[a] < m.lowerNames[b] ? -1 : m.lowerNames[a] > m.lowerNames[b] ? 1 : a - b;
+    const kids = new Map<number, number[]>();
+    const tree: NavTree = {
+      roots: [...m.roots].sort(byName),
+      children: (i) => {
+        let list = kids.get(i);
+        if (!list) {
+          list = [...m.depsOut[i]].sort(byName);
+          kids.set(i, list);
+        }
+        return list;
+      },
+      parent: (i) => (m.parent[i] >= 0 ? m.parent[i] : -1),
+      pkg: (i) => i,
+      nodeOf: (index) => (index >= 0 && index < m.count ? index : -1),
+    };
+    const target: KeyNavTarget = {
+      tree,
+      focus: (i) => options.getClassicHandle()?.setKeyCursor(i >= 0 ? m.slugs[i] : null),
+      select: (i) => {
+        // Same calls as a click on the node.
+        const handle = options.getClassicHandle();
+        handle?.applyFocus(m.slugs[i]);
+        handle?.select(m.slugs[i]);
+      },
+      clearSelection: () => {
+        const handle = options.getClassicHandle();
+        handle?.clearFocus();
+        handle?.clearSelection();
+      },
+    };
+    classicNav = { model: m, target };
+    return target;
+  }
+
+  const classicCanvas = document.getElementById("graph-canvas");
+  if (shell) {
+    nav = initKeyboardNav({
+      hosts: [classicCanvas, options.altHost].filter(
+        (node): node is HTMLElement => Boolean(node),
+      ),
+      shell,
+      searchInput: options.searchInput,
+      target: () => (mode === "graph" ? classicTarget() : (activeView?.keyNav ?? null)),
+      info: (pkg) => {
+        const m = ensureModel();
+        const ref = m.refs[pkg];
+        return ref ? { name: ref.name, version: ref.version, deps: m.depsOut[pkg].length } : null;
+      },
+      rootLabel: () => ensureModel().centerLabel,
+      selection: () =>
+        routeSelected === null ? -1 : (ensureModel().indexOfSlug.get(routeSelected) ?? -1),
+      fullscreen: () => shell.classList.contains("graph-fullscreen"),
+      fit: () => {
+        if (mode === "graph") {
+          document
+            .querySelector<HTMLButtonElement>('#graph-controls [data-action="reset"]')
+            ?.click();
+        } else {
+          activeView?.resetView?.();
+        }
+      },
+      zoom: (direction) => {
+        if (mode !== "graph") return false;
+        document
+          .querySelector<HTMLButtonElement>(
+            `#graph-controls [data-action="${direction > 0 ? "zoom-in" : "zoom-out"}"]`,
+          )
+          ?.click();
+        return true;
+      },
+      onFocusChange: statusHint,
+    });
+    nav.setLabel(VIEW_NAMES[mode]);
+  }
+
   statusHint();
   renderDossierEmpty();
   syncEmptyState();
@@ -1280,6 +1400,7 @@ export function initGraphModes(options: GraphModesOptions): GraphModesHandle {
       }
       const m = ensureModel();
       const index = m.indexOfSlug.get(slug);
+      if (index !== undefined) nav?.syncSelection(index);
       if (index === undefined) {
         // Outside the derived reachable set (shouldn't happen for a shared
         // workspace selection) — show a minimal dossier from the dataset.

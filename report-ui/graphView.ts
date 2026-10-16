@@ -118,6 +118,8 @@ export type GraphViewHandle = {
   refreshFilters: () => void;
   setActive: (active: boolean) => void;
   requestRender: () => void;
+  /** Keyboard cursor: ring a node (null hides it) and pan it into view. */
+  setKeyCursor: (slug: string | null) => void;
 };
 
 type TouchState = {
@@ -1046,6 +1048,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
   let hoverNodes = new Set<string>();
   let hoverEdges = new Set<string>();
   let selectedSlug: string | null = null;
+  /** Keyboard cursor (keyboardNav.ts), drawn as an extra ring. */
+  let keySlug: string | null = null;
 
   let zoom = 1;
   let panX = 0;
@@ -2231,7 +2235,8 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       node.targetLabelChars = targetGraphLabelChars(
         node.labelGraphemes,
         (Boolean(focusSlug) && focusNodes.has(node.slug)) ||
-          (!focusSlug && Boolean(hoverSlug) && hoverNodes.has(node.slug)),
+          (!focusSlug && Boolean(hoverSlug) && hoverNodes.has(node.slug)) ||
+          node.slug === keySlug,
       );
       const focusTarget = focusLayoutTargets.get(node.slug);
       if (selected && focusTarget) {
@@ -2701,6 +2706,23 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
       });
     }
 
+    const keyNode = keySlug ? graph.nodes.get(keySlug) : undefined;
+    if (keyNode) {
+      // Screen-constant ring just outside the selection ring.
+      context.globalAlpha = 1;
+      context.strokeStyle = colorHighlight;
+      context.lineWidth = 2 / zoom;
+      context.beginPath();
+      context.arc(
+        keyNode.renderX,
+        keyNode.renderY,
+        keyNode.renderRadius + 4 + 4 / zoom,
+        0,
+        Math.PI * 2,
+      );
+      context.stroke();
+    }
+
     context.textBaseline = "middle";
     context.font = GRAPH_LABEL_FONT;
     context.fillStyle = labelColor;
@@ -3151,6 +3173,37 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     }
   }
 
+  function setKeyCursor(slug: string | null): void {
+    const previous = keySlug;
+    keySlug = slug && currentGraph?.nodes.has(slug) ? slug : null;
+    const node = keySlug ? currentGraph?.nodes.get(keySlug) : undefined;
+    if (node && keySlug) {
+      // Same lineage highlight as a mouse hover (inert while a selection
+      // holds the focus layout).
+      updateHover(keySlug);
+      const panelSpace =
+        parseFloat(
+          getComputedStyle(options.canvasHost).getPropertyValue(
+            "--graph-panel-space",
+          ),
+        ) || 0;
+      const usableW = Math.max(160, width - panelSpace);
+      const x = node.targetX * zoom + panX;
+      const y = node.targetY * zoom + panY;
+      if (x < 24 || x > usableW - 24 || y < toolbarHeight + 16 || y > height - 40) {
+        stopInertia();
+        setViewportTarget(
+          usableW / 2 - node.targetX * zoom,
+          toolbarHeight + (height - toolbarHeight) / 2 - node.targetY * zoom,
+        );
+      }
+    } else if (previous && hoverSlug === previous) {
+      clearHover(false);
+    }
+    dirty = true;
+    requestRender();
+  }
+
   function handleWorkspaceSelectChange(): void {
     switchWorkspace(options.workspaceSelect.value);
   }
@@ -3338,5 +3391,6 @@ export function initGraphView(options: GraphViewOptions): GraphViewHandle {
     refreshFilters,
     setActive,
     requestRender,
+    setKeyCursor,
   };
 }

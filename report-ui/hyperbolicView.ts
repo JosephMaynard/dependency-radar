@@ -34,7 +34,7 @@ export function mountHyperbolicView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Hyperbolic view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
+    "Hyperbolic view of the dependency tree",
   );
   host.appendChild(canvas);
   const ctx = canvas.getContext("2d");
@@ -296,6 +296,8 @@ export function mountHyperbolicView(
   let offY = 0;
   let selected = -1;
   let hovered = -1;
+  /** Keyboard cursor (package index, -1 = none): drawn even near the rim. */
+  let keyId = -1;
   let animating = false;
   let animFrame = 0;
   let destroyed = false;
@@ -548,7 +550,7 @@ export function mountHyperbolicView(
       (a, b) => radii[a] - radii[b],
     );
     for (const id of orderDraw) {
-      const r = radii[id];
+      const r = id === keyId ? Math.max(radii[id], 2.5) : radii[id];
       if (r < DRAW_MIN_R) continue;
       const p = toScreen(pos[id]);
       const vuln = model.refs[id].vulnerabilitySeverity;
@@ -569,7 +571,7 @@ export function mountHyperbolicView(
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = fill;
       ctx.fill();
-      if (id === selected || id === hovered) {
+      if (id === selected || id === hovered || id === keyId) {
         ctx.strokeStyle = theme.accent;
         ctx.lineWidth = 1.4;
         ctx.beginPath();
@@ -578,6 +580,15 @@ export function mountHyperbolicView(
       }
     }
     ctx.globalAlpha = 1;
+    if (keyId >= 0) {
+      // Keyboard cursor: a second, heavier ring outside the hover ring.
+      const p = toScreen(pos[keyId]);
+      ctx.strokeStyle = theme.accent;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(radii[keyId], 2.5) + 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     // Project hub — transformed like everything else, never pinned.
     const hub = toScreen(hubPos);
@@ -591,7 +602,7 @@ export function mountHyperbolicView(
     ctx.font = '10.5px ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace';
     ctx.textBaseline = "middle";
     const forced = orderDraw.filter(
-      (id) => focusSet.has(id) || id === hovered || id === selected,
+      (id) => focusSet.has(id) || id === hovered || id === selected || id === keyId,
     );
     // Direct dependencies are the names a reader orients by — they outrank
     // every size-qualified transitive label (collision pruning still runs).
@@ -601,6 +612,7 @@ export function mountHyperbolicView(
         !focusSet.has(id) &&
         id !== hovered &&
         id !== selected &&
+        id !== keyId &&
         !cb.isDimmed(id),
     );
     const sized = orderDraw.filter(
@@ -610,6 +622,7 @@ export function mountHyperbolicView(
         !focusSet.has(id) &&
         id !== hovered &&
         id !== selected &&
+        id !== keyId &&
         // A live name filter hands the label budget to the matches.
         !cb.isDimmed(id),
     );
@@ -623,7 +636,7 @@ export function mountHyperbolicView(
     const placed: Array<[number, number, number, number]> = [];
     for (const id of labelled) {
       const r = radii[id];
-      if (r < 1.4 && !focusSet.has(id) && id !== hovered && !model.isRoot[id]) {
+      if (r < 1.4 && !focusSet.has(id) && id !== hovered && id !== keyId && !model.isRoot[id]) {
         continue;
       }
       const p = toScreen(pos[id]);
@@ -640,7 +653,7 @@ export function mountHyperbolicView(
           break;
         }
       }
-      if (collides && id !== selected && id !== hovered) continue;
+      if (collides && id !== selected && id !== hovered && id !== keyId) continue;
       placed.push([x0, y0, x1, y1]);
       if (id === selected) {
         // The selection's label sits amid its own bright focus lines — give
@@ -1027,6 +1040,48 @@ export function mountHyperbolicView(
       selected = index;
       focusOn(index);
       ensureFlow();
+    },
+    keyNav: {
+      // The hub-rooted spanning tree (the layout before any re-centring, and
+      // the chain the hover trail follows).
+      tree: {
+        roots: hubKids,
+        children: (id) => children[id],
+        parent: (id) => (parent[id] >= 0 ? parent[id] : -1),
+        pkg: (id) => id,
+        nodeOf: (index) => (index >= 0 && index < N ? index : -1),
+      },
+      focus(id) {
+        keyId = id;
+        if (id < 0) {
+          cb.onHoverTrail(null);
+          draw();
+          return;
+        }
+        if (!animating) {
+          // Zoomed in, the cursor can sit off screen: pan it to the centre.
+          const p = toScreen(pos[id]);
+          const usable = Math.max(160, W - cb.insetRight());
+          if (p.x < 8 || p.x > usable - 8 || p.y < cb.insetTop() + 8 || p.y > H - 38) {
+            offX += CX - p.x;
+            offY += CY - p.y;
+          }
+        }
+        cb.onHoverTrail(trailOf(id));
+        draw();
+      },
+      select(id) {
+        // Same as clicking the blip: select and re-centre on it.
+        selected = id;
+        cb.onSelect(id);
+        focusOn(id);
+        ensureFlow();
+      },
+      clearSelection() {
+        selected = -1;
+        cb.onSelect(-1);
+        draw();
+      },
     },
     resetView() {
       // Mirror the double-click reset: a "reset" that keeps the selection

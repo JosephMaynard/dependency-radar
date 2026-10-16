@@ -58,7 +58,7 @@ export function mountBalloonView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Balloon view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
+    "Balloon view of the dependency tree",
   );
   host.appendChild(canvas);
   // Cursor tooltip, as in the treemap/flame views: deep leaves render as
@@ -352,6 +352,8 @@ export function mountBalloonView(
   let scale = 1;
   let hovered = -1;
   let selectedIdx = -1;
+  /** Keyboard cursor (placement index, -1 = none). */
+  let keyIdx = -1;
   let interacting = 0;
   let idleTimer = 0;
   let flyFrame = 0;
@@ -684,6 +686,7 @@ export function mountBalloonView(
     if (interacting) {
       baseKey = "";
       drawScene(ctx, hovered, selectedIdx);
+      drawKeyOverlay();
       return;
     }
     const theme = cb.theme();
@@ -707,6 +710,45 @@ export function mountBalloonView(
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (selectedIdx >= 0 && selectedIdx !== hovered) drawNodeOverlay(ctx, selectedIdx, theme);
     if (hovered >= 0) drawNodeOverlay(ctx, hovered, theme);
+    drawKeyOverlay();
+  }
+
+  /** Keyboard cursor: the hover overlay plus a second, outer accent ring. */
+  function drawKeyOverlay(): void {
+    if (!ctx || keyIdx < 0) return;
+    const theme = cb.theme();
+    drawNodeOverlay(ctx, keyIdx, theme);
+    const minR = pdepth[keyIdx] === 0 ? hubFloor : pdepth[keyIdx] === 1 ? 2.4 : 0.85;
+    const r = Math.max(pr[keyIdx] * scale, minR, 5) + 4;
+    ctx.beginPath();
+    ctx.arc(sx(px[keyIdx]), sy(py[keyIdx]), r, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = theme.accent;
+    ctx.stroke();
+  }
+
+  /** Keyboard tree = the placements as drawn (a package reached by several
+   *  routes appears once per route, exactly like the picture). */
+  let navKids: number[][] | null = null;
+  const placementKids = (i: number): number[] => {
+    if (!navKids) {
+      navKids = Array.from({ length: COUNT }, () => []);
+      for (let j = 0; j < COUNT; j += 1) if (pparent[j] >= 0) navKids[pparent[j]].push(j);
+    }
+    return navKids[i];
+  };
+  const navRoots: number[] = [];
+  for (let i = 0; i < COUNT; i += 1) if (pparent[i] < 0) navRoots.push(i);
+
+  /** Placement for a package, falling back to its nearest placed ancestor. */
+  function placementOf(index: number): number {
+    let target = index;
+    let guard = 0;
+    while (!firstIdxOf.has(target) && model.parent[target] >= 0 && guard < 128) {
+      target = model.parent[target];
+      guard += 1;
+    }
+    return firstIdxOf.get(target) ?? -1;
   }
 
   function pickAt(mx: number, my: number): number {
@@ -983,16 +1025,52 @@ export function mountBalloonView(
     focusIndex(index: number) {
       // Pruned/budgeted packages have no placement; fly to the nearest
       // placed spanning-tree ancestor instead of ignoring the request.
-      let target = index;
-      let guard = 0;
-      while (!firstIdxOf.has(target) && model.parent[target] >= 0 && guard < 128) {
-        target = model.parent[target];
-        guard += 1;
-      }
-      const idx = firstIdxOf.get(target);
-      if (idx === undefined) return;
+      const idx = placementOf(index);
+      if (idx < 0) return;
       selectedIdx = idx;
       flyTo(idx);
+    },
+    keyNav: {
+      tree: {
+        roots: navRoots,
+        children: placementKids,
+        parent: (i) => pparent[i],
+        pkg: (i) => pid[i],
+        // A clicked body is the placement the eye is on; otherwise the first.
+        nodeOf: (index) =>
+          selectedIdx >= 0 && pid[selectedIdx] === index
+            ? selectedIdx
+            : index >= 0 && index < model.count
+              ? placementOf(index)
+              : -1,
+      },
+      focus(i) {
+        keyIdx = i;
+        if (i < 0) {
+          cb.onHoverTrail(null);
+          draw();
+          return;
+        }
+        syncScreenOffsets();
+        const x = sx(px[i]);
+        const y = sy(py[i]);
+        const offscreen =
+          x < 8 || x > usableW() - 8 || y < cb.insetTop() + 8 || y > H - 38;
+        cb.onHoverTrail(trailOf(i));
+        if (offscreen) flyTo(i);
+        else draw();
+      },
+      select(i) {
+        // Same as clicking the body.
+        selectedIdx = i;
+        cb.onSelect(pid[i]);
+        flyTo(i);
+      },
+      clearSelection() {
+        selectedIdx = -1;
+        cb.onSelect(-1);
+        draw();
+      },
     },
     resetView() {
       if (selectedIdx >= 0) {

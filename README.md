@@ -235,6 +235,26 @@ Shared behaviour:
 - **Back, forward, and deep links** — view switches, layout changes, workspace changes, filters, and selections mirror into the URL hash, so the browser's Back/Forward buttons walk your exploration and a copied link reopens the report exactly where you were.
 - **Remembered between sessions** — the chosen layout and filters persist in the browser (like the light/dark theme), so the report reopens the way you left it.
 
+### Keyboard navigation
+
+Every layout can be driven from the keyboard. Tab to the canvas (or click it) and a focus ring appears. The arrow keys then walk the tree the current layout draws: the dominator tree in Flame and Treemap, the orbits in Balloon, the spanning tree in Hyperbolic, and each package's dependencies (sorted by name) in Graph. The focused package gets a ring and its trail shows in the status line. Screen readers hear its name, version, dependency count, and depth.
+
+| Key | Action |
+| --- | --- |
+| Down or Right | Move to the first dependency |
+| Up or Left | Move back up a level (to the project root from a direct dependency) |
+| Shift+Right or `]` | Next package at the same level |
+| Shift+Left or `[` | Previous package at the same level |
+| Home | Back to the project root |
+| Enter or Space | Open the package's details, exactly like a click |
+| Escape | Clear the selection (in full screen, Escape exits full screen first) |
+| `/` | Jump to the package search |
+| `f` | Fit or reset the view |
+| `+` and `-` | Zoom in or out (Graph layout) |
+| `?` | Show or hide the shortcut list (also under **Key** in the toolbar) |
+
+A package with no dependencies below it stays put when you press Down, and sibling moves stop at the ends of a level rather than wrapping.
+
 ---
 
 ## Usage

@@ -61,7 +61,7 @@ export function mountFlameView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Flame view of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
+    "Flame view of the dependency tree",
   );
   host.appendChild(canvas);
   // Cursor tooltip, as in the treemap: deep bars are often too narrow to
@@ -96,6 +96,8 @@ export function mountFlameView(
   let focusShared = false;
   let hoveredBlock = -1;
   let selectedId = -1;
+  /** Keyboard cursor (package id, -1 = none). */
+  let keyId = -1;
   let blocks: Block[] = [];
   let destroyed = false;
 
@@ -475,6 +477,60 @@ export function mountFlameView(
     }
   }
 
+  /** Block drawing the keyboard cursor: its own bar, else a breadcrumb. */
+  function keyBlock(): number {
+    let crumb = -1;
+    for (let i = 0; i < blocks.length; i += 1) {
+      if (blocks[i].id !== keyId) continue;
+      if (blocks[i].anc === undefined) return i;
+      crumb = i;
+    }
+    return crumb;
+  }
+
+  /** Keyboard cursor: the hover look plus a heavier ring, and its name tag. */
+  function overlayKey(): void {
+    if (!ctx || keyId < 0) return;
+    const i = keyBlock();
+    if (i < 0) {
+      tip.hidden = true;
+      return;
+    }
+    const b = blocks[i];
+    if (b.anc === undefined && !b.focusBar) {
+      drawBar(ctx, b.x, b.y, b.w, b.h, fillFor(b.id, b.rootId ?? b.id, b.depth ?? 0, true), barLabel(b.id), 1);
+    }
+    ctx.strokeStyle = cb.theme().accent;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(b.x + 1, b.y + 1, Math.max(1, b.w - PAD - 1), b.h - 3.5);
+    // The pointer's own tag wins while the mouse is over a bar.
+    if (hoveredBlock >= 0) return;
+    tip.textContent = barLabel(b.id);
+    tip.hidden = false;
+    const x = Math.min(Math.max(4, b.x), usableW() - tip.offsetWidth - 8);
+    const below = b.y + b.h + 4;
+    const y = below + tip.offsetHeight > H - 34 ? b.y - tip.offsetHeight - 4 : below;
+    tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
+  }
+
+  /** Zoom just enough that the keyboard cursor's bar is legible. */
+  function revealKey(): void {
+    const legible = (): boolean => {
+      const i = keyBlock();
+      return i >= 0 && blocks[i].w >= 4 && blocks[i].y < H - 30;
+    };
+    if (legible()) return;
+    const zoomTo = (id: number): void => {
+      const path = id >= 0 ? findPath(id) : [];
+      if (!path) return;
+      focusPath = path;
+      focusShared = !directRootSet.has(path.length > 0 ? path[0] : keyId);
+      draw();
+    };
+    zoomTo(dom.idom[keyId]);
+    if (!legible()) zoomTo(keyId);
+  }
+
   function blitAndOverlay(): void {
     if (!ctx || destroyed) return;
     // A hidden host measures 0x0; drawImage from a 0x0 canvas throws.
@@ -485,6 +541,7 @@ export function mountFlameView(
     ctx.drawImage(baseLayer, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     overlayHl();
+    overlayKey();
   }
 
   function draw(): void {
@@ -654,6 +711,21 @@ export function mountFlameView(
   window.addEventListener("resize", resize, { signal });
   resize();
 
+  function focusIndex(index: number): void {
+    const path = findPath(index);
+    if (!path) return;
+    focusPath = path;
+    focusShared = !directRootSet.has(path[0]);
+    selectedId = index;
+    hoveredBlock = -1;
+    tip.hidden = true;
+    draw();
+  }
+
+  // Keyboard tree = the dominator tree as drawn: direct bars left to right,
+  // then the shared band's members.
+  const navRoots = [...directTop, ...sharedMembers];
+
   return {
     destroy() {
       destroyed = true;
@@ -662,15 +734,48 @@ export function mountFlameView(
       canvas.remove();
     },
     resize,
-    focusIndex(index: number) {
-      const path = findPath(index);
-      if (!path) return;
-      focusPath = path;
-      focusShared = !directRootSet.has(path[0]);
-      selectedId = index;
+    focusIndex,
+    resetView() {
+      // Same as the double-click reset.
+      focusPath = [];
+      focusShared = false;
+      selectedId = -1;
       hoveredBlock = -1;
       tip.hidden = true;
+      cb.onHoverTrail(null);
+      cb.onSelect(-1);
       draw();
+    },
+    keyNav: {
+      tree: {
+        roots: navRoots,
+        children: (id) => dom.children[id],
+        parent: (id) => (dom.idom[id] >= 0 ? dom.idom[id] : -1),
+        pkg: (id) => id,
+        nodeOf: (index) => (index >= 0 && index < model.count && dom.idom[index] !== -2 ? index : -1),
+      },
+      focus(id) {
+        keyId = id;
+        if (id < 0) {
+          tip.hidden = true;
+          cb.onHoverTrail(null);
+          blitAndOverlay();
+          return;
+        }
+        revealKey();
+        cb.onHoverTrail(findPath(id));
+        blitAndOverlay();
+      },
+      select(id) {
+        cb.onHoverTrail(null);
+        focusIndex(id);
+        cb.onSelect(id);
+      },
+      clearSelection() {
+        selectedId = -1;
+        cb.onSelect(-1);
+        blitAndOverlay();
+      },
     },
   };
 }

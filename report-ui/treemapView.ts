@@ -121,7 +121,7 @@ export function mountTreemapView(
   canvas.setAttribute("role", "img");
   canvas.setAttribute(
     "aria-label",
-    "Treemap of the dependency tree (pointer-driven; the list view offers the same data with keyboard access)",
+    "Treemap of the dependency tree",
   );
   host.appendChild(canvas);
   // Cursor tooltip: most rects are too small to carry a label, so the name
@@ -150,6 +150,8 @@ export function mountTreemapView(
   let rects: Rect[] = [];
   let hovered = -1;
   let selected = -1;
+  /** Keyboard cursor (package id, -1 = none). */
+  let keyId = -1;
   /** Zoom root: a package id, SHARED_RECT, or -1 for the whole project. */
   let zoomRoot = -1;
   let destroyed = false;
@@ -373,7 +375,9 @@ export function mountTreemapView(
     const hlIdx = new Set<number>();
     for (let i = 0; i < rects.length; i += 1) {
       const rect = rects[i];
-      if (i === hovered || (rect.id >= 0 && rect.id === selected)) hlIdx.add(i);
+      if (i === hovered || (rect.id >= 0 && (rect.id === selected || rect.id === keyId))) {
+        hlIdx.add(i);
+      }
     }
     if (hlIdx.size === 0) return;
     // A highlighted parent's fill would cover its nested children, so redraw
@@ -396,6 +400,44 @@ export function mountTreemapView(
       const rect = rects[i];
       if (hlIdx.has(i)) drawRect(ctx, rect, true, theme);
       else if (inside(rect)) drawRect(ctx, rect, false, theme);
+    }
+    drawKeyRing(theme);
+  }
+
+  function keyRect(): Rect | undefined {
+    return keyId >= 0 ? rects.find((rect) => rect.id === keyId) : undefined;
+  }
+
+  /** Keyboard cursor: a heavier accent ring and its name tag. */
+  function drawKeyRing(theme: ReturnType<VizCallbacks["theme"]>): void {
+    const rect = keyRect();
+    if (!ctx || !rect) return;
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(rect.x + 1.25, rect.y + 1.25, Math.max(1, rect.w - 2.5), Math.max(1, rect.h - 2.5));
+    // The pointer's own tag wins while the mouse is over a box.
+    if (hovered >= 0) return;
+    tip.textContent = rectLabel(rect);
+    tip.hidden = false;
+    const x = Math.min(Math.max(4, rect.x), usableW() - tip.offsetWidth - 8);
+    const below = rect.y + rect.h + 4;
+    const y = below + tip.offsetHeight > H - 34 ? rect.y - tip.offsetHeight - 4 : below;
+    tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
+  }
+
+  /** Drill just enough that the keyboard cursor's box is drawn and legible. */
+  function revealKey(): void {
+    const legible = (): boolean => {
+      const rect = keyRect();
+      return rect !== undefined && rect.w >= 4 && rect.h >= 4;
+    };
+    if (legible()) return;
+    const parent = dom.idom[keyId];
+    setZoom(parent >= 0 ? parent : ownerOf(keyId) === SHARED_RECT ? SHARED_RECT : -1);
+    layout();
+    if (!legible() && dom.children[keyId].length > 0) {
+      setZoom(keyId);
+      layout();
     }
   }
 
@@ -586,6 +628,39 @@ export function mountTreemapView(
       tip.hidden = true;
       layout();
       draw();
+    },
+    keyNav: {
+      // Same dominator tree as the flame view.
+      tree: {
+        roots: [...directTop, ...sharedMembers],
+        children: (id) => dom.children[id],
+        parent: (id) => (dom.idom[id] >= 0 ? dom.idom[id] : -1),
+        pkg: (id) => id,
+        nodeOf: (index) => (index >= 0 && index < model.count && dom.idom[index] !== -2 ? index : -1),
+      },
+      focus(id) {
+        keyId = id;
+        if (id < 0) {
+          tip.hidden = true;
+          cb.onHoverTrail(null);
+        } else {
+          revealKey();
+          if (!keyRect()) tip.hidden = true;
+          cb.onHoverTrail(trailOf(id));
+        }
+        draw();
+      },
+      select(id) {
+        // A single click only selects; the cursor already brought it into view.
+        selected = id;
+        cb.onSelect(id);
+        draw();
+      },
+      clearSelection() {
+        selected = -1;
+        cb.onSelect(-1);
+        draw();
+      },
     },
     resetView() {
       setZoom(-1);

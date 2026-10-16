@@ -1,6 +1,7 @@
 import type { GraphDataset, GraphDependency } from "./graphView";
 import type { DomTree } from "./domTree";
 import { buildDomTree, computeReachCounts } from "./domTree";
+import type { KeyNavTarget } from "./keyboardNav";
 
 /** Display filters shared by all graph layouts. */
 export interface GraphFilters {
@@ -625,6 +626,8 @@ export interface VizHandle {
   focusIndex(index: number): void;
   /** Reset the viewport/layout to its initial fitted state, if supported. */
   resetView?(): void;
+  /** Keyboard navigation over the tree this view draws (keyboardNav.ts). */
+  keyNav: KeyNavTarget;
 }
 
 export interface VizCallbacks {
