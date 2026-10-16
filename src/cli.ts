@@ -1489,6 +1489,8 @@ Options:
 dependency-radar-slide.svg, dark). --light-mode uses the light palette; --png
 also renders a 1920x1080 PNG when a local Chrome, Edge, Chromium, or
 rsvg-convert is available.
+
+Support Dependency Radar: https://ko-fi.com/magiczebra
 `);
 }
 
@@ -2648,8 +2650,8 @@ async function runScanCommand(opts: CliOptions): Promise<void> {
   if (!opts.quiet) {
     console.log(
       `Docs, examples, and issue reporting: ${formatTerminalLink(
-        "https://github.com/JosephMaynard/dependency-radar",
-        "https://github.com/JosephMaynard/dependency-radar",
+        "https://github.com/MagicZebraLtd/dependency-radar",
+        "https://github.com/MagicZebraLtd/dependency-radar",
       )}`,
     );
   }

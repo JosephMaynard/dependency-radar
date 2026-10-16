@@ -1,0 +1,185 @@
+name: Dependency Radar
+description: Scan a project's dependencies on every pull request and post the Dependency Radar Scorecard as a sticky PR comment.
+author: MagicZebraLtd
+
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  version:
+    description: >
+      dependency-radar version to run. A version, range or dist-tag
+      (latest, 1.4.0, 1), a full npm spec, or a path to a packed tarball.
+    required: false
+    default: latest
+  project:
+    description: Folder to scan, relative to the workspace. Install its dependencies before this step.
+    required: false
+    default: .
+  fail-on:
+    description: >
+      Comma-separated --fail-on rules, for example high-severity-vuln,licence-mismatch.
+      The job fails after the comment is posted. Empty means report only.
+    required: false
+    default: ""
+  offline:
+    description: Skip registry-backed checks (audit, outdated, maintenance signals).
+    required: false
+    default: "false"
+  no-maintenance:
+    description: Skip registry maintenance signals but keep audit and outdated.
+    required: false
+    default: "false"
+  theme:
+    description: Scorecard palette, dark or light.
+    required: false
+    default: dark
+  comment:
+    description: Post or update a sticky comment on the pull request.
+    required: false
+    default: "true"
+  assets-branch:
+    description: Branch the Scorecard images are committed to so the comment can show them. Created on first use.
+    required: false
+    default: dependency-radar-assets
+  baseline:
+    description: >
+      Path to an earlier dependency-radar JSON report. When set, the action
+      also runs `compare` against it and adds the changes to the comment.
+      Compare-only fail-on rules (new-install-script and so on) apply here.
+    required: false
+    default: ""
+  upload-artifact:
+    description: Upload the SVG, PNG, HTML report and JSON report as a workflow artifact.
+    required: false
+    default: "true"
+  artifact-name:
+    description: Name of the uploaded artifact. Change it when the action runs more than once in a job.
+    required: false
+    default: dependency-radar
+  sarif:
+    description: "Write SARIF and upload it to code scanning. Needs `security-events: write`."
+    required: false
+    default: "false"
+  github-token:
+    description: Token used to store the image and post the comment.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: The CLI's exit code. 0 passed, 1 a fail-on rule was violated, 2 incomplete evidence or bad usage.
+    value: ${{ steps.scan.outputs.exit-code }}
+  svg-path:
+    description: Absolute path of the Scorecard SVG.
+    value: ${{ steps.render.outputs.svg-path }}
+  png-path:
+    description: Absolute path of the Scorecard PNG, empty when no rasteriser was found.
+    value: ${{ steps.render.outputs.png-path }}
+  html-path:
+    description: Absolute path of the HTML report.
+    value: ${{ steps.render.outputs.html-path }}
+  json-path:
+    description: Absolute path of the JSON report. Commit one as a baseline for later compares.
+    value: ${{ steps.scan.outputs.json-path }}
+  sarif-path:
+    description: Absolute path of the SARIF file, when sarif is true.
+    value: ${{ steps.render.outputs.sarif-path }}
+  image-url:
+    description: URL of the image stored on the assets branch, empty when it was not stored.
+    value: ${{ steps.publish.outputs.image-url }}
+  comment-url:
+    description: URL of the PR comment, empty when none was posted.
+    value: ${{ steps.publish.outputs.comment-url }}
+
+runs:
+  using: composite
+  steps:
+    # Inputs reach the scripts as environment variables, never pasted into
+    # the script text, so a crafted input cannot inject shell.
+    - name: Install Dependency Radar
+      id: install
+      shell: bash
+      env:
+        DR_VERSION: ${{ inputs.version }}
+      run: bash "$GITHUB_ACTION_PATH/action/install.sh"
+
+    - name: Scan dependencies
+      id: scan
+      shell: bash
+      env:
+        DR_CLI: ${{ steps.install.outputs.cli }}
+        DR_OUT_DIR: ${{ steps.install.outputs.out-dir }}
+        DR_PROJECT: ${{ inputs.project }}
+        DR_FAIL_ON: ${{ inputs.fail-on }}
+        DR_OFFLINE: ${{ inputs.offline }}
+        DR_NO_MAINTENANCE: ${{ inputs.no-maintenance }}
+        DR_BASELINE: ${{ inputs.baseline }}
+      run: bash "$GITHUB_ACTION_PATH/action/scan.sh"
+
+    - name: Render Scorecard and report
+      id: render
+      shell: bash
+      env:
+        DR_PACKAGE_DIR: ${{ steps.install.outputs.package-dir }}
+        DR_CLI: ${{ steps.install.outputs.cli }}
+        DR_OUT_DIR: ${{ steps.install.outputs.out-dir }}
+        DR_JSON: ${{ steps.scan.outputs.json-path }}
+        DR_THEME: ${{ inputs.theme }}
+        DR_SARIF: ${{ inputs.sarif }}
+        DR_PROJECT: ${{ inputs.project }}
+        DR_OFFLINE: ${{ inputs.offline }}
+        DR_NO_MAINTENANCE: ${{ inputs.no-maintenance }}
+      run: node "$GITHUB_ACTION_PATH/action/render.js"
+
+    - name: Publish Scorecard
+      id: publish
+      shell: bash
+      env:
+        DR_TOKEN: ${{ inputs.github-token }}
+        DR_PROJECT: ${{ inputs.project }}
+        DR_COMMENT: ${{ inputs.comment }}
+        DR_ASSETS_BRANCH: ${{ inputs.assets-branch }}
+        DR_EXIT_CODE: ${{ steps.scan.outputs.exit-code }}
+        DR_FAIL_ON: ${{ inputs.fail-on }}
+        DR_SCAN_LOG: ${{ steps.scan.outputs.scan-log }}
+        DR_COMPARE_LOG: ${{ steps.scan.outputs.compare-log }}
+        DR_BASELINE: ${{ inputs.baseline }}
+        DR_SUMMARY_PATH: ${{ steps.render.outputs.summary-path }}
+        DR_SVG_PATH: ${{ steps.render.outputs.svg-path }}
+        DR_PNG_PATH: ${{ steps.render.outputs.png-path }}
+        DR_ARTIFACT_NAME: ${{ inputs.upload-artifact == 'true' && inputs.artifact-name || '' }}
+      run: node "$GITHUB_ACTION_PATH/action/publish.js"
+
+    - name: Upload report artifact
+      if: inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.install.outputs.out-dir }}
+        if-no-files-found: warn
+
+    # Code scanning upload fails on fork PRs and without security-events:
+    # write. That should not fail the PR, so the step may fail quietly.
+    - name: Upload SARIF
+      if: inputs.sarif == 'true' && steps.render.outputs.sarif-path != ''
+      continue-on-error: true
+      uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
+      with:
+        sarif_file: ${{ steps.render.outputs.sarif-path }}
+        category: dependency-radar
+        token: ${{ inputs.github-token }}
+
+    - name: Apply policy result
+      shell: bash
+      env:
+        DR_EXIT_CODE: ${{ steps.scan.outputs.exit-code }}
+      run: |
+        code="${DR_EXIT_CODE:-2}"
+        if [ "$code" = "1" ]; then
+          echo "::error::Dependency Radar found fail-on policy violations. The PR comment and job log list them."
+        elif [ "$code" != "0" ]; then
+          echo "::error::Dependency Radar exited with code $code: evidence for a fail-on rule was incomplete, or the scan could not run."
+        fi
+        exit "$code"

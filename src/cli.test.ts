@@ -181,10 +181,10 @@ describe('cli summary output', () => {
       }
 
       expect(output).toContain(
-        'Docs, examples, and issue reporting: https://github.com/JosephMaynard/dependency-radar',
+        'Docs, examples, and issue reporting: https://github.com/MagicZebraLtd/dependency-radar',
       );
       expect(stdoutOutput.trim().endsWith(
-        'Docs, examples, and issue reporting: https://github.com/JosephMaynard/dependency-radar',
+        'Docs, examples, and issue reporting: https://github.com/MagicZebraLtd/dependency-radar',
       )).toBe(true);
     },
   );

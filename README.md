@@ -1,10 +1,11 @@
 # Dependency Radar
 
 [![npm version](https://img.shields.io/npm/v/dependency-radar.svg)](https://www.npmjs.com/package/dependency-radar)
-[![CI](https://github.com/JosephMaynard/dependency-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/JosephMaynard/dependency-radar/actions/workflows/ci.yml)
+[![CI](https://github.com/MagicZebraLtd/dependency-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/MagicZebraLtd/dependency-radar/actions/workflows/ci.yml)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12839/badge)](https://www.bestpractices.dev/projects/12839)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/JosephMaynard/dependency-radar?label=openssf%20scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/JosephMaynard/dependency-radar)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/MagicZebraLtd/dependency-radar?label=openssf%20scorecard)](https://securityscorecards.dev/viewer/?uri=github.com/MagicZebraLtd/dependency-radar)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/magiczebra)
 
 Dependency Radar inspects your Node.js dependency graph and makes structural risk visible.
 
@@ -281,6 +282,64 @@ npx dependency-radar slide
 Writes `dependency-radar-slide.svg` (dark). Add `--light-mode` for the light palette. Add `--png` to also render a 1920x1080 PNG; this borrows a locally installed Chrome, Edge, Chromium, or `rsvg-convert` because the CLI itself ships no rasteriser. Without one, open the report's Scorecard view instead, which exports PNG, JPEG, and SVG from the browser and carries the same theme toggle.
 
 Exit codes match `scan`, so `slide --fail-on <rules>` in CI produces the artifact and still fails the job when a rule is violated.
+
+### GitHub Action
+
+The repository is also a GitHub Action. On each pull request it scans the project, posts the Scorecard as a PR comment, and edits that same comment on later pushes instead of adding new ones.
+
+```yaml
+name: Dependency Radar
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # store the Scorecard image on the assets branch
+      pull-requests: write  # post the comment
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - uses: MagicZebraLtd/dependency-radar@v1
+        with:
+          fail-on: high-severity-vuln,licence-mismatch
+```
+
+Install dependencies before the action runs, because the scan reads `node_modules`. Use `pnpm install` or `yarn install` if that is what the project uses.
+
+The action runs one scan and renders the Scorecard, the HTML report, and optional SARIF from its JSON, so a PR check costs about the same as `npx dependency-radar --json`. When `fail-on` rules are violated, the comment is posted first and the job fails afterwards.
+
+| Input | Default | Description |
+|---|---|---|
+| `version` | `latest` | CLI version to run: a version, range, or dist-tag, a full npm spec, or a path to a packed `.tgz` |
+| `project` | `.` | Folder to scan, relative to the workspace |
+| `fail-on` | empty | Comma-separated `--fail-on` rules. Empty means report only |
+| `offline` | `false` | Pass `--offline` |
+| `no-maintenance` | `false` | Pass `--no-maintenance` |
+| `theme` | `dark` | Scorecard palette, `dark` or `light` |
+| `comment` | `true` | Post or update the sticky PR comment |
+| `assets-branch` | `dependency-radar-assets` | Branch the Scorecard images are committed to |
+| `baseline` | empty | Path to an earlier JSON report. The action also runs `compare` against it and adds the changes to the comment. Compare-only `fail-on` rules apply here |
+| `upload-artifact` | `true` | Upload the SVG, PNG, HTML report, and JSON report as a workflow artifact |
+| `artifact-name` | `dependency-radar` | Artifact name. Change it when the action runs more than once in a job |
+| `sarif` | `false` | Write SARIF and upload it to code scanning (needs `security-events: write`) |
+| `github-token` | `github.token` | Token used to store the image and post the comment |
+
+Outputs: `exit-code`, `svg-path`, `png-path`, `html-path`, `json-path`, `sarif-path`, `image-url`, and `comment-url`.
+
+How the image gets into the comment: GitHub has no API for attaching images to comments, so the action commits the PNG to a separate orphan branch (`dependency-radar-assets` by default) and links to it by commit SHA. That is why the job needs `contents: write`; without it the comment shows the same figures as a table. On a private repository the image only loads for people signed in with access to it.
+
+Pull requests from forks get a read-only token on `pull_request`, so the action cannot comment or store the image for them. It still writes the Scorecard to the job summary and the run artifacts. Switching to `pull_request_target` would give a write token to a job that installs the fork's dependencies, and their install scripts, so it is not recommended. Dependabot pull requests are not forks and work as long as the job sets the permissions above.
+
+`@v1` is a floating tag that moves to each 1.x release of the action. Pin a full release tag or a commit SHA if you prefer. The `version` input chooses the CLI separately.
 
 ### Explain one dependency in the terminal
 
@@ -1110,6 +1169,10 @@ Please do not report suspected security vulnerabilities in public issues. See [S
 
 
 
+## Support Dependency Radar
+
+Dependency Radar is free and open source. It is built and maintained in spare time. If it saved you time, you can [support it on Ko-fi](https://ko-fi.com/magiczebra).
+
 ## Releases and changelog
 
-Release notes are published through [GitHub Releases](https://github.com/JosephMaynard/dependency-radar/releases), which act as the project changelog.
+Release notes are published through [GitHub Releases](https://github.com/MagicZebraLtd/dependency-radar/releases), which act as the project changelog.

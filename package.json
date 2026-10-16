@@ -1,6 +1,6 @@
 {
   "name": "dependency-radar",
-  "version": "1.2.3",
+  "version": "1.4.0",
   "description": "Local-first dependency analysis tool that generates a single HTML report showing risk, size, usage, and structure of your project's dependencies.",
   "bin": {
     "dependency-radar": "dist/cli.js"
@@ -40,11 +40,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JosephMaynard/dependency-radar.git"
+    "url": "git+https://github.com/MagicZebraLtd/dependency-radar.git"
   },
   "homepage": "https://www.dependency-radar.com",
+  "funding": {
+    "type": "ko-fi",
+    "url": "https://ko-fi.com/magiczebra"
+  },
   "bugs": {
-    "url": "https://github.com/JosephMaynard/dependency-radar/issues"
+    "url": "https://github.com/MagicZebraLtd/dependency-radar/issues"
   },
   "keywords": [
     "dependency",

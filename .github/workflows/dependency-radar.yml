@@ -1,0 +1,55 @@
+name: Dependency Radar
+
+# Dogfoods the GitHub Action in action.yml against this repository. It packs
+# the checked-out source and runs that tarball, so a PR exercises its own
+# version of both the action and the CLI.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-radar-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  scorecard:
+    name: Scorecard
+    runs-on: ubuntu-latest
+
+    # contents: write lets the action commit the Scorecard image to the
+    # dependency-radar-assets branch; pull-requests: write lets it comment.
+    # Fork PRs still get a read-only token, and the action falls back to the
+    # job summary.
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and pack the CLI from this checkout
+        id: pack
+        run: |
+          npm run build
+          tarball="$(npm pack --silent --pack-destination "$RUNNER_TEMP" | tail -n 1)"
+          echo "tarball=$RUNNER_TEMP/$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Dependency Radar
+        uses: ./
+        with:
+          version: ${{ steps.pack.outputs.tarball }}
